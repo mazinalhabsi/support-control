@@ -693,7 +693,8 @@ dialog.modal::backdrop{background:rgba(3,8,16,.62);-webkit-backdrop-filter:blur(
 .crest-wrap{position:relative;width:104px;height:104px;display:grid;place-items:center}
 .crest-wrap::before{content:"";position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(212,174,90,.7),transparent 30%);animation:spin 6s linear infinite;-webkit-mask:radial-gradient(circle,transparent 60%,#000 61%);mask:radial-gradient(circle,transparent 60%,#000 61%)}
 .crest{width:92px;height:92px;object-fit:contain;filter:drop-shadow(0 12px 22px rgba(0,0,0,.55))}
-.login-card h1{font-size:21px;font-weight:800;color:#F4F7FB}
+.login-card h1{font-size:19px;font-weight:800;color:#F4F7FB;white-space:nowrap;letter-spacing:-.2px}
+@media (max-width:980px){.login-card h1{font-size:min(19px,4vw)}}
 .login-card .lead{margin:6px 0 6px;color:#D4AE5A;font-weight:600;letter-spacing:.5px}
 .login .field>label{color:#AFC0D4}
 .login input:not([type=checkbox]){background:rgba(3,10,20,.65)!important;border-color:rgba(148,178,214,.22)!important;color:#EEF3F9!important;height:50px!important;border-radius:13px!important}
@@ -6966,76 +6967,76 @@ Pages.grantsPanel = async () => {
 };
 
 /* ── شارات الرتب، أيقونات خيارات الفئات، حقول برنامج مسار ── */
-/* شارات الرتب على نمط رتب شرطة عُمان السلطانية: كتّافات كحلية بحواف ذهبية،
-   الضباط: نجوم ← الشعار (الخنجر والسيفان) ← الشعار مع نجوم، وضباط الصف: شرائط (V) والشعار */
+/* شارات الرتب على نمط شرطة عُمان السلطانية: كتّافة سوداء، شارات فضية، زر عند الرقبة، ورقعة زرقاء عند الكتف.
+   الضباط: نجوم ← التاج ← التاج مع النجوم ← التاج مع السيف والعصا، وضباط الصف: شرائط فضية (V) والتاج أو شعار الشرطة */
 const RANK_ART = {
-  'فريق': { kind: 'officer', emblem: 1, baton: 1, stars: 1 },
-  'لواء': { kind: 'officer', emblem: 1, baton: 1 },
-  'عميد': { kind: 'officer', emblem: 1, stars: 3 },
-  'عقيد': { kind: 'officer', emblem: 1, stars: 2 },
-  'مقدم': { kind: 'officer', emblem: 1, stars: 1 },
-  'رائد': { kind: 'officer', emblem: 1, stars: 0 },
+  'فريق': { kind: 'officer', crown: 1, baton: 1, stars: 1 },
+  'لواء': { kind: 'officer', crown: 1, baton: 1 },
+  'عميد': { kind: 'officer', crown: 1, stars: 3 },
+  'عقيد': { kind: 'officer', crown: 1, stars: 2 },
+  'مقدم': { kind: 'officer', crown: 1, stars: 1 },
+  'رائد': { kind: 'officer', crown: 1, stars: 0 },
   'نقيب': { kind: 'officer', stars: 3 },
   'ملازم أول': { kind: 'officer', stars: 2 },
   'ملازم': { kind: 'officer', stars: 1 },
-  'وكيل أول': { kind: 'nco', emblem: 1, wreath: 1 },
-  'وكيل': { kind: 'nco', emblem: 1 },
-  'رقيب أول': { kind: 'nco', chevrons: 3, emblem: 1 },
+  'وكيل أول': { kind: 'nco', badge: 1, wreath: 1 },
+  'وكيل': { kind: 'nco', badge: 1 },
+  'رقيب أول': { kind: 'nco', chevrons: 3, crown: 1 },
   'رقيب': { kind: 'nco', chevrons: 3 },
   'عريف': { kind: 'nco', chevrons: 2 },
   'نائب عريف': { kind: 'nco', chevrons: 1 },
   'شرطي': { kind: 'nco', chevrons: 0 },
   'مدني': { kind: 'civil' }
 };
-/* نجمة الضابط: ثمانية رؤوس بوجوه لامعة */
-const rankStar = (x, y, r = 3.3) => {
+/* نجمة الضابط الفضية بثمانية رؤوس */
+const rankStar = (x, y, r = 3.4) => {
   const pts = [];
   for (let i = 0; i < 16; i++) { const ang = (Math.PI / 8) * i - Math.PI / 2, rad = i % 2 ? r * 0.5 : r; pts.push(`${(x + rad * Math.cos(ang)).toFixed(2)},${(y + rad * Math.sin(ang)).toFixed(2)}`); }
-  return `<polygon points="${pts.join(' ')}" fill="url(#rkG)" stroke="#7A5A14" stroke-width=".35"/><circle cx="${x}" cy="${y}" r="${(r * 0.3).toFixed(2)}" fill="#FFF3CF"/>`;
+  return `<polygon points="${pts.join(' ')}" fill="url(#rkS)" stroke="#5E6878" stroke-width=".3"/><circle cx="${x}" cy="${y}" r="${(r * 0.32).toFixed(2)}" fill="#fff" stroke="#8C96A5" stroke-width=".25"/>`;
 };
-/* الشعار الوطني: خنجر عُماني فوق سيفين متقاطعين مع الحزام */
-const rankEmblem = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M-8.2-8.4Q1.8-4.4 7.8 7.2M8.2-8.4Q-1.8-4.4-7.8 7.2" fill="none" stroke="url(#rkG)" stroke-width="1.5"/>
-  <path d="M-9.6-6.4L-6.6-9.8M9.6-6.4L6.6-9.8" stroke="#E9C46A" stroke-width="1.3"/>
-  <path d="M-7.4-1.2Q0 1.9 7.4-1.2" fill="none" stroke="#E9C46A" stroke-width="1.5"/>
-  <path d="M-2.4-8.6H2.4L1.3-5.6H-1.3Z" fill="url(#rkG)" stroke="#7A5A14" stroke-width=".3"/>
-  <path d="M-1.7-5.4H1.7L1.9 1.6Q2.5 5.8 6.2 7Q1.4 8.6-1.1 4.4Q-1.9 2.6-1.7-5.4Z" fill="url(#rkG)" stroke="#7A5A14" stroke-width=".35"/>
-  <circle cx="0" cy="-2.6" r=".7" fill="#FFF3CF"/></g>`;
-/* إكليل الغار حول الشعار */
-const rankWreath = (x, y) => { let o = ''; for (let i = 0; i < 6; i++) { const t = (Math.PI / 9) * (i + 1.4); for (const d of [-1, 1]) { const px = x + d * 9 * Math.sin(t), py = y + 9 * Math.cos(t) - 1, rot = d * (90 - (t * 180) / Math.PI); o += `<ellipse cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" rx="1.8" ry=".85" transform="rotate(${rot.toFixed(1)} ${px.toFixed(2)} ${py.toFixed(2)})" fill="#D8AE4E"/>`; } } return o; };
-/* السيف والعصا المتقاطعان لرتب اللواء والفريق */
-const rankBaton = (x, y) => `<g transform="translate(${x} ${y})" stroke-linecap="round"><path d="M-6.5-4L6.5 4" stroke="url(#rkG)" stroke-width="1.4"/><path d="M6.5-4L-6.5 4" stroke="#E9C46A" stroke-width="2.2"/><circle cx="-6.5" cy="4" r="1" fill="#E9C46A"/></g>`;
+/* التاج: قاعدة وأقواس فضية ووسادة حمراء */
+const rankCrown = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" stroke-linejoin="round">
+  <path d="M-5.2 2.2Q-6.2-3.4-3.6-4.6Q-1.8-5.2 0-3.4Q1.8-5.2 3.6-4.6Q6.2-3.4 5.2 2.2Z" fill="#9E2A24" opacity=".85"/>
+  <path d="M-5.2 2.2Q-6.2-3.4-3.6-4.6Q-1.8-5.2 0-3.4Q1.8-5.2 3.6-4.6Q6.2-3.4 5.2 2.2M0-3.4V2.2M-2.7-4.8Q-2.4-1 -2.6 2.2M2.7-4.8Q2.4-1 2.6 2.2M-4.6-1.2H4.6" fill="none" stroke="url(#rkS)" stroke-width="1.15"/>
+  <rect x="-5.8" y="2" width="11.6" height="2.4" rx=".8" fill="url(#rkS)" stroke="#5E6878" stroke-width=".25"/>
+  <circle cx="0" cy="-5.4" r="1.2" fill="url(#rkS)"/><path d="M0-7.4V-6.4M-.6-6.9H.6" stroke="#fff" stroke-width=".5"/></g>`;
+/* شعار الشرطة الدائري (للوكلاء): حلقة فضية وتاج صغير وخنجر وسيفان */
+const rankBadge = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" stroke-linecap="round" stroke-linejoin="round">
+  <circle r="6.4" fill="#141821" stroke="url(#rkS)" stroke-width="1.2"/>
+  <path d="M-3.6-3.2Q.6-1.6 3.4 3.4M3.6-3.2Q-.6-1.6-3.4 3.4" fill="none" stroke="#C9D1DB" stroke-width=".8"/>
+  <path d="M-.9-3.4H.9L1 1Q1.3 3.2 3 3.8Q.7 4.6-.5 2.3Q-1 1.2-.9-3.4Z" fill="url(#rkS)"/>
+  ${rankCrown(0, -9.4, 0.55)}</g>`;
+/* إكليل الغار الفضي */
+const rankWreath = (x, y) => { let o = ''; for (let i = 0; i < 6; i++) { const t = (Math.PI / 9) * (i + 1.4); for (const d of [-1, 1]) { const px = x + d * 9.4 * Math.sin(t), py = y + 9.4 * Math.cos(t) - 1, rot = d * (90 - (t * 180) / Math.PI); o += `<ellipse cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" rx="1.8" ry=".85" transform="rotate(${rot.toFixed(1)} ${px.toFixed(2)} ${py.toFixed(2)})" fill="#C9D1DB"/>`; } } return o; };
+/* السيف والعصا المتقاطعان */
+const rankBaton = (x, y) => `<g transform="translate(${x} ${y})" stroke-linecap="round"><path d="M-6.5-4.2L6.5 4.2" stroke="url(#rkS)" stroke-width="1.3"/><path d="M-7.4-2.6L-5.4-5.8" stroke="#E5EAF0" stroke-width=".9"/><path d="M6.5-4.2L-6.5 4.2" stroke="#C9D1DB" stroke-width="2.3"/><circle cx="-6.5" cy="4.2" r="1.1" fill="#fff"/></g>`;
+const rankChevron = (y) => `<path d="M6.5 ${y} L15 ${y + 5} L23.5 ${y}" stroke="url(#rkS)" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 UI.rankIcon = (rank, size = 34) => {
   const a = RANK_ART[String(rank || '').trim()];
   if (!a) return raw('');
   const W = 30, H = 46;
   let inner = '';
   if (a.kind === 'officer') {
-    if (a.emblem) {
-      inner += rankEmblem(15, 34, 0.95);
-      if (a.baton) inner += rankBaton(15, 22.5);
-      const st = a.stars || 0, top = a.baton ? 14.5 : 0;
-      if (a.baton && st) inner += rankStar(15, top, 3);
-      else if (st === 1) inner += rankStar(15, 19);
-      else if (st === 2) inner += rankStar(15, 14) + rankStar(15, 21.2, 3);
-      else if (st === 3) inner += rankStar(15, 14, 3) + rankStar(10.2, 20.6, 3) + rankStar(19.8, 20.6, 3);
-    } else {
-      const st = a.stars || 0, ys = st === 1 ? [26] : st === 2 ? [20, 30] : [16, 25.5, 35];
-      inner += ys.map((y) => rankStar(15, y, 3.6)).join('');
-    }
+    const st = a.stars || 0;
+    if (!a.crown) inner += (st === 1 ? [24] : st === 2 ? [19.5, 29] : [16, 24.5, 33]).map((y) => rankStar(15, y)).join('');
+    else if (a.baton) inner += rankCrown(15, 17.5, 0.88) + (st ? rankStar(15, 25.4, 2.9) + rankBaton(15, 32.8) : rankBaton(15, 29.5));
+    else if (st === 0) inner += rankCrown(15, 23.5, 1.1);
+    else if (st === 1) inner += rankCrown(15, 18.5, 0.95) + rankStar(15, 29.5);
+    else if (st === 2) inner += rankCrown(15, 17.5, 0.88) + rankStar(15, 26.5, 3.1) + rankStar(15, 34, 3.1);
+    else inner += rankCrown(15, 17.5, 0.88) + rankStar(15, 25.6, 2.9) + rankStar(10.4, 32.8, 2.9) + rankStar(19.6, 32.8, 2.9);
   } else if (a.kind === 'nco') {
     const n = a.chevrons || 0;
-    for (let i = 0; i < n; i++) { const y = 21 + i * 5.6; inner += `<path d="M6.5 ${y} L15 ${y + 5} L23.5 ${y}" stroke="url(#rkG)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
-    if (a.emblem && n) inner += rankEmblem(15, 13.5, 0.62);
-    else if (a.emblem) inner += (a.wreath ? rankWreath(15, 27) : '') + rankEmblem(15, 26, a.wreath ? 0.66 : 0.9);
-    if (!n && !a.emblem) inner += `<g opacity=".32">${rankEmblem(15, 27, 0.75)}</g>`;
+    if (n) { const y0 = a.crown ? 23.6 : 18 + (3 - n) * 2.8; for (let i = 0; i < n; i++) inner += rankChevron(y0 + i * (a.crown ? 4.6 : 5.2)); if (a.crown) inner += rankCrown(15, 17.6, 0.72); }
+    else if (a.badge) inner += (a.wreath ? rankWreath(15, 27) : '') + rankBadge(15, 27, a.wreath ? 0.9 : 1.05);
+    else inner += `<g opacity=".35">${rankBadge(15, 26, 0.9)}</g>`;
   } else {
     inner = `<circle cx="15" cy="20" r="4" fill="#9DB2CF"/><path d="M8 34a7 7 0 0 1 14 0z" fill="#9DB2CF"/>`;
   }
-  const board = a.kind === 'civil' ? ['#33415E', '#1C2539'] : ['#16305A', '#0A1528'];
-  return raw(`<svg class="rank-badge" viewBox="0 0 ${W} ${H}" width="${((size * W) / H).toFixed(1)}" height="${size}" role="img" aria-label="${esc(rank)}"><defs><linearGradient id="rkB${a.kind === 'civil' ? 'c' : ''}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${board[0]}"/><stop offset="1" stop-color="${board[1]}"/></linearGradient><linearGradient id="rkG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0BF"/><stop offset=".45" stop-color="#E7BE5C"/><stop offset="1" stop-color="#A67A22"/></linearGradient></defs>`
-    + `<path d="M2.5 44.5V11L15 2.5L27.5 11V44.5Z" fill="url(#rkB${a.kind === 'civil' ? 'c' : ''})" stroke="#C9A14A" stroke-width="1.3" stroke-linejoin="round"/><path d="M4.6 42.4V12.1L15 5L25.4 12.1V42.4" fill="none" stroke="rgba(243,201,105,.22)" stroke-width=".6"/>`
-    + `${a.kind === 'civil' ? '' : '<circle cx="15" cy="8.6" r="2.1" fill="url(#rkG)" stroke="#7A5A14" stroke-width=".35"/>'}${inner}<rect x="2.5" y="41" width="25" height="3.5" fill="#C9A14A" opacity=".85"/></svg>`);
+  const civil = a.kind === 'civil', bid = civil ? 'rkBc' : 'rkB', board = civil ? ['#33415E', '#1C2539'] : ['#23262E', '#0A0B0F'];
+  return raw(`<svg class="rank-badge" viewBox="0 0 ${W} ${H}" width="${((size * W) / H).toFixed(1)}" height="${size}" role="img" aria-label="${esc(rank)}"><defs><linearGradient id="${bid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${board[0]}"/><stop offset="1" stop-color="${board[1]}"/></linearGradient><linearGradient id="rkS" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#C9D1DB"/><stop offset="1" stop-color="#7C8796"/></linearGradient></defs>`
+    + `<path d="M2.5 44.5V10.5Q2.5 3 15 2.5Q27.5 3 27.5 10.5V44.5Z" fill="url(#${bid})" stroke="${civil ? '#6F86A8' : '#3A3F4B'}" stroke-width="1"/><path d="M4.4 42.6V11Q4.4 5 15 4.6Q25.6 5 25.6 11V42.6" fill="none" stroke="rgba(255,255,255,.07)" stroke-width=".7"/>`
+    + `${civil ? '' : '<circle cx="15" cy="8.4" r="2.2" fill="url(#rkS)" stroke="#5E6878" stroke-width=".3"/><circle cx="14.4" cy="7.8" r=".6" fill="#fff"/>'}${inner}`
+    + `${civil ? '' : '<rect x="4.2" y="38.6" width="21.6" height="4.6" rx="1" fill="#1D2C78" stroke="#7D93E0" stroke-width=".6"/><path d="M7.5 40.3H22.5M9 41.6H21" stroke="#C9D3F5" stroke-width=".45" stroke-dasharray="1.1 .6"/>'}</svg>`);
 };
 UI.rankPick = (name, value = '') => html`<div class="field wide"><label>الرتبة</label><div class="rank-pick">${Data.list('ranks').map((r) => html`<label><input type="radio" name="${name}" value="${r.name}"${value === r.name ? raw(' checked') : ''}><span>${UI.rankIcon(r.name, 30)}<b>${r.name}</b></span></label>`)}</div></div>`;
 
