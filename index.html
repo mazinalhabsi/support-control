@@ -1524,10 +1524,31 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .form-bar .chip{height:22px;font-size:11.5px;margin-inline-start:6px;vertical-align:middle}
 .form-bar{flex-wrap:wrap}
 /* أيقونات فئات البلاغات */
-.iso.cat-ic{filter:drop-shadow(0 10px 16px rgba(10,20,40,.28))}
-.tile .iso.cat-ic{height:74px;margin:10px 0 12px}
+.iso.cat-ic{filter:drop-shadow(0 6px 10px rgba(10,20,40,.16))}
+img.iso{object-fit:contain;display:block}
+.tile .iso.cat-ic{height:92px;margin:2px 0 8px}
 .tile:hover .iso.cat-ic{transform:translateZ(60px) translateY(-4px) scale(1.08) rotate(-4deg)}
-.tiles.sm .tile .iso.cat-ic{height:52px;margin:4px 0 6px}
+.tiles.sm .tile .iso.cat-ic{height:58px;margin:2px 0 4px}
+.img-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;max-height:330px;overflow:auto;padding:4px}
+.img-pick label{position:relative;cursor:pointer}.img-pick label[hidden]{display:none}.img-pick input{position:absolute;opacity:0}
+.img-pick span{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px 8px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-size:11px;color:var(--ink-3);transition:border-color .2s,box-shadow .2s,transform .2s}
+.img-pick span b{font-weight:600;text-align:center;line-height:1.3}
+.img-pick .iso{width:62px;height:62px}.img-pick label:hover span{transform:translateY(-2px)}
+.img-pick input:checked+span{border-color:rgb(var(--accent));box-shadow:var(--glow);color:var(--ink);background:rgb(var(--accent)/.08)}
+.img-pick input:focus-visible+span{outline:2px solid rgb(var(--accent));outline-offset:2px}
+.img-tag{position:absolute;top:4px;inset-inline-start:4px;font-style:normal;font-size:9px;padding:1px 6px;border-radius:99px;background:rgb(var(--accent)/.15);color:rgb(var(--accent))}
+.img-cur{display:flex;align-items:center;gap:14px;padding:10px 12px;margin-bottom:12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}.img-cur .iso{width:72px;height:72px;flex:none}
+.img-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.img-cat{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:16px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;color:var(--ink);font:inherit;transition:transform .25s var(--spring),box-shadow .25s}
+.img-cat .iso{width:84px;height:84px}.img-cat:hover{transform:translateY(-3px);box-shadow:var(--glow)}
+.img-lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:12px}
+.img-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px 10px;border-radius:16px;border:1px solid var(--line);background:var(--surface-2);text-align:center}
+.img-card .iso{width:80px;height:80px}.img-card b{font-size:13px}.img-card .t-sub{font-size:11px;min-height:15px}
+.img-card.used{border-color:rgb(var(--accent)/.45)}.img-acts{display:flex;gap:4px}
+.org-chain{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px}.org-chain .oc-step{display:flex;align-items:flex-end;gap:8px;min-width:0;flex:1 1 200px}.org-chain .oc-step .field{flex:1;min-width:0;margin:0}
+.oc-arrow{font-size:20px;color:rgb(var(--accent));padding-bottom:10px}
+.oc-path{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);padding:6px 10px;border-radius:10px;background:rgb(var(--accent)/.07)}.oc-path .ic{width:14px;height:14px;flex:none}
+.empty-mini{display:flex;align-items:center;gap:8px;color:var(--ink-3);padding:10px}
 .head-illu.cat-ic{width:66px;height:66px}
 /* المتواجدون الآن */
 .pres-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;border:1px solid rgba(var(--teal),.4);background:rgba(var(--teal),.1);color:rgb(var(--teal-ink));font:700 13.5px var(--f-display);cursor:pointer;flex:none}
@@ -2148,7 +2169,7 @@ Data.tickets = {
     const u = Auth.user, s = Data.c.settings, title = String(input.title || '').trim();
     if (title.length < 3) throw new AppError('اكتب عنواناً واضحاً للبلاغ (3 أحرف على الأقل)');
     const priority = PRIORITY[input.priority] ? input.priority : 'medium', t0 = now();
-    const t = { id: uid('t'), number: '', legacyId: '', title, description: String(input.description || '').trim(), categoryId: input.categoryId || 'other', priority, status: 'new', requesterId: u.id, departmentId: input.departmentId || u.departmentId || '', assigneeId: '', locationId: input.locationId || u.locationId || '', location: String(input.location != null ? input.location : u.office || '').trim(), contact: String(input.contact || u.phone || '').trim(), deviceName: String(input.deviceName || '').trim(), assetTag: String(input.assetTag || '').trim(), extra: input.extra || null, createdAt: t0, updatedAt: t0, respondBy: t0 + s.sla[priority].respond * MIN, dueAt: t0 + s.sla[priority].resolve * MIN, firstResponseAt: 0, resolvedAt: 0, closedAt: 0, rating: 0, ratingComment: '', attachmentCount: files.length };
+    const t = { id: uid('t'), number: '', legacyId: '', title, description: String(input.description || '').trim(), categoryId: input.categoryId || 'other', priority, status: 'new', requesterId: u.id, departmentId: input.departmentId || u.departmentId || '', unitId: String(input.unitId || ''), unitPath: String(input.unitPath || ''), assigneeId: '', locationId: input.locationId || u.locationId || '', location: String(input.location != null ? input.location : u.office || '').trim(), contact: String(input.contact || u.phone || '').trim(), deviceName: String(input.deviceName || '').trim(), assetTag: String(input.assetTag || '').trim(), extra: input.extra || null, createdAt: t0, updatedAt: t0, respondBy: t0 + s.sla[priority].respond * MIN, dueAt: t0 + s.sla[priority].resolve * MIN, firstResponseAt: 0, resolvedAt: 0, closedAt: 0, rating: 0, ratingComment: '', attachmentCount: files.length };
     await DB.run(['meta', 'tickets', 'ticketEvents', 'attachments'], async (T) => {
       const seq = (await T.get('meta', 'seq:ticket')) || { key: 'seq:ticket', value: 0 };
       seq.value += 1; await T.put('meta', seq);
@@ -2453,6 +2474,7 @@ const ICONS = {
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', upload: '<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>',
   print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  photo: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   'eye-off': '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
@@ -2719,30 +2741,161 @@ const Iso = (() => {
 })();
 const ILLU_LABELS = { mailIn: 'البريد الوارد', mailOut: 'البريد الصادر', report: 'تقارير', folder: 'مجلد', envelope: 'رسائل ومراسلات', stamp: 'اعتماد وختم', calendar: 'تقويم ومواعيد', fingerprint: 'جهاز بصمة', headset: 'سماعة رأس', netswitch: 'سويتش شبكة', router: 'راوتر لاسلكي', patchpanel: 'لوحة توصيل', webcam: 'كاميرا ويب', mic: 'مايكروفون', powerstrip: 'وصلة كهرباء', battery: 'بطارية', barcode: 'قارئ باركود', smartcard: 'قارئ بطاقات', charger: 'شاحن ومحول', archive: 'أرشيف ومراسلات', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', tablet: 'جهاز لوحي', phone: 'هاتف', server: 'خادم', ram: 'ذاكرة', wifi: 'نقطة لاسلكية', toner: 'خرطوشة حبر', paper: 'ورق', tools: 'أدوات صيانة', shelf: 'رف مخزن', pallet: 'توريد', computer: 'حاسب مكتبي', laptop: 'حاسب محمول', printer: 'طابعة', scanner: 'ماسح ضوئي', software: 'برامج', email: 'بريد', card: 'بطاقة دخول', key: 'رمز وقفل', cctv: 'كاميرا', ink: 'أحبار', bell: 'طلب خدمة', box: 'صندوق', network: 'شبكة', projector: 'جهاز عرض', display: 'شاشة', speaker: 'صوتيات', cable: 'كابلات', drive: 'تخزين', ups: 'طاقة احتياطية' };
 
-/* ── أيقونات فئات البلاغات العصرية: مربع متدرج بلمعة وخط أبيض واضح لكل فئة ── */
+/* ── مكتبة الصور ثلاثية الأبعاد لتقنية المعلومات: رسوم SVG بإضاءة وظلال وعمق (أسلوب الطين اللامع) ── */
+const Img3D = (() => {
+  const C = {
+    blue: ['#9CC8FF', '#3B7DEB', '#1C47A6'], navy: ['#6A7C9E', '#2E3B58', '#151D30'], graphite: ['#767F92', '#3B4252', '#1D222B'],
+    silver: ['#FFFFFF', '#E2E7EF', '#A8B2C1'], white: ['#FFFFFF', '#F1F4F9', '#BFC8D6'], teal: ['#8AF3E3', '#19B9A6', '#0A776B'],
+    violet: ['#CDBEFF', '#7D5CF2', '#4A2DB3'], red: ['#FFA7A7', '#E5484D', '#9E2130'], gold: ['#FFE49A', '#F3B33A', '#B5760C'],
+    green: ['#97F2BF', '#23B866', '#10733C'], orange: ['#FFC795', '#FF7B30', '#BE490C'], pink: ['#FFB0D8', '#E4499B', '#9E1B63'],
+    cyan: ['#A6ECFF', '#23B3E7', '#0C6E9C'], tan: ['#F7DDB0', '#D9A55B', '#976525'], sky: ['#C4E5FF', '#5DB1F5', '#2A70B8'], slate: ['#C9D2DF', '#8894A8', '#566175']
+  };
+  const mk = (name) => {
+    let n = 0; const defs = [], parts = [], id = () => `m3${name}${n++}`;
+    const lin = (stops, x2 = 0, y2 = 1) => { const i = id(); defs.push(`<linearGradient id="${i}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o, c, a = 1]) => `<stop offset="${o}" stop-color="${c}" stop-opacity="${a}"/>`).join('')}</linearGradient>`); return `url(#${i})`; };
+    const rad = (stops, cx = 0.35, cy = 0.28, r = 0.85) => { const i = id(); defs.push(`<radialGradient id="${i}" cx="${cx}" cy="${cy}" r="${r}">${stops.map(([o, c, a = 1]) => `<stop offset="${o}" stop-color="${c}" stop-opacity="${a}"/>`).join('')}</radialGradient>`); return `url(#${i})`; };
+    const col = (c) => (Array.isArray(c) ? c : C[c] || C.slate);
+    const o = {
+      lin, rad, col,
+      raw(s) { parts.push(s); return o; },
+      shadow(cx, cy, rx, ry = rx * 0.2) { parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${rad([[0, '#0B1830', 0.42], [1, '#0B1830', 0]], 0.5, 0.5, 0.5)}"/>`); return o; },
+      /* كتلة مستديرة بعمق للأسفل ولمعة علوية */
+      slab(x, y, w, h, r, c, { d = 6, gloss = 0.45, rim = true } = {}) {
+        const [l, m, k] = col(c);
+        parts.push(`<rect x="${x}" y="${y + d}" width="${w}" height="${h}" rx="${r}" fill="${k}"/>`);
+        parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${lin([[0, l], [1, m]])}"/>`);
+        if (gloss) parts.push(`<rect x="${x + 2.5}" y="${y + 2}" width="${w - 5}" height="${Math.max(4, h * 0.42)}" rx="${Math.max(1, r - 2)}" fill="${lin([[0, '#fff', gloss], [1, '#fff', 0]])}"/>`);
+        if (rim) parts.push(`<rect x="${x + 0.6}" y="${y + 0.6}" width="${w - 1.2}" height="${h - 1.2}" rx="${r}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2"/>`);
+        return o;
+      },
+      /* شكل حر بعمق وإضاءة شعاعية */
+      shape(d, c, { depth = 5, glossD = '' } = {}) {
+        const [l, m, k] = col(c);
+        parts.push(`<path d="${d}" transform="translate(0 ${depth})" fill="${k}"/><path d="${d}" fill="${rad([[0, l], [0.75, m], [1, m]])}"/>`);
+        if (glossD) parts.push(`<path d="${glossD}" fill="${lin([[0, '#fff', 0.55], [1, '#fff', 0]])}"/>`);
+        return o;
+      },
+      circle(cx, cy, r, c, { depth = 4 } = {}) { const [l, m, k] = col(c); parts.push(`<circle cx="${cx}" cy="${cy + depth}" r="${r}" fill="${k}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="${rad([[0, l], [0.8, m], [1, m]])}"/><ellipse cx="${cx - r * 0.25}" cy="${cy - r * 0.45}" rx="${r * 0.5}" ry="${r * 0.28}" fill="#fff" opacity=".45"/>`); return o; },
+      screen(x, y, w, h, r = 5, tone = 'blue') {
+        const [l, m, k] = col(tone);
+        parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${lin([[0, m], [1, k]], 1, 1)}"/>`);
+        parts.push(`<rect x="${x + w * 0.08}" y="${y + h * 0.14}" width="${w * 0.38}" height="${h * 0.1}" rx="${h * 0.05}" fill="#fff" opacity=".85"/><rect x="${x + w * 0.08}" y="${y + h * 0.32}" width="${w * 0.6}" height="${h * 0.07}" rx="${h * 0.035}" fill="#fff" opacity=".45"/>`);
+        parts.push(`<rect x="${x + w * 0.08}" y="${y + h * 0.52}" width="${w * 0.36}" height="${h * 0.3}" rx="${r * 0.6}" fill="${l}" opacity=".7"/><rect x="${x + w * 0.5}" y="${y + h * 0.52}" width="${w * 0.42}" height="${h * 0.3}" rx="${r * 0.6}" fill="#fff" opacity=".25"/>`);
+        parts.push(`<path d="M${x + w * 0.55} ${y} h${w * 0.3} L${x + w * 0.35} ${y + h} h-${w * 0.3} z" fill="#fff" opacity=".08"/>`);
+        return o;
+      },
+      out(label = '') { return `<svg class="iso img3d" viewBox="0 0 128 128" role="img" aria-label="${label}" focusable="false"><defs>${defs.join('')}</defs>${parts.join('')}</svg>`; }
+    };
+    return o;
+  };
+  const D = {
+    computer: () => { const s = mk('pc'); s.shadow(64, 114, 48); s.slab(40, 96, 48, 9, 4.5, 'silver', { d: 4 }).slab(57, 78, 14, 20, 3, 'silver', { d: 0, gloss: 0.3 }); s.slab(12, 14, 104, 70, 11, 'graphite', { d: 7, gloss: 0.18 }); s.screen(19, 21, 90, 54, 6, 'blue'); return s; },
+    laptop: () => { const s = mk('lt'); s.shadow(64, 112, 54); s.slab(26, 16, 76, 58, 9, 'graphite', { d: 0, gloss: 0.15 }).screen(32, 22, 64, 46, 5, 'violet'); s.shape('M14 80 H114 L104 100 Q103 103 99 103 H29 Q25 103 24 100 Z', 'silver', { depth: 5 }); s.raw('<rect x="46" y="86" width="36" height="4" rx="2" fill="#A8B2C1"/><rect x="54" y="93" width="20" height="5" rx="2.5" fill="#C9D1DD"/>'); return s; },
+    printer: () => { const s = mk('pr'); s.shadow(64, 114, 50); s.slab(34, 10, 60, 40, 4, 'white', { d: 0, gloss: 0 }); s.raw('<rect x="42" y="20" width="36" height="3" rx="1.5" fill="#B8C3D4"/><rect x="42" y="28" width="44" height="3" rx="1.5" fill="#D2DAE6"/>'); s.slab(12, 40, 104, 50, 14, 'silver', { d: 8 }); s.raw('<rect x="26" y="62" width="76" height="7" rx="3.5" fill="#2E3B58"/><circle cx="98" cy="50" r="3.2" fill="#23B866"/><circle cx="88" cy="50" r="3.2" fill="#F3B33A"/>'); s.shape('M30 70 H98 L104 104 H24 Z', 'white', { depth: 0 }); s.raw('<rect x="38" y="80" width="38" height="3" rx="1.5" fill="#C3CCDA"/><rect x="38" y="88" width="50" height="3" rx="1.5" fill="#DDE3EC"/>'); return s; },
+    network: () => { const s = mk('nw'); s.shadow(64, 114, 50); s.slab(26, 34, 8, 44, 4, 'graphite', { d: 0 }).slab(94, 34, 8, 44, 4, 'graphite', { d: 0 }); s.slab(14, 70, 100, 30, 13, 'white', { d: 8 }); s.raw([34, 46, 58, 70].map((x, i) => `<circle cx="${x}" cy="85" r="3.3" fill="${i < 3 ? '#19B9A6' : '#F3B33A'}"/>`).join('')); const g = s.lin([[0, '#8AF3E3'], [1, '#19B9A6']]); s.raw(`<g fill="none" stroke="${g}" stroke-linecap="round"><path d="M42 42a31 31 0 0 1 44 0" stroke-width="7"/><path d="M50 52a19 19 0 0 1 28 0" stroke-width="7"/></g><circle cx="64" cy="60" r="5.5" fill="#19B9A6"/>`); return s; },
+    software: () => { const s = mk('sw'); s.shadow(64, 114, 48); s.slab(12, 18, 92, 76, 12, 'white', { d: 7 }); s.raw(`<path d="M12 30a12 12 0 0 1 12-12h68a12 12 0 0 1 12 12v4H12z" fill="${s.lin([[0, '#9D83FF'], [1, '#6B47E8']])}"/><circle cx="24" cy="26" r="3" fill="#fff" opacity=".9"/><circle cx="34" cy="26" r="3" fill="#fff" opacity=".7"/><circle cx="44" cy="26" r="3" fill="#fff" opacity=".5"/><g fill="none" stroke="#7D5CF2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M40 52l-12 12 12 12M72 52l12 12-12 12"/></g><path d="M61 48l-10 32" stroke="#F3B33A" stroke-width="7" stroke-linecap="round"/>`); s.circle(98, 88, 16, 'orange', { depth: 4 }); s.raw('<circle cx="98" cy="88" r="6" fill="#BE490C" opacity=".55"/>'); return s; },
+    email: () => { const s = mk('em'); s.shadow(64, 112, 52); s.slab(12, 32, 104, 68, 12, 'white', { d: 8 }); s.raw(`<path d="M16 38l48 34 48-34" fill="none" stroke="#C3CCDA" stroke-width="5" stroke-linejoin="round"/><path d="M16 96l36-30M112 96L76 66" stroke="#DDE3EC" stroke-width="4"/>`); s.circle(98, 32, 18, 'red', { depth: 4 }); s.raw('<text x="98" y="39.5" text-anchor="middle" font-family="Arial" font-weight="800" font-size="20" fill="#fff">@</text>'); return s; },
+    card: () => { const s = mk('cd'); s.shadow(64, 116, 40); s.raw(`<path d="M56 0 L48 28 M72 0 L80 28" stroke="${s.lin([[0, '#5DB1F5'], [1, '#2A70B8']])}" stroke-width="9"/>`); s.slab(24, 22, 80, 88, 13, 'white', { d: 7 }); s.slab(52, 16, 24, 14, 5, 'slate', { d: 3, gloss: 0.3 }); s.raw(`<rect x="36" y="44" width="28" height="32" rx="6" fill="${s.lin([[0, '#9CC8FF'], [1, '#3B7DEB']])}"/><circle cx="50" cy="55" r="6.5" fill="#fff"/><path d="M39 76a11 10 0 0 1 22 0z" fill="#fff"/><rect x="70" y="48" width="24" height="5" rx="2.5" fill="#8894A8"/><rect x="70" y="58" width="18" height="5" rx="2.5" fill="#C9D2DF"/><rect x="70" y="68" width="22" height="5" rx="2.5" fill="#C9D2DF"/><rect x="36" y="86" width="56" height="12" rx="6" fill="${s.lin([[0, '#FFE49A'], [1, '#F3B33A']])}"/>`); return s; },
+    passcode: () => { const s = mk('pc2'); s.shadow(64, 116, 42); s.slab(34, 8, 60, 104, 14, 'graphite', { d: 7, gloss: 0.15 }); s.screen(40, 18, 48, 80, 8, 'teal'); s.raw('<rect x="44" y="50" width="40" height="18" rx="9" fill="#fff"/>' + [52, 60, 68, 76].map((x) => `<circle cx="${x}" cy="59" r="3.2" fill="#0A776B"/>`).join('')); s.shape('M16 70 L34 62 L52 70 V86 Q52 100 34 108 Q16 100 16 86 Z', 'green', { depth: 4 }); s.raw('<path d="M26 85l6 6 11-12" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'); return s; },
+    archive: () => { const s = mk('ar'); s.shadow(64, 116, 50); s.slab(24, 22, 64, 50, 6, 'white', { d: 0, gloss: 0 }); s.slab(32, 14, 64, 50, 6, 'white', { d: 0, gloss: 0 }); s.raw('<rect x="42" y="24" width="40" height="4" rx="2" fill="#C3CCDA"/><rect x="42" y="33" width="30" height="4" rx="2" fill="#DDE3EC"/>'); s.slab(14, 48, 100, 58, 12, 'tan', { d: 8 }); s.raw('<rect x="46" y="66" width="36" height="10" rx="5" fill="#976525" opacity=".6"/>'); s.circle(98, 34, 16, 'sky', { depth: 3 }); s.raw('<path d="M98 42V27M91 33l7-7 7 7" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>'); return s; },
+    ink: () => { const s = mk('ik'); s.shadow(64, 116, 44); s.slab(28, 54, 72, 54, 11, 'graphite', { d: 7, gloss: 0.2 }); s.raw(`<rect x="38" y="70" width="52" height="22" rx="6" fill="${s.lin([[0, '#FFE49A'], [1, '#F3B33A']])}"/><rect x="44" y="77" width="30" height="4" rx="2" fill="#976525" opacity=".6"/>`); [['cyan', 36, 22], ['pink', 64, 12], ['gold', 92, 22]].forEach(([c, x, y]) => s.shape(`M${x} ${y}c0 0 12 13 12 21a12 12 0 0 1-24 0c0-8 12-21 12-21z`, c, { depth: 3 })); return s; },
+    scanner: () => { const s = mk('sc'); s.shadow(64, 114, 54); s.slab(10, 60, 108, 40, 12, 'silver', { d: 8 }); s.raw(`<rect x="20" y="68" width="88" height="10" rx="5" fill="${s.lin([[0, '#A6ECFF'], [1, '#23B3E7']], 1, 0)}"/><rect x="92" y="86" width="14" height="5" rx="2.5" fill="#23B866"/>`); s.raw(`<path d="M22 24 L106 24 L118 60 L10 60 Z" fill="${s.lin([[0, '#23B3E7', 0.55], [1, '#23B3E7', 0]])}"/>`); s.slab(36, 12, 56, 42, 4, 'white', { d: 0, gloss: 0 }); s.raw('<rect x="44" y="21" width="34" height="3" rx="1.5" fill="#B8C3D4"/><rect x="44" y="29" width="40" height="3" rx="1.5" fill="#D2DAE6"/><rect x="44" y="37" width="28" height="3" rx="1.5" fill="#D2DAE6"/>'); return s; },
+    bell: () => { const s = mk('bl'); s.shadow(64, 114, 52); s.slab(12, 88, 104, 14, 7, 'gold', { d: 5 }); s.shape('M18 88 A46 46 0 0 1 110 88 Z', 'gold', { depth: 0, glossD: 'M30 76 A36 36 0 0 1 60 48 A40 40 0 0 0 40 80 Z' }); s.circle(64, 36, 7, 'gold', { depth: 2 }); s.slab(58, 38, 12, 8, 3, 'gold', { d: 0, gloss: 0 }); return s; },
+    toolbox: () => { const s = mk('tb'); s.shadow(64, 116, 52); s.raw('<path d="M44 42V30a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v12" fill="none" stroke="#3B4252" stroke-width="8"/>'); s.slab(12, 40, 104, 66, 12, 'red', { d: 8 }); s.raw('<rect x="12" y="62" width="104" height="8" fill="#9E2130" opacity=".55"/>'); s.slab(54, 58, 20, 16, 4, 'silver', { d: 3, gloss: 0.3 }); return s; },
+    server: () => { const s = mk('sv'); s.shadow(64, 118, 40); [12, 44, 76].forEach((y) => { s.slab(26, y, 76, 28, 8, 'graphite', { d: 5, gloss: 0.2 }); s.raw(`<circle cx="38" cy="${y + 14}" r="3.4" fill="#19B9A6"/><circle cx="49" cy="${y + 14}" r="3.4" fill="#F3B33A"/><rect x="62" y="${y + 11}" width="30" height="6" rx="3" fill="#767F92"/>`); }); return s; },
+    database: () => { const s = mk('db'); s.shadow(64, 118, 42); const [l, m, k] = C.blue; [74, 50, 26].forEach((y) => { s.raw(`<path d="M24 ${y}v16c0 7 18 12 40 12s40-5 40-12V${y}" fill="${s.lin([[0, m], [1, k]], 1, 0)}"/><ellipse cx="64" cy="${y}" rx="40" ry="12" fill="${s.lin([[0, l], [1, m]])}"/>`); }); s.raw('<ellipse cx="54" cy="24" rx="16" ry="4" fill="#fff" opacity=".45"/>'); return s; },
+    shield: () => { const s = mk('sh'); s.shadow(64, 118, 36); s.shape('M64 8 L106 24 V58 Q106 94 64 114 Q22 94 22 58 V24 Z', 'blue', { depth: 6, glossD: 'M64 14 L100 28 V44 Q70 36 30 60 V28 Z' }); s.slab(48, 56, 32, 28, 6, 'gold', { d: 3 }); s.raw('<path d="M54 56v-8a10 10 0 0 1 20 0v8" fill="none" stroke="#FFE49A" stroke-width="5"/><circle cx="64" cy="68" r="3.5" fill="#976525"/>'); return s; },
+    headset: () => { const s = mk('hs'); s.shadow(64, 116, 44); s.raw(`<path d="M26 70V58a38 38 0 0 1 76 0v12" fill="none" stroke="${s.lin([[0, '#767F92'], [1, '#1D222B']])}" stroke-width="10" stroke-linecap="round"/>`); s.slab(14, 62, 26, 40, 11, 'violet', { d: 5 }).slab(88, 62, 26, 40, 11, 'violet', { d: 5 }); s.raw('<path d="M100 100q0 12-22 12" fill="none" stroke="#3B4252" stroke-width="4"/>'); s.circle(74, 112, 5, 'graphite', { depth: 1 }); return s; },
+    projector: () => { const s = mk('pj'); s.shadow(64, 112, 52); s.raw(`<path d="M84 60 L124 34 V96 Z" fill="${s.lin([[0, '#FFF3B0', 0.8], [1, '#FFF3B0', 0]], 1, 0)}"/>`); s.slab(8, 54, 88, 44, 12, 'white', { d: 7 }); s.circle(72, 76, 14, 'navy', { depth: 3 }); s.raw('<circle cx="72" cy="76" r="7" fill="#5DB1F5"/><rect x="20" y="66" width="30" height="5" rx="2.5" fill="#C3CCDA"/><rect x="20" y="76" width="20" height="5" rx="2.5" fill="#DDE3EC"/>'); return s; },
+    cctv: () => { const s = mk('cc'); s.shadow(64, 116, 44); s.slab(8, 14, 16, 58, 6, 'graphite', { d: 4, gloss: 0.2 }); s.raw('<path d="M22 44 L44 58" stroke="#3B4252" stroke-width="10" stroke-linecap="round"/>'); s.shape('M34 40 L112 22 Q122 20 122 30 V66 Q122 76 112 76 L40 84 Q30 85 30 75 V50 Q30 42 34 40 Z', 'white', { depth: 7, glossD: 'M38 44 L112 27 Q116 26 116 32 V40 L38 56 Z' }); s.circle(100, 50, 16, 'navy', { depth: 2 }); s.raw('<circle cx="100" cy="50" r="7.5" fill="#5DB1F5"/><circle cx="96.5" cy="46.5" r="2.6" fill="#fff"/><circle cx="46" cy="58" r="4" fill="#E5484D"/><path d="M28 96h62" stroke="#A8B2C1" stroke-width="0"/>'); return s; },
+    phone: () => { const s = mk('ph'); s.shadow(64, 118, 36); s.slab(36, 6, 56, 106, 14, 'graphite', { d: 7, gloss: 0.18 }); s.screen(42, 16, 44, 84, 8, 'sky'); s.raw('<rect x="56" y="10" width="16" height="3" rx="1.5" fill="#1D222B"/>'); return s; },
+    tablet: () => { const s = mk('tl'); s.shadow(64, 118, 50); s.slab(14, 14, 100, 90, 12, 'navy', { d: 7, gloss: 0.15 }); s.screen(22, 22, 84, 74, 7, 'teal'); return s; },
+    keyboard: () => { const s = mk('kb'); s.shadow(64, 108, 56); s.slab(6, 46, 116, 50, 11, 'silver', { d: 8 }); let k = ''; for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) k += `<rect x="${15 + c * 11.2}" y="${54 + r * 11}" width="8.6" height="8" rx="2.4" fill="${r === 2 && c > 1 && c < 7 ? '#fff' : '#fff'}" stroke="#C3CCDA"/>`; s.raw(k + '<rect x="37" y="76" width="54" height="8" rx="2.4" fill="#fff" stroke="#C3CCDA"/>'); return s; },
+    mouse: () => { const s = mk('ms'); s.shadow(64, 116, 32); s.shape('M64 14 C90 14 96 40 96 64 C96 94 84 108 64 108 C44 108 32 94 32 64 C32 40 38 14 64 14 Z', 'white', { depth: 6, glossD: 'M60 20 C44 22 38 40 38 58 C46 46 54 40 60 38 Z' }); s.raw('<path d="M64 16V50" stroke="#C3CCDA" stroke-width="2.5"/><rect x="60" y="28" width="8" height="16" rx="4" fill="#3B7DEB"/>'); return s; },
+    usb: () => { const s = mk('ub'); s.shadow(64, 118, 28); s.slab(48, 10, 32, 26, 4, 'silver', { d: 0 }); s.raw('<rect x="55" y="17" width="6" height="6" fill="#566175"/><rect x="67" y="17" width="6" height="6" fill="#566175"/>'); s.slab(40, 34, 48, 78, 12, 'blue', { d: 6 }); s.raw('<circle cx="64" cy="92" r="5" fill="#fff" opacity=".8"/>'); return s; },
+    harddisk: () => { const s = mk('hd'); s.shadow(64, 116, 50); s.slab(16, 18, 96, 88, 12, 'silver', { d: 8 }); s.circle(58, 58, 28, 'white', { depth: 0 }); s.raw('<circle cx="58" cy="58" r="6" fill="#A8B2C1"/><path d="M58 58 L96 92" stroke="#3B4252" stroke-width="5" stroke-linecap="round"/><circle cx="96" cy="92" r="4" fill="#E5484D"/>'); return s; },
+    globe: () => { const s = mk('gl'); s.shadow(64, 118, 38); s.circle(64, 60, 46, 'sky', { depth: 6 }); s.raw('<g fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="3"><ellipse cx="64" cy="60" rx="20" ry="46"/><path d="M18 60h92M26 36h76M26 84h76"/></g>'); return s; },
+    gear: () => { const s = mk('gr'); s.shadow(64, 118, 40); let t = ''; for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4; t += `<rect x="-8" y="-50" width="16" height="22" rx="4" transform="translate(64 62) rotate(${(a * 180) / Math.PI})" fill="#8894A8"/>`; } s.raw(`<g transform="translate(0 5)" opacity=".9">${t.replace(/#8894A8/g, '#566175')}</g>${t}`); s.circle(64, 62, 34, 'slate', { depth: 5 }); s.circle(64, 62, 14, 'white', { depth: 0 }); return s; },
+    fingerprint: () => { const s = mk('fp'); s.shadow(64, 118, 42); s.slab(18, 12, 92, 98, 20, 'navy', { d: 7, gloss: 0.15 }); s.raw('<g fill="none" stroke="#19B9A6" stroke-width="4.5" stroke-linecap="round"><path d="M40 70a24 24 0 0 1 48 0v8"/><path d="M48 76v-6a16 16 0 0 1 32 0v14"/><path d="M56 88V70a8 8 0 0 1 16 0v20"/><path d="M64 70v26"/><path d="M34 52a36 36 0 0 1 60 0"/></g>'); return s; },
+    ups: () => { const s = mk('up'); s.shadow(64, 118, 36); s.slab(28, 10, 72, 100, 12, 'graphite', { d: 7, gloss: 0.18 }); s.screen(38, 22, 52, 26, 5, 'teal'); s.raw('<path d="M68 60 L54 82 H66 L60 100 L78 74 H66 Z" fill="#F3B33A"/>'); return s; },
+    cable: () => { const s = mk('cb'); s.shadow(64, 118, 40); s.raw(`<path d="M20 108 C20 70 108 90 108 48" fill="none" stroke="${s.lin([[0, '#5DB1F5'], [1, '#2A70B8']], 1, 0)}" stroke-width="10" stroke-linecap="round"/>`); s.slab(88, 14, 40, 36, 8, 'silver', { d: 5 }); s.raw('<rect x="98" y="8" width="20" height="10" rx="2" fill="#E2E7EF" stroke="#A8B2C1"/>'); return s; },
+    display: () => { const s = mk('dp'); s.shadow(64, 116, 44); s.slab(44, 96, 40, 9, 4, 'graphite', { d: 3 }).slab(58, 80, 12, 18, 3, 'graphite', { d: 0, gloss: 0.2 }); s.slab(8, 16, 112, 68, 9, 'navy', { d: 6, gloss: 0.15 }); s.screen(14, 22, 100, 56, 5, 'violet'); return s; },
+    speaker: () => { const s = mk('sp'); s.shadow(64, 118, 36); s.slab(30, 8, 68, 104, 14, 'graphite', { d: 7, gloss: 0.18 }); s.circle(64, 36, 12, 'navy', { depth: 0 }); s.circle(64, 80, 22, 'navy', { depth: 0 }); s.raw('<circle cx="64" cy="80" r="9" fill="#3B4252"/>'); return s; },
+    calendar: () => { const s = mk('cl'); s.shadow(64, 118, 48); s.slab(14, 20, 100, 90, 14, 'white', { d: 8 }); s.raw(`<path d="M14 34a14 14 0 0 1 14-14h72a14 14 0 0 1 14 14v10H14z" fill="${s.lin([[0, '#FFA7A7'], [1, '#E5484D']])}"/><rect x="36" y="10" width="8" height="20" rx="4" fill="#3B4252"/><rect x="84" y="10" width="8" height="20" rx="4" fill="#3B4252"/>` + [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => `<rect x="${26 + c * 21}" y="${54 + r * 16}" width="14" height="10" rx="3" fill="${r === 1 && c === 2 ? '#3B7DEB' : '#DDE3EC'}"/>`).join('')).join('')); return s; },
+    chart: () => { const s = mk('ch'); s.shadow(64, 116, 50); s.slab(14, 64, 22, 44, 6, 'teal', { d: 5 }).slab(42, 44, 22, 64, 6, 'blue', { d: 5 }).slab(70, 26, 22, 82, 6, 'violet', { d: 5 }).slab(98, 54, 22, 54, 6, 'gold', { d: 5 }); return s; },
+    folder: () => { const s = mk('fd'); s.shadow(64, 114, 52); s.raw(`<path d="M14 30a8 8 0 0 1 8-8h26l10 10h48a8 8 0 0 1 8 8v8H14z" fill="${s.lin([[0, '#F3B33A'], [1, '#B5760C']])}"/>`); s.slab(28, 34, 72, 40, 4, 'white', { d: 0, gloss: 0 }); s.slab(14, 44, 100, 60, 10, 'gold', { d: 7 }); return s; },
+    bug: () => { const s = mk('bg'); s.shadow(64, 118, 36); s.raw('<g stroke="#3B4252" stroke-width="5" stroke-linecap="round"><path d="M34 60H18M94 60h16M36 82l-14 10M92 82l14 10M38 42 26 32M90 42l12-10M52 24l-6-10M76 24l6-10"/></g>'); s.shape('M64 22 C86 22 96 40 96 64 C96 92 80 108 64 108 C48 108 32 92 32 64 C32 40 42 22 64 22 Z', 'red', { depth: 5, glossD: 'M52 28 C40 34 36 48 36 60 C44 50 50 44 58 40 Z' }); s.raw('<path d="M64 36V104" stroke="#9E2130" stroke-width="4"/><circle cx="50" cy="60" r="5" fill="#fff" opacity=".8"/><circle cx="78" cy="76" r="5" fill="#fff" opacity=".8"/>'); return s; },
+    cloud: () => { const s = mk('cld'); s.shadow(64, 112, 50); s.shape('M34 96 A22 22 0 0 1 32 52 A30 30 0 0 1 90 44 A26 26 0 0 1 96 96 Z', 'sky', { depth: 6, glossD: 'M40 56 A26 26 0 0 1 86 48 A30 30 0 0 0 44 64 Z' }); s.raw('<path d="M64 88V60M52 70l12-12 12 12" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'); return s; },
+    lock: () => { const s = mk('lk'); s.shadow(64, 118, 40); s.raw(`<path d="M40 56V42a24 24 0 0 1 48 0v14" fill="none" stroke="${s.lin([[0, '#FFFFFF'], [1, '#A8B2C1']], 1, 0)}" stroke-width="11"/>`); s.slab(22, 52, 84, 60, 14, 'gold', { d: 7 }); s.raw('<circle cx="64" cy="78" r="8" fill="#976525"/><rect x="61" y="80" width="6" height="16" rx="3" fill="#976525"/>'); return s; },
+    key: () => { const s = mk('ky'); s.shadow(64, 116, 44); s.raw(`<path d="M58 58 L112 104" stroke="${s.lin([[0, '#FFE49A'], [1, '#B5760C']], 1, 1)}" stroke-width="12" stroke-linecap="round"/><path d="M94 88l10-10M104 98l8-8" stroke="#B5760C" stroke-width="9" stroke-linecap="round"/>`); s.circle(42, 42, 30, 'gold', { depth: 5 }); s.raw('<circle cx="42" cy="42" r="10" fill="#B5760C"/>'); return s; },
+    ticket: () => { const s = mk('tk'); s.shadow(64, 112, 52); s.shape('M14 36a8 8 0 0 1 8-8h84a8 8 0 0 1 8 8v12a12 12 0 0 0 0 24v12a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8V72a12 12 0 0 0 0-24z', 'violet', { depth: 7, glossD: 'M20 34h88v14H20z' }); s.raw('<path d="M84 32v56" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-dasharray="6 6"/><rect x="30" y="48" width="40" height="7" rx="3.5" fill="#fff" opacity=".9"/><rect x="30" y="62" width="28" height="6" rx="3" fill="#fff" opacity=".6"/>'); return s; },
+    cpu: () => { const s = mk('cp'); s.shadow(64, 116, 44); let pins = ''; for (let i = 0; i < 5; i++) { const p = 36 + i * 14; pins += `<rect x="${p - 3}" y="12" width="6" height="16" rx="2" fill="#A8B2C1"/><rect x="${p - 3}" y="96" width="6" height="16" rx="2" fill="#A8B2C1"/><rect x="12" y="${p - 3}" width="16" height="6" rx="2" fill="#A8B2C1"/><rect x="100" y="${p - 3}" width="16" height="6" rx="2" fill="#A8B2C1"/>`; } s.raw(pins); s.slab(24, 22, 80, 80, 12, 'graphite', { d: 6, gloss: 0.2 }); s.slab(42, 40, 44, 40, 7, 'green', { d: 3 }); return s; },
+    webcam: () => { const s = mk('wc'); s.shadow(64, 116, 36); s.slab(40, 84, 48, 22, 8, 'graphite', { d: 4 }); s.raw('<path d="M64 72v14" stroke="#3B4252" stroke-width="8"/>'); s.circle(64, 44, 34, 'white', { depth: 6 }); s.circle(64, 44, 18, 'navy', { depth: 0 }); s.raw('<circle cx="64" cy="44" r="8" fill="#5DB1F5"/><circle cx="60" cy="40" r="3" fill="#fff"/><circle cx="92" cy="26" r="3.5" fill="#23B866"/>'); return s; },
+    mic: () => { const s = mk('mc'); s.shadow(64, 118, 34); s.raw('<path d="M36 62a28 28 0 0 0 56 0M64 90v18M46 110h36" fill="none" stroke="#3B4252" stroke-width="7" stroke-linecap="round"/>'); s.slab(44, 8, 40, 72, 20, 'silver', { d: 5 }); s.raw('<g stroke="#A8B2C1" stroke-width="3"><path d="M50 28h28M50 38h28M50 48h28"/></g>'); return s; },
+    battery: () => { const s = mk('bt'); s.shadow(64, 116, 50); s.slab(12, 36, 96, 60, 12, 'graphite', { d: 7, gloss: 0.18 }); s.slab(108, 54, 10, 24, 4, 'graphite', { d: 3 }); s.raw([0, 1, 2].map((i) => `<rect x="${22 + i * 27}" y="46" width="21" height="40" rx="5" fill="${i < 2 ? '#23B866' : '#566175'}"/>`).join('')); return s; },
+    box: () => { const s = mk('bx'); s.shadow(64, 116, 50); s.raw(`<path d="M64 16 L112 38 L64 60 L16 38 Z" fill="${s.lin([[0, '#F7DDB0'], [1, '#D9A55B']])}"/><path d="M16 38 L64 60 V112 L16 90 Z" fill="${s.lin([[0, '#D9A55B'], [1, '#976525']])}"/><path d="M112 38 L64 60 V112 L112 90 Z" fill="${s.lin([[0, '#C28D45'], [1, '#7C521D']])}"/><path d="M40 27 L88 49 V64 L80 60 V52 L32 30 Z" fill="#F7DDB0" opacity=".85"/>`); return s; }
+  };
+  const LABELS = { computer: 'حاسب مكتبي', laptop: 'حاسب محمول', printer: 'طابعة', network: 'شبكة وواي فاي', software: 'برامج وأنظمة', email: 'بريد إلكتروني', card: 'بطاقة دخول', passcode: 'رمز تحقق', archive: 'أرشفة وحفظ', ink: 'أحبار', scanner: 'ماسح ضوئي', bell: 'طلب خدمة', toolbox: 'صيانة وأدوات', server: 'خوادم', database: 'قواعد بيانات', shield: 'أمن المعلومات', headset: 'دعم فني', projector: 'جهاز عرض', cctv: 'كاميرات مراقبة', phone: 'هاتف', tablet: 'جهاز لوحي', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', usb: 'فلاش USB', harddisk: 'قرص تخزين', globe: 'إنترنت', gear: 'إعدادات', fingerprint: 'بصمة', ups: 'طاقة احتياطية', cable: 'كابلات', display: 'شاشة', speaker: 'صوتيات', calendar: 'مواعيد', chart: 'تقارير', folder: 'مجلدات', bug: 'أعطال برمجية', cloud: 'سحابة ونسخ', lock: 'صلاحيات', key: 'مفاتيح ورموز', ticket: 'بلاغات', cpu: 'معالجات وقطع', webcam: 'كاميرا ويب', mic: 'مايكروفون', battery: 'بطارية', box: 'أخرى' };
+  const cache = new Map();
+  const get = (name, cls = '') => { const k = D[name] ? name : 'box'; if (!cache.has(k)) cache.set(k, D[k]().out(LABELS[k])); const svg = cache.get(k); return cls ? svg.replace('class="iso img3d"', `class="iso img3d ${cls}"`) : svg; };
+  return { get, names: Object.keys(D), LABELS };
+})();
+/* ── مخزن الصور: الصور المدمجة ثلاثية الأبعاد + صور يرفعها المشرف، ومرجع الصورة بالشكل i3d:<اسم> أو lib:<معرّف> ── */
+const ImgLib = {
+  custom: [],
+  canManage: () => Auth.can('images.manage') || Auth.can('settings'),
+  async load() { try { const r = await DB.get('meta', 'imglib'); this.custom = Array.isArray(r && r.value) ? r.value : []; } catch { this.custom = []; } },
+  find(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? this.custom.find((x) => x.id === s.slice(4)) || null : null; },
+  valid(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? !!this.find(s) : s.startsWith('i3d:') && Img3D.names.includes(s.slice(4)); },
+  label(ref) { const s = String(ref || ''), c = this.find(s); return c ? c.name : Img3D.LABELS[s.slice(4)] || ''; },
+  html(ref, cls = '', label = '') {
+    const s = String(ref || ''), c = this.find(s);
+    if (c) return `<img class="iso img3d img-up ${cls}" src="${esc(c.data)}" alt="${esc(label || c.name)}" loading="lazy" draggable="false">`;
+    return Img3D.get(s.startsWith('i3d:') ? s.slice(4) : 'box', cls);
+  },
+  guard() { if (!this.canManage()) throw new AppError('لا تملك صلاحية إدارة مخزن الصور'); },
+  async persist(list, msg) { await DB.put('meta', { key: 'imglib', value: list }); this.custom = list; await Data.log('update', 'imglib', '', msg); Bus.emit('imglib', {}); },
+  /* تصغير الصورة المرفوعة إلى 256 بكسل مع الحفاظ على الشفافية */
+  async shrink(file) {
+    if (!/^image\//.test(file.type)) throw new AppError(`«${file.name}» ليس ملف صورة`);
+    if (file.size > 8 * 1024 * 1024) throw new AppError(`«${file.name}» أكبر من 8 ميجابايت`);
+    const src = await fileToData(file);
+    if (file.type === 'image/svg+xml') { if (src.length > 400000) throw new AppError('ملف SVG كبير جداً'); return src; }
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new AppError(`تعذر قراءة «${file.name}»`)); i.src = src; });
+    const k = Math.min(1, 256 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    const out = cv.toDataURL('image/webp', 0.9); return out.startsWith('data:image/webp') ? out : cv.toDataURL('image/png');
+  },
+  async add(files) {
+    this.guard(); const list = [...this.custom], added = [];
+    for (const f of files) { const data = await this.shrink(f); const rec = { id: uid('img'), name: String(f.name).replace(/\.[^.]+$/, '').slice(0, 40) || 'صورة', data, at: now(), by: (Auth.user || {}).id || '' }; list.push(rec); added.push(rec); }
+    if (added.length) await this.persist(list, `رفع ${added.length} صورة إلى مخزن الصور`);
+    return added;
+  },
+  async rename(id, name) { this.guard(); const n = String(name || '').trim(); if (!n) throw new AppError('اكتب اسماً للصورة'); await this.persist(this.custom.map((x) => (x.id === id ? { ...x, name: n.slice(0, 40) } : x)), `إعادة تسمية صورة إلى ${n}`); },
+  async remove(id) {
+    this.guard(); const ref = `lib:${id}`;
+    const used = Data.list('categories').filter((c) => c.image === ref);
+    for (const c of used) { const r = await DB.get('categories', c.id); if (r) await DB.put('categories', { ...r, image: '', updatedAt: now() }); }
+    if (used.length) await Data.refresh('categories');
+    await this.persist(this.custom.filter((x) => x.id !== id), 'حذف صورة من مخزن الصور');
+  },
+  usedBy(ref) { return Data.list('categories').filter((c) => CatIcon.ref(c.id) === ref); }
+};
+
+/* ── صور فئات البلاغات: صورة ثلاثية الأبعاد لكل فئة، قابلة للتغيير من مخزن الصور ── */
 const CatIcon = (() => {
-  const G = {
-    hardware: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
-    printer: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
-    network: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.1" fill="#fff"/>',
-    software: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M10 12l-2.5 2.5L10 17M14 12l2.5 2.5L14 17"/>',
-    email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/>',
-    card: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="8.5" cy="11.5" r="2"/><path d="M5.5 16.5a3 3 0 0 1 6 0M14 11h4M14 14h3M9.5 3h5"/>',
-    path_code: '<rect x="2.5" y="7" width="19" height="10" rx="3"/><circle cx="7.5" cy="12" r="1.2" fill="#fff"/><circle cx="12" cy="12" r="1.2" fill="#fff"/><circle cx="16.5" cy="12" r="1.2" fill="#fff"/>',
-    backup: '<rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v9.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V9M9.5 13h5"/>',
-    ink: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.3 14.5a2.7 2.7 0 0 0 2.7 2.7"/>',
-    scanner: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"/>',
-    service_request: '<path d="M4 17.5h16M6 17.5a6 6 0 0 1 12 0M12 11.5V9M10.3 9h3.4M5 20.5h14"/>',
-    other: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'
+  const DEF = { hardware: 'computer', printer: 'printer', network: 'network', software: 'software', email: 'email', card: 'card', path_code: 'passcode', backup: 'archive', ink: 'ink', scanner: 'scanner', service_request: 'bell', other: 'box' };
+  const FROM_ISO = { toner: 'ink', router: 'network', wifi: 'network', netswitch: 'network', patchpanel: 'network', smartcard: 'card', envelope: 'email', mailIn: 'email', mailOut: 'email', drive: 'harddisk', report: 'chart', stamp: 'ticket', tools: 'toolbox', camera: 'cctv', monitor: 'display', clipboard: 'ticket', shelf: 'box', barcode: 'card' };
+  const ref = (id) => {
+    const c = Data.c.categories.get(id) || {};
+    if (c.image && ImgLib.valid(c.image)) return c.image;
+    if (DEF[id]) return `i3d:${DEF[id]}`;
+    const il = c.illustration; return `i3d:${Img3D.names.includes(il) ? il : FROM_ISO[il] || 'box'}`;
   };
-  const C = { hardware: ['#5B9BFF', '#2553C9'], printer: ['#9C8CFF', '#5B3FD1'], network: ['#2FD3C2', '#0E8C84'], software: ['#6F7CFF', '#2E36A8'], email: ['#FF7A7E', '#C22F46'], card: ['#FFC45C', '#C9821A'], path_code: ['#4CDB8E', '#1C8F52'], backup: ['#6FA6C8', '#2F5870'], ink: ['#F06BBA', '#A62677'], scanner: ['#40C4F2', '#1473A8'], service_request: ['#FF9A5C', '#D8551D'], other: ['#9AA7BB', '#56657C'] };
-  const BY_ILLU = { computer: 'hardware', laptop: 'hardware', display: 'hardware', keyboard: 'hardware', mouse: 'hardware', printer: 'printer', network: 'network', router: 'network', wifi: 'network', netswitch: 'network', software: 'software', email: 'email', envelope: 'email', mailIn: 'email', mailOut: 'email', card: 'card', smartcard: 'card', fingerprint: 'card', key: 'path_code', archive: 'backup', folder: 'backup', toner: 'ink', ink: 'ink', scanner: 'scanner', bell: 'service_request' };
-  const kindOf = (id) => (G[id] ? id : BY_ILLU[(Data.c.categories.get(id) || {}).illustration] || 'other');
-  const svg = (id, cls = '') => {
-    const k = kindOf(id), [c1, c2] = C[k], name = Data.nameOf('categories', id, '');
-    return `<svg class="iso cat-ic ${cls}" viewBox="0 0 64 64" role="img" aria-label="${esc(name)}" focusable="false"><defs><linearGradient id="cg-${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect x="5" y="5" width="54" height="54" rx="17" fill="url(#cg-${k})"/><path d="M22 5h20a17 17 0 0 1 17 17v2C44 30 22 31 5 26v-4A17 17 0 0 1 22 5z" fill="#fff" opacity=".16"/><rect x="5.5" y="5.5" width="53" height="53" rx="16.5" fill="none" stroke="#fff" stroke-opacity=".28"/><g transform="translate(17 17) scale(1.25)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${G[k]}</g></svg>`;
-  };
-  return { svg, kindOf };
+  const svg = (id, cls = '') => ImgLib.html(ref(id), `cat-ic ${cls}`, Data.nameOf('categories', id, ''));
+  return { svg, ref, DEF };
 })();
 
 /* ── مكتبة الواجهة: مكونات، رسوم بيانية متحركة، مؤثرات تفاعلية ── */
@@ -3063,7 +3216,7 @@ const Shell = {
       { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }] },
-      { group: 'الإدارة', items: [{ path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+      { group: 'الإدارة', items: [{ path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/images', label: 'مخزن الصور', icon: 'photo', perm: 'images.manage' }, { path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
     ].map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm)) })).filter((g) => g.items.length);
   },
   mount() {
@@ -3573,6 +3726,7 @@ Pages.newTicket = async (ctx) => {
       <div class="row mt" style="justify-content:space-between"><button class="btn btn-ghost" data-act="back1">${UI.icon('chevron-right')} السابق</button><button class="btn btn-primary btn-lg" data-act="review">المراجعة ${UI.icon('chevron-left')}</button></div>`);
     Pages.serviceNotice(c.id).then((h) => { const el = $('[data-svcnote]', view); if (el) el.innerHTML = String(h); UI.hydrate(el); }).catch(() => {});
     const form = $('#tkForm', view), title = $('#tt', form), desc = $('#td', form), cf = $('#catFields', view);
+    UI.bindOrgChain(form, { value: (form.querySelector('[name="unitId"]') || {}).value || '' });
     if (cf) cf.addEventListener('change', (e) => { const key = String((e.target || {}).name || '').slice(2); const defs = Forms.def(c.id); const deps = defs.some((f) => f.dep === key || (f.showIf && Object.keys(f.showIf).includes(key))); const vals = Forms.values(cf); st.x = vals; if (deps) cf.innerHTML = String(Forms.render(c.id, vals)); const sug = Forms.title(c.id, vals); if (sug && (!title.value.trim() || title.dataset.auto === '1')) { title.value = sug; title.dataset.auto = '1'; title.dispatchEvent(new Event('input')); } });
     title.addEventListener('input', () => { if (title.dataset.auto === '1' && cf && title.value !== Forms.title(c.id, Forms.values(cf))) title.dataset.auto = ''; });
     const slaHint = () => { const p = UI.formValues(form).priority || 'medium', s = Data.c.settings.sla[p]; $('#slaHint', view).textContent = `الوقت المستهدف للحل: ${fmtDuration(s.resolve * MIN)}، وأول استجابة خلال ${fmtDuration(s.respond * MIN)}`; };
@@ -3598,7 +3752,7 @@ Pages.newTicket = async (ctx) => {
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-main">
       ${UI.panel({ title: 'راجع بلاغك قبل الإرسال', icon: 'eye', body: html`<div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">${c.name}</div><b style="font-size:18px">${st.title}</b></div>${UI.priority(pr)}</div>
         ${st.description ? html`<p class="bubble mt">${st.description}</p>` : ''}
-        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} القسم</dt><dd>${Data.nameOf('departments', st.departmentId)}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
+        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} الإدارة</dt><dd>${Data.nameOf('departments', st.departmentId)}${st.unitPath ? html`<div class="t-sub">${st.unitPath}</div>` : ''}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
       ${UI.panel({ title: 'جاهز للإرسال', icon: 'send', body: html`<div class="center stack" style="gap:12px;align-items:center">${UI.illu('bell', 'head-illu')}<p class="muted">سيصل البلاغ إلى فريق الدعم الفني فور الإرسال، وستتلقى إشعاراً عند كل تحديث.</p><button class="btn btn-primary btn-lg btn-block" data-act="submit">${UI.icon('send')} إرسال البلاغ</button><button class="btn btn-ghost btn-block" data-act="back2">${UI.icon('edit')} تعديل التفاصيل</button></div>` })}
     </div>`);
   };
@@ -3687,7 +3841,7 @@ Pages.ticket = async (ctx) => {
         </div>
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
-          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
+          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
           ${staff ? UI.panel({ title: 'الإسناد والأولوية', icon: 'user-plus', body: html`<div class="stack" style="gap:12px"><div class="row" style="flex-wrap:nowrap">${t.assigneeId ? html`${UI.avatar(t.assigneeId, 'av-lg')}<div><b>${Data.userName(t.assigneeId)}</b><div class="t-sub">الفني المسؤول</div></div>` : html`<span class="faint">لم يُسند إلى فني بعد</span>`}</div>${mgr && OPEN.includes(t.status) ? html`${UI.field({ name: 'assign', label: 'إسناد إلى', type: 'select', options: UI.userOpts(['technician', 'support_manager', 'supervisor']) }, t.assigneeId)}${UI.field({ name: 'prio', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([k, p]) => ({ value: k, label: p.label })) }, t.priority)}` : ''}</div>` }) : ''}
           ${staff ? Pages.ticketFlow(t) : ''}
           ${Pages.categoryFormBar(t.categoryId) ? UI.panel({ title: 'استمارة الفئة', icon: 'file', body: Pages.categoryFormBar(t.categoryId) }) : ''}
@@ -5037,13 +5191,14 @@ Pages.lookupModal = async (store, id) => {
     body: html`${UI.fields([{ name: 'name', label: 'اسم الفئة', required: true }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }], rec)}
       <div class="field mt"><label>المسؤولون عن هذه الفئة</label><div class="chip-pick">${staff.length ? staff.map((u) => html`<label><input type="checkbox" data-own="${u.id}"${owners.has(u.id) ? raw(' checked') : ''}><span>${u.name} — ${ROLES[u.role]}</span></label>`) : html`<span class="faint small">لا يوجد فنيون أو إداريون بعد</span>`}</div><small class="hint">تُسند بلاغات هذه الفئة تلقائياً لمن تختاره هنا.</small></div>
       <div class="field mt"><label for="cfile">استمارة الفئة (اختياري)</label>${rec.formFile ? html`<div class="form-bar" style="margin-bottom:8px">${UI.icon('file')}<div class="grow"><b>${rec.formFile.name}</b><div class="t-sub">${fmtBytes(rec.formFile.size)}</div></div><button type="button" class="btn btn-sm btn-soft" data-catform="${id}">${UI.icon('download')} تحميل</button></div>` : ''}<input id="cfile" name="formFile" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">${UI.field({ name: 'formRequired', type: 'switch', text: 'إرفاق المستند بعد تعبئته إلزامي عند تقديم البلاغ' }, rec.formRequired ? 1 : 0)}<small class="hint">تظهر للموظفين عند تقديم بلاغ في هذه الفئة وفي صفحة البلاغ. الحد 3 ميجابايت.</small></div>
-      <div class="field mt"><label>الرسمة ثلاثية الأبعاد</label><div class="illu-pick">${Iso.names.map((n) => html`<label><input type="radio" name="illustration" value="${n}"${rec.illustration === n ? raw(' checked') : ''}><span>${UI.illu(n)}${ILLU_LABELS[n] || n}</span></label>`)}</div></div>`,
+      <div class="field mt"><label>صورة الفئة <small class="faint">(من مخزن الصور${ImgLib.canManage() ? '، أو ارفع صورة جديدة' : ''})</small></label>${UI.imgPicker('image', id ? CatIcon.ref(id) : 'i3d:box')}</div>`,
+    onMount: (form) => UI.bindImgPicker(form),
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form); if (!String(v.name).trim()) throw new AppError('اسم الفئة مطلوب');
       const fi = form.querySelector('[name="formFile"]'), file = fi && fi.files && fi.files[0];
       let formFile = rec.formFile || null;
       if (file) { if (file.size > 3 * 1024 * 1024) throw new AppError('حجم الملف أكبر من 3 ميجابايت'); formFile = { name: file.name, type: file.type, size: file.size, at: now(), data: await fileToData(file) }; }
-      const saved = await Data.saveRecord('categories', { ...rec, ...v, name: v.name.trim(), order: Number(v.order) || 0, formFile, formRequired: formFile && Number(v.formRequired) ? 1 : 0 }, 'فئة');
+      const saved = await Data.saveRecord('categories', { ...rec, ...v, image: ImgLib.valid(v.image) ? v.image : rec.image || '', name: v.name.trim(), order: Number(v.order) || 0, formFile, formRequired: formFile && Number(v.formRequired) ? 1 : 0 }, 'فئة');
       const picked = new Set($$('[data-own]:checked', form).map((x) => x.dataset.own)), changed = [];
       for (const u of staff) { const has = (u.categories || []).includes(saved.id), want = picked.has(u.id); if (has === want) continue; const rec2 = await DB.get('users', u.id); rec2.categories = want ? [...new Set([...(rec2.categories || []), saved.id])] : (rec2.categories || []).filter((c) => c !== saved.id); rec2.updatedAt = now(); changed.push(rec2); }
       if (changed.length) { await DB.bulkPut('users', changed); await Data.refresh('users'); await Data.log('update', 'user', '', `تحديث مسؤولي فئة ${saved.name}`); Bus.emit('users'); }
@@ -6720,6 +6875,8 @@ Forms.baseFields = (catId, values = {}) => {
   const deps = Data.list('departments').map((d) => ({ value: d.id, label: d.name }));
   return html`<div class="form-grid">
     ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', options: deps, placeholder: false }, values.departmentId || u.departmentId || '')}
+    <input type="hidden" name="unitId" value="${values.unitId != null ? values.unitId : (values.departmentId || u.departmentId || '') === u.departmentId ? u.unitId || '' : ''}"><input type="hidden" name="unitPath" value="${values.unitPath || ''}">
+    <div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
     ${UI.field({ name: 'locationId', label: 'المبنى', type: 'select', options: UI.opts('locations') }, values.locationId || u.locationId || '')}
     ${UI.combo({ name: 'location', label: 'المكتب', value: values.location || u.office || '', placeholder: 'مثال: مكتب 214 - الطابق الثاني', options: locOpts, hint: 'اكتب المكتب أو اختر من القائمة' })}
     ${UI.field({ name: 'contact', label: 'رقم التواصل', inputmode: 'tel' }, values.contact || u.phone || '')}
@@ -9380,6 +9537,99 @@ const Presence = {
 };
 
 /* ── بدء التشغيل بعد تعريف كل الصفحات والإضافات ── */
+/* ── تشعب الهيكل التنظيمي في البلاغات: الإدارة ← القسم ← الشعبة ← المكتب، كل مستوى يظهر بعد اختيار الذي قبله ── */
+UI.bindOrgChain = async (form, { dep = 'departmentId', unit = 'unitId', value = '' } = {}) => {
+  const ds = form.querySelector(`[name="${dep}"]`), hid = form.querySelector(`[name="${unit}"]`), box = form.querySelector('[data-orgchain]'); if (!ds || !hid || !box) return;
+  const units = await DB.getAll('deptUnits'), byId = new Map(units.map((u) => [u.id, u]));
+  const mine = () => units.filter((u) => u.departmentId === ds.value);
+  const kids = (pid) => { const m = mine(), ids = new Set(m.map((u) => u.id)); return m.filter((u) => (ids.has(u.parentId) ? u.parentId : '') === pid).sort(sortByOrder); };
+  const chainOf = (id) => { const out = []; let u = byId.get(id), guard = 0; while (u && u.departmentId === ds.value && guard++ < 20) { out.unshift(u.id); u = byId.get(u.parentId); } return out; };
+  const levelLabel = (list) => { const ts = [...new Set(list.map((u) => u.type || 'section'))]; return ts.length === 1 ? (UNIT_TYPES[ts[0]] || UNIT_TYPES.section).label : 'الفرع التابع'; };
+  const draw = (sel) => {
+    const chain = sel ? chainOf(sel) : [], parts = [];
+    let pid = '';
+    for (let i = 0; i <= chain.length && i < ORG_MAX_DEPTH; i++) {
+      const list = kids(pid); if (!list.length) break;
+      const cur = chain[i] || '';
+      parts.push(`<div class="oc-step">${i ? '<span class="oc-arrow" aria-hidden="true">↲</span>' : ''}<div class="field"><label>${esc(levelLabel(list))}</label><select data-oclevel="${i}" data-ocparent="${esc(pid)}"><option value="">${i ? '— بدون تحديد —' : '— الإدارة كلها —'}</option>${list.map((u) => `<option value="${esc(u.id)}"${u.id === cur ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div></div>`);
+      if (!cur) break; pid = cur;
+    }
+    hid.value = chain.length ? chain[chain.length - 1] : '';
+    const path = chain.map((id) => (byId.get(id) || {}).name).filter(Boolean), hp = form.querySelector('[name="unitPath"]'); if (hp) hp.value = path.join(' ← ');
+    box.innerHTML = parts.join('') + (path.length ? `<div class="oc-path">${UI.icon('building')}<span>${esc([Data.nameOf('departments', ds.value, ''), ...path].join(' ← '))}</span></div>` : '');
+    box.closest('[data-orgchain-wrap]').hidden = !parts.length;
+  };
+  box.addEventListener('change', (e) => { const s = e.target.closest('select[data-oclevel]'); if (!s) return; e.stopPropagation(); draw(s.value || s.dataset.ocparent); hid.dispatchEvent(new Event('change', { bubbles: true })); });
+  ds.addEventListener('change', () => draw(''));
+  draw(value && (byId.get(value) || {}).departmentId === ds.value ? value : '');
+};
+const orgUnitPath = async (unitId) => { if (!unitId) return ''; const units = await DB.getAll('deptUnits'), byId = new Map(units.map((u) => [u.id, u])), out = []; let u = byId.get(unitId), g = 0; while (u && g++ < 20) { out.unshift(u.name); u = byId.get(u.parentId); } return out.join(' ← '); };
+{
+  const createOrg = Data.tickets.create;
+  Data.tickets.create = async function (input = {}, files = []) {
+    const unitId = String(input.unitId || ''), units = unitId ? await DB.getAll('deptUnits') : [], u = units.find((x) => x.id === unitId);
+    const ok = u && u.departmentId === (input.departmentId || (Auth.user || {}).departmentId || '');
+    return createOrg.call(this, { ...input, unitId: ok ? unitId : '', unitPath: ok ? await orgUnitPath(unitId) : '' }, files);
+  };
+}
+/* منتقي الصورة: الصور المدمجة + المرفوعة، مع بحث ورفع مباشر */
+UI.imgPicker = (name, value) => html`<div class="img-pick-wrap" data-imgpick="${name}">
+  <div class="row" style="gap:8px;margin-bottom:8px"><div class="search-box grow">${UI.icon('search')}<input type="search" data-imgq placeholder="ابحث في الصور: طابعة، شبكة، بصمة..."></div>${ImgLib.canManage() ? html`<label class="btn btn-soft btn-sm" style="cursor:pointer">${UI.icon('upload')} رفع صورة<input type="file" accept="image/*" multiple data-imgup hidden></label>` : ''}</div>
+  <div class="img-pick" data-imggrid>${UI.imgPickItems(name, value)}</div></div>`;
+UI.imgPickItems = (name, value) => {
+  const all = [...ImgLib.custom.map((c) => [`lib:${c.id}`, c.name, 1]), ...Img3D.names.map((n) => [`i3d:${n}`, Img3D.LABELS[n] || n, 0])];
+  return html`${all.map(([ref, label, up]) => html`<label data-q="${label} ${ref}"><input type="radio" name="${name}" value="${ref}"${value === ref ? raw(' checked') : ''}><span>${raw(ImgLib.html(ref, '', label))}<b>${label}</b>${up ? html`<i class="img-tag">مرفوعة</i>` : ''}</span></label>`)}`;
+};
+UI.bindImgPicker = (root) => {
+  $$('[data-imgpick]', root).forEach((w) => {
+    const name = w.dataset.imgpick, grid = w.querySelector('[data-imggrid]'), q = w.querySelector('[data-imgq]'), up = w.querySelector('[data-imgup]');
+    const filter = () => { const t = q.value.trim().toLowerCase(); grid.querySelectorAll('label').forEach((l) => { l.hidden = !!t && !l.dataset.q.toLowerCase().includes(t); }); };
+    q.addEventListener('input', filter);
+    const cur = grid.querySelector('input:checked'); if (cur) setTimeout(() => cur.closest('label').scrollIntoView({ block: 'nearest' }), 60);
+    if (up) up.addEventListener('change', async () => {
+      try { const added = await ImgLib.add([...up.files]); if (!added.length) return; grid.innerHTML = String(UI.imgPickItems(name, `lib:${added[added.length - 1].id}`)); q.value = ''; UI.toast(`أُضيفت ${arCount(added.length, ['صورة واحدة', 'صورتان', 'صور', 'صورة', 'صورة'])} إلى مخزن الصور`); } catch (e) { UI.toast(e.message || 'تعذر رفع الصورة', 'error'); }
+      up.value = '';
+    });
+  });
+};
+
+/* ── صفحة مخزن الصور: رفع الصور، وتغيير صورة أي فئة بلاغات ── */
+Pages.catImageModal = async (catId) => {
+  const c = Data.c.categories.get(catId); if (!c) return null;
+  return UI.modal({ title: `صورة الفئة: ${c.name}`, icon: 'photo', size: 'lg',
+    body: html`<div class="img-cur">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="t-sub">الصورة الحالية: ${ImgLib.label(CatIcon.ref(c.id))}</div></div></div>${UI.imgPicker('image', CatIcon.ref(c.id))}`,
+    onMount: (form) => UI.bindImgPicker(form),
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'اعتماد الصورة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form); if (!ImgLib.valid(v.image)) throw new AppError('اختر صورة');
+      const r = await DB.get('categories', c.id); await DB.put('categories', { ...r, image: v.image, updatedAt: now() });
+      await Data.refresh('categories'); await Data.log('update', 'category', c.id, `تغيير صورة فئة ${c.name}`); UI.toast('تم تغيير صورة الفئة'); return true;
+    } }] });
+};
+Pages.images = async (ctx) => {
+  const st = { q: '' };
+  const draw = () => {
+    if (!ctx.alive()) return;
+    const cats = Data.list('categories'), q = st.q.trim().toLowerCase(), hit = (s) => !q || String(s).toLowerCase().includes(q);
+    const card = (ref, label, up) => { const used = ImgLib.usedBy(ref); return html`<div class="img-card${used.length ? ' used' : ''}">${raw(ImgLib.html(ref, '', label))}<b>${label}</b><div class="t-sub">${used.length ? `مستخدمة في: ${used.map((x) => x.name).join('، ')}` : up ? 'مرفوعة — غير مستخدمة' : ''}</div>${up ? html`<div class="img-acts"><button class="btn btn-ghost btn-sm" data-ren="${up}" title="إعادة تسمية">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-rm="${up}" title="حذف">${UI.icon('trash')}</button></div>` : ''}</div>`; };
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'مخزن الصور', sub: 'صور ثلاثية الأبعاد لتقنية المعلومات تُستخدم لفئات البلاغات، مع إمكانية رفع صورك الخاصة', illu: 'folder', actions: html`<div class="search-box" style="min-width:220px">${UI.icon('search')}<input id="imq" type="search" placeholder="ابحث عن صورة" value="${st.q}"></div><label class="btn btn-primary" style="cursor:pointer">${UI.icon('upload')} رفع صور<input id="imup" type="file" accept="image/*" multiple hidden></label>` })}
+      ${UI.panel({ title: 'صور فئات البلاغات', icon: 'tag', sub: 'اضغط على أي فئة لتغيير صورتها', body: html`<div class="img-cats">${cats.map((c) => html`<button class="img-cat" data-cat="${c.id}">${raw(CatIcon.svg(c.id))}<b>${c.name}</b><span class="faint small">${UI.icon('edit')} تغيير</span></button>`)}</div>` })}
+      ${UI.panel({ title: 'صوري المرفوعة', icon: 'upload', sub: 'تُصغَّر تلقائياً إلى 256 بكسل. يُفضَّل PNG أو WebP بخلفية شفافة', body: ImgLib.custom.filter((x) => hit(x.name)).length ? html`<div class="img-lib">${ImgLib.custom.filter((x) => hit(x.name)).map((x) => card(`lib:${x.id}`, x.name, x.id))}</div>` : html`<div class="empty-mini">${UI.icon('photo')} ${ImgLib.custom.length ? 'لا نتائج' : 'لم تُرفع صور بعد. استخدم زر «رفع صور» لإضافة صور خاصة بجهتك.'}</div>` })}
+      ${UI.panel({ title: 'الصور المدمجة ثلاثية الأبعاد', icon: 'grid', sub: `${fmtNum(Img3D.names.length)} صورة جاهزة لتقنية المعلومات`, body: html`<div class="img-lib">${Img3D.names.filter((n) => hit(`${n} ${Img3D.LABELS[n]}`)).map((n) => card(`i3d:${n}`, Img3D.LABELS[n] || n, ''))}</div>` })}`);
+    const qi = $('#imq', ctx.view); qi.addEventListener('input', debounce(() => { st.q = qi.value; draw(); const n = $('#imq', ctx.view); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250));
+    $('#imup', ctx.view).addEventListener('change', async (e) => { try { const a = await ImgLib.add([...e.target.files]); if (a.length) UI.toast(`أُضيفت ${arCount(a.length, ['صورة واحدة', 'صورتان', 'صور', 'صورة', 'صورة'])}`); } catch (er) { UI.toast(er.message || 'تعذر الرفع', 'error'); } draw(); });
+  };
+  UI.on(ctx.view, 'click', '[data-cat]', async (e, el) => { if (await Pages.catImageModal(el.dataset.cat)) draw(); });
+  UI.on(ctx.view, 'click', '[data-rm]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.rm); if (!x) return; const used = ImgLib.usedBy(`lib:${x.id}`); if (!(await UI.confirm(`حذف الصورة «${x.name}»؟${used.length ? ` ستعود ${used.map((c) => c.name).join('، ')} إلى صورتها الافتراضية.` : ''}`, { danger: true, ok: 'حذف' }))) return; await ImgLib.remove(x.id); UI.toast('حُذفت الصورة'); draw(); });
+  UI.on(ctx.view, 'click', '[data-ren]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.ren); if (!x) return; const r = await UI.modal({ title: 'إعادة تسمية الصورة', icon: 'edit', body: UI.fields([{ name: 'name', label: 'الاسم', required: true, wide: true }], { name: x.name }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', submit: true, handler: async (f) => { await ImgLib.rename(x.id, UI.formValues(f).name); return true; } }] }); if (r) draw(); });
+  ctx.onCleanup(Bus.on('imglib', () => draw()));
+  draw();
+};
+PERM_GROUPS.find((g) => g.title === 'التقارير والإدارة').items.push(['images.manage', 'مخزن الصور', 'رفع الصور وتغيير صور فئات البلاغات']);
+PERM_KEYS.add('images.manage'); PERM_LABEL['images.manage'] = 'مخزن الصور';
+Router.add('/images', 'images.manage', Pages.images, 'مخزن الصور');
+/* تحميل مخزن الصور مع كل تحديث للبيانات */
+{ const refreshImg = Data.refresh.bind(Data); Data.refresh = async (which) => { const r = await refreshImg(which); if (!which || which === 'settings' || which === 'categories') await ImgLib.load(); return r; }; }
+
 boot();
 })();</script>
 </body>
