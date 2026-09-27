@@ -1534,9 +1534,9 @@ img.iso{object-fit:contain;display:block}
 .img-pick span{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px 8px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-size:11px;color:var(--ink-3);transition:border-color .2s,box-shadow .2s,transform .2s}
 .img-pick span b{font-weight:600;text-align:center;line-height:1.3}
 .img-pick .iso{width:62px;height:62px}.img-pick label:hover span{transform:translateY(-2px)}
-.img-pick input:checked+span{border-color:rgb(var(--accent));box-shadow:var(--glow);color:var(--ink);background:rgb(var(--accent)/.08)}
+.img-pick input:checked+span{border-color:rgb(var(--accent));box-shadow:var(--glow);color:var(--ink);background:rgba(var(--accent),.08)}
 .img-pick input:focus-visible+span{outline:2px solid rgb(var(--accent));outline-offset:2px}
-.img-tag{position:absolute;top:4px;inset-inline-start:4px;font-style:normal;font-size:9px;padding:1px 6px;border-radius:99px;background:rgb(var(--accent)/.15);color:rgb(var(--accent))}
+.img-tag{position:absolute;top:4px;inset-inline-start:4px;font-style:normal;font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(var(--accent),.15);color:rgb(var(--accent))}
 .img-cur{display:flex;align-items:center;gap:14px;padding:10px 12px;margin-bottom:12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}.img-cur .iso{width:72px;height:72px;flex:none}
 .img-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
 .img-cat{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:16px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;color:var(--ink);font:inherit;transition:transform .25s var(--spring),box-shadow .25s}
@@ -1544,11 +1544,42 @@ img.iso{object-fit:contain;display:block}
 .img-lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:12px}
 .img-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px 10px;border-radius:16px;border:1px solid var(--line);background:var(--surface-2);text-align:center}
 .img-card .iso{width:80px;height:80px}.img-card b{font-size:13px}.img-card .t-sub{font-size:11px;min-height:15px}
-.img-card.used{border-color:rgb(var(--accent)/.45)}.img-acts{display:flex;gap:4px}
+.img-card.used{border-color:rgba(var(--accent),.45)}.img-acts{display:flex;gap:4px}
 .org-chain{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px}.org-chain .oc-step{display:flex;align-items:flex-end;gap:8px;min-width:0;flex:1 1 200px}.org-chain .oc-step .field{flex:1;min-width:0;margin:0}
 .oc-arrow{font-size:20px;color:rgb(var(--accent));padding-bottom:10px}
-.oc-path{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);padding:6px 10px;border-radius:10px;background:rgb(var(--accent)/.07)}.oc-path .ic{width:14px;height:14px;flex:none}
+.oc-path{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);padding:6px 10px;border-radius:10px;background:rgba(var(--accent),.07)}.oc-path .ic{width:14px;height:14px;flex:none}
 .empty-mini{display:flex;align-items:center;gap:8px;color:var(--ink-3);padding:10px}
+.cat-notes{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin-bottom:14px;border-radius:14px;background:rgba(var(--accent),.08);border:1px solid rgba(var(--accent),.25)}.cat-notes>.ic{width:20px;height:20px;flex:none;color:rgb(var(--accent-ink));margin-top:2px}
+.cat-notes ul{margin:6px 0 0;padding-inline-start:18px;display:grid;gap:3px;font-size:13.5px}.cat-notes li.req{color:var(--red,#e5484d);font-weight:600}
+.cf-chips{margin-top:6px}.cf-note{display:block;margin-top:4px}.choice-pick.multi input:checked+span{box-shadow:inset 0 0 0 1.5px rgb(var(--accent))}
+.cat-admin{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:14px}
+.cat-card{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font:inherit;text-align:start;cursor:pointer;transition:transform .25s var(--spring),box-shadow .25s,border-color .25s}
+.cat-card:hover{transform:translateY(-3px);box-shadow:var(--glow);border-color:rgba(var(--accent),.45)}.cat-card .iso{width:74px;height:74px;flex:none}.cat-card b{font-size:16px}
+.cat-card.off{opacity:.62}.cat-card.add{border-style:dashed;background:transparent}.cat-card.add>.ic{width:40px;height:40px;padding:10px;border-radius:14px;background:rgba(var(--accent),.12);color:rgb(var(--accent-ink));flex:none}
+.cc-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-3);margin:4px 0 6px}.cc-meta span{display:inline-flex;align-items:center;gap:4px}.cc-meta .ic{width:13px;height:13px}.cc-tags{display:flex;flex-wrap:wrap;gap:5px}
+.ce-grid{align-items:start}.ce-main{display:grid;gap:16px;min-width:0}.ce-side{position:sticky;top:84px;min-width:0}.ce-side .panel{max-height:calc(100vh - 110px);overflow:auto}
+.ce-id{display:flex;gap:16px;align-items:flex-start}.ce-img{position:relative;flex:none;width:118px;height:118px;border-radius:20px;border:1px dashed var(--line);background:var(--surface-2);cursor:pointer;display:grid;place-items:center;padding:8px}
+.ce-img .iso{width:92px;height:92px}.ce-img span{position:absolute;bottom:6px;inset-inline:6px;display:flex;justify-content:center;gap:4px;font-size:11px;padding:3px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;opacity:0;transition:opacity .2s}.ce-img:hover span,.ce-img:focus-visible span{opacity:1}.ce-img span .ic{width:13px;height:13px}
+.fb-card{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);margin-bottom:10px;transition:border-color .2s,box-shadow .2s}.fb-card.req{border-inline-start:3px solid rgb(var(--accent))}.fb-card.open{box-shadow:var(--glow);border-color:rgba(var(--accent),.45)}
+.fb-head{display:flex;align-items:center;gap:8px;padding:8px 10px}.fb-num{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(var(--accent),.14);color:rgb(var(--accent-ink))}
+.fb-type .ic{width:17px;height:17px;color:var(--ink-3)}.fb-label{flex:1;min-width:80px;height:36px;border:1px solid transparent!important;background:transparent!important;font-weight:600;padding:0 8px!important}.fb-label:focus{border-color:rgba(var(--accent),.5)!important;background:var(--surface)!important}
+.fb-req{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-3);cursor:pointer;white-space:nowrap}.fb-tools{display:flex;gap:4px}.fb-tools .icon-btn{width:30px;height:30px;border-radius:9px;font-size:11px}.fb-tools .icon-btn .ic{width:15px;height:15px}.fb-tools .icon-btn:disabled{opacity:.35;pointer-events:none}
+.icon-btn.danger:hover{color:#e5484d;border-color:rgba(229,72,77,.5)}.btn.danger{color:#e5484d}
+.fb-sum{padding:0 44px 10px 12px;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fb-body{padding:4px 12px 14px;border-top:1px dashed var(--line)}
+.fb-cond{display:grid;gap:8px}.fb-add{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}.fb-add b{font-size:12.5px;color:var(--ink-3);margin-inline-end:4px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.note-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}.note-row>span .ic{width:16px;height:16px;color:rgb(var(--accent-ink))}.note-row input{flex:1}.note-row .icon-btn{width:34px;height:34px}
+.ce-danger{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px}.tpl-grid label{position:relative;cursor:pointer}.tpl-grid input[type=radio]{position:absolute;opacity:0}
+.tpl-grid span{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;padding:12px 8px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);text-align:center;transition:border-color .2s,box-shadow .2s}
+.tpl-grid span .iso{width:62px;height:62px}.tpl-grid span>.ic{width:40px;height:40px;padding:8px;margin:11px 0;color:rgb(var(--accent-ink))}.tpl-grid b{font-size:13.5px}.tpl-grid small{font-size:11px;color:var(--ink-3);line-height:1.4}.tpl-grid .chip{font-style:normal;margin-top:auto}.tpl-grid select{height:32px;font-size:12px;margin-top:4px;width:100%}
+.tpl-grid input:checked+span{border-color:rgb(var(--accent));box-shadow:var(--glow);background:rgba(var(--accent),.08)}
+.bp-rows{display:grid;gap:6px;max-height:340px;overflow:auto;padding:2px}.bp-row{display:grid;grid-template-columns:26px 130px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) 34px;gap:6px;align-items:center}
+.bp-row input,.bp-row select{height:38px;min-width:0}.bp-row .icon-btn{width:34px;height:34px}.bp-n{font-size:12px;color:var(--ink-3);text-align:center;font-weight:700}
+.bp-row.bad input,.bp-row.bad select{border-color:#e5484d;background:rgba(229,72,77,.06)}.bp-paste{margin-bottom:10px}
+.img-bar{margin:14px 0}
+.ce-side .cat-fields,.ce-side .form-grid{grid-template-columns:1fr!important}
+@media (max-width:900px){.ce-side{position:static}.ce-side .panel{max-height:none}.ce-id{flex-direction:column;align-items:center}.bp-row{grid-template-columns:22px 1fr 1fr 34px}.bp-row [data-bp="name"]{grid-column:2/4}.bp-row [data-bp="phone"]{grid-column:2/4}.bp-row select{grid-column:2/3}.bp-row .icon-btn{grid-row:1;grid-column:4}.fb-head{flex-wrap:wrap}.fb-label{flex-basis:60%}}
 .head-illu.cat-ic{width:66px;height:66px}
 /* المتواجدون الآن */
 .pres-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;border:1px solid rgba(var(--teal),.4);background:rgba(var(--teal),.1);color:rgb(var(--teal-ink));font:700 13.5px var(--f-display);cursor:pointer;flex:none}
@@ -2474,6 +2505,7 @@ const ICONS = {
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', upload: '<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>',
   print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  hash: '<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>',
   photo: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -2843,7 +2875,7 @@ const Img3D = (() => {
 /* ── مخزن الصور: الصور المدمجة ثلاثية الأبعاد + صور يرفعها المشرف، ومرجع الصورة بالشكل i3d:<اسم> أو lib:<معرّف> ── */
 const ImgLib = {
   custom: [],
-  canManage: () => Auth.can('images.manage') || Auth.can('settings'),
+  canManage: () => Auth.can('categories.manage') || Auth.can('settings'),
   async load() { try { const r = await DB.get('meta', 'imglib'); this.custom = Array.isArray(r && r.value) ? r.value : []; } catch { this.custom = []; } },
   find(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? this.custom.find((x) => x.id === s.slice(4)) || null : null; },
   valid(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? !!this.find(s) : s.startsWith('i3d:') && Img3D.names.includes(s.slice(4)); },
@@ -3216,7 +3248,7 @@ const Shell = {
       { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }] },
-      { group: 'الإدارة', items: [{ path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/images', label: 'مخزن الصور', icon: 'photo', perm: 'images.manage' }, { path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+      { group: 'الإدارة', items: [{ path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
     ].map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm)) })).filter((g) => g.items.length);
   },
   mount() {
@@ -3600,7 +3632,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
       ${UI.kpi({ label: 'تم حلها', icon: 'check', tone: 'teal', value: rows.filter((t) => ['resolved', 'closed'].includes(t.status)).length })}
       ${UI.kpi({ label: 'متوسط زمن الحل', icon: 'pulse', tone: 'violet', value: Stats.avgRes(rows) / HOUR, dec: 1, suffix: ' س' })}
     </div>
-    ${UI.panel({ title: 'بماذا نساعدك اليوم؟', icon: 'plus', sub: 'اختر نوع المشكلة لبدء بلاغ جديد خلال أقل من دقيقة', cls: 'mt', body: html`<div class="tiles">${Pages.chatTile()}${Data.list('categories').slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
+    ${UI.panel({ title: 'بماذا نساعدك اليوم؟', icon: 'plus', sub: 'اختر نوع المشكلة لبدء بلاغ جديد خلال أقل من دقيقة', cls: 'mt', body: html`<div class="tiles">${Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
       ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
       <div class="stack">${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${UI.panel({ title: 'حلول سريعة', icon: 'book', sub: 'قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
@@ -3693,7 +3725,7 @@ Pages.tickets = async (ctx) => {
 const QUICK_TITLES = { hardware: ['الجهاز لا يعمل', 'بطء شديد في الجهاز', 'الشاشة لا تعرض صورة', 'تعطل لوحة المفاتيح أو الماوس'], printer: ['الطابعة لا تطبع', 'انحشار الورق', 'طباعة باهتة أو مخططة', 'تعريف طابعة جديدة'], network: ['لا يوجد اتصال بالشبكة', 'بطء في الإنترنت', 'تركيب نقطة شبكة جديدة'], software: ['طلب تثبيت برنامج', 'البرنامج لا يفتح', 'رسالة خطأ في النظام'], email: ['نسيت كلمة مرور البريد', 'البريد لا يستقبل الرسائل', 'طلب بريد جديد'], card: ['إصدار بطاقة جديدة', 'بدل فاقد', 'تم الترقية'], path_code: ['طلب رمز جديد', 'الرمز لا يعمل'], backup: ['إنشاء حساب على نظام المراسلات', 'طلب صلاحية على سجل', 'استخراج وثيقة محفوظة'], ink: ['طلب حبر للطابعة', 'الحبر المركّب لا يعمل'], scanner: ['الماسح لا يعمل', 'إعداد المسح إلى البريد'], service_request: ['طلب خدمة شبكة', 'طلب مجلد مشترك'], other: [] };
 const PRIO_HINT = { low: 'يمكن الانتظار', medium: 'يؤثر على العمل', high: 'يعطّل العمل', urgent: 'يوقف العمل بالكامل' };
 Pages.newTicket = async (ctx) => {
-  const cats = Data.list('categories'), view = ctx.view, files = [], urls = [];
+  const cats = Data.list('categories').filter((c) => !c.hidden || c.id === ctx.query.cat), view = ctx.view, files = [], urls = [];
   const st = { cat: Data.c.categories.get(ctx.query.cat) ? ctx.query.cat : '', step: 1 };
   if (st.cat) st.step = 2;
   ctx.onCleanup(() => urls.forEach((x) => URL.revokeObjectURL(x)));
@@ -3712,8 +3744,8 @@ Pages.newTicket = async (ctx) => {
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-side">
       ${UI.panel({ title: 'تفاصيل البلاغ', icon: 'edit', body: html`<form id="tkForm" novalidate class="stack" style="gap:16px">
         <div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button></div>
-        <div data-svcnote></div>${Pages.categoryFormBar(c.id)}<div id="catFields">${Forms.render(c.id, st.x || {})}</div>${c.id === 'card' ? Forms.personsBlock(st.persons || []) : ''}${c.id === 'path_code' ? Forms.codeBlock(st.codes || []) : ''}
-        <div class="field"><label for="tt">${Forms.titleLabel(c.id)}<em>*</em></label><input id="tt" name="title" maxlength="120" placeholder="مثال: الطابعة في مكتب 12 لا تطبع" value="${st.title || ''}">${(QUICK_TITLES[c.id] || []).length ? html`<div class="quick-chips" style="margin-top:6px">${QUICK_TITLES[c.id].map((x) => html`<button type="button" class="qchip" data-quick="${x}">${x}</button>`)}</div>` : ''}</div>
+        <div data-svcnote></div>${Pages.catNotes(c.id)}${Pages.categoryFormBar(c.id)}<div id="catFields">${Forms.render(c.id, st.x || {})}</div>${c.id === 'card' ? Forms.personsBlock(st.persons || []) : ''}${c.id === 'path_code' ? Forms.codeBlock(st.codes || []) : ''}
+        <div class="field"><label for="tt">${Forms.titleLabel(c.id)}<em>*</em></label><input id="tt" name="title" maxlength="120" placeholder="${catCfg(c.id) ? 'اكتب عنواناً مختصراً وواضحاً' : 'مثال: الطابعة في مكتب 12 لا تطبع'}" value="${st.title || ''}">${Forms.quickTitles(c.id).length ? html`<div class="quick-chips" style="margin-top:6px">${Forms.quickTitles(c.id).map((x) => html`<button type="button" class="qchip" data-quick="${x}">${x}</button>`)}</div>` : ''}</div>
         <div class="field"><label for="td">وصف المشكلة</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea></div>
         <div class="field"><label>مدى تأثير المشكلة</label><div class="seg" role="radiogroup">${Object.entries(PRIORITY).reverse().map(([k, p]) => html`<label class="tone-${p.tone}"><input type="radio" name="priority" value="${k}"${(st.priority || 'medium') === k ? raw(' checked') : ''}><span><i class="dot"></i>${p.label}<small class="faint">${PRIO_HINT[k]}</small></span></label>`)}</div><small class="hint" id="slaHint"></small></div>
         ${Forms.baseFields(c.id, st)}
@@ -3771,6 +3803,7 @@ Pages.newTicket = async (ctx) => {
     $$('.persons-box input[required], .persons-box [data-req]', form).forEach((el) => { if (!String(el.value || '').trim()) mark(el, el.placeholder || 'بيانات الشخص'); });
     if (String(st.title || '').trim().length < 3) mark($('#tt', view), Forms.titleLabel(st.cat), 'اكتب عنواناً واضحاً (3 أحرف على الأقل)');
     if (catFormRequired(st.cat) && !files.length) mark($('#drop', view), 'مستند الفئة', 'أرفق مستند الفئة بعد تعبئته (إلزامي لهذه الفئة)');
+    else if (Forms.attachReq(st.cat) && !files.length) mark($('#drop', view), 'المرفقات', Forms.attachMsg(st.cat));
     return out;
   };
   view.addEventListener('input', (e) => { const b = e.target.closest && e.target.closest('.field-miss'); if (b) { b.classList.remove('field-miss'); const m = b.querySelector('.miss-msg'); if (m) m.remove(); } });
@@ -4663,7 +4696,7 @@ Pages.userModal = async (id) => {
 Pages.users = async (ctx) => {
   const st = { q: '', role: ctx.query.role || '', dep: '', loc: '', active: '', view: localStorage.getItem('sq_uview') || 'cards' };
   const sel = (id, label, opts) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>`;
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
     <div class="role-cards" id="roleCards"></div>
     <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الأقسام', UI.opts('departments'))}${sel('uloc', 'كل المواقع', UI.opts('locations'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
   const where = (u) => [Data.nameOf('locations', u.locationId, ''), u.office].filter(Boolean).join(' — ');
@@ -5092,15 +5125,20 @@ const Forms = {
       const show = this.visible(f, v), opts = this.options(f, v), val = v[f.k] == null ? f.def || '' : v[f.k], isOther = val && opts.length && !opts.includes(val);
       const input = f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${optIcon(o) ? UI.icon(optIcon(o)) : ''}${o}</span></label>`)}</div>`
         : f.t === 'select' ? html`<select name="x_${f.k}">${html`<option value="">${opts.length ? 'اختر...' : 'لا توجد خيارات، اكتبها يدوياً'}</option>`}${opts.map((o) => html`<option value="${o}"${val === o ? raw(' selected') : ''}>${o}</option>`)}${f.other || !opts.length ? html`<option value="__other"${isOther ? raw(' selected') : ''}>أخرى / غير مدرج</option>` : ''}</select>${f.other || !opts.length ? html`<input class="input cf-other" name="x_${f.k}_other" placeholder="اكتب الاسم يدوياً" value="${isOther ? val : ''}"${isOther || !opts.length ? '' : raw(' hidden')}>` : ''}`
+        : f.t === 'multi' ? html`<div class="choice-pick multi">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div>`
+        : f.t === 'textarea' ? html`<textarea name="x_${f.k}" rows="3" placeholder="${f.hint || ''}">${val}</textarea>`
+        : f.t === 'date' ? html`<input name="x_${f.k}" type="date" value="${val}">`
         : html`<input name="x_${f.k}" type="${f.t === 'number' ? 'number' : 'text'}"${f.t === 'number' ? raw(' min="1"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${val}" placeholder="${f.hint || ''}">`;
-      return html`<div class="field cf${f.t === 'choice' ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${f.hint && f.t !== 'text' ? html`<small class="hint">${f.hint}</small>` : ''}</div>`;
+      const chips = (f.t === 'text' || f.t === 'textarea') && opts.length ? html`<div class="quick-chips cf-chips">${opts.map((o) => html`<button type="button" class="qchip" data-cffill="x_${f.k}" data-val="${o}">${o}</button>`)}</div>` : '';
+      return html`<div class="field cf${['choice', 'multi', 'textarea'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
     })}</div>`;
   },
   values(root) {
     const v = {};
     $$('[name^="x_"]', root).forEach((el) => {
-      if (el.type === 'radio' && !el.checked) return;
+      if ((el.type === 'radio' || el.type === 'checkbox') && !el.checked) return;
       const k = el.name.slice(2); if (k.endsWith('_other')) return;
+      if (el.type === 'checkbox') { v[k] = v[k] ? `${v[k]}، ${el.value}` : el.value; return; }
       let val = String(el.value || '').trim();
       if (val === '__other') { const o = root.querySelector(`[name="x_${k}_other"]`); val = o ? String(o.value || '').trim() : ''; }
       if (val) v[k] = val;
@@ -5146,6 +5184,7 @@ const Spec = {
 const createTicketBase = Data.tickets.create.bind(Data.tickets);
 Data.tickets.create = async function (input, files = []) {
   if (catFormRequired(input.categoryId) && !files.length) throw new AppError('هذه الفئة تتطلب إرفاق مستندها بعد تعبئته');
+  if (Forms.attachReq(input.categoryId) && !files.length) throw new AppError(Forms.attachMsg(input.categoryId));
   Data.tickets.routeCat = input.categoryId || '';
   let t; try { t = await createTicketBase(input, files); } finally { Data.tickets.routeCat = ''; }
   try {
@@ -6870,7 +6909,7 @@ const CAT_DESC = {
 };
 Forms.descHint = (catId) => CAT_DESC[catId] || CAT_DESC.other;
 Forms.baseFields = (catId, values = {}) => {
-  const show = CAT_BASE[catId] || ['deviceName'], u = Auth.user || {};
+  const show = Forms.baseShow(catId), u = Auth.user || {};
   const locOpts = Data.list('locations').map((l) => ({ value: l.name, label: l.name }));
   const deps = Data.list('departments').map((d) => ({ value: d.id, label: d.name }));
   return html`<div class="form-grid">
@@ -9605,28 +9644,401 @@ Pages.catImageModal = async (catId) => {
       await Data.refresh('categories'); await Data.log('update', 'category', c.id, `تغيير صورة فئة ${c.name}`); UI.toast('تم تغيير صورة الفئة'); return true;
     } }] });
 };
-Pages.images = async (ctx) => {
+Pages.imagesTab = (el, ctx) => {
   const st = { q: '' };
   const draw = () => {
-    if (!ctx.alive()) return;
+    if (!ctx.alive() || !el.isConnected) return;
     const cats = Data.list('categories'), q = st.q.trim().toLowerCase(), hit = (s) => !q || String(s).toLowerCase().includes(q);
     const card = (ref, label, up) => { const used = ImgLib.usedBy(ref); return html`<div class="img-card${used.length ? ' used' : ''}">${raw(ImgLib.html(ref, '', label))}<b>${label}</b><div class="t-sub">${used.length ? `مستخدمة في: ${used.map((x) => x.name).join('، ')}` : up ? 'مرفوعة — غير مستخدمة' : ''}</div>${up ? html`<div class="img-acts"><button class="btn btn-ghost btn-sm" data-ren="${up}" title="إعادة تسمية">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-rm="${up}" title="حذف">${UI.icon('trash')}</button></div>` : ''}</div>`; };
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'مخزن الصور', sub: 'صور ثلاثية الأبعاد لتقنية المعلومات تُستخدم لفئات البلاغات، مع إمكانية رفع صورك الخاصة', illu: 'folder', actions: html`<div class="search-box" style="min-width:220px">${UI.icon('search')}<input id="imq" type="search" placeholder="ابحث عن صورة" value="${st.q}"></div><label class="btn btn-primary" style="cursor:pointer">${UI.icon('upload')} رفع صور<input id="imup" type="file" accept="image/*" multiple hidden></label>` })}
+    el.innerHTML = String(html`<div class="toolbar img-bar"><div class="search-box grow">${UI.icon('search')}<input id="imq" type="search" placeholder="ابحث عن صورة" value="${st.q}"></div><label class="btn btn-primary" style="cursor:pointer">${UI.icon('upload')} رفع صور<input id="imup" type="file" accept="image/*" multiple hidden></label></div>
       ${UI.panel({ title: 'صور فئات البلاغات', icon: 'tag', sub: 'اضغط على أي فئة لتغيير صورتها', body: html`<div class="img-cats">${cats.map((c) => html`<button class="img-cat" data-cat="${c.id}">${raw(CatIcon.svg(c.id))}<b>${c.name}</b><span class="faint small">${UI.icon('edit')} تغيير</span></button>`)}</div>` })}
       ${UI.panel({ title: 'صوري المرفوعة', icon: 'upload', sub: 'تُصغَّر تلقائياً إلى 256 بكسل. يُفضَّل PNG أو WebP بخلفية شفافة', body: ImgLib.custom.filter((x) => hit(x.name)).length ? html`<div class="img-lib">${ImgLib.custom.filter((x) => hit(x.name)).map((x) => card(`lib:${x.id}`, x.name, x.id))}</div>` : html`<div class="empty-mini">${UI.icon('photo')} ${ImgLib.custom.length ? 'لا نتائج' : 'لم تُرفع صور بعد. استخدم زر «رفع صور» لإضافة صور خاصة بجهتك.'}</div>` })}
       ${UI.panel({ title: 'الصور المدمجة ثلاثية الأبعاد', icon: 'grid', sub: `${fmtNum(Img3D.names.length)} صورة جاهزة لتقنية المعلومات`, body: html`<div class="img-lib">${Img3D.names.filter((n) => hit(`${n} ${Img3D.LABELS[n]}`)).map((n) => card(`i3d:${n}`, Img3D.LABELS[n] || n, ''))}</div>` })}`);
-    const qi = $('#imq', ctx.view); qi.addEventListener('input', debounce(() => { st.q = qi.value; draw(); const n = $('#imq', ctx.view); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250));
-    $('#imup', ctx.view).addEventListener('change', async (e) => { try { const a = await ImgLib.add([...e.target.files]); if (a.length) UI.toast(`أُضيفت ${arCount(a.length, ['صورة واحدة', 'صورتان', 'صور', 'صورة', 'صورة'])}`); } catch (er) { UI.toast(er.message || 'تعذر الرفع', 'error'); } draw(); });
+    const qi = $('#imq', el); qi.addEventListener('input', debounce(() => { st.q = qi.value; draw(); const n = $('#imq', el); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250));
+    $('#imup', el).addEventListener('change', async (e) => { try { const a = await ImgLib.add([...e.target.files]); if (a.length) UI.toast(`أُضيفت ${arCount(a.length, ['صورة واحدة', 'صورتان', 'صور', 'صورة', 'صورة'])}`); } catch (er) { UI.toast(er.message || 'تعذر الرفع', 'error'); } draw(); });
   };
-  UI.on(ctx.view, 'click', '[data-cat]', async (e, el) => { if (await Pages.catImageModal(el.dataset.cat)) draw(); });
-  UI.on(ctx.view, 'click', '[data-rm]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.rm); if (!x) return; const used = ImgLib.usedBy(`lib:${x.id}`); if (!(await UI.confirm(`حذف الصورة «${x.name}»؟${used.length ? ` ستعود ${used.map((c) => c.name).join('، ')} إلى صورتها الافتراضية.` : ''}`, { danger: true, ok: 'حذف' }))) return; await ImgLib.remove(x.id); UI.toast('حُذفت الصورة'); draw(); });
-  UI.on(ctx.view, 'click', '[data-ren]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.ren); if (!x) return; const r = await UI.modal({ title: 'إعادة تسمية الصورة', icon: 'edit', body: UI.fields([{ name: 'name', label: 'الاسم', required: true, wide: true }], { name: x.name }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', submit: true, handler: async (f) => { await ImgLib.rename(x.id, UI.formValues(f).name); return true; } }] }); if (r) draw(); });
+  UI.on(el, 'click', '[data-cat]', async (e, el) => { if (await Pages.catImageModal(el.dataset.cat)) draw(); });
+  UI.on(el, 'click', '[data-rm]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.rm); if (!x) return; const used = ImgLib.usedBy(`lib:${x.id}`); if (!(await UI.confirm(`حذف الصورة «${x.name}»؟${used.length ? ` ستعود ${used.map((c) => c.name).join('، ')} إلى صورتها الافتراضية.` : ''}`, { danger: true, ok: 'حذف' }))) return; await ImgLib.remove(x.id); UI.toast('حُذفت الصورة'); draw(); });
+  UI.on(el, 'click', '[data-ren]', async (e, el) => { const x = ImgLib.custom.find((i) => i.id === el.dataset.ren); if (!x) return; const r = await UI.modal({ title: 'إعادة تسمية الصورة', icon: 'edit', body: UI.fields([{ name: 'name', label: 'الاسم', required: true, wide: true }], { name: x.name }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', submit: true, handler: async (f) => { await ImgLib.rename(x.id, UI.formValues(f).name); return true; } }] }); if (r) draw(); });
   ctx.onCleanup(Bus.on('imglib', () => draw()));
   draw();
 };
-PERM_GROUPS.find((g) => g.title === 'التقارير والإدارة').items.push(['images.manage', 'مخزن الصور', 'رفع الصور وتغيير صور فئات البلاغات']);
-PERM_KEYS.add('images.manage'); PERM_LABEL['images.manage'] = 'مخزن الصور';
-Router.add('/images', 'images.manage', Pages.images, 'مخزن الصور');
+PERM_GROUPS.find((g) => g.title === 'التقارير والإدارة').items.push(['categories.manage', 'إدارة البلاغات', 'بناء فئات البلاغات وخاناتها وصورها وملاحظاتها']);
+PERM_KEYS.add('categories.manage'); PERM_LABEL['categories.manage'] = 'إدارة البلاغات';
+/* ══ إدارة البلاغات: بناء فئات البلاغات بالكامل (الصورة، المسمى، الخانات، العبارات الجاهزة، الملاحظات، المرفقات) ══ */
+const canCatAdmin = () => Auth.can('categories.manage') || Auth.can('settings');
+const catCfg = (id) => { const c = Data.c.categories.get(id); return c && c.form && typeof c.form === 'object' ? c.form : null; };
+const FIELD_TYPES = {
+  choice: { label: 'اختيار واحد (بطاقات)', icon: 'grid', opts: 'الخيارات' },
+  select: { label: 'قائمة منسدلة', icon: 'menu', opts: 'الخيارات' },
+  multi: { label: 'اختيار متعدد', icon: 'check', opts: 'الخيارات' },
+  text: { label: 'نص قصير', icon: 'edit', opts: 'عبارات جاهزة (تظهر أزراراً يضغطها الموظف)' },
+  textarea: { label: 'نص طويل', icon: 'paper', opts: 'عبارات جاهزة (تظهر أزراراً يضغطها الموظف)' },
+  number: { label: 'رقم', icon: 'hash', opts: '' },
+  date: { label: 'تاريخ', icon: 'calendar', opts: '' },
+  rankpick: { label: 'الرتبة', icon: 'star', opts: '' }
+};
+const needsOpts = (t) => ['choice', 'select', 'multi'].includes(t);
+const newKey = () => `f${Math.random().toString(36).slice(2, 7)}`;
+/* تعريف الخانات: من إعداد الفئة إن وُجد، وإلا التعريف المدمج. الخانات المرتبطة (مثل موديل الطابعة) تحتفظ بقوائمها التلقائية */
+Forms.def = (catId) => {
+  const cf = catCfg(catId); if (!cf || !Array.isArray(cf.fields)) return CAT_FORMS[catId] || [];
+  return cf.fields.map((f) => { const b = (CAT_FORMS[catId] || []).find((x) => x.k === f.k); return b && b.by && f.dep ? { ...f, by: b.by, fallback: b.fallback } : f; });
+};
+Forms.quickTitles = (id) => { const cf = catCfg(id); return cf && Array.isArray(cf.quickTitles) ? cf.quickTitles : QUICK_TITLES[id] || []; };
+Forms.baseShow = (id) => { const cf = catCfg(id); return cf && Array.isArray(cf.base) ? cf.base : CAT_BASE[id] || ['deviceName']; };
+Forms.notes = (id) => { const cf = catCfg(id); return cf && Array.isArray(cf.notes) ? cf.notes.filter(Boolean) : []; };
+Forms.attachReq = (id) => { const cf = catCfg(id); return !!(cf && cf.attachReq); };
+Forms.attachMsg = (id) => { const cf = catCfg(id) || {}; return cf.attachLabel ? `أرفق: ${cf.attachLabel} (إلزامي لهذه الفئة)` : 'هذه الفئة تتطلب إرفاق ملف أو صورة'; };
+{
+  const descBase = Forms.descHint, labelBase = Forms.titleLabel, titleBase = Forms.title.bind(Forms);
+  const extraBase = Forms.extra.bind(Forms);
+  Forms.extra = (id, v) => { const r = extraBase(id, v); if (!r) return r; const types = new Map(Forms.def(id).map((f) => [f.k, f.t])); r.fields = r.fields.map((f) => (types.get(f.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(f.value) ? { ...f, value: f.value.split('-').reverse().join('/') } : f)); return r; };
+  Forms.descHint = (id) => { const cf = catCfg(id); return (cf && cf.descHint) || descBase(id); };
+  Forms.titleLabel = (id) => { const cf = catCfg(id); return (cf && cf.titleLabel) || labelBase(id); };
+  Forms.title = (id, v) => titleBase(id, v) || Forms.def(id).filter((f) => ['choice', 'select'].includes(f.t) && v[f.k]).slice(0, 2).map((f) => v[f.k]).join(' — ');
+}
+/* ملاحظات ومتطلبات الفئة أعلى نموذج البلاغ */
+Pages.catNotes = (id) => { const n = Forms.notes(id), a = Forms.attachReq(id), cf = catCfg(id) || {}; if (!n.length && !a) return ''; return html`<div class="cat-notes">${UI.icon('info')}<div class="grow"><b>قبل تقديم الطلب</b><ul>${n.map((x) => html`<li>${x}</li>`)}${a ? html`<li class="req">${cf.attachLabel ? `إرفاق ${cf.attachLabel} إلزامي` : 'إرفاق ملف أو صورة إلزامي'}</li>` : ''}</ul></div></div>`; };
+/* الأزرار السريعة داخل الخانات النصية */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cffill]'); if (!b) return; e.preventDefault();
+  const root = b.closest('.field'), el = root && root.querySelector(`[name="${b.dataset.cffill}"]`); if (!el) return;
+  const v = b.dataset.val;
+  if (el.tagName === 'TEXTAREA') { const cur = el.value.trim(); el.value = cur.includes(v) ? cur : cur ? `${cur}، ${v}` : v; } else el.value = v;
+  el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.focus();
+});
+
+/* قوالب جاهزة لتوليد فئة بضغطة واحدة ثم تعديلها */
+const CAT_TEMPLATES = [
+  { id: 'blank', name: 'فئة فارغة', image: 'i3d:box', desc: 'ابدأ من الصفر وأضف الخانات التي تريدها', form: { fields: [], notes: [], base: ['deviceName'] } },
+  { id: 'device', name: 'عطل جهاز', image: 'i3d:computer', desc: 'نوع الجهاز، الماركة، نوع العطل ووقته', form: { titleLabel: 'عنوان مختصر للعطل', descHint: 'متى بدأ العطل؟ هل ظهرت رسالة خطأ؟ ما الذي جربته؟', quickTitles: ['الجهاز لا يعمل', 'بطء شديد', 'رسالة خطأ عند التشغيل'], notes: ['أعد تشغيل الجهاز قبل تقديم البلاغ، فكثير من الأعطال تُحل بذلك', 'صوّر رسالة الخطأ وأرفقها إن ظهرت'], base: ['deviceName'], fields: [
+    { k: 'device', l: 'نوع الجهاز', t: 'choice', req: 1, o: ['حاسب مكتبي', 'حاسب محمول', 'شاشة', 'جهاز آخر'] },
+    { k: 'brand', l: 'الماركة', t: 'select', other: 1, o: ['Dell', 'HP', 'Lenovo', 'Acer', 'Asus'] },
+    { k: 'fault', l: 'نوع العطل', t: 'choice', req: 1, o: ['لا يعمل نهائياً', 'بطء شديد', 'إعادة تشغيل متكررة', 'عطل آخر'] },
+    { k: 'since', l: 'متى بدأت المشكلة؟', t: 'choice', o: ['اليوم', 'هذا الأسبوع', 'منذ أكثر من أسبوع'] }] } },
+  { id: 'access', name: 'طلب صلاحية أو حساب', image: 'i3d:lock', desc: 'نوع الطلب، النظام، نوع الصلاحية والمبرر، مع خطاب اعتماد', form: { titleLabel: 'موضوع الطلب', descHint: 'اذكر سبب الحاجة إلى الصلاحية ومدتها إن كانت مؤقتة.', quickTitles: [], notes: ['يجب اعتماد الطلب من مدير الإدارة قبل التنفيذ'], attachReq: 1, attachLabel: 'خطاب الاعتماد الموقّع', base: [], fields: [
+    { k: 'kind', l: 'نوع الطلب', t: 'choice', req: 1, o: ['إنشاء حساب جديد', 'إضافة صلاحية', 'إلغاء صلاحية', 'إعادة تعيين كلمة المرور'] },
+    { k: 'system', l: 'النظام', t: 'text', req: 1, o: ['نظام الموارد البشرية', 'نظام المراسلات', 'البريد الإلكتروني', 'نظام الأرشفة'] },
+    { k: 'perm', l: 'نوع الصلاحية', t: 'choice', o: ['اطلاع فقط', 'إضافة وتعديل', 'اعتماد'], showIf: { kind: ['إنشاء حساب جديد', 'إضافة صلاحية'] } },
+    { k: 'reason', l: 'مبرر الطلب', t: 'textarea', req: 1, o: ['موظف جديد في القسم', 'تكليف بمهام جديدة', 'انتقال من قسم آخر'] }] } },
+  { id: 'supply', name: 'طلب أجهزة أو مواد', image: 'i3d:box', desc: 'الصنف، الكمية، سبب الطلب والتبرير', form: { titleLabel: 'موضوع الطلب', descHint: 'اذكر أي مواصفات خاصة مطلوبة.', notes: ['تُصرف الأجهزة حسب توفرها في المخزن', 'يُسلَّم الجهاز القديم عند طلب الاستبدال'], base: [], fields: [
+    { k: 'item', l: 'الصنف المطلوب', t: 'select', req: 1, other: 1, o: ['حاسب مكتبي', 'حاسب محمول', 'شاشة', 'طابعة', 'لوحة مفاتيح', 'ماوس', 'كابل شبكة', 'ذاكرة فلاش'] },
+    { k: 'qty', l: 'الكمية', t: 'number', req: 1, def: '1' },
+    { k: 'why', l: 'سبب الطلب', t: 'choice', req: 1, o: ['موظف جديد', 'استبدال جهاز تالف', 'احتياج إضافي للعمل'] },
+    { k: 'note', l: 'التبرير', t: 'textarea', o: ['الجهاز الحالي قديم ولا يدعم الأنظمة الحديثة', 'زيادة عدد الموظفين في المكتب'] }] } },
+  { id: 'event', name: 'دعم فعالية أو قاعة', image: 'i3d:projector', desc: 'الفعالية، القاعة، التاريخ والتجهيزات المطلوبة', form: { titleLabel: 'اسم الفعالية', descHint: 'اذكر عدد الحضور وأي متطلبات إضافية.', notes: ['يُقدَّم الطلب قبل موعد الفعالية بثلاثة أيام عمل على الأقل'], base: [], fields: [
+    { k: 'hall', l: 'القاعة أو المكان', t: 'text', req: 1, o: ['القاعة الرئيسية', 'قاعة الاجتماعات', 'المسرح', 'الساحة الخارجية'] },
+    { k: 'date', l: 'تاريخ الفعالية', t: 'date', req: 1 },
+    { k: 'time', l: 'الوقت', t: 'text', o: ['8:00 صباحاً', '10:00 صباحاً', '12:00 ظهراً', 'طوال اليوم'] },
+    { k: 'needs', l: 'التجهيزات المطلوبة', t: 'multi', req: 1, o: ['جهاز عرض', 'مكبر صوت', 'مايكروفون', 'حاسب محمول', 'تصوير', 'بث مباشر'] }] } },
+  { id: 'system', name: 'مشكلة في نظام أو موقع', image: 'i3d:bug', desc: 'النظام، نوع المشكلة، نص الخطأ', form: { titleLabel: 'عنوان مختصر للمشكلة', descHint: 'ما الخطوة التي يحدث عندها الخطأ؟', notes: ['أرفق صورة لرسالة الخطأ إن أمكن'], base: ['deviceName'], fields: [
+    { k: 'system', l: 'النظام أو الموقع', t: 'select', req: 1, other: 1, o: ['نظام الموارد البشرية', 'نظام المراسلات', 'البريد الإلكتروني', 'بوابة الأكاديمية'] },
+    { k: 'issue', l: 'نوع المشكلة', t: 'choice', req: 1, o: ['لا يفتح', 'رسالة خطأ', 'بطء شديد', 'بيانات غير صحيحة'] },
+    { k: 'error', l: 'نص رسالة الخطأ', t: 'textarea', showIf: { issue: ['رسالة خطأ'] } }] } },
+  { id: 'cctv', name: 'كاميرات المراقبة', image: 'i3d:cctv', desc: 'نوع الطلب، رقم الكاميرا، وقت التسجيل', form: { titleLabel: 'موضوع الطلب', notes: ['طلبات استرجاع التسجيل تحتاج موافقة الجهة المختصة'], base: [], fields: [
+    { k: 'kind', l: 'نوع الطلب', t: 'choice', req: 1, o: ['كاميرا لا تسجل', 'طلب استرجاع تسجيل', 'إضافة كاميرا جديدة'] },
+    { k: 'camera', l: 'رقم الكاميرا أو موقعها', t: 'text' },
+    { k: 'when', l: 'تاريخ التسجيل المطلوب', t: 'date', req: 1, showIf: { kind: ['طلب استرجاع تسجيل'] } }] } },
+  { id: 'service', name: 'طلب خدمة عامة', image: 'i3d:bell', desc: 'الخدمة، التفاصيل، الموعد المناسب', form: { titleLabel: 'الخدمة المطلوبة', notes: [], base: [], fields: [
+    { k: 'service', l: 'الخدمة', t: 'text', req: 1, o: ['تركيب جهاز', 'نقل جهاز', 'تجهيز مكتب جديد'] },
+    { k: 'details', l: 'التفاصيل', t: 'textarea' },
+    { k: 'date', l: 'الموعد المناسب', t: 'date' }] } }
+];
+/* خانات جاهزة تُضاف بضغطة */
+const READY_FIELDS = [
+  { l: 'رقم الهاتف', t: 'text', dir: 'ltr' }, { l: 'الرقم العسكري', t: 'text' }, { l: 'الرتبة', t: 'rankpick' }, { l: 'التاريخ المطلوب', t: 'date' },
+  { l: 'عدد الأجهزة', t: 'number', def: '1' }, { l: 'سبب الطلب', t: 'textarea' }, { l: 'درجة الأهمية', t: 'choice', o: ['عادي', 'مهم', 'عاجل جداً'] }, { l: 'هل جربت إعادة التشغيل؟', t: 'choice', o: ['نعم', 'لا'] }
+];
+const READY_NOTES = ['أعد تشغيل الجهاز قبل تقديم البلاغ', 'يجب اعتماد الطلب من مدير الإدارة', 'عبّئ الاستمارة المرفقة ووقّعها ثم أرفقها', 'مدة التنفيذ المتوقعة ثلاثة أيام عمل', 'أحضر الجهاز إلى قسم تقنية المعلومات', 'صوّر المشكلة وأرفق الصورة'];
+
+/* نسخة قابلة للتعديل من إعداد الفئة الحالي */
+const catDraft = (id) => {
+  const c = Data.c.categories.get(id) || {}, cf = catCfg(id) || {};
+  const fields = Forms.def(id).map(({ by, fallback, ...f }) => JSON.parse(JSON.stringify(f)));
+  return { name: c.name || '', image: CatIcon.ref(id), order: c.order || 0, hidden: c.hidden ? 1 : 0, titleLabel: Forms.titleLabel(id), descHint: Forms.descHint(id), quickTitles: [...Forms.quickTitles(id)], notes: [...Forms.notes(id)], base: [...Forms.baseShow(id)], attachReq: cf.attachReq ? 1 : 0, attachLabel: cf.attachLabel || '', fields };
+};
+Data.catAdmin = {
+  guard() { if (!canCatAdmin()) throw new AppError('لا تملك صلاحية إدارة البلاغات'); },
+  validate(d) {
+    if (!String(d.name || '').trim()) throw new AppError('اكتب اسم الفئة');
+    d.fields.forEach((f, i) => {
+      if (!String(f.l || '').trim()) throw new AppError(`الخانة رقم ${i + 1} بلا اسم`);
+      if (needsOpts(f.t) && !f.dep && !(f.o || []).filter(Boolean).length) throw new AppError(`أضف خياراً واحداً على الأقل لخانة «${f.l}»`);
+    });
+  },
+  clean(d) {
+    const keys = new Set(d.fields.map((f) => f.k));
+    return {
+      titleLabel: String(d.titleLabel || '').trim(), descHint: String(d.descHint || '').trim(), quickTitles: d.quickTitles.map((x) => String(x).trim()).filter(Boolean),
+      notes: d.notes.map((x) => String(x).trim()).filter(Boolean), base: d.base, attachReq: d.attachReq ? 1 : 0, attachLabel: String(d.attachLabel || '').trim(),
+      fields: d.fields.map((f) => { const o = { ...f, l: String(f.l).trim(), o: (f.o || []).map((x) => String(x).trim()).filter(Boolean) }; if (!o.req) delete o.req; if (!o.note) delete o.note; if (!o.o.length) delete o.o; if (o.showIf && !Object.keys(o.showIf).every((k) => keys.has(k) && (o.showIf[k] || []).length)) delete o.showIf; if (o.dep && !keys.has(o.dep)) delete o.dep; return o; })
+    };
+  },
+  async save(id, d) {
+    this.guard(); this.validate(d);
+    const cur = id ? await DB.get('categories', id) : null;
+    const rec = { ...(cur || {}), id: id || undefined, name: d.name.trim(), order: Number(d.order) || 0, hidden: d.hidden ? 1 : 0, image: ImgLib.valid(d.image) ? d.image : (cur && cur.image) || '', form: this.clean(d) };
+    if (!rec.id) delete rec.id;
+    return Data.saveRecord('categories', rec, 'فئة بلاغات');
+  },
+  async reset(id) { this.guard(); const r = await DB.get('categories', id); if (!r) return; delete r.form; await Data.saveRecord('categories', r, 'فئة بلاغات (استعادة الأصل)'); },
+  async create(tplId, name, fromCat = '') {
+    this.guard();
+    let d;
+    if (fromCat) { d = catDraft(fromCat); d.name = name || `${d.name} (نسخة)`; } else { const t = CAT_TEMPLATES.find((x) => x.id === tplId) || CAT_TEMPLATES[0]; const f = JSON.parse(JSON.stringify(t.form)); d = { name: name || t.name, image: t.image, order: Data.list('categories').length, hidden: 0, titleLabel: f.titleLabel || '', descHint: f.descHint || '', quickTitles: f.quickTitles || [], notes: f.notes || [], base: f.base || [], attachReq: f.attachReq || 0, attachLabel: f.attachLabel || '', fields: f.fields || [] }; }
+    d.order = Data.list('categories').length; return this.save('', d);
+  },
+  async remove(id) {
+    this.guard();
+    const n = await DB.count('tickets', 'categoryId', KR(id)).catch(async () => (await DB.getAll('tickets')).filter((t) => t.categoryId === id).length);
+    if (n) throw new AppError(`لا يمكن حذف الفئة لأن فيها ${arCount(n, AR.ticket)}. يمكنك إخفاؤها عن الموظفين بدلاً من الحذف.`);
+    await Data.deleteRecord('categories', id, 'فئة بلاغات');
+  }
+};
+
+/* نافذة توليد فئة جديدة من قالب جاهز أو نسخ فئة موجودة */
+Pages.catNewModal = async () => UI.modal({
+  title: 'فئة بلاغات جديدة', icon: 'plus', size: 'lg',
+  body: html`<p class="muted" style="margin:0 0 10px">اختر قالباً جاهزاً، وستُنشأ الفئة بخاناتها وملاحظاتها فوراً، ثم تعدّلها كما تشاء.</p>
+    <div class="tpl-grid">${CAT_TEMPLATES.map((t, i) => html`<label><input type="radio" name="tpl" value="${t.id}"${i === 1 ? raw(' checked') : ''}><span>${raw(ImgLib.html(t.image))}<b>${t.name}</b><small>${t.desc}</small><i class="chip tone-slate">${t.form.fields.length ? `${fmtNum(t.form.fields.length)} خانات` : 'بلا خانات'}</i></span></label>`)}
+      <label><input type="radio" name="tpl" value="__copy"><span>${UI.icon('copy')}<b>نسخ فئة موجودة</b><small>بكل خاناتها وملاحظاتها</small><select name="copyFrom" data-copyfrom>${Data.list('categories').map((c) => html`<option value="${c.id}">${c.name}</option>`)}</select></span></label></div>
+    ${UI.fields([{ name: 'name', label: 'اسم الفئة الجديدة', wide: true, placeholder: 'اتركه فارغاً لاستخدام اسم القالب' }], {})}`,
+  onMount: (form) => { form.addEventListener('change', (e) => { if (e.target.matches('[data-copyfrom]')) form.querySelector('[name="tpl"][value="__copy"]').checked = true; }); },
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إنشاء الفئة', kind: 'primary', icon: 'plus', submit: true, handler: async (form) => {
+    const v = UI.formValues(form); const c = v.tpl === '__copy' ? await Data.catAdmin.create('', v.name.trim(), v.copyFrom) : await Data.catAdmin.create(v.tpl, v.name.trim());
+    UI.toast(`أُنشئت فئة «${c.name}»، يمكنك الآن تعديلها`); return c;
+  } }]
+});
+
+/* صفحة إدارة البلاغات: الفئات + مخزن الصور */
+Pages.ticketAdmin = async (ctx) => {
+  const st = { tab: ctx.query.tab === 'images' ? 'images' : 'cats', q: '' };
+  const counts = new Map(); (await DB.getAll('tickets')).forEach((t) => counts.set(t.categoryId, (counts.get(t.categoryId) || 0) + 1));
+  const draw = () => {
+    if (!ctx.alive()) return;
+    const tabs = html`<div class="tabs">${[['cats', 'فئات البلاغات', 'tag'], ['images', 'مخزن الصور', 'photo']].map(([k, l, ic]) => html`<button class="tab ${st.tab === k ? 'active' : ''}" data-tab="${k}">${UI.icon(ic)}${l}</button>`)}</div>`;
+    const head = UI.pageHead({ title: 'إدارة البلاغات', sub: 'ابنِ فئات البلاغات وعدّل صورها ومسمياتها وخاناتها وملاحظاتها ومرفقاتها', illu: 'clipboard', actions: st.tab === 'cats' ? html`<button class="btn btn-primary" data-act="newcat">${UI.icon('plus')} فئة جديدة</button>` : '' });
+    if (st.tab === 'images') { ctx.view.innerHTML = String(html`${head}${tabs}<div id="imgTab"></div>`); Pages.imagesTab($('#imgTab', ctx.view), ctx); return; }
+    const cats = Data.list('categories');
+    ctx.view.innerHTML = String(html`${head}${tabs}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<a class="cat-card${c.hidden ? ' off' : ''}" href="#/ticket-admin/${c.id}">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('slate', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><span class="btn btn-soft btn-sm">${UI.icon('edit')} تعديل</span></a>`; })}
+      <button class="cat-card add" data-act="newcat">${UI.icon('plus')}<div class="grow"><b>توليد فئة جديدة</b><div class="t-sub">من قالب جاهز أو بنسخ فئة موجودة</div></div></button></div>`);
+  };
+  UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/ticket-admin${st.tab === 'images' ? '?tab=images' : ''}`); draw(); });
+  UI.on(ctx.view, 'click', '[data-act="newcat"]', async () => { const c = await Pages.catNewModal(); if (c) Router.go(`/ticket-admin/${c.id}`); });
+  ctx.onCleanup(Bus.on('data:categories', () => { if (st.tab === 'cats') draw(); }));
+  draw();
+};
+
+/* محرر الفئة: يسار للتعديل ويمين لمعاينة ما يراه الموظف مباشرة */
+Pages.catEditor = async (ctx) => {
+  const id = ctx.params.id, c = Data.c.categories.get(id);
+  if (!c) { ctx.view.innerHTML = String(UI.empty({ illu: 'box', title: 'الفئة غير موجودة', text: 'ربما حُذفت. ارجع إلى إدارة البلاغات.' })); return; }
+  const d = catDraft(id), builtIn = !!CAT_FORMS[id] || !!QUICK_TITLES[id];
+  let dirty = false, open = new Set(), pv = {};
+  const lines = (a) => (a || []).join('\n');
+  const optsFor = (k) => { const f = d.fields.find((x) => x.k === k); return f ? f.o || [] : []; };
+  const fieldCard = (f, i) => {
+    const T = FIELD_TYPES[f.t] || FIELD_TYPES.text, isOpen = open.has(f.k), parents = d.fields.slice(0, i).filter((p) => ['choice', 'select'].includes(p.t) && (p.o || []).length);
+    const cond = f.showIf ? Object.keys(f.showIf)[0] : '', depName = f.dep ? (d.fields.find((x) => x.k === f.dep) || {}).l : '';
+    return html`<div class="fb-card${isOpen ? ' open' : ''}${f.req ? ' req' : ''}" data-fi="${i}">
+      <div class="fb-head"><span class="fb-num">${fmtNum(i + 1)}</span><span class="fb-type" title="${T.label}">${UI.icon(T.icon)}</span>
+        <input class="fb-label" data-p="l" value="${f.l}" placeholder="اسم الخانة" aria-label="اسم الخانة">
+        <label class="fb-req" title="خانة إلزامية"><input type="checkbox" data-p="req"${f.req ? raw(' checked') : ''}><span>إلزامي</span></label>
+        <div class="fb-tools"><button type="button" class="icon-btn" data-fmove="-1" title="تقديم"${i ? '' : raw(' disabled')}>▲</button><button type="button" class="icon-btn" data-fmove="1" title="تأخير"${i < d.fields.length - 1 ? '' : raw(' disabled')}>▼</button><button type="button" class="icon-btn" data-fdup title="تكرار">${UI.icon('copy')}</button><button type="button" class="icon-btn danger" data-fdel title="حذف">${UI.icon('trash')}</button><button type="button" class="icon-btn" data-fopen title="الإعدادات">${UI.icon(isOpen ? 'x' : 'sliders')}</button></div></div>
+      ${!isOpen ? html`<div class="fb-sum">${T.label}${(f.o || []).length ? ` · ${(f.o || []).slice(0, 4).join('، ')}${f.o.length > 4 ? '…' : ''}` : ''}${f.showIf ? ` · يظهر عند اختيار «${(f.showIf[cond] || []).join(' أو ')}»` : ''}${f.note ? ` · ${f.note}` : ''}</div>` : html`<div class="fb-body">
+        <div class="form-grid">
+          <div class="field"><label>نوع الخانة</label><select data-p="t">${Object.entries(FIELD_TYPES).map(([k, x]) => html`<option value="${k}"${f.t === k ? raw(' selected') : ''}>${x.label}</option>`)}</select></div>
+          <div class="field"><label>ملاحظة تحت الخانة</label><input data-p="note" value="${f.note || ''}" placeholder="مثال: الرقم مكتوب خلف الجهاز"></div>
+          ${f.t === 'text' || f.t === 'number' ? html`<div class="field"><label>نص توضيحي داخل الخانة</label><input data-p="hint" value="${f.hint || ''}" placeholder="مثال: NZWSQP00WS001"></div>` : ''}
+          ${['text', 'number', 'select', 'choice'].includes(f.t) ? html`<div class="field"><label>القيمة الافتراضية</label><input data-p="def" value="${f.def || ''}" placeholder="اختياري"></div>` : ''}
+        </div>
+        ${f.dep ? html`<div class="banner tone-sky mt">${UI.icon('info')}<div class="grow">خيارات هذه الخانة تتغير تلقائياً حسب خانة «${depName || f.dep}»</div></div>` : T.opts ? html`<div class="field mt"><label>${T.opts} <small class="faint">— خيار في كل سطر</small></label><textarea data-p="o" rows="${Math.min(8, Math.max(3, (f.o || []).length + 1))}" placeholder="الخيار الأول&#10;الخيار الثاني">${lines(f.o)}</textarea>${f.t === 'select' ? html`<label class="chk mt"><input type="checkbox" data-p="other"${f.other ? raw(' checked') : ''}> السماح بكتابة خيار غير موجود («أخرى»)</label>` : ''}</div>` : ''}
+        <div class="field mt"><label>متى تظهر هذه الخانة؟</label><div class="fb-cond"><select data-cond>${html`<option value="">دائماً</option>`}${parents.map((p) => html`<option value="${p.k}"${cond === p.k ? raw(' selected') : ''}>عند الإجابة على «${p.l}» بـ...</option>`)}</select>${cond ? html`<div class="chip-pick">${optsFor(cond).map((o) => html`<label><input type="checkbox" data-condval="${o}"${(f.showIf[cond] || []).includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div>` : ''}</div>${!parents.length ? html`<small class="hint">لإظهار الخانة بشرط، أضف قبلها خانة «اختيار واحد» أو «قائمة منسدلة».</small>` : ''}</div>
+      </div>`}</div>`;
+  };
+  const fieldsHTML = () => html`${d.fields.length ? d.fields.map(fieldCard) : html`<div class="empty-mini">${UI.icon('info')} لا توجد خانات خاصة بعد. أضف خانة من الأزرار أدناه.</div>`}
+    <div class="fb-add"><b>إضافة خانة:</b>${Object.entries(FIELD_TYPES).map(([k, x]) => html`<button type="button" class="btn btn-soft btn-sm" data-fadd="${k}">${UI.icon(x.icon)} ${x.label}</button>`)}</div>
+    <div class="fb-add"><b>خانات جاهزة:</b>${READY_FIELDS.map((r, i) => html`<button type="button" class="qchip" data-fready="${i}">+ ${r.l}</button>`)}</div>`;
+  const notesHTML = () => html`${d.notes.map((n, i) => html`<div class="note-row"><span>${UI.icon('info')}</span><input data-note="${i}" value="${n}" placeholder="اكتب الملاحظة أو المطلوب"><button type="button" class="icon-btn danger" data-notedel="${i}" title="حذف">${UI.icon('trash')}</button></div>`)}
+    <div class="fb-add"><button type="button" class="btn btn-soft btn-sm" data-noteadd>${UI.icon('plus')} ملاحظة جديدة</button>${READY_NOTES.filter((n) => !d.notes.includes(n)).map((n) => html`<button type="button" class="qchip" data-noteready="${n}">+ ${n}</button>`)}</div>`;
+  const preview = () => {
+    const box = $('#cePreview', ctx.view); if (!box) return;
+    Forms._pv = { id, fields: d.fields };
+    box.innerHTML = String(html`<div class="chosen">${raw(ImgLib.html(d.image, 'cat-ic'))}<div class="grow"><div class="faint small">معاينة ما يراه الموظف</div><b style="font-size:17px">${d.name || '—'}</b></div></div>
+      ${d.notes.filter(Boolean).length || d.attachReq ? html`<div class="cat-notes">${UI.icon('info')}<div class="grow"><b>قبل تقديم الطلب</b><ul>${d.notes.filter(Boolean).map((x) => html`<li>${x}</li>`)}${d.attachReq ? html`<li class="req">${d.attachLabel ? `إرفاق ${d.attachLabel} إلزامي` : 'إرفاق ملف أو صورة إلزامي'}</li>` : ''}</ul></div></div>` : ''}
+      <div data-pvfields>${Forms.render('__pv', pv)}</div>
+      <div class="field"><label>${d.titleLabel || 'عنوان مختصر للمشكلة'}<em>*</em></label><input placeholder="…">${d.quickTitles.filter(Boolean).length ? html`<div class="quick-chips" style="margin-top:6px">${d.quickTitles.filter(Boolean).map((x) => html`<button type="button" class="qchip">${x}</button>`)}</div>` : ''}</div>
+      <div class="field"><label>وصف المشكلة</label><textarea rows="2" placeholder="${d.descHint || ''}"></textarea></div>
+      ${d.base.includes('deviceName') ? html`<div class="field"><label>اسم الجهاز على الشبكة</label><input placeholder="مثال: NZWSQP00WS001"></div>` : ''}`);
+  };
+  const mark = () => { dirty = true; const b = $('#ceDirty', ctx.view); if (b) b.hidden = false; };
+  const redrawFields = () => { $('#ceFields', ctx.view).innerHTML = String(fieldsHTML()); preview(); };
+  const redrawNotes = () => { $('#ceNotes', ctx.view).innerHTML = String(notesHTML()); preview(); };
+  const pvLater = debounce(preview, 250);
+  const owners = Data.list('users').filter((u) => u.active && (u.categories || []).includes(id));
+  ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/ticket-admin">إدارة البلاغات</a>`, title: `تعديل فئة: ${c.name}`, sub: 'كل تعديل يظهر فوراً في المعاينة، ولا يُطبَّق على البلاغات الجديدة إلا بعد الحفظ', actions: html`<span class="chip tone-amber" id="ceDirty" hidden>${UI.icon('edit')} تغييرات غير محفوظة</span><button class="btn btn-primary" data-act="save">${UI.icon('check')} حفظ الفئة</button>` })}
+    <div class="grid g-main ce-grid"><div class="ce-main">
+      ${UI.panel({ title: 'الصورة والمسمى', icon: 'tag', body: html`<div class="ce-id"><button type="button" class="ce-img" data-act="img" title="تغيير الصورة">${raw(ImgLib.html(d.image, 'cat-ic'))}<span>${UI.icon('photo')} تغيير</span></button><div class="grow form-grid">
+        <div class="field wide"><label>اسم الفئة<em>*</em></label><input data-d="name" value="${d.name}"></div>
+        <div class="field"><label>مسمى خانة العنوان</label><input data-d="titleLabel" value="${d.titleLabel}" placeholder="عنوان مختصر للمشكلة"></div>
+        <div class="field"><label>الترتيب</label><input type="number" min="0" data-d="order" value="${d.order}"></div>
+        <div class="field wide"><label>النص الإرشادي في خانة الوصف</label><input data-d="descHint" value="${d.descHint}"></div>
+        <div class="field wide"><label>عناوين جاهزة <small class="faint">— عنوان في كل سطر، تظهر أزراراً تحت خانة العنوان</small></label><textarea data-d="quickTitles" rows="3">${lines(d.quickTitles)}</textarea></div>
+        <div class="field wide">${UI.field({ name: 'ceShow', type: 'switch', text: 'إظهار الفئة للموظفين عند تقديم بلاغ' }, d.hidden ? 0 : 1)}</div></div></div>` })}
+      ${UI.panel({ title: 'ملاحظات ومتطلبات تظهر للموظف', icon: 'info', sub: 'تظهر أعلى نموذج البلاغ قبل التعبئة', body: html`<div id="ceNotes">${notesHTML()}</div>` })}
+      ${UI.panel({ title: 'خانات البلاغ', icon: 'menu', sub: 'رتّبها، واجعل ما تشاء إلزامياً، وأضف خيارات وعبارات جاهزة لكل خانة', body: html`<div id="ceFields">${fieldsHTML()}</div>` })}
+      ${UI.panel({ title: 'المرفقات والمستند وخانات النظام', icon: 'clip', body: html`<div class="form-grid">
+        <div class="field wide">${UI.field({ name: 'ceAttach', type: 'switch', text: 'إلزام الموظف بإرفاق ملف أو صورة مع البلاغ' }, d.attachReq)}</div>
+        <div class="field wide"><label>ما المرفق المطلوب؟</label><input data-d="attachLabel" value="${d.attachLabel}" placeholder="مثال: صورة البطاقة التالفة، خطاب الاعتماد"></div>
+        <div class="field wide">${UI.field({ name: 'ceDevice', type: 'switch', text: 'إظهار خانة «اسم الجهاز على الشبكة»' }, d.base.includes('deviceName') ? 1 : 0)}</div></div>
+        <div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-soft" data-catdoc="${id}">${UI.icon('file')} مستند الفئة ${c.formFile ? `(${c.formFile.name})` : '(استمارة للتحميل)'}</button><button type="button" class="btn btn-soft" data-act="owners">${UI.icon('users')} المسؤولون عن الفئة (${fmtNum(owners.length)})</button></div>` })}
+      <div class="ce-danger">${builtIn ? html`<button class="btn btn-ghost" data-act="reset">${UI.icon('undo')} استعادة الإعداد الأصلي</button>` : ''}<button class="btn btn-ghost" data-act="copy">${UI.icon('copy')} نسخ الفئة</button><button class="btn btn-ghost danger" data-act="del">${UI.icon('trash')} حذف الفئة</button></div>
+    </div><aside class="ce-side">${UI.panel({ title: 'المعاينة المباشرة', icon: 'eye', body: html`<div id="cePreview"></div>` })}</aside></div>`);
+  UI.hydrate(ctx.view); preview();
+  const field = (el) => d.fields[Number(el.closest('[data-fi]').dataset.fi)];
+  ctx.view.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.dataset.d) { const k = t.dataset.d; d[k] = k === 'quickTitles' ? t.value.split(/\r?\n/) : t.value; mark(); pvLater(); return; }
+    if (t.dataset.note != null) { d.notes[Number(t.dataset.note)] = t.value; mark(); pvLater(); return; }
+    if (t.dataset.p && t.closest('[data-fi]') && t.type !== 'checkbox' && t.tagName !== 'SELECT') { const f = field(t); f[t.dataset.p] = t.dataset.p === 'o' ? t.value.split(/\r?\n/) : t.value; mark(); pvLater(); }
+  });
+  ctx.view.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.closest('#cePreview')) { pv = Forms.values($('#cePreview', ctx.view)); $('[data-pvfields]', ctx.view).innerHTML = String(Forms.render('__pv', pv)); return; }
+    if (t.name === 'ceShow') { d.hidden = t.checked ? 0 : 1; mark(); return; }
+    if (t.name === 'ceAttach') { d.attachReq = t.checked ? 1 : 0; mark(); preview(); return; }
+    if (t.name === 'ceDevice') { d.base = t.checked ? ['deviceName'] : []; mark(); preview(); return; }
+    if (!t.closest('[data-fi]')) return;
+    const f = field(t);
+    if (t.dataset.p === 'req' || t.dataset.p === 'other') { f[t.dataset.p] = t.checked ? 1 : 0; mark(); if (t.dataset.p === 'req') t.closest('.fb-card').classList.toggle('req', t.checked); preview(); return; }
+    if (t.dataset.p === 't') { f.t = t.value; if (!needsOpts(f.t) && !FIELD_TYPES[f.t].opts) delete f.o; mark(); redrawFields(); return; }
+    if (t.dataset.p === 'o') { d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) x.showIf[f.k] = x.showIf[f.k].filter((v) => (f.o || []).includes(v)); }); mark(); redrawFields(); return; }
+    if (t.matches('[data-cond]')) { if (t.value) f.showIf = { [t.value]: [] }; else delete f.showIf; mark(); redrawFields(); return; }
+    if (t.matches('[data-condval]')) { const k = Object.keys(f.showIf || {})[0]; if (!k) return; const s = new Set(f.showIf[k]); if (t.checked) s.add(t.dataset.condval); else s.delete(t.dataset.condval); f.showIf[k] = [...s]; mark(); preview(); }
+  });
+  UI.on(ctx.view, 'click', '[data-fopen]', (e, el) => { const f = field(el); if (open.has(f.k)) open.delete(f.k); else open.add(f.k); redrawFields(); });
+  UI.on(ctx.view, 'click', '[data-fmove]', (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), j = i + Number(el.dataset.fmove); if (j < 0 || j >= d.fields.length) return; [d.fields[i], d.fields[j]] = [d.fields[j], d.fields[i]]; mark(); redrawFields(); });
+  UI.on(ctx.view, 'click', '[data-fdup]', (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), f = JSON.parse(JSON.stringify(d.fields[i])); f.k = newKey(); f.l = `${f.l} (2)`; delete f.dep; d.fields.splice(i + 1, 0, f); open.add(f.k); mark(); redrawFields(); });
+  UI.on(ctx.view, 'click', '[data-fdel]', async (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), f = d.fields[i]; if (!(await UI.confirm(`حذف خانة «${f.l || 'بلا اسم'}»؟`, { danger: true, ok: 'حذف' }))) return; d.fields.splice(i, 1); d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) delete x.showIf; if (x.dep === f.k) delete x.dep; }); mark(); redrawFields(); });
+  UI.on(ctx.view, 'click', '[data-fadd]', (e, el) => { const f = { k: newKey(), l: '', t: el.dataset.fadd }; if (needsOpts(f.t)) f.o = ['', '']; d.fields.push(f); open.add(f.k); mark(); redrawFields(); const inp = $(`[data-fi="${d.fields.length - 1}"] .fb-label`, ctx.view); if (inp) { inp.focus(); inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } });
+  UI.on(ctx.view, 'click', '[data-fready]', (e, el) => { const f = { k: newKey(), ...JSON.parse(JSON.stringify(READY_FIELDS[Number(el.dataset.fready)])) }; d.fields.push(f); mark(); redrawFields(); UI.toast(`أُضيفت خانة «${f.l}»`); });
+  UI.on(ctx.view, 'click', '[data-noteadd]', () => { d.notes.push(''); mark(); redrawNotes(); const all = $$('[data-note]', ctx.view); if (all.length) all[all.length - 1].focus(); });
+  UI.on(ctx.view, 'click', '[data-noteready]', (e, el) => { d.notes.push(el.dataset.noteready); mark(); redrawNotes(); });
+  UI.on(ctx.view, 'click', '[data-notedel]', (e, el) => { d.notes.splice(Number(el.dataset.notedel), 1); mark(); redrawNotes(); });
+  UI.on(ctx.view, 'click', '[data-act="img"]', async () => { const r = await Pages.imgPickModal(d.image, d.name); if (r) { d.image = r; mark(); $('.ce-img', ctx.view).innerHTML = `${ImgLib.html(d.image, 'cat-ic')}<span>${UI.icon('photo')} تغيير</span>`; preview(); } });
+  UI.on(ctx.view, 'click', '[data-act="owners"]', async () => { await Pages.lookupModal('categories', id); });
+  UI.on(ctx.view, 'click', '[data-act="save"]', async (e, btn) => { UI.busy(btn, true); try { await Data.catAdmin.save(id, d); dirty = false; $('#ceDirty', ctx.view).hidden = true; UI.toast('حُفظت الفئة وتُطبَّق على البلاغات الجديدة فوراً'); } catch (er) { UI.error(er); } finally { UI.busy(btn, false); } });
+  UI.on(ctx.view, 'click', '[data-act="reset"]', async () => { if (!catCfg(id)) { UI.toast('الفئة على إعدادها الأصلي، لا توجد تعديلات محفوظة', 'info'); return; } if (!(await UI.confirm('استعادة الخانات والملاحظات الأصلية لهذه الفئة؟ ستُحذف تعديلاتك عليها.', { danger: true, ok: 'استعادة' }))) return; await Data.catAdmin.reset(id); UI.toast('استُعيد الإعداد الأصلي'); Router.resolve(); });
+  UI.on(ctx.view, 'click', '[data-act="copy"]', async () => { const n = await Data.catAdmin.create('', '', id); UI.toast(`أُنشئت «${n.name}»`); Router.go(`/ticket-admin/${n.id}`); });
+  UI.on(ctx.view, 'click', '[data-act="del"]', async () => { if (!(await UI.confirm(`حذف فئة «${c.name}» نهائياً؟`, { danger: true, ok: 'حذف' }))) return; try { await Data.catAdmin.remove(id); UI.toast('حُذفت الفئة'); dirty = false; Router.go('/ticket-admin'); } catch (er) { UI.error(er); } });
+  const warn = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', warn); ctx.onCleanup(() => { window.removeEventListener('beforeunload', warn); Forms._pv = null; });
+};
+{
+  const defAdmin = Forms.def;
+  Forms.def = (catId) => (catId === '__pv' ? (Forms._pv ? Forms._pv.fields.map((f) => { const b = (CAT_FORMS[Forms._pv.id] || []).find((x) => x.k === f.k); return b && b.by && f.dep ? { ...f, by: b.by, fallback: b.fallback } : f; }).filter((f) => f.l) : []) : defAdmin(catId));
+}
+/* نافذة اختيار صورة (تُعيد المرجع دون حفظ) */
+Pages.imgPickModal = (value, name = '') => UI.modal({ title: name ? `صورة الفئة: ${name}` : 'اختر صورة', icon: 'photo', size: 'lg', body: html`${UI.imgPicker('image', value)}`, onMount: (form) => UI.bindImgPicker(form),
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'اختيار', kind: 'primary', icon: 'check', submit: true, handler: (form) => { const v = UI.formValues(form).image; if (!ImgLib.valid(v)) throw new AppError('اختر صورة'); return v; } }] });
+/* ══ إضافة عدة حسابات دفعة واحدة: بيانات مشتركة (الدور، الإدارة، القسم، المبنى، المكتب) + بيانات شخصية لكل فرد ══ */
+Pages.bulkAddUsers = async () => {
+  const sup = Auth.user.role === 'supervisor', ranks = Data.list('ranks');
+  const roles = Object.entries(ROLE_INFO).filter(([k]) => k !== 'monitor' && (sup || !['supervisor', 'support_manager'].includes(k)));
+  const rankSel = (v = '') => `<select data-bp="rankId" aria-label="الرتبة"><option value="">الرتبة</option>${ranks.map((r) => `<option value="${esc(r.id)}"${r.id === v ? ' selected' : ''}>${esc(r.name)}</option>`).join('')}</select>`;
+  const row = (p = {}) => `<div class="bp-row"><span class="bp-n"></span>${rankSel(p.rankId)}<input data-bp="name" placeholder="الاسم الكامل" value="${esc(p.name || '')}"><input data-bp="militaryNo" placeholder="الرقم العسكري" dir="ltr" inputmode="numeric" value="${esc(p.militaryNo || '')}"><input data-bp="phone" placeholder="الهاتف (اختياري)" dir="ltr" inputmode="tel" value="${esc(p.phone || '')}"><button type="button" class="icon-btn danger" data-bpdel title="حذف">${UI.icon('trash')}</button></div>`;
+  const renum = (form) => { $$('.bp-row', form).forEach((r, i) => { r.querySelector('.bp-n').textContent = fmtNum(i + 1); }); const n = $$('.bp-row', form).length; form.querySelector('[data-bpcount]').textContent = arCount(n, AR.user); };
+  const result = await UI.modal({
+    title: 'إضافة عدة حسابات دفعة واحدة', icon: 'user-plus', size: 'lg',
+    body: html`<div class="u-sec"><h3>${UI.icon('building')} البيانات المشتركة <small class="faint">تُطبَّق على كل الأشخاص</small></h3><div class="form-grid">
+        ${UI.field({ name: 'role', label: 'الدور', type: 'select', options: roles.map(([k, r]) => ({ value: k, label: r.label })), placeholder: false }, 'department')}
+        ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', options: Data.list('departments').map((x) => ({ value: x.id, label: x.name })), placeholder: 'اختر الإدارة...' }, '')}
+        <input type="hidden" name="unitId" value=""><input type="hidden" name="unitPath" value="">
+        <div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
+        ${UI.field({ name: 'locationId', label: 'المبنى', type: 'select', options: UI.opts('locations') }, '')}
+        ${UI.field({ name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214' }, '')}
+      </div></div>
+      <div class="u-sec"><h3>${UI.icon('users')} الأشخاص <small class="faint" data-bpcount></small></h3>
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><label class="row" style="gap:6px">عدد الأشخاص <input type="number" min="1" max="200" value="7" data-bpn style="width:80px"></label><button type="button" class="btn btn-soft btn-sm" data-bpmake>${UI.icon('grid')} تجهيز الخانات</button><button type="button" class="btn btn-ghost btn-sm" data-bpadd>${UI.icon('plus')} شخص</button><button type="button" class="btn btn-ghost btn-sm" data-bppaste>${UI.icon('clipboard')} لصق من Excel</button></div>
+        <div class="bp-paste" hidden><textarea rows="4" data-bppastebox placeholder="الصق الأعمدة من Excel: الاسم ثم الرقم العسكري ثم الرتبة (اختياري) ثم الهاتف (اختياري)، كل شخص في سطر"></textarea><button type="button" class="btn btn-soft btn-sm mt" data-bppasteok>${UI.icon('check')} إضافة الأسطر</button></div>
+        <div class="bp-rows">${raw(Array.from({ length: 7 }, () => row()).join(''))}</div>
+        <small class="hint">اسم المستخدم لكل شخص هو رقمه العسكري.</small></div>
+      <div class="u-sec"><h3>${UI.icon('lock')} كلمات المرور</h3><div class="choice-pick">${[['random', 'كلمة مرور مؤقتة مختلفة لكل حساب'], ['military', 'الرقم العسكري نفسه'], ['same', 'كلمة مرور موحدة']].map(([k, l], i) => html`<label><input type="radio" name="pwMode" value="${k}"${i ? '' : raw(' checked')}><span>${l}</span></label>`)}</div>
+        <div class="field mt" data-samepw hidden><label>كلمة المرور الموحدة</label><input name="samePw" dir="ltr" autocomplete="new-password" placeholder="8 أحرف على الأقل، حروف وأرقام"></div>
+        <div class="field mt">${UI.field({ name: 'mustChange', type: 'switch', text: 'إلزام كل شخص بتغيير كلمة المرور عند أول دخول' }, 1)}</div></div>`,
+    onMount: (form) => {
+      UI.bindOrgChain(form, { value: '' }); renum(form);
+      const rows = form.querySelector('.bp-rows');
+      UI.on(form, 'click', '[data-bpadd]', () => { rows.insertAdjacentHTML('beforeend', row()); renum(form); rows.lastElementChild.querySelector('[data-bp="name"]').focus(); });
+      UI.on(form, 'click', '[data-bpdel]', (e, el) => { el.closest('.bp-row').remove(); renum(form); });
+      UI.on(form, 'click', '[data-bpmake]', () => {
+        const want = clamp(Number(form.querySelector('[data-bpn]').value) || 1, 1, 200), have = $$('.bp-row', form);
+        if (want > have.length) rows.insertAdjacentHTML('beforeend', Array.from({ length: want - have.length }, () => row()).join(''));
+        else have.slice(want).filter((r) => !$$('input', r).some((i) => i.value.trim())).forEach((r) => r.remove());
+        renum(form);
+      });
+      UI.on(form, 'click', '[data-bppaste]', () => { const b = form.querySelector('.bp-paste'); b.hidden = !b.hidden; if (!b.hidden) b.querySelector('textarea').focus(); });
+      UI.on(form, 'click', '[data-bppasteok]', () => {
+        const box = form.querySelector('[data-bppastebox]'), rankBy = new Map(ranks.map((r) => [normalizeAr(r.name), r.id])), add = [];
+        box.value.split(/\r?\n/).map((l) => l.split(/\t|,|؛|;/).map((x) => x.trim())).filter((c) => c.some(Boolean)).forEach((c) => {
+          const p = { name: '', militaryNo: '', rankId: '', phone: '' };
+          c.forEach((x) => { if (!x) return; const r = rankBy.get(normalizeAr(x)); if (r) p.rankId = r; else if (/^[\d٠-٩]{2,20}$/.test(x) && !p.militaryNo) p.militaryNo = latinDigits(x); else if (/^[+\d٠-٩ -]{7,}$/.test(x)) p.phone = latinDigits(x); else if (!p.name) p.name = x; });
+          add.push(p);
+        });
+        if (!add.length) { UI.toast('لم يُعثر على أسطر صالحة', 'warn'); return; }
+        $$('.bp-row', form).filter((r) => !$$('input', r).some((i) => i.value.trim())).forEach((r) => r.remove());
+        rows.insertAdjacentHTML('beforeend', add.map(row).join('')); box.value = ''; form.querySelector('.bp-paste').hidden = true; renum(form); UI.toast(`أُضيف ${arCount(add.length, AR.user)}`);
+      });
+      form.addEventListener('change', (e) => { if (e.target.name === 'pwMode') form.querySelector('[data-samepw]').hidden = e.target.value !== 'same'; });
+      form.addEventListener('input', (e) => { const r = e.target.closest('.bp-row'); if (r) r.classList.remove('bad'); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إنشاء الحسابات', kind: 'primary', icon: 'user-plus', submit: true, handler: async (form) => {
+      const v = UI.formValues(form);
+      if (!ROLES[v.role] || v.role === 'monitor') throw new AppError('اختر الدور');
+      if (!sup && ['supervisor', 'support_manager'].includes(v.role)) throw new AppError('إنشاء حسابات المشرف والإداري من صلاحية المشرف فقط');
+      if (!v.departmentId) throw new AppError('اختر الإدارة');
+      if (v.pwMode === 'same') Data.users.checkPolicy(v.samePw || '');
+      const existing = Data.list('users'), byMil = new Set(existing.map((u) => String(u.militaryNo || '').toLowerCase()).filter(Boolean)), byUser = new Set(existing.map((u) => u.username)), seen = new Set(), people = [], errs = [];
+      $$('.bp-row', form).forEach((r, i) => {
+        const g = (k) => String(r.querySelector(`[data-bp="${k}"]`).value || '').trim(), p = { name: g('name').replace(/\s+/g, ' '), militaryNo: latinDigits(g('militaryNo')).replace(/\s+/g, ''), rankId: g('rankId'), phone: latinDigits(g('phone')) };
+        if (!p.name && !p.militaryNo && !p.phone) return;
+        let err = '';
+        if (p.name.length < 3) err = 'الاسم ناقص'; else if (!/^[\p{L}\p{N}-]{2,20}$/u.test(p.militaryNo)) err = 'الرقم العسكري ناقص أو غير صالح';
+        else { const k = p.militaryNo.toLowerCase(), un = k.length < 3 ? `u${k}` : k; if (seen.has(k)) err = 'رقم عسكري مكرر في القائمة'; else if (byMil.has(k) || byUser.has(un)) err = 'يوجد حساب بهذا الرقم العسكري مسبقاً'; seen.add(k); p.username = un; }
+        r.classList.toggle('bad', !!err); r.title = err;
+        if (err) errs.push(`${fmtNum(i + 1)}: ${err}`); else people.push(p);
+      });
+      if (errs.length) throw new AppError(`راجع الأسطر المظللة — ${errs.slice(0, 3).join('، ')}${errs.length > 3 ? '…' : ''}`);
+      if (!people.length) throw new AppError('أضف شخصاً واحداً على الأقل');
+      const t = now(), batch = [], creds = []; if (people.length > 3) UI.toast(`جارٍ إنشاء ${arCount(people.length, AR.user)}…`, 'info', 2500);
+      for (let i = 0; i < people.length; i++) {
+        const p = people[i], pw = v.pwMode === 'military' ? p.militaryNo : v.pwMode === 'same' ? v.samePw : Crypto.tempPassword();
+        await new Promise((res) => setTimeout(res, 0));
+        batch.push({ id: uid('u'), username: p.username, name: p.name, role: v.role, departmentId: v.departmentId, unitId: v.unitId || '', locationId: v.locationId || '', office: String(v.office || '').trim(), rankId: p.rankId, militaryNo: p.militaryNo, phone: p.phone, email: '', active: 1, mustChangePassword: Number(v.mustChange) ? 1 : 0, pass: Crypto.makePassword(pw), extraPerms: [], deniedPerms: [], categories: [], createdAt: t, updatedAt: t, lastLoginAt: 0 });
+        creds.push({ name: p.name, rank: Data.nameOf('ranks', p.rankId, ''), militaryNo: p.militaryNo, username: p.username, pw });
+      }
+      await DB.bulkPut('users', batch); await Data.refresh('users');
+      await Data.log('create', 'user', '', `إضافة ${batch.length} حسابات دفعة واحدة في ${Data.nameOf('departments', v.departmentId, '')}${v.unitPath ? ` ← ${v.unitPath}` : ''}`); Bus.emit('users');
+      return { creds, role: ROLES[v.role], dep: [Data.nameOf('departments', v.departmentId, ''), v.unitPath].filter(Boolean).join(' ← '), where: [Data.nameOf('locations', v.locationId, ''), v.office].filter(Boolean).join(' — '), mustChange: Number(v.mustChange) };
+    } }]
+  });
+  if (result) await Pages.bulkCredsModal(result);
+  return result;
+};
+/* بيانات الدخول بعد الإنشاء: طباعة بطاقات، أو Excel، أو نسخ */
+Pages.bulkCredsModal = (r) => UI.modal({
+  title: `أُنشئت ${arCount(r.creds.length, AR.user)}`, icon: 'check', size: 'lg',
+  body: html`<div class="banner tone-teal">${UI.icon('check')}<div class="grow"><b>${r.role} — ${r.dep}</b><div class="small muted">${r.where || ''}${r.mustChange ? ' · سيُطلب من كل شخص تغيير كلمة المرور عند أول دخول' : ''}</div></div></div>
+    <div class="banner tone-amber mt">${UI.icon('alert')}<div class="grow">احفظ كلمات المرور أو اطبعها الآن، فلن تظهر مرة أخرى.</div></div>
+    <div class="table-wrap mt"><table class="table"><thead><tr><th>#</th><th>الاسم</th><th>الرتبة</th><th>اسم المستخدم</th><th>كلمة المرور</th></tr></thead><tbody>${r.creds.map((c, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${c.name}</td><td>${c.rank}</td><td class="ltr">${c.username}</td><td class="ltr"><code>${c.pw}</code></td></tr>`)}</tbody></table></div>`,
+  actions: [{ label: 'طباعة بطاقات الدخول', kind: 'soft', icon: 'print', handler: () => { UI.print(html`<h2 style="text-align:center">بيانات الدخول إلى نظام تقنية المعلومات</h2><p style="text-align:center">${r.dep}${r.where ? ` — ${r.where}` : ''}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.creds.map((c) => html`<div style="border:1px dashed #888;border-radius:8px;padding:10px 12px;break-inside:avoid"><b>${c.rank ? `${c.rank} / ` : ''}${c.name}</b><div>اسم المستخدم: <b dir="ltr">${c.username}</b></div><div>كلمة المرور: <b dir="ltr">${c.pw}</b></div>${r.mustChange ? html`<small>غيّر كلمة المرور عند أول دخول</small>` : ''}</div>`)}</div>`, 'بيانات الدخول'); return false; } },
+    { label: 'تنزيل Excel', kind: 'soft', icon: 'download', handler: () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [30, 16, 16, 18, 16], rows: [['الاسم', 'الرتبة', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور'], ...r.creds.map((c) => [c.name, c.rank, c.militaryNo, c.username, c.pw])] }]), 'حسابات-جديدة.xlsx'); return false; } },
+    { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { try { await navigator.clipboard.writeText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n')); UI.toast('نُسخت البيانات'); } catch { UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); } return false; } },
+    { label: 'تم', kind: 'primary', icon: 'check', value: true }]
+});
+document.addEventListener('click', (e) => { if (e.target.closest('[data-act="bulkadd"]')) { e.preventDefault(); Pages.bulkAddUsers(); } });
+Router.add('/ticket-admin', 'categories.manage', Pages.ticketAdmin, 'إدارة البلاغات'); Router.add('/ticket-admin/:id', 'categories.manage', Pages.catEditor, 'تعديل فئة');
+
 /* تحميل مخزن الصور مع كل تحديث للبيانات */
 { const refreshImg = Data.refresh.bind(Data); Data.refresh = async (which) => { const r = await refreshImg(which); if (!which || which === 'settings' || which === 'categories') await ImgLib.load(); return r; }; }
 
