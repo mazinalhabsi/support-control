@@ -1446,7 +1446,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-dept.drop-ok,.org-node.drop-ok,.oc-box.drop-ok{outline:2px dashed rgb(var(--accent));outline-offset:2px;background:rgba(var(--accent),.1)}
 .org-node.dragging,.oc-box.dragging{opacity:.4}
 .oc-wrap{overflow:auto;padding:10px 4px 20px;max-height:74vh;direction:ltr}
-.oc{direction:ltr;transform-origin:top left;width:max-content;min-width:100%;transition:transform .25s var(--ease)}
+.oc{direction:ltr;width:max-content;min-width:100%}
 .oc ul{position:relative;display:flex;justify-content:center;padding:22px 0 0;margin:0}
 .oc li{list-style:none;position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 6px 0}
 .oc li::before,.oc li::after{content:"";position:absolute;top:0;right:50%;width:50%;height:22px;border-top:2px solid var(--line-2)}
@@ -1461,12 +1461,58 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .oc-box{direction:rtl;position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:132px;max-width:190px;padding:10px 12px 12px;border-radius:14px;background:var(--surface-solid);border:1px solid var(--line-2);border-top:3px solid rgb(var(--t,var(--accent)));box-shadow:0 12px 24px -18px rgba(0,0,0,.8);text-align:center}
 .oc-box em{font-style:normal;font-size:10.5px;color:rgb(var(--t,var(--accent)));font-weight:700}
 .oc-box b{font-size:13px;line-height:1.45}.oc-box small{font-size:11px;color:var(--ink-3)}
-.oc-dep{--t:var(--accent);background:radial-gradient(120% 90% at 50% 0%,rgba(var(--accent),.12),transparent 70%),var(--surface-solid)}
+.oc-dep{background:radial-gradient(120% 90% at 50% 0%,rgba(var(--t),.14),transparent 70%),var(--surface-solid);min-width:150px}
 .oc-rootbox{--t:var(--brass);min-width:220px;max-width:280px;padding:14px 18px}
 .oc-rootbox img{width:48px;height:48px;object-fit:contain}.oc-rootbox b{font:800 14.5px var(--f-display)}
 .oc-tg{position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);min-width:24px;height:22px;padding:0 6px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--ink-2);font:700 11px var(--f-display);cursor:pointer;z-index:1}
 .oc-box .org-acts{position:absolute;top:-12px;inset-inline-end:-6px;background:var(--surface-solid);border:1px solid var(--line);border-radius:10px;padding:2px}
-@media print{.oc{transform:none!important}}
+@media print{.oc{zoom:1!important}}
+.oc-box{padding-top:26px;margin-top:14px}
+.oc-ic{position:absolute;top:-16px;left:50%;transform:translateX(-50%);width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(160deg,rgb(var(--t,var(--accent))),rgba(var(--t,var(--accent)),.7));box-shadow:0 6px 14px -6px rgba(var(--t,var(--accent)),.9),inset 0 1px 0 rgba(255,255,255,.35)}
+.oc-ic .ic{width:16px;height:16px}
+.oc-rootbox{padding-top:12px;margin-top:0}
+.oc-meta{display:flex;gap:8px;font:600 10.5px var(--f-body);color:var(--ink-3);margin-top:2px}
+.oc-meta:empty{display:none}
+.oc-meta span{display:inline-flex;align-items:center;gap:3px}.oc-meta .ic{width:11px;height:11px}
+.oc-box[draggable="true"]{cursor:grab}
+.oc-rootbox .org-acts{position:static;border:0;background:none;margin-top:6px}
+.org-code{font:700 10.5px var(--f-body);padding:0 6px;border-radius:6px;background:var(--surface-3);color:var(--ink-2);vertical-align:middle}
+.org-dept{border-top:3px solid rgb(var(--t,var(--accent)))}
+.org-dept .org-dic{background:rgba(var(--t,var(--accent)),.16);color:rgb(var(--t,var(--accent)))}
+.org-dept>header[draggable="true"]{cursor:grab}
+.org-legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:10px 16px 0;font-size:12px;color:var(--ink-2)}
+.org-legend span{display:inline-flex;align-items:center;gap:6px}
+.org-legend i{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:#fff;background:rgb(var(--t))}
+.org-legend i .ic{width:12px;height:12px}.org-legend .faint .ic{width:13px;height:13px}
+.org-zoom{display:flex;align-items:center;gap:4px}
+.org-zoom .small{min-width:40px;text-align:center;font-weight:700}
+.org-icpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px}
+.org-icpick label,.org-tonepick label{position:relative;cursor:pointer}
+.org-icpick input,.org-tonepick input{position:absolute;opacity:0}
+.org-icpick span{display:grid;place-items:center;height:40px;border-radius:11px;border:1.5px solid var(--line-2);background:var(--surface-solid);color:var(--ink-2);transition:all .2s}
+.org-icpick input:checked+span{border-color:rgb(var(--accent));background:rgba(var(--accent),.14);color:rgb(var(--accent-ink))}
+.org-tonepick{display:flex;flex-wrap:wrap;gap:8px}
+.org-tonepick span{display:block;width:30px;height:30px;border-radius:50%;background:rgb(var(--t));border:3px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--line-2)}
+.org-tonepick input:checked+span{box-shadow:0 0 0 2.5px rgb(var(--t))}
+.oc-wrap{min-height:320px}
+.oc-wrap.side{direction:rtl}
+.oc.side{direction:rtl;width:max-content;min-width:0}
+.oc.side ul{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0;margin:0}
+.oc.side ul ul{margin-inline-start:30px}
+.oc.side ul ul::before{content:"";position:absolute;inset-inline-start:-30px;top:50%;width:30px;border-top:2px solid var(--line-2)}
+.oc.side li{position:relative;display:flex;flex-direction:row;align-items:center;padding:6px 0;padding-inline-start:30px}
+.oc.side li::before,.oc.side li::after{content:"";position:absolute;inset-inline-start:0;width:30px;height:50%;border-top:0;border-inline-start:2px solid var(--line-2);border-radius:0;left:auto;right:auto}
+.oc.side li::before{top:0;border-bottom:2px solid var(--line-2)}
+.oc.side li::after{top:50%;border-left:0}
+.oc.side li:first-child::before{border-inline-start:0}
+.oc.side li:last-child::after{border:0}
+.oc.side li:only-child::before{display:block;border-inline-start:0}
+.oc.side li:only-child::after{display:none}
+.oc.side li:only-child{padding-top:6px}
+.oc.side>ul>li{padding-inline-start:0}
+.oc.side>ul>li::before,.oc.side>ul>li::after{display:none}
+.oc.side .oc-box{margin:14px 0 4px;min-width:150px}
+.oc.side .oc-tg{bottom:auto;top:50%;left:-13px;transform:translateY(-50%)}
 /* الخانات الناقصة ومستند الفئة الإلزامي */
 .field-miss>label{color:rgb(var(--red-ink))}
 .field-miss input,.field-miss select,.field-miss textarea,.field-miss .dropzone,.field-miss .choice-pick,.field-miss .rank-pick{border-color:rgb(var(--red))!important;box-shadow:0 0 0 3px rgba(var(--red),.14)}
@@ -1477,6 +1523,25 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .form-bar.req{background:rgba(var(--red),.07);border-color:rgba(var(--red),.35)}
 .form-bar .chip{height:22px;font-size:11.5px;margin-inline-start:6px;vertical-align:middle}
 .form-bar{flex-wrap:wrap}
+/* أيقونات فئات البلاغات */
+.iso.cat-ic{filter:drop-shadow(0 10px 16px rgba(10,20,40,.28))}
+.tile .iso.cat-ic{height:74px;margin:10px 0 12px}
+.tile:hover .iso.cat-ic{transform:translateZ(60px) translateY(-4px) scale(1.08) rotate(-4deg)}
+.tiles.sm .tile .iso.cat-ic{height:52px;margin:4px 0 6px}
+.head-illu.cat-ic{width:66px;height:66px}
+/* المتواجدون الآن */
+.pres-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;border:1px solid rgba(var(--teal),.4);background:rgba(var(--teal),.1);color:rgb(var(--teal-ink));font:700 13.5px var(--f-display);cursor:pointer;flex:none}
+.pres-btn i{width:9px;height:9px;border-radius:50%;background:rgb(var(--teal));box-shadow:0 0 0 3px rgba(var(--teal),.25);animation:beat 2s infinite;--t:var(--teal)}
+.pres-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 6px 10px}
+.pres-sum div{text-align:center;padding:8px 4px;border-radius:12px;background:rgba(var(--t),.1);border:1px solid rgba(var(--t),.25)}
+.pres-sum b{display:block;font:800 18px var(--f-display);color:rgb(var(--t))}.pres-sum small{font-size:11px;color:var(--ink-2)}
+.pres-list{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.pres-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px}
+.pres-row:hover{background:var(--surface-3)}
+.pres-row b{display:block;font-size:13px}.pres-row small{display:block;font-size:11.5px;color:var(--ink-3)}
+.pres-dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--teal));flex:none}
+.pres-note{display:block;padding:8px 10px 2px;font-size:11px}
+@media (max-width:720px){.pres-btn{height:36px;padding:0 9px}}
 /* شاشة المراقبة الاحترافية */
 body.tv-mode .shell>.sidebar,body.tv-mode .topbar{display:none!important}
 body.tv-mode .shell,body.tv-mode .main{display:block;padding:0!important;margin:0!important}
@@ -2347,7 +2412,7 @@ const Auth = {
     this.user = u; sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + (Data.c.settings.sessionHours || 12) * HOUR }));
     await Data.refresh('users'); await Data.log('login', 'user', u.id, 'تسجيل دخول'); return u;
   },
-  async logout() { if (this.user) await Data.log('logout', 'user', this.user.id, 'تسجيل خروج'); this.user = null; sessionStorage.removeItem('sq_session'); },
+  async logout() { if (this.user) { await Data.log('logout', 'user', this.user.id, 'تسجيل خروج'); await Presence.leave(this.user); } this.user = null; sessionStorage.removeItem('sq_session'); },
   async setup({ name, username, password }) {
     if ((await DB.count('users')) > 0) throw new AppError('تم إعداد النظام مسبقاً');
     Data.users.checkPolicy(password);
@@ -2654,13 +2719,39 @@ const Iso = (() => {
 })();
 const ILLU_LABELS = { mailIn: 'البريد الوارد', mailOut: 'البريد الصادر', report: 'تقارير', folder: 'مجلد', envelope: 'رسائل ومراسلات', stamp: 'اعتماد وختم', calendar: 'تقويم ومواعيد', fingerprint: 'جهاز بصمة', headset: 'سماعة رأس', netswitch: 'سويتش شبكة', router: 'راوتر لاسلكي', patchpanel: 'لوحة توصيل', webcam: 'كاميرا ويب', mic: 'مايكروفون', powerstrip: 'وصلة كهرباء', battery: 'بطارية', barcode: 'قارئ باركود', smartcard: 'قارئ بطاقات', charger: 'شاحن ومحول', archive: 'أرشيف ومراسلات', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', tablet: 'جهاز لوحي', phone: 'هاتف', server: 'خادم', ram: 'ذاكرة', wifi: 'نقطة لاسلكية', toner: 'خرطوشة حبر', paper: 'ورق', tools: 'أدوات صيانة', shelf: 'رف مخزن', pallet: 'توريد', computer: 'حاسب مكتبي', laptop: 'حاسب محمول', printer: 'طابعة', scanner: 'ماسح ضوئي', software: 'برامج', email: 'بريد', card: 'بطاقة دخول', key: 'رمز وقفل', cctv: 'كاميرا', ink: 'أحبار', bell: 'طلب خدمة', box: 'صندوق', network: 'شبكة', projector: 'جهاز عرض', display: 'شاشة', speaker: 'صوتيات', cable: 'كابلات', drive: 'تخزين', ups: 'طاقة احتياطية' };
 
+/* ── أيقونات فئات البلاغات العصرية: مربع متدرج بلمعة وخط أبيض واضح لكل فئة ── */
+const CatIcon = (() => {
+  const G = {
+    hardware: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    printer: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+    network: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1.1" fill="#fff"/>',
+    software: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M10 12l-2.5 2.5L10 17M14 12l2.5 2.5L14 17"/>',
+    email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/>',
+    card: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="8.5" cy="11.5" r="2"/><path d="M5.5 16.5a3 3 0 0 1 6 0M14 11h4M14 14h3M9.5 3h5"/>',
+    path_code: '<rect x="2.5" y="7" width="19" height="10" rx="3"/><circle cx="7.5" cy="12" r="1.2" fill="#fff"/><circle cx="12" cy="12" r="1.2" fill="#fff"/><circle cx="16.5" cy="12" r="1.2" fill="#fff"/>',
+    backup: '<rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9v9.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V9M9.5 13h5"/>',
+    ink: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.3 14.5a2.7 2.7 0 0 0 2.7 2.7"/>',
+    scanner: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"/>',
+    service_request: '<path d="M4 17.5h16M6 17.5a6 6 0 0 1 12 0M12 11.5V9M10.3 9h3.4M5 20.5h14"/>',
+    other: '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'
+  };
+  const C = { hardware: ['#5B9BFF', '#2553C9'], printer: ['#9C8CFF', '#5B3FD1'], network: ['#2FD3C2', '#0E8C84'], software: ['#6F7CFF', '#2E36A8'], email: ['#FF7A7E', '#C22F46'], card: ['#FFC45C', '#C9821A'], path_code: ['#4CDB8E', '#1C8F52'], backup: ['#6FA6C8', '#2F5870'], ink: ['#F06BBA', '#A62677'], scanner: ['#40C4F2', '#1473A8'], service_request: ['#FF9A5C', '#D8551D'], other: ['#9AA7BB', '#56657C'] };
+  const BY_ILLU = { computer: 'hardware', laptop: 'hardware', display: 'hardware', keyboard: 'hardware', mouse: 'hardware', printer: 'printer', network: 'network', router: 'network', wifi: 'network', netswitch: 'network', software: 'software', email: 'email', envelope: 'email', mailIn: 'email', mailOut: 'email', card: 'card', smartcard: 'card', fingerprint: 'card', key: 'path_code', archive: 'backup', folder: 'backup', toner: 'ink', ink: 'ink', scanner: 'scanner', bell: 'service_request' };
+  const kindOf = (id) => (G[id] ? id : BY_ILLU[(Data.c.categories.get(id) || {}).illustration] || 'other');
+  const svg = (id, cls = '') => {
+    const k = kindOf(id), [c1, c2] = C[k], name = Data.nameOf('categories', id, '');
+    return `<svg class="iso cat-ic ${cls}" viewBox="0 0 64 64" role="img" aria-label="${esc(name)}" focusable="false"><defs><linearGradient id="cg-${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect x="5" y="5" width="54" height="54" rx="17" fill="url(#cg-${k})"/><path d="M22 5h20a17 17 0 0 1 17 17v2C44 30 22 31 5 26v-4A17 17 0 0 1 22 5z" fill="#fff" opacity=".16"/><rect x="5.5" y="5.5" width="53" height="53" rx="16.5" fill="none" stroke="#fff" stroke-opacity=".28"/><g transform="translate(17 17) scale(1.25)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${G[k]}</g></svg>`;
+  };
+  return { svg, kindOf };
+})();
+
 /* ── مكتبة الواجهة: مكونات، رسوم بيانية متحركة، مؤثرات تفاعلية ── */
 const ASSETS = window.__ASSETS || { logo: '' };
 const TONES = ['sky', 'teal', 'brass', 'violet', 'amber', 'pink', 'green', 'red', 'slate'];
 const UI = {};
 UI.reduced = () => document.documentElement.dataset.motion === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches;
 UI.icon = (n, cls = '') => raw(`<svg class="ic ${cls}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`);
-UI.illu = (n, cls = '', label = '') => raw(Iso.get(n, cls, label || ILLU_LABELS[n] || ''));
+UI.illu = (n, cls = '', label = '') => raw(String(n).startsWith('cat:') ? CatIcon.svg(String(n).slice(4), cls) : Iso.get(n, cls, label || ILLU_LABELS[n] || ''));
 UI.on = (root, type, sel, fn) => root.addEventListener(type, (e) => { const el = e.target.closest(sel); if (el && root.contains(el)) fn(e, el); });
 UI.chip = (tone, text, icon) => html`<span class="chip tone-${tone}">${icon ? UI.icon(icon) : raw('<i class="dot"></i>')}${text}</span>`;
 UI.status = (s) => { const m = STATUS[s] || { label: s, tone: 'muted' }; return html`<span class="chip tone-${m.tone}${OPEN.includes(s) ? ' live' : ''}"><i class="dot"></i>${m.label}</span>`; };
@@ -2991,7 +3082,7 @@ const Shell = {
           <div class="top-actions">
             ${Auth.can('tickets.create') ? html`<a class="btn btn-primary btn-new" href="#/tickets/new">${UI.icon('plus')}<span>بلاغ جديد</span></a>` : ''}
             <button class="icon-btn back-btn" id="backBtn" aria-label="رجوع" title="رجوع (Alt + ←)">${UI.icon('chevron-right')}</button>${Auth.can('sync.manage') ? html`<button class="icon-btn sync-btn" id="syncBtn" data-state="local" aria-label="حالة المزامنة">${UI.icon('database')}</button>` : ''}<button class="icon-btn" id="themeBtn" aria-label="تبديل المظهر" title="تبديل المظهر">${UI.icon('moon', 'theme-dark')}${UI.icon('sun', 'theme-light')}</button>
-            ${Auth.can('inventory.read') ? html`<button class="icon-btn" data-quickscan aria-label="صرف أو إعارة سريعة" title="مسح جهاز للصرف أو الإعارة السريعة">${UI.icon('scan')}</button>` : ''}${Auth.can('inventory.move') || Auth.can('loans.manage') ? html`<button class="icon-btn" id="cartBtn" aria-label="سلة الصرف" title="سلة الصرف والإعارة">${UI.icon('cart')}<b class="dot-badge" id="cartCount" hidden></b></button>` : ''}<div class="pop-wrap"><button class="icon-btn" id="bellBtn" aria-label="الإشعارات" aria-expanded="false">${UI.icon('bell')}<b class="dot-badge" id="bellCount" hidden></b></button><div class="popover" id="bellPop" hidden></div></div>
+            ${Auth.can('inventory.read') ? html`<button class="icon-btn" data-quickscan aria-label="صرف أو إعارة سريعة" title="مسح جهاز للصرف أو الإعارة السريعة">${UI.icon('scan')}</button>` : ''}${Auth.can('inventory.move') || Auth.can('loans.manage') ? html`<button class="icon-btn" id="cartBtn" aria-label="سلة الصرف" title="سلة الصرف والإعارة">${UI.icon('cart')}<b class="dot-badge" id="cartCount" hidden></b></button>` : ''}${Presence.canSee() ? html`<div class="pop-wrap"><button class="pres-btn" id="presBtn" aria-label="المتواجدون الآن" aria-expanded="false"><i></i><b>0</b></button><div class="popover" id="presPop" hidden></div></div>` : ''}<div class="pop-wrap"><button class="icon-btn" id="bellBtn" aria-label="الإشعارات" aria-expanded="false">${UI.icon('bell')}<b class="dot-badge" id="bellCount" hidden></b></button><div class="popover" id="bellPop" hidden></div></div>
             <div class="pop-wrap"><button class="user-btn" id="userBtn" aria-expanded="false">${UI.avatar(u, 'av-sm')}<span><b>${u.name}</b><small>${ROLES[u.role]}</small></span>${UI.icon('chevron-down')}</button>
               <div class="popover menu" id="userPop" hidden><a href="#/profile">${UI.icon('user')} الملف الشخصي والتخصيص</a><a href="#/notifications">${UI.icon('bell')} كل الإشعارات</a><button data-act="palette">${UI.icon('search')} البحث السريع</button><button data-act="logout">${UI.icon('logout')} تسجيل الخروج</button></div></div>
           </div>
@@ -3002,7 +3093,7 @@ const Shell = {
     </div>`);
     this.mounted = true; this.bind(); this.refreshBadges(); this.refreshBell();
   },
-  closePops() { ['bellPop', 'userPop'].forEach((id) => { const p = $('#' + id); if (p) p.hidden = true; }); ['bellBtn', 'userBtn'].forEach((id) => { const b = $('#' + id); if (b) b.setAttribute('aria-expanded', 'false'); }); },
+  closePops() { ['bellPop', 'userPop', 'presPop'].forEach((id) => { const p = $('#' + id); if (p) p.hidden = true; }); ['bellBtn', 'userBtn', 'presBtn'].forEach((id) => { const b = $('#' + id); if (b) b.setAttribute('aria-expanded', 'false'); }); },
   closeMenu() { const s = $('#shell'); if (s) s.classList.remove('menu-open'); const sc = $('#scrim'); if (sc) sc.hidden = true; },
   bind() {
     const toggle = (btn, pop, after) => async (e) => { e.stopPropagation(); const open = $(pop).hidden; this.closePops(); $(pop).hidden = !open; $(btn).setAttribute('aria-expanded', String(open)); if (open && after) await after(); };
@@ -3015,12 +3106,14 @@ const Shell = {
     const sb = $('#syncBtn'); if (sb) { sb.onclick = () => Pages.syncModal(); Sync.setStatus(Sync.status); }
     $('#bellBtn').onclick = toggle('#bellBtn', '#bellPop', () => this.renderBell());
     $('#userBtn').onclick = toggle('#userBtn', '#userPop');
+    if ($('#presBtn')) $('#presBtn').onclick = toggle('#presBtn', '#presPop', () => Presence.fill());
+    Presence.start();
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
     this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
     document.addEventListener('click', this._doc);
     this.offs.push(Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
   },
-  unmount() { this.offs.splice(0).forEach((f) => f()); if (this._doc) document.removeEventListener('click', this._doc); this.mounted = false; this._bellN = null; },
+  unmount() { Presence.stop(); this.offs.splice(0).forEach((f) => f()); if (this._doc) document.removeEventListener('click', this._doc); this.mounted = false; this._bellN = null; },
   setActive(path) { let best = null; $$('.nav-link').forEach((a) => { a.classList.remove('active'); const p = a.dataset.path; if ((path === p || path.startsWith(p + '/')) && (!best || p.length > best.dataset.path.length)) best = a; }); if (best) best.classList.add('active'); },
   async refreshBadges() {
     if (!this.mounted) return;
@@ -3114,7 +3207,7 @@ const Stats = {
   async peak(from) { const m = Array.from({ length: 7 }, () => new Array(24).fill(0)); await DB.each('tickets', { index: 'createdAt', range: KR(from, now()) }, (t) => { const d = new Date(t.createdAt); m[d.getDay()][d.getHours()]++; }); return m; }
 };
 UI.kpi = ({ label, icon, tone, value, suffix = '', dec = 0, foot = '', spark }) => html`<div class="kpi tone-${tone}"><div class="kpi-label"><span class="k-ic">${UI.icon(icon)}</span>${label}</div><b class="kpi-num" data-count="${Number(value) || 0}" data-dec="${dec}" data-suffix="${suffix}">0</b><div class="kpi-foot">${foot}${spark ? UI.chart.spark(spark, tone) : ''}</div></div>`;
-const catIllu = (id) => (Data.c.categories.get(id) || {}).illustration || 'box';
+const catIllu = (id) => `cat:${id}`;
 
 /* ── لوحة المناوبة بالسحب والإفلات ──────────────────────────── */
 const Board = {
@@ -3354,7 +3447,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
       ${UI.kpi({ label: 'تم حلها', icon: 'check', tone: 'teal', value: rows.filter((t) => ['resolved', 'closed'].includes(t.status)).length })}
       ${UI.kpi({ label: 'متوسط زمن الحل', icon: 'pulse', tone: 'violet', value: Stats.avgRes(rows) / HOUR, dec: 1, suffix: ' س' })}
     </div>
-    ${UI.panel({ title: 'بماذا نساعدك اليوم؟', icon: 'plus', sub: 'اختر نوع المشكلة لبدء بلاغ جديد خلال أقل من دقيقة', cls: 'mt', body: html`<div class="tiles">${Pages.chatTile()}${Data.list('categories').slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu(c.illustration)}<b>${c.name}</b></a>`)}</div>` })}
+    ${UI.panel({ title: 'بماذا نساعدك اليوم؟', icon: 'plus', sub: 'اختر نوع المشكلة لبدء بلاغ جديد خلال أقل من دقيقة', cls: 'mt', body: html`<div class="tiles">${Pages.chatTile()}${Data.list('categories').slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
       ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
       <div class="stack">${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${UI.panel({ title: 'حلول سريعة', icon: 'book', sub: 'قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
@@ -3455,7 +3548,7 @@ Pages.newTicket = async (ctx) => {
   const head = UI.pageHead({ title: 'بلاغ جديد', sub: 'صف المشكلة بوضوح وسيصل البلاغ فوراً إلى فريق الدعم الفني', illu: 'bell' });
   const save = () => { const form = $('#tkForm', view); if (form) Object.assign(st, UI.formValues(form)); const cf = $('#catFields', view); if (cf) st.x = Forms.values(cf); const pb = $('[data-persons]', view); if (pb) st.persons = Forms.readPersons(pb); const cb2 = $('[data-codes]', view); if (cb2) st.codes = Forms.readCodes(cb2); };
   const step1 = () => {
-    view.innerHTML = String(html`${head}${steps()}${UI.panel({ title: 'ما نوع المشكلة؟', icon: 'grid', sub: 'اختر الفئة الأقرب لمشكلتك', body: html`<div class="tiles stagger">${cats.map((c) => html`<button type="button" class="tile tilt ${st.cat === c.id ? 'selected' : ''}" data-cat="${c.id}">${UI.illu(c.illustration)}<b>${c.name}</b><small>${(QUICK_TITLES[c.id] || [])[0] || 'مشكلة أخرى'}</small></button>`)}</div>` })}`);
+    view.innerHTML = String(html`${head}${steps()}${UI.panel({ title: 'ما نوع المشكلة؟', icon: 'grid', sub: 'اختر الفئة الأقرب لمشكلتك', body: html`<div class="tiles stagger">${cats.map((c) => html`<button type="button" class="tile tilt ${st.cat === c.id ? 'selected' : ''}" data-cat="${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b><small>${(QUICK_TITLES[c.id] || [])[0] || 'مشكلة أخرى'}</small></button>`)}</div>` })}`);
   };
   const renderFiles = () => {
     const list = $('#fileList', view); if (!list) return;
@@ -3465,7 +3558,7 @@ Pages.newTicket = async (ctx) => {
     const c = Data.c.categories.get(st.cat) || cats[0];
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-side">
       ${UI.panel({ title: 'تفاصيل البلاغ', icon: 'edit', body: html`<form id="tkForm" novalidate class="stack" style="gap:16px">
-        <div class="chosen">${UI.illu(c.illustration)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button></div>
+        <div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button></div>
         <div data-svcnote></div>${Pages.categoryFormBar(c.id)}<div id="catFields">${Forms.render(c.id, st.x || {})}</div>${c.id === 'card' ? Forms.personsBlock(st.persons || []) : ''}${c.id === 'path_code' ? Forms.codeBlock(st.codes || []) : ''}
         <div class="field"><label for="tt">${Forms.titleLabel(c.id)}<em>*</em></label><input id="tt" name="title" maxlength="120" placeholder="مثال: الطابعة في مكتب 12 لا تطبع" value="${st.title || ''}">${(QUICK_TITLES[c.id] || []).length ? html`<div class="quick-chips" style="margin-top:6px">${QUICK_TITLES[c.id].map((x) => html`<button type="button" class="qchip" data-quick="${x}">${x}</button>`)}</div>` : ''}</div>
         <div class="field"><label for="td">وصف المشكلة</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea></div>
@@ -3503,7 +3596,7 @@ Pages.newTicket = async (ctx) => {
   const step3 = () => {
     const c = Data.c.categories.get(st.cat) || cats[0], pr = st.priority || 'medium';
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-main">
-      ${UI.panel({ title: 'راجع بلاغك قبل الإرسال', icon: 'eye', body: html`<div class="chosen">${UI.illu(c.illustration)}<div class="grow"><div class="faint small">${c.name}</div><b style="font-size:18px">${st.title}</b></div>${UI.priority(pr)}</div>
+      ${UI.panel({ title: 'راجع بلاغك قبل الإرسال', icon: 'eye', body: html`<div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">${c.name}</div><b style="font-size:18px">${st.title}</b></div>${UI.priority(pr)}</div>
         ${st.description ? html`<p class="bubble mt">${st.description}</p>` : ''}
         <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} القسم</dt><dd>${Data.nameOf('departments', st.departmentId)}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
       ${UI.panel({ title: 'جاهز للإرسال', icon: 'send', body: html`<div class="center stack" style="gap:12px;align-items:center">${UI.illu('bell', 'head-illu')}<p class="muted">سيصل البلاغ إلى فريق الدعم الفني فور الإرسال، وستتلقى إشعاراً عند كل تحديث.</p><button class="btn btn-primary btn-lg btn-block" data-act="submit">${UI.icon('send')} إرسال البلاغ</button><button class="btn btn-ghost btn-block" data-act="back2">${UI.icon('edit')} تعديل التفاصيل</button></div>` })}
@@ -3585,7 +3678,7 @@ Pages.ticket = async (ctx) => {
     const gallery = atts.map((a) => { let thumb = UI.icon('file'); if (a.blob && String(a.type).startsWith('image/')) { a._url = URL.createObjectURL(a.blob); urls.push(a._url); thumb = html`<img src="${a._url}" alt="">`; } return html`<div class="file" data-att="${a.id}" title="${a.name}"><div class="thumb">${thumb}</div><div class="fname">${a.name}</div></div>`; });
     const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
-      ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: c.illustration, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
+      ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -6643,7 +6736,6 @@ CAT_FORMS.card = [
 ];
 CAT_FORMS.backup = [
   { k: 'kind', l: 'نوع الطلب', t: 'choice', req: 1, o: ['إنشاء حساب على النظام', 'إعادة تعيين كلمة المرور', 'صلاحية على سجل أو مجلد', 'مشكلة في فتح معاملة', 'مشكلة في المسح والأرشفة', 'استخراج وثيقة محفوظة'] },
-  { k: 'docNo', l: 'رقم المعاملة أو الوثيقة', t: 'text', showIf: { kind: ['مشكلة في فتح معاملة', 'استخراج وثيقة محفوظة'] } },
   { k: 'record', l: 'السجل أو المجلد المطلوب', t: 'text', showIf: { kind: ['صلاحية على سجل أو مجلد', 'استخراج وثيقة محفوظة'] } },
   { k: 'perm', l: 'نوع الصلاحية', t: 'choice', o: ['اطلاع فقط', 'إضافة وتعديل', 'اعتماد وإحالة'], showIf: { kind: ['إنشاء حساب على النظام', 'صلاحية على سجل أو مجلد'] } }
 ];
@@ -8143,9 +8235,13 @@ Pages.works = async (ctx) => {
   await draw();
 };
 
-/* ── الهيكل التنظيمي: الأكاديمية ← الإدارات ← الأقسام ← الشُّعب ← المكاتب (بلا حدود) ── */
+/* ── الهيكل التنظيمي: الأكاديمية ← الإدارات ← حتى 10 مستويات من الأقسام والشُّعب والوحدات والمكاتب ── */
 UNIT_TYPES.branch = { label: 'شعبة', icon: 'layers', tone: 'teal' };
-const ORG_TYPE_ORDER = ['section', 'branch', 'office'];
+UNIT_TYPES.unit = { label: 'وحدة', icon: 'grid', tone: 'amber' };
+const ORG_TYPE_ORDER = ['section', 'branch', 'unit', 'office'];
+const ORG_MAX_DEPTH = 10;
+const ORG_ICONS = ['building', 'layers', 'grid', 'pin', 'users', 'user', 'shield', 'key', 'lock', 'monitor', 'network', 'database', 'printer', 'card', 'mail', 'phone', 'folder', 'archive', 'book', 'clipboard', 'chart', 'pulse', 'tools', 'settings', 'warehouse', 'box', 'calendar', 'star', 'bell', 'scan'];
+const ORG_TONES = ['sky', 'violet', 'teal', 'brass', 'amber', 'green', 'red', 'pink', 'slate'];
 const canOrg = () => canUser(Auth.user, 'org.manage');
 /* أقسام الإدارة مرتبة شجرياً مع مسار كامل لكل وحدة (تُستخدم في كل قوائم الاختيار) */
 const orgUnitsFlat = (units, departmentId) => {
@@ -8157,42 +8253,82 @@ Data.units.tree = async (departmentId) => {
   const flat = orgUnitsFlat(await Data.units.of(departmentId), departmentId);
   return flat.filter((x) => x.u.type !== 'office').map((x) => ({ ...x.u, name: x.path, offices: flat.filter((o) => o.u.type === 'office' && o.u.parentId === x.u.id).map((o) => o.u) }));
 };
+/* مستوى الوحدة (1 = تتبع الإدارة مباشرة) وعمق الفروع تحتها */
+const orgDepth = (units, id) => { let d = 0, cur = units.find((u) => u.id === id), g = 0; while (cur && g++ < 60) { d++; cur = cur.parentId ? units.find((u) => u.id === cur.parentId) : null; } return d; };
+const orgHeight = (units, id) => { const kids = units.filter((u) => u.parentId === id); return 1 + (kids.length ? Math.max(...kids.map((k) => orgHeight(units, k.id))) : 0); };
+const orgSubtree = (units, id) => { const set = new Set([id]); let grew = true; while (grew) { grew = false; units.forEach((u) => { if (set.has(u.parentId) && !set.has(u.id)) { set.add(u.id); grew = true; } }); } return set; };
 Data.org = {
   async load() { const [units, users] = await Promise.all([DB.getAll('deptUnits'), DB.getAll('users')]); return { deps: Data.list('departments'), units, users: users.filter((u) => u.active && u.role !== 'monitor') }; },
+  guard() { if (!canOrg()) throw new AppError('لا تملك صلاحية تعديل الهيكل التنظيمي'); },
   async saveDept(rec) {
-    if (!canOrg()) throw new AppError('لا تملك صلاحية تعديل الهيكل التنظيمي');
+    this.guard();
     const name = String(rec.name || '').trim(); if (!name) throw new AppError('اكتب اسم الإدارة');
     if (Data.list('departments').some((d) => d.id !== rec.id && normalizeAr(d.name) === normalizeAr(name))) throw new AppError('توجد إدارة بالاسم نفسه');
-    return Data.saveRecord('departments', { ...rec, name, head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), order: rec.order != null && rec.order !== '' ? Number(rec.order) : rec.order }, 'إدارة');
+    const out = await Data.saveRecord('departments', { ...rec, name, code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), icon: rec.icon || 'building', tone: rec.tone || 'brass', order: rec.order != null && rec.order !== '' ? Number(rec.order) : rec.order }, 'إدارة');
+    Bus.emit('org', {}); return out;
   },
   async removeDept(id) {
-    if (!canOrg()) throw new AppError('لا تملك الصلاحية');
+    this.guard();
     if ((await DB.count('deptUnits', 'departmentId', KR(id))) > 0) throw new AppError('احذف أقسام الإدارة أو انقلها أولاً');
-    return Data.deleteRecord('departments', id, 'إدارة');
+    await Data.deleteRecord('departments', id, 'إدارة'); Bus.emit('org', {});
+  },
+  /* إعادة ترتيب الإدارات: وضع الإدارة قبل إدارة أخرى أو في آخر القائمة */
+  async reorderDept(id, beforeId = '') {
+    this.guard();
+    const list = Data.list('departments').filter((d) => d.id !== id), me = Data.c.departments.get(id); if (!me) return;
+    const i = beforeId ? list.findIndex((d) => d.id === beforeId) : list.length; list.splice(i < 0 ? list.length : i, 0, me);
+    const t = now(); for (let k = 0; k < list.length; k++) if (list[k].order !== k) await DB.put('departments', { ...list[k], order: k, updatedAt: t });
+    await Data.refresh('departments'); Bus.emit('data:departments'); Bus.emit('org', {});
   },
   async saveUnit(rec) {
-    if (!canOrg()) throw new AppError('لا تملك صلاحية تعديل الهيكل التنظيمي');
+    this.guard();
     const all = await DB.getAll('deptUnits'), t = now(), cur = rec.id ? all.find((u) => u.id === rec.id) : null;
-    const out = { ...(cur || {}), id: rec.id || uid('un'), departmentId: rec.departmentId, parentId: rec.parentId || '', type: UNIT_TYPES[rec.type] ? rec.type : 'section', name: String(rec.name || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), order: Number(rec.order) || (cur ? cur.order : all.filter((u) => u.departmentId === rec.departmentId && (u.parentId || '') === (rec.parentId || '')).length + 1), createdAt: (cur && cur.createdAt) || t, updatedAt: t };
+    const out = { ...(cur || {}), id: rec.id || uid('un'), departmentId: rec.departmentId, parentId: rec.parentId || '', type: UNIT_TYPES[rec.type] ? rec.type : 'section', name: String(rec.name || '').trim(), code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), icon: rec.icon || '', tone: rec.tone || '', order: rec.order != null && rec.order !== '' ? Number(rec.order) : cur ? cur.order : all.filter((u) => u.departmentId === rec.departmentId && (u.parentId || '') === (rec.parentId || '')).length + 1, createdAt: (cur && cur.createdAt) || t, updatedAt: t };
     if (!out.name) throw new AppError('اكتب الاسم');
-    if (!Data.c.departments.has(out.departmentId)) throw new AppError('حدد الإدارة');
     if (out.parentId) {
       const par = all.find((u) => u.id === out.parentId); if (!par) throw new AppError('الوحدة الأم غير موجودة');
-      let p = par, g = 0; while (p && g++ < 100) { if (p.id === out.id) throw new AppError('لا يمكن نقل الوحدة إلى داخل نفسها أو أحد فروعها'); p = all.find((u) => u.id === p.parentId); }
+      if (cur && orgSubtree(all, cur.id).has(par.id)) throw new AppError('لا يمكن نقل الوحدة إلى داخل نفسها أو أحد فروعها');
       out.departmentId = par.departmentId;
     }
+    if (!Data.c.departments.has(out.departmentId)) throw new AppError('حدد الإدارة');
+    const depth = out.parentId ? orgDepth(all, out.parentId) + 1 : 1, height = cur ? orgHeight(all, cur.id) : 1;
+    if (depth + height - 1 > ORG_MAX_DEPTH) throw new AppError(`الحد الأقصى ${ORG_MAX_DEPTH} مستويات تحت الإدارة`);
     if (cur && cur.departmentId !== out.departmentId) {
-      const sub = new Set([out.id]); let grew = true; while (grew) { grew = false; all.forEach((u) => { if (sub.has(u.parentId) && !sub.has(u.id)) { sub.add(u.id); grew = true; } }); }
+      const sub = orgSubtree(all, out.id);
       if ((await DB.getAll('unitStock')).some((r) => sub.has(r.unitId) && r.qty > 0)) throw new AppError('لا يمكن نقل وحدة عليها عهدة إلى إدارة أخرى، انقل العهدة أولاً');
       for (const u of all) if (sub.has(u.id) && u.id !== out.id) await DB.put('deptUnits', { ...u, departmentId: out.departmentId, updatedAt: t });
       for (const u of (await DB.getAll('users')).filter((x) => sub.has(x.unitId))) await DB.put('users', { ...u, departmentId: out.departmentId, updatedAt: t });
+      await Data.refresh('users');
     }
     await DB.put('deptUnits', out);
     await Data.log(cur ? 'update' : 'create', 'org', out.id, `${cur ? 'تعديل' : 'إضافة'} ${UNIT_TYPES[out.type].label}: ${out.name} (${Data.nameOf('departments', out.departmentId)})`);
     Bus.emit('org', {}); Bus.emit('inventory', {}); return out;
   },
+  /* تحريك الوحدة للأعلى أو للأسفل بين أخواتها */
+  async shift(id, dir) {
+    this.guard();
+    const all = await DB.getAll('deptUnits'), u = all.find((x) => x.id === id); if (!u) return;
+    const sib = all.filter((x) => x.departmentId === u.departmentId && (x.parentId || '') === (u.parentId || '')).sort(sortByOrder), i = sib.findIndex((x) => x.id === id), j = i + dir;
+    if (j < 0 || j >= sib.length) return;
+    [sib[i], sib[j]] = [sib[j], sib[i]]; const t = now();
+    for (let k = 0; k < sib.length; k++) if (sib[k].order !== k + 1) await DB.put('deptUnits', { ...sib[k], order: k + 1, updatedAt: t });
+    Bus.emit('org', {});
+  },
+  /* تحويل وحدة إلى إدارة مستقلة (مع فروعها وموظفيها) */
+  async promote(id) {
+    this.guard();
+    const all = await DB.getAll('deptUnits'), u = all.find((x) => x.id === id); if (!u) return;
+    const sub = orgSubtree(all, id);
+    if ((await DB.getAll('unitStock')).some((r) => sub.has(r.unitId) && r.qty > 0)) throw new AppError('على هذه الوحدة أو فروعها عهدة مسجلة، انقلها أولاً');
+    const dep = await this.saveDept({ name: u.name, head: u.head, phone: u.phone, code: u.code, icon: u.icon || 'building', tone: u.tone || 'brass' });
+    const t = now();
+    for (const x of all) if (sub.has(x.id) && x.id !== id) await DB.put('deptUnits', { ...x, departmentId: dep.id, parentId: x.parentId === id ? '' : x.parentId, updatedAt: t });
+    for (const usr of (await DB.getAll('users')).filter((x) => sub.has(x.unitId))) await DB.put('users', { ...usr, departmentId: dep.id, unitId: usr.unitId === id ? '' : usr.unitId, updatedAt: t });
+    await DB.del('deptUnits', id); await Data.refresh('users');
+    await Data.log('update', 'org', id, `تحويل «${u.name}» إلى إدارة مستقلة`); Bus.emit('org', {}); return dep;
+  },
   async removeUnit(id) {
-    if (!canOrg()) throw new AppError('لا تملك الصلاحية');
+    this.guard();
     await Data.units.remove(id);
     for (const u of (await DB.getAll('users')).filter((x) => x.unitId === id)) await DB.put('users', { ...u, unitId: '', updatedAt: now() });
     await Data.refresh('users'); await Data.log('delete', 'org', id, 'حذف وحدة من الهيكل التنظيمي'); Bus.emit('org', {});
@@ -8202,89 +8338,118 @@ Data.org = {
 UI.bindOrgCascade = async (form, { dep = 'departmentId', unit = 'unitId', value = '' } = {}) => {
   const ds = form.querySelector(`[name="${dep}"]`), us = form.querySelector(`[name="${unit}"]`); if (!ds || !us) return;
   const units = await DB.getAll('deptUnits');
-  const fill = (keep) => { const list = orgUnitsFlat(units, ds.value); us.innerHTML = `<option value="">${list.length ? '— الإدارة كلها —' : 'لا توجد أقسام لهذه الإدارة'}</option>` + list.map(({ u, depth }) => `<option value="${esc(u.id)}"${u.id === keep ? ' selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(u.name)} (${esc(UNIT_TYPES[u.type].label)})</option>`).join(''); us.disabled = !list.length; };
+  const fill = (keep) => { const list = orgUnitsFlat(units, ds.value); us.innerHTML = `<option value="">${list.length ? '— الإدارة كلها —' : 'لا توجد أقسام لهذه الإدارة'}</option>` + list.map(({ u, depth }) => `<option value="${esc(u.id)}"${u.id === keep ? ' selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(u.name)} (${esc((UNIT_TYPES[u.type] || UNIT_TYPES.section).label)})</option>`).join(''); us.disabled = !list.length; };
   fill(value); ds.addEventListener('change', () => fill(''));
 };
+/* نافذة الإدارة أو الوحدة: الاسم والرمز والأيقونة واللون، وإضافة عدة فروع دفعة واحدة */
 Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' }) => {
+  const look = (rec, defIcon, defTone) => html`<div class="field mt"><label>الأيقونة</label><div class="org-icpick">${ORG_ICONS.map((k) => html`<label title="${k}"><input type="radio" name="icon" value="${k}"${(rec.icon || defIcon) === k ? raw(' checked') : ''}><span>${UI.icon(k)}</span></label>`)}</div></div>
+    <div class="field mt"><label>اللون</label><div class="org-tonepick">${ORG_TONES.map((t) => html`<label><input type="radio" name="tone" value="${t}"${(rec.tone || defTone) === t ? raw(' checked') : ''}><span class="tone-${t}"></span></label>`)}</div></div>`;
   if (kind === 'dept') {
     const rec = id ? Data.c.departments.get(id) : {};
-    return UI.modal({ title: id ? `تعديل الإدارة: ${rec.name}` : 'إدارة جديدة', icon: 'building', body: UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الاسم أو الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }], rec),
-      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const r = await Data.org.saveDept({ ...rec, ...UI.formValues(form), id: id || undefined }); UI.toast('حُفظت الإدارة'); Bus.emit('org', {}); return r; } }] });
+    return UI.modal({ title: id ? `تعديل الإدارة: ${rec.name}` : 'إدارة جديدة', icon: 'building', size: 'lg',
+      body: html`${UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT' }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }], rec)}${look(rec, 'building', 'brass')}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const r = await Data.org.saveDept({ ...rec, ...UI.formValues(form), id: id || undefined }); UI.toast('حُفظت الإدارة'); return r; } }] });
   }
   const units = await DB.getAll('deptUnits'), rec = id ? units.find((u) => u.id === id) : { departmentId, parentId, type: parentId ? 'branch' : 'section' };
-  const dep = rec.departmentId || departmentId, bad = new Set(); if (id) { bad.add(id); let grew = true; while (grew) { grew = false; units.forEach((u) => { if (bad.has(u.parentId) && !bad.has(u.id)) { bad.add(u.id); grew = true; } }); } }
-  const parents = orgUnitsFlat(units, dep).filter((x) => !bad.has(x.u.id) && x.u.type !== 'office');
-  return UI.modal({ title: id ? `تعديل: ${rec.name}` : 'إضافة وحدة تنظيمية', icon: 'layers',
-    body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${Data.nameOf('departments', dep)}</b></div></div>
-      <div class="field"><label>نوع الوحدة</label><div class="choice-pick">${ORG_TYPE_ORDER.map((k) => html`<label><input type="radio" name="type" value="${k}"${(rec.type || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
-      ${UI.fields([{ name: 'name', label: 'الاسم', required: true, wide: true, placeholder: 'مثال: قسم الشبكات' }, { name: 'parentId', label: 'تتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true }, { name: 'head', label: 'رئيس الوحدة' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }], rec)}`,
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const r = await Data.org.saveUnit({ ...rec, ...UI.formValues(form), id: id || undefined, departmentId: dep }); UI.toast('حُفظت الوحدة'); return r; } }] });
+  const dep = rec.departmentId || departmentId, bad = id ? orgSubtree(units, id) : new Set();
+  const parents = orgUnitsFlat(units, dep).filter((x) => !bad.has(x.u.id) && x.depth + 1 < ORG_MAX_DEPTH);
+  return UI.modal({ title: id ? `تعديل: ${rec.name}` : 'إضافة فرع تنظيمي', icon: 'layers', size: 'lg',
+    body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${Data.nameOf('departments', dep)}</b>${rec.parentId ? html`<div class="t-sub">داخل: ${(units.find((u) => u.id === rec.parentId) || {}).name || ''}</div>` : ''}</div></div>
+      <div class="field"><label>نوع الفرع</label><div class="choice-pick">${ORG_TYPE_ORDER.map((k) => html`<label><input type="radio" name="type" value="${k}"${(rec.type || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
+      ${UI.fields([{ name: 'name', label: id ? 'الاسم' : 'الاسم (أو اكتب عدة أسماء في الخانة أدناه)', wide: true, placeholder: 'مثال: قسم الشبكات' }, { name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }], rec)}
+      ${id ? '' : html`<div class="field mt"><label>إضافة عدة فروع دفعة واحدة <small class="faint">(اسم في كل سطر — اختياري)</small></label><textarea name="bulk" rows="3" placeholder="شعبة الخوادم&#10;شعبة الشبكات اللاسلكية&#10;شعبة الدعم الميداني"></textarea></div>`}
+      ${look(rec, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).icon, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).tone)}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), names = [v.name, ...String(v.bulk || '').split(/\r?\n/)].map((x) => String(x || '').trim()).filter(Boolean);
+      if (!names.length) throw new AppError('اكتب اسم الفرع');
+      if (id) { const r = await Data.org.saveUnit({ ...rec, ...v, id, departmentId: dep }); UI.toast('حُفظ الفرع'); return r; }
+      let last; for (const n of names) last = await Data.org.saveUnit({ ...v, name: n, departmentId: dep, order: '' });
+      UI.toast(names.length > 1 ? `أُضيف ${fmtNum(names.length)} فروع` : 'أُضيف الفرع'); return last;
+    } }] });
 };
 Pages.org = async (ctx) => {
-  let lsMode = 'cards'; try { lsMode = localStorage.getItem('sq_org_mode') || 'cards'; } catch (_) { /* تجاهل */ }
-  const st = { q: '', mode: lsMode, open: new Set(), all: false, zoom: 1 };
+  let lsMode = 'chart'; try { lsMode = localStorage.getItem('sq_org_mode') || 'chart'; } catch (_) { /* تجاهل */ }
+  let lsDir = 'side'; try { lsDir = localStorage.getItem('sq_org_dir') || 'side'; } catch (_) { /* تجاهل */ }
+  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null };
   const draw = async () => {
     const { deps, units, users } = await Data.org.load(); if (!ctx.alive()) return;
     const edit = canOrg(), qn = normalizeAr(st.q), s = Data.c.settings;
     const kidsOf = (depId, pid) => units.filter((u) => u.departmentId === depId && (u.parentId || '') === pid).sort(sortByOrder);
     const usersIn = (u) => users.filter((x) => x.unitId === u.id).length, usersDep = (d) => users.filter((x) => x.departmentId === d.id).length;
-    const subMatch = (depId, u) => normalizeAr(`${u.name} ${u.head || ''}`).includes(qn) || kidsOf(depId, u.id).some((k) => subMatch(depId, k));
-    const depMatch = (d) => !qn || normalizeAr(`${d.name} ${d.head || ''}`).includes(qn) || kidsOf(d.id, '').some((u) => subMatch(d.id, u));
+    const subMatch = (depId, u) => normalizeAr(`${u.name} ${u.head || ''} ${u.code || ''}`).includes(qn) || kidsOf(depId, u.id).some((k) => subMatch(depId, k));
+    const depMatch = (d) => !qn || normalizeAr(`${d.name} ${d.head || ''} ${d.code || ''}`).includes(qn) || kidsOf(d.id, '').some((u) => subMatch(d.id, u));
     const isOpen = (key) => st.all || !!qn || st.open.has(key);
-    const nodeActs = (d, u) => (edit ? html`<span class="org-acts">${u.type !== 'office' ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فرع">${UI.icon('plus')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button></span>` : '');
     const hl = (t) => (qn && normalizeAr(t).includes(qn) ? ' org-hit' : '');
-    /* عرض البطاقات: شجرة عمودية داخل كل إدارة */
-    const vnode = (d, u) => { const kids = kidsOf(d.id, u.id), T = UNIT_TYPES[u.type] || UNIT_TYPES.section, open = isOpen(u.id), n = usersIn(u); return html`<li><div class="org-node tone-${T.tone}${hl(u.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="${u.id}" data-drop="unit:${u.id}">${kids.length ? html`<button type="button" class="org-tg" data-tg="${u.id}">${UI.icon(open ? 'chevron-down' : 'chevron-left')}</button>` : html`<span class="org-tg"></span>`}<span class="org-ic">${UI.icon(T.icon)}</span><div class="grow"><b>${u.name}</b><small>${T.label}${u.head ? ` — ${u.head}` : ''}${n ? ` · ${fmtNum(n)} موظف` : ''}</small></div>${nodeActs(d, u)}</div>${kids.length && open ? html`<ul>${kids.map((k) => vnode(d, k))}</ul>` : ''}</li>`; };
-    const cards = () => html`<div class="org-root"><img src="${ASSETS.logo}" alt=""><div><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} وحدة تنظيمية · ${fmtNum(users.length)} مستخدم</small></div></div><div class="org-stem"></div>
-      <div class="org-grid">${deps.filter(depMatch).map((d) => { const top = kidsOf(d.id, ''), cnt = units.filter((u) => u.departmentId === d.id).length; return html`<section class="org-dept${hl(d.name)}" data-drop="dept:${d.id}"><header><span class="org-dic">${UI.icon('building')}</span><div class="grow"><b>${d.name}</b><small>${d.head ? `${d.head} · ` : ''}${fmtNum(cnt)} وحدة · ${fmtNum(usersDep(d))} موظف</small></div>${edit ? html`<span class="org-acts on"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة قسم">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button></span>` : ''}</header>
-        ${top.length ? html`<ul class="org-tree">${top.map((u) => vnode(d, u))}</ul>` : html`<div class="org-none">${edit ? html`<button type="button" class="chip-add" data-addunit="${d.id}" data-parent="">${UI.icon('plus')} أضف أول قسم</button>` : 'لا توجد أقسام مسجلة'}</div>`}</section>`; })}</div>`;
-    /* المخطط الشجري: من الأعلى إلى الأسفل */
-    const cnode = (d, u) => { const kids = kidsOf(d.id, u.id), T = UNIT_TYPES[u.type] || UNIT_TYPES.section, open = isOpen('c' + u.id); return html`<li><div class="oc-box tone-${T.tone}${hl(u.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="${u.id}" data-drop="unit:${u.id}"><em>${T.label}</em><b>${u.name}</b>${u.head ? html`<small>${u.head}</small>` : ''}${kids.length ? html`<button type="button" class="oc-tg" data-tg="c${u.id}">${open ? '−' : `+${kids.length}`}</button>` : ''}${nodeActs(d, u)}</div>${kids.length && open ? html`<ul>${[...kids].reverse().map((k) => cnode(d, k))}</ul>` : ''}</li>`; };
-    const chart = () => html`<div class="oc-wrap"><div class="oc" style="transform:scale(${st.zoom})"><ul><li><div class="oc-box oc-rootbox"><img src="${ASSETS.logo}" alt=""><b>${s.orgName}</b></div><ul>${[...deps.filter(depMatch)].reverse().map((d) => { const top = kidsOf(d.id, ''), open = isOpen('d' + d.id); return html`<li><div class="oc-box oc-dep${hl(d.name)}" data-drop="dept:${d.id}"><em>إدارة</em><b>${d.name}</b>${d.head ? html`<small>${d.head}</small>` : ''}${top.length ? html`<button type="button" class="oc-tg" data-tg="d${d.id}">${open ? '−' : `+${top.length}`}</button>` : ''}${edit ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة قسم">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button></span>` : ''}</div>${top.length && open ? html`<ul>${[...top].reverse().map((u) => cnode(d, u))}</ul>` : ''}</li>`; })}</ul></li></ul></div></div>`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الهيكل التنظيمي', sub: edit ? 'ارسم هيكل الأكاديمية: أضف الإدارات والأقسام والشُّعب والمكاتب، واسحب أي وحدة لنقلها' : 'هيكل الأكاديمية وإداراتها وأقسامها', illu: 'building', actions: html`${edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : ''}<button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة الهيكل</button>` })}
-      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="oq" type="search" placeholder="ابحث عن إدارة أو قسم أو اسم رئيس" value="${st.q}"></div>
-        <div class="seg sm"><label><input type="radio" name="omode" value="cards"${st.mode === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')} بطاقات</span></label><label><input type="radio" name="omode" value="chart"${st.mode === 'chart' ? raw(' checked') : ''}><span>${UI.icon('layers')} مخطط شجري</span></label></div>
+    const ord = (a) => (st.dir === 'down' ? [...a].reverse() : a), T = (u) => UNIT_TYPES[u.type] || UNIT_TYPES.section, icOf = (u) => u.icon || T(u).icon, toneOf = (u) => u.tone || T(u).tone;
+    const unitActs = (d, u, depth, i, n) => (edit ? html`<span class="org-acts">${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فرع تحته">${UI.icon('plus')}</button>` : ''}${i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button></span>` : '');
+    const depActs = (d) => (edit ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة قسم">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button></span>` : '');
+    const meta = (n, cnt) => html`${cnt ? html`<span title="فروع">${UI.icon('layers')}${fmtNum(cnt)}</span>` : ''}${n ? html`<span title="موظفون">${UI.icon('users')}${fmtNum(n)}</span>` : ''}`;
+    /* المخطط الشجري */
+    const cnode = (d, u, depth, i, n) => { const kids = kidsOf(d.id, u.id), open = isOpen('c' + u.id); return html`<li><div class="oc-box tone-${toneOf(u)}${hl(u.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}"><span class="oc-ic">${UI.icon(icOf(u))}</span><em>${T(u).label}${u.code ? html` · <span class="ltr">${u.code}</span>` : ''}</em><b>${u.name}</b>${u.head ? html`<small>${u.head}</small>` : ''}<span class="oc-meta">${meta(usersIn(u), kids.length)}</span>${kids.length ? html`<button type="button" class="oc-tg" data-tg="c${u.id}">${open ? '−' : `+${kids.length}`}</button>` : ''}${unitActs(d, u, depth, i, n)}</div>${kids.length && open ? html`<ul>${ord(kids).map((k) => cnode(d, k, depth + 1, kids.indexOf(k), kids.length))}</ul>` : ''}</li>`; };
+    const chart = () => { const shown = deps.filter(depMatch); return html`<div class="oc-wrap ${st.dir}"><div class="oc ${st.dir}" style="zoom:${st.zoom}"><ul><li><div class="oc-box oc-rootbox" data-drop="root:"><img src="${ASSETS.logo}" alt=""><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} فرع</small>${edit ? html`<span class="org-acts on"><button type="button" class="btn btn-soft btn-sm" data-act="adddep">${UI.icon('plus')} إدارة</button></span>` : ''}</div>${shown.length ? html`<ul>${ord(shown).map((d) => { const top = kidsOf(d.id, ''), open = isOpen('d' + d.id); return html`<li><div class="oc-box oc-dep tone-${d.tone || 'brass'}${hl(d.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}" data-drop="dept:${d.id}"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة${d.code ? html` · <span class="ltr">${d.code}</span>` : ''}</em><b>${d.name}</b>${d.head ? html`<small>${d.head}</small>` : ''}<span class="oc-meta">${meta(usersDep(d), units.filter((u) => u.departmentId === d.id).length)}</span>${top.length ? html`<button type="button" class="oc-tg" data-tg="d${d.id}">${open ? '−' : `+${top.length}`}</button>` : ''}${depActs(d)}</div>${top.length && open ? html`<ul>${ord(top).map((u) => cnode(d, u, 1, top.indexOf(u), top.length))}</ul>` : ''}</li>`; })}</ul>` : ''}</li></ul></div></div>`; };
+    /* البطاقات */
+    const vnode = (d, u, depth, i, n) => { const kids = kidsOf(d.id, u.id), open = isOpen(u.id); return html`<li><div class="org-node tone-${toneOf(u)}${hl(u.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}">${kids.length ? html`<button type="button" class="org-tg" data-tg="${u.id}">${UI.icon(open ? 'chevron-down' : 'chevron-left')}</button>` : html`<span class="org-tg"></span>`}<span class="org-ic">${UI.icon(icOf(u))}</span><div class="grow"><b>${u.name}${u.code ? html` <span class="org-code ltr">${u.code}</span>` : ''}</b><small>${T(u).label}${u.head ? ` — ${u.head}` : ''}${usersIn(u) ? ` · ${fmtNum(usersIn(u))} موظف` : ''}</small></div>${unitActs(d, u, depth, i, n)}</div>${kids.length && open ? html`<ul>${kids.map((k, j) => vnode(d, k, depth + 1, j, kids.length))}</ul>` : ''}</li>`; };
+    const cards = () => html`<div class="org-root" data-drop="root:"><img src="${ASSETS.logo}" alt=""><div><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} فرع تنظيمي · ${fmtNum(users.length)} مستخدم</small></div></div><div class="org-stem"></div>
+      <div class="org-grid">${deps.filter(depMatch).map((d) => { const top = kidsOf(d.id, ''), cnt = units.filter((u) => u.departmentId === d.id).length; return html`<section class="org-dept tone-${d.tone || 'brass'}${hl(d.name)}" data-drop="dept:${d.id}"><header draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}"><span class="org-dic">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}${d.code ? html` <span class="org-code ltr">${d.code}</span>` : ''}</b><small>${d.head ? `${d.head} · ` : ''}${fmtNum(cnt)} فرع · ${fmtNum(usersDep(d))} موظف</small></div>${edit ? html`<span class="org-acts on">${depActs(d)}</span>` : ''}</header>
+        ${top.length ? html`<ul class="org-tree">${top.map((u, j) => vnode(d, u, 1, j, top.length))}</ul>` : html`<div class="org-none">${edit ? html`<button type="button" class="chip-add" data-addunit="${d.id}" data-parent="">${UI.icon('plus')} أضف أول قسم</button>` : 'لا توجد أقسام مسجلة'}</div>`}</section>`; })}</div>`;
+    const legend = html`<div class="org-legend">${ORG_TYPE_ORDER.map((k) => html`<span class="tone-${UNIT_TYPES[k].tone}"><i>${UI.icon(UNIT_TYPES[k].icon)}</i>${UNIT_TYPES[k].label}</span>`)}<span class="faint">${UI.icon('info')} حتى ${ORG_MAX_DEPTH} مستويات تحت كل إدارة</span></div>`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الهيكل التنظيمي', sub: 'خطّط هيكل الأكاديمية: أضف الإدارات وفروعها، وغيّر الأيقونات والألوان والرموز، واسحب أي فرع أو إدارة لإعادة تنظيمها', illu: 'building', actions: html`${edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : ''}<button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة الهيكل</button>` })}
+      <section class="panel org-panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="oq" type="search" placeholder="ابحث باسم أو رمز أو رئيس" value="${st.q}"></div>
+        <div class="seg sm"><label><input type="radio" name="omode" value="chart"${st.mode === 'chart' ? raw(' checked') : ''}><span>${UI.icon('layers')} مخطط شجري</span></label><label><input type="radio" name="omode" value="cards"${st.mode === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')} بطاقات</span></label></div>
         <button type="button" class="btn btn-ghost btn-sm" data-act="expand">${UI.icon(st.all ? 'chevron-down' : 'chevron-left')} ${st.all ? 'طي الكل' : 'توسيع الكل'}</button>
-        ${st.mode === 'chart' ? html`<div class="row" style="gap:4px"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small faint">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button></div>` : ''}</div>
-        <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم أقسامها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
-        ${edit ? html`<div class="wx-hint">${UI.icon('info')} اسحب أي قسم أو شعبة وأفلته على إدارة أو وحدة أخرى لنقله مع كل فروعه.</div>` : ''}</section>`);
+        ${st.mode === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="odir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label><label><input type="radio" name="odir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label></div><div class="org-zoom"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button><button type="button" class="btn btn-soft btn-sm" data-act="fit">${UI.icon('grid')} عرض الشجرة كاملة</button></div>` : ''}</div>
+        ${legend}
+        <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
+        ${edit ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على إدارة أو فرع آخر لنقله مع كل ما تحته، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لتغيير ترتيبها. اضغط Ctrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     ctx.data = { deps, units };
-    const wrap = $('.oc-wrap', ctx.view);
-    if (wrap) {
+    const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view);
+    if (wrap && oc) {
+      if (st.fit) { st.fit = false; oc.style.zoom = 1; const nat = oc.scrollWidth; st.zoom = clamp(Math.floor(((wrap.clientWidth - 16) / Math.max(1, nat)) * 100) / 100, st.dir === 'side' ? 0.45 : 0.2, 1); oc.style.zoom = st.zoom; const z = $('.org-zoom .small', ctx.view); if (z) z.textContent = `${Math.round(st.zoom * 100)}%`; st.scroll = null; }
       const root = $('.oc-rootbox', wrap);
-      if (st.scroll) { wrap.scrollLeft = st.scroll.x; wrap.scrollTop = st.scroll.y; } else if (root) wrap.scrollLeft = root.offsetLeft * st.zoom + (root.offsetWidth * st.zoom) / 2 - wrap.clientWidth / 2;
+      if (st.scroll) { wrap.scrollLeft = st.scroll.x; wrap.scrollTop = st.scroll.y; } else if (root && st.dir === 'down') wrap.scrollLeft = (root.offsetLeft + root.offsetWidth / 2) * st.zoom - wrap.clientWidth / 2;
+      else if (root) wrap.scrollLeft = wrap.scrollWidth;
       wrap.addEventListener('scroll', () => { st.scroll = { x: wrap.scrollLeft, y: wrap.scrollTop }; }, { passive: true });
+      wrap.addEventListener('wheel', (e) => { if (!e.ctrlKey) return; e.preventDefault(); st.zoom = clamp(Math.round((st.zoom + (e.deltaY < 0 ? 0.1 : -0.1)) * 10) / 10, 0.2, 1.6); oc.style.zoom = st.zoom; const z = $('.org-zoom .small', ctx.view); if (z) z.textContent = `${Math.round(st.zoom * 100)}%`; }, { passive: false });
     }
     const q = $('#oq', ctx.view); q.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const k = $('#oq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
   };
-  UI.on(ctx.view, 'change', 'input[name="omode"]', (e, el) => { st.mode = el.value; st.scroll = null; try { localStorage.setItem('sq_org_mode', st.mode); } catch (_) { /* تجاهل */ } draw(); });
-  UI.on(ctx.view, 'click', '[data-tg]', (e, el) => { e.stopPropagation(); const k = el.dataset.tg; if (st.open.has(k)) st.open.delete(k); else st.open.add(k); draw(); });
-  UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; if (!st.all) st.open.clear(); draw(); });
-  UI.on(ctx.view, 'click', '[data-zoom]', (e, el) => { st.zoom = clamp(Math.round((st.zoom + Number(el.dataset.zoom) * 0.1) * 10) / 10, 0.4, 1.4); st.scroll = null; draw(); });
-  UI.on(ctx.view, 'click', '[data-act="adddep"]', async () => { if (await Pages.orgNodeModal({ kind: 'dept' })) draw(); });
-  UI.on(ctx.view, 'click', '[data-editdep]', async (e, el) => { if (await Pages.orgNodeModal({ kind: 'dept', id: el.dataset.editdep })) draw(); });
-  UI.on(ctx.view, 'click', '[data-deldep]', async (e, el) => { const d = Data.c.departments.get(el.dataset.deldep); if (!d || !(await UI.confirm(`حذف الإدارة «${d.name}»؟`, { danger: true, ok: 'حذف' }))) return; try { await Data.org.removeDept(d.id); UI.toast('حُذفت الإدارة'); draw(); } catch (ex) { UI.error(ex); } });
-  UI.on(ctx.view, 'click', '[data-addunit]', async (e, el) => { e.stopPropagation(); const p = el.dataset.parent; if (p) st.open.add(p).add('c' + p); else st.open.add('d' + el.dataset.addunit); if (await Pages.orgNodeModal({ kind: 'unit', departmentId: el.dataset.addunit, parentId: p })) draw(); });
-  UI.on(ctx.view, 'click', '[data-editunit]', async (e, el) => { e.stopPropagation(); if (await Pages.orgNodeModal({ kind: 'unit', id: el.dataset.editunit })) draw(); });
-  UI.on(ctx.view, 'click', '[data-delunit]', async (e, el) => { e.stopPropagation(); const u = (ctx.data.units || []).find((x) => x.id === el.dataset.delunit); if (!u) return; const n = (ctx.data.units || []).filter((x) => x.parentId === u.id).length; if (!(await UI.confirm(`حذف «${u.name}»${n ? ' مع كل فروعه' : ''}؟`, { danger: true, ok: 'حذف' }))) return; try { await Data.org.removeUnit(u.id); UI.toast('حُذفت الوحدة'); draw(); } catch (ex) { UI.error(ex); } });
+  const run = async (fn) => { try { const r = await fn(); if (r !== false) draw(); } catch (ex) { UI.error(ex); } };
+  UI.on(ctx.view, 'change', 'input[name="omode"]', (e, el) => { st.mode = el.value; st.scroll = null; if (st.mode === 'chart') st.fit = true; try { localStorage.setItem('sq_org_mode', st.mode); } catch (_) { /* تجاهل */ } draw(); });
+  UI.on(ctx.view, 'change', 'input[name="odir"]', (e, el) => { st.dir = el.value; st.fit = true; st.scroll = null; try { localStorage.setItem('sq_org_dir', st.dir); } catch (_) { /* تجاهل */ } draw(); });
+  UI.on(ctx.view, 'click', '[data-tg]', (e, el) => { e.stopPropagation(); const k = el.dataset.tg; if (st.all) { st.all = false; ctx.data.units.forEach((u) => st.open.add(u.id).add('c' + u.id)); ctx.data.deps.forEach((d) => st.open.add('d' + d.id)); } if (st.open.has(k)) st.open.delete(k); else st.open.add(k); draw(); });
+  UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; st.open.clear(); st.fit = st.mode === 'chart'; draw(); });
+  UI.on(ctx.view, 'click', '[data-zoom]', (e, el) => { st.zoom = clamp(Math.round((st.zoom + Number(el.dataset.zoom) * 0.1) * 10) / 10, 0.2, 1.6); st.scroll = null; draw(); });
+  UI.on(ctx.view, 'click', '[data-act="fit"]', () => { st.fit = true; draw(); });
+  UI.on(ctx.view, 'click', '[data-act="adddep"]', (e) => { e.stopPropagation(); run(() => Pages.orgNodeModal({ kind: 'dept' }).then((r) => !!r)); });
+  UI.on(ctx.view, 'click', '[data-editdep]', (e, el) => { e.stopPropagation(); run(() => Pages.orgNodeModal({ kind: 'dept', id: el.dataset.editdep }).then((r) => !!r)); });
+  UI.on(ctx.view, 'click', '[data-deldep]', (e, el) => { e.stopPropagation(); const d = Data.c.departments.get(el.dataset.deldep); if (!d) return; run(async () => { if (!(await UI.confirm(`حذف الإدارة «${d.name}»؟`, { danger: true, ok: 'حذف' }))) return false; await Data.org.removeDept(d.id); UI.toast('حُذفت الإدارة'); }); });
+  UI.on(ctx.view, 'click', '[data-addunit]', (e, el) => { e.stopPropagation(); const p = el.dataset.parent; if (p) st.open.add(p).add('c' + p); else st.open.add('d' + el.dataset.addunit); run(() => Pages.orgNodeModal({ kind: 'unit', departmentId: el.dataset.addunit, parentId: p }).then((r) => !!r)); });
+  UI.on(ctx.view, 'click', '[data-editunit]', (e, el) => { e.stopPropagation(); run(() => Pages.orgNodeModal({ kind: 'unit', id: el.dataset.editunit }).then((r) => !!r)); });
+  UI.on(ctx.view, 'click', '[data-shift]', (e, el) => { e.stopPropagation(); run(() => Data.org.shift(el.dataset.shift, Number(el.dataset.dir))); });
+  UI.on(ctx.view, 'click', '[data-delunit]', (e, el) => { e.stopPropagation(); const u = (ctx.data.units || []).find((x) => x.id === el.dataset.delunit); if (!u) return; const n = orgSubtree(ctx.data.units, u.id).size - 1; run(async () => { if (!(await UI.confirm(`حذف «${u.name}»${n ? ` مع ${fmtNum(n)} فرع تحته` : ''}؟`, { danger: true, ok: 'حذف' }))) return false; await Data.org.removeUnit(u.id); UI.toast('حُذف الفرع'); }); });
   UI.on(ctx.view, 'click', '[data-act="print"]', () => {
     const { deps, units } = ctx.data || { deps: [], units: [] };
-    const li = (d, pid) => { const k = units.filter((u) => u.departmentId === d && (u.parentId || '') === pid).sort(sortByOrder); return k.length ? html`<ul style="margin:4px 0;padding-inline-start:22px">${k.map((u) => html`<li>${u.name} <small>(${(UNIT_TYPES[u.type] || UNIT_TYPES.section).label}${u.head ? ` — ${u.head}` : ''})</small>${li(d, u.id)}</li>`)}</ul>` : ''; };
-    UI.print(html`<h2 style="text-align:center">الهيكل التنظيمي — ${Data.c.settings.orgName}</h2>${deps.map((d) => html`<div style="break-inside:avoid;margin:10px 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px"><b>${d.name}</b>${d.head ? html` — <small>${d.head}</small>` : ''}${li(d.id, '')}</div>`)}`, 'الهيكل التنظيمي');
+    const li = (d, pid) => { const k = units.filter((u) => u.departmentId === d && (u.parentId || '') === pid).sort(sortByOrder); return k.length ? html`<ul style="margin:4px 0;padding-inline-start:22px">${k.map((u) => html`<li>${u.name}${u.code ? ` [${u.code}]` : ''} <small>(${(UNIT_TYPES[u.type] || UNIT_TYPES.section).label}${u.head ? ` — ${u.head}` : ''})</small>${li(d, u.id)}</li>`)}</ul>` : ''; };
+    UI.print(html`<h2 style="text-align:center">الهيكل التنظيمي — ${Data.c.settings.orgName}</h2>${deps.map((d) => html`<div style="break-inside:avoid;margin:10px 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px"><b>${d.name}</b>${d.code ? ` [${d.code}]` : ''}${d.head ? html` — <small>${d.head}</small>` : ''}${li(d.id, '')}</div>`)}`, 'الهيكل التنظيمي');
   });
+  /* السحب والإفلات */
   let drag = '';
-  ctx.view.addEventListener('dragstart', (e) => { const el = e.target.closest('[data-drag]'); if (!el || el.getAttribute('draggable') !== 'true') return; drag = el.dataset.drag; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag); el.classList.add('dragging'); e.stopPropagation(); });
+  ctx.view.addEventListener('dragstart', (e) => { const el = e.target.closest('[data-drag]'); if (!el || el.getAttribute('draggable') !== 'true') return; drag = el.dataset.drag; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag); (el.closest('.oc-box,.org-node,.org-dept') || el).classList.add('dragging'); e.stopPropagation(); });
   ctx.view.addEventListener('dragend', () => { drag = ''; $$('.dragging,.drop-ok', ctx.view).forEach((x) => x.classList.remove('dragging', 'drop-ok')); });
-  ctx.view.addEventListener('dragover', (e) => { const t = e.target.closest('[data-drop]'); if (!t || !drag || t.dataset.drop === `unit:${drag}`) return; e.preventDefault(); $$('.drop-ok', ctx.view).forEach((x) => { if (x !== t) x.classList.remove('drop-ok'); }); t.classList.add('drop-ok'); });
-  ctx.view.addEventListener('drop', async (e) => {
+  ctx.view.addEventListener('dragover', (e) => { const t = e.target.closest('[data-drop]'); if (!t || !drag || t.dataset.drop === drag) return; const [k] = drag.split(':'), [tk] = t.dataset.drop.split(':'); if (k === 'dept' && tk === 'unit') return; e.preventDefault(); $$('.drop-ok', ctx.view).forEach((x) => { if (x !== t) x.classList.remove('drop-ok'); }); t.classList.add('drop-ok'); });
+  ctx.view.addEventListener('drop', (e) => {
     const t = e.target.closest('[data-drop]'); if (!t || !drag) return; e.preventDefault();
-    const [kind, target] = t.dataset.drop.split(':'), id = drag; drag = '';
-    const units = (ctx.data && ctx.data.units) || [], u = units.find((x) => x.id === id); if (!u) return;
-    try {
-      if (kind === 'dept') await Data.org.saveUnit({ ...u, departmentId: target, parentId: '' });
-      else { const p = units.find((x) => x.id === target); if (!p || p.id === id) return; if (p.type === 'office') throw new AppError('لا يمكن إضافة فروع تحت مكتب'); await Data.org.saveUnit({ ...u, departmentId: p.departmentId, parentId: p.id }); st.open.add(p.id).add('c' + p.id); }
-      UI.toast(`نُقلت «${u.name}»`); draw();
-    } catch (ex) { UI.error(ex); }
+    const [kind, id] = drag.split(':'), [tk, target] = t.dataset.drop.split(':'); drag = '';
+    const units = (ctx.data && ctx.data.units) || [];
+    run(async () => {
+      if (kind === 'dept') { if (tk === 'dept' && target !== id) { await Data.org.reorderDept(id, target); UI.toast('تغيّر ترتيب الإدارة'); } else if (tk === 'root') { await Data.org.reorderDept(id, ''); UI.toast('نُقلت الإدارة إلى آخر القائمة'); } return; }
+      const u = units.find((x) => x.id === id); if (!u) return false;
+      if (tk === 'root') { if (!(await UI.confirm(`تحويل «${u.name}» إلى إدارة مستقلة مع كل فروعه وموظفيه؟`, { ok: 'تحويل إلى إدارة' }))) return false; await Data.org.promote(id); UI.toast(`أصبحت «${u.name}» إدارة مستقلة`); return; }
+      if (tk === 'dept') await Data.org.saveUnit({ ...u, departmentId: target, parentId: '', order: '' });
+      else { const p = units.find((x) => x.id === target); if (!p || p.id === id) return false; await Data.org.saveUnit({ ...u, departmentId: p.departmentId, parentId: p.id, order: '' }); st.open.add(p.id).add('c' + p.id); }
+      UI.toast(`نُقل «${u.name}»`);
+    });
   });
   ctx.onCleanup(Bus.on('org', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
   await draw();
@@ -9186,6 +9351,32 @@ Pages.monitor = async (ctx) => {
   const again = debounce(() => { if (ctx.alive()) load(); }, 1500);
   ['tickets', 'chat', 'status', 'sync'].forEach((ev) => ctx.onCleanup(Bus.on(ev, again)));
   await load();
+};
+
+/* ── المتواجدون الآن: نبضة كل 45 ثانية لكل مستخدم مسجل، وعرض حسب الدور ── */
+const Presence = {
+  TTL: 150000, timer: 0, tick: 0,
+  canSee() { const r = Auth.user && Auth.user.role; return r === 'supervisor' || r === 'technician' || r === 'support_manager'; },
+  async beat() { const u = Auth.user; if (!u || u.role === 'monitor') return; try { await DB.put('meta', { key: `presence:${u.id}`, value: { userId: u.id, role: u.role, at: now(), since: (this.since = this.since || now()) } }); } catch (_) { /* تجاهل */ } },
+  async leave(u) { if (!u) return; try { await DB.del('meta', `presence:${u.id}`); } catch (_) { /* تجاهل */ } this.since = 0; },
+  async online() {
+    const t = now(), rows = (await DB.getAll('meta')).filter((r) => String(r.key).startsWith('presence:') && r.value && t - r.value.at < this.TTL);
+    return rows.map((r) => ({ ...r.value, user: Data.c.users.get(r.value.userId) })).filter((p) => p.user && p.user.active && p.user.role !== 'monitor');
+  },
+  visible(list) { const me = Auth.user; if (!me) return []; if (me.role === 'supervisor') return list; if (this.canSee()) return list.filter((p) => p.user.role === 'department'); return []; },
+  start() { this.stop(); this.beat().then(() => this.render()); this.timer = setInterval(() => this.beat(), 45000); this.tick = setInterval(() => this.render(), 20000); },
+  stop() { clearInterval(this.timer); clearInterval(this.tick); },
+  async render() { const b = $('#presBtn'); if (!b) return; const n = this.visible(await this.online()).length; b.querySelector('b').textContent = fmtNum(n); b.title = Auth.user.role === 'supervisor' ? `${fmtNum(n)} متواجد الآن` : `${fmtNum(n)} موظف متواجد الآن`; const p = $('#presPop'); if (p && !p.hidden) this.fill(); },
+  async fill() {
+    const p = $('#presPop'); if (!p) return;
+    const list = this.visible(await this.online()).sort((a, b) => (ROLES[a.user.role] || '').localeCompare(ROLES[b.user.role] || '', 'ar') || a.user.name.localeCompare(b.user.name, 'ar'));
+    const sup = Auth.user.role === 'supervisor', by = (r) => list.filter((x) => x.user.role === r).length;
+    const groups = [['department', 'موظفون', 'sky'], ['technician', 'فنيون', 'teal'], ['support_manager', 'إداريون', 'violet'], ['supervisor', 'مشرفون', 'brass']];
+    p.innerHTML = String(html`<div class="pop-head">${sup ? 'المتواجدون الآن' : 'الموظفون المتواجدون الآن'}<span class="chip tone-teal"><i class="dot"></i>${fmtNum(list.length)}</span></div>
+      ${sup ? html`<div class="pres-sum">${groups.map(([r, l, t]) => html`<div class="tone-${t}"><b>${fmtNum(by(r))}</b><small>${l}</small></div>`)}</div>` : ''}
+      <div class="pres-list">${list.length ? list.map((x) => html`<div class="pres-row">${UI.avatar(x.user, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis">${x.user.name}</b><small class="ellipsis">${ROLES[x.user.role] || ''}${x.user.departmentId ? ` · ${Data.nameOf('departments', x.user.departmentId, '')}` : ''}</small></div><span class="pres-dot" title="آخر نشاط ${timeAgo(x.at)}"></span></div>`) : html`<div class="no-data">لا يوجد أحد متواجد الآن</div>`}</div>
+      <small class="faint pres-note">${Sync.on ? 'يشمل كل الأجهزة المتصلة بالخادم' : 'بدون خادم: يظهر المتواجدون على هذا الجهاز فقط'}</small>`);
+  }
 };
 
 /* ── بدء التشغيل بعد تعريف كل الصفحات والإضافات ── */
