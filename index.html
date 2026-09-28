@@ -5900,6 +5900,7 @@ const Sync = {
     try {
       while (this.queue.length) {
         const batch = this.queue.slice(0, 400);
+        await this.prepFiles(batch);
         const res = await this.call('push', { body: { ops: batch } });
         this.queue = this.queue.slice(batch.length); this.saveQueue();
         this.applying = true;
@@ -5918,17 +5919,21 @@ const Sync = {
   localKey(store, id) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? id.split('|') : id; },
 
   async resolve(conflicts) {
+    const big = []; let denied = 0;
     this.applying = true;
     try {
       for (const c of conflicts) {
-        if (c.reason === 'no_permission') continue;
+        if (c.reason === 'too_large') { big.push(c); continue; }
+        if (c.reason === 'no_permission') { denied += 1; if (!c.data) continue; }
         if (c.deleted) await DB.del(c.store, this.localKey(c.store, c.id));
         else if (c.data) { c.data._rev = c.rev; await DB.put(c.store, c.data); }
       }
     } finally { this.applying = false; }
     const stores = [...new Set(conflicts.map((c) => c.store))];
     this.notifyStores(stores);
-    UI.toast('حُدِّثت بعض البيانات من جهاز آخر، راجع الشاشة قبل إعادة المحاولة', 'warn', 6000);
+    if (big.length) UI.toast(`لم يُحفظ على الخادم ${big.length === 1 ? 'ملف كبير' : `${fmtNum(big.length)} ملفات كبيرة`} (${fmtBytes(Math.max(...big.map((c) => c.size || 0)))}). ارفع قيمة max_allowed_packet في إعدادات MySQL إلى 64M`, 'warn', 12000);
+    else if (denied && denied === conflicts.length) UI.toast('رفض الخادم بعض التغييرات لعدم وجود صلاحية، وأُعيدت إلى آخر نسخة معتمدة', 'warn', 7000);
+    else UI.toast('حُدِّثت بعض البيانات من جهاز آخر، راجع الشاشة قبل إعادة المحاولة', 'warn', 6000);
   },
 
   async pull(full = false) {
@@ -6041,6 +6046,23 @@ const Sync = {
       return rows;
     };
   },
+  /* المرفقات: يُرفع الملف نفسه إلى الخادم أولاً، ثم يُرسل السجل برقم الملف بدل محتواه (المحتوى لا يمر عبر JSON) */
+  async prepFiles(batch) {
+    for (const op of batch) {
+      if (op.store !== 'attachments' || op.deleted || !op.data) continue;
+      const rec = await DB.get('attachments', this.localKey('attachments', op.id));
+      const data = { ...op.data }; delete data.blob;
+      if (!data.fileId && rec && rec.fileId) data.fileId = rec.fileId;
+      if (!data.fileId) {
+        const blob = rec && rec.blob instanceof Blob ? rec.blob : op.data.blob instanceof Blob ? op.data.blob : null;
+        if (blob) {
+          data.fileId = uid('f'); await this.uploadBlob(data.fileId, blob, data.name, data.type);
+          if (rec) { rec.fileId = data.fileId; this.applying = true; try { await DB.put('attachments', rec); } finally { this.applying = false; } }
+        }
+      }
+      op.data = data;
+    }
+  },
   async uploadBlob(id, blob, name, type) {
     const fd = new FormData();
     fd.append('id', id); fd.append('name', name || 'file'); fd.append('type', type || blob.type || 'application/octet-stream');
@@ -6075,18 +6097,7 @@ const Sync = {
 };
 
 /* رفع المرفقات الجديدة إلى الخادم بدل مزامنة الملف داخل السجل */
-const addAttachBase = Data.tickets.addAttachments ? Data.tickets.addAttachments.bind(Data.tickets) : null;
-if (addAttachBase) Data.tickets.addAttachments = async (ticketId, files) => {
-  const out = await addAttachBase(ticketId, files);
-  if (Sync.on && Sync.token) {
-    const rows = await DB.getAll('attachments', 'ticketId', KR(ticketId));
-    for (const a of rows) {
-      if (!a.blob || a.fileId) continue;
-      try { const fid = uid('f'); await Sync.uploadBlob(fid, a.blob, a.name, a.type); const rec = await DB.get('attachments', a.id); rec.fileId = fid; const keep = rec.blob; delete rec.blob; await DB.put('attachments', rec); rec.blob = keep; } catch (_) { /* يبقى محلياً */ }
-    }
-  }
-  return out;
-};
+/* رفع ملفات المرفقات يتم داخل Sync.prepFiles لكل مسارات الإضافة (بلاغ جديد أو إضافة لاحقة) */
 
 /* واجهة حالة المزامنة */
 Pages.syncModal = async () => {
