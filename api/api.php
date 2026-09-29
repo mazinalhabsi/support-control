@@ -217,7 +217,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'deptUnits': return can_any($user, ['settings', 'org.manage']) ? $new : null;
     case 'locations': return can_any($user, ['settings', 'users.manage', 'inventory.manage']) ? $new : null;
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
-    case 'forms': return can_any($user, ['settings', 'forms.manage']) ? $new : null;
+    case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'meta': {
       $key = (string) ($data['key'] ?? ($old['key'] ?? ''));

@@ -1578,6 +1578,24 @@ img.iso{object-fit:contain;display:block}
 .bp-row input,.bp-row select{height:38px;min-width:0}.bp-row .icon-btn{width:34px;height:34px}.bp-n{font-size:12px;color:var(--ink-3);text-align:center;font-weight:700}
 .bp-row.bad input,.bp-row.bad select{border-color:#e5484d;background:rgba(229,72,77,.06)}.bp-paste{margin-bottom:10px}
 .img-bar{margin:14px 0}
+.form-bar.eform{border-color:rgba(25,185,166,.45);background:rgba(25,185,166,.07)}.form-bar.eform>.ic{color:#0a776b}
+.cc-acts{display:flex;flex-direction:column;gap:6px;flex:none}.cc-acts .btn{justify-content:center}
+.cf-table .table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;margin-bottom:8px}.cf-table table{width:100%;border-collapse:collapse;min-width:520px}
+.cf-table th{font-size:12px;font-weight:600;color:var(--ink-3);padding:8px;background:var(--surface-2);text-align:start;border-bottom:1px solid var(--line)}
+.cf-table td{padding:4px;border-bottom:1px solid var(--line)}.cf-table td input,.cf-table td select{height:36px;width:100%;min-width:90px}.cf-table td:last-child{width:40px}.cf-table .icon-btn{width:32px;height:32px}
+.ef{font-family:inherit;color:#111;background:#fff;padding:18px 22px;border:2px solid #1f3a5f;border-radius:14px;line-height:1.7}
+.ef-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;border-bottom:2px solid #1f3a5f;padding-bottom:10px}
+.ef-head img{width:66px;height:66px;object-fit:contain}.ef-head div{display:flex;flex-direction:column;font-size:12.5px}.ef-head div:last-child{text-align:left}.ef-head b{font-size:13.5px;color:#1f3a5f}
+.ef-title{text-align:center;font-size:19px;margin:14px 0 6px;color:#1f3a5f;text-decoration:underline;text-underline-offset:6px}
+.ef-meta{display:flex;justify-content:center;flex-wrap:wrap;gap:18px;font-size:12.5px;margin-bottom:8px}
+.ef section{border-top:1.5px solid #1f3a5f;padding-top:8px;margin-top:10px;break-inside:avoid}.ef h3{font-size:14px;margin:0 0 6px;color:#1f3a5f}.ef h3::before{content:'• '}.ef h4{font-size:13px;margin:8px 0 4px}
+.ef table{width:100%;border-collapse:collapse;font-size:12.5px}.ef-grid th,.ef-grid td,.ef-sub th,.ef-sub td{border:1px solid #9aa7b8;padding:5px 8px;text-align:start;vertical-align:top}
+.ef-grid th,.ef-sub th{background:#eef2f8;font-weight:600;white-space:nowrap;color:#1f3a5f}.ef-sub td{height:24px}
+.ef-dots{display:inline-block;min-width:120px;border-bottom:1px dotted #555;height:1em}
+.ef-notes,.ef-subject{font-size:12.5px;margin:6px 0}.ef-tips ul{margin:0;padding-inline-start:20px;font-size:12px}
+.ef-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:2px solid #1f3a5f;margin-top:12px;padding-top:8px;font-size:11.5px;color:#334}
+.ef-screen{max-height:70vh;overflow:auto;border-radius:14px;background:#e9edf3;padding:12px}
+.ef-print .ef{border:none;border-radius:0;padding:0}
 .ce-side .cat-fields,.ce-side .form-grid{grid-template-columns:1fr!important}
 @media (max-width:900px){.ce-side{position:static}.ce-side .panel{max-height:none}.ce-id{flex-direction:column;align-items:center}.bp-row{grid-template-columns:22px 1fr 1fr 34px}.bp-row [data-bp="name"]{grid-column:2/4}.bp-row [data-bp="phone"]{grid-column:2/4}.bp-row select{grid-column:2/3}.bp-row .icon-btn{grid-row:1;grid-column:4}.fb-head{flex-wrap:wrap}.fb-label{flex-basis:60%}}
 .head-illu.cat-ic{width:66px;height:66px}
@@ -3465,7 +3483,7 @@ Pages.auth = async () => ((Sync.on && !Sync.serverEmpty) || (await DB.count('use
 /* مشهد الواجهة الفاخر: شعار الأكاديمية في قلب نواة رقمية، مدارات أيقونات، كوكبة شبكية، ونقش هندسي عُماني */
 const SCENE_NODES = [[120, 140], [260, 90], [390, 180], [210, 260], [80, 380], [300, 400], [150, 520], [880, 120], [760, 200], [930, 300], [820, 380], [700, 90], [900, 520], [760, 560], [600, 60], [470, 70]];
 const SCENE_EDGES = [[0, 1], [1, 2], [0, 3], [3, 2], [3, 4], [4, 5], [5, 3], [4, 6], [7, 8], [8, 9], [9, 10], [8, 11], [11, 7], [10, 12], [12, 13], [10, 13], [11, 14], [14, 15], [15, 2], [5, 6]];
-Pages.scene = (title, text, kicker = 'تقنية المعلومات') => {
+Pages.scene = (title, text, kicker = 'قسم تقنية المعلومات') => {
   const chips = [['shield', 'أمن المعلومات'], ['layers', 'البرامج'], ['database', 'البيانات'], ['lock', 'الصلاحيات'], ['monitor', 'الأنظمة'], ['pulse', 'المراقبة']];
   const net = SCENE_EDGES.map(([a, b], i) => { const [x1, y1] = SCENE_NODES[a], [x2, y2] = SCENE_NODES[b]; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${i % 3 === 0 ? `<line class="pk" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" pathLength="100" style="animation-delay:${(i * 0.7).toFixed(1)}s"/>` : ''}`; }).join('')
     + SCENE_NODES.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 4 ? 2.4 : 3.6}" style="animation-delay:${(i * 0.45).toFixed(2)}s"/>`).join('');
@@ -3494,7 +3512,7 @@ Pages.login = () => {
     <p class="form-error" id="loginErr" role="alert" hidden></p>
     <button class="btn btn-primary btn-lg btn-block" type="submit">${UI.icon('key')} دخول</button>
     <p class="login-help">${UI.icon('phone')} نسيت كلمة المرور؟ اتصل بالدعم الفني <span class="ltr">${s.supportPhone}</span></p>
-  </form></section>${Pages.scene('درعٌ رقميّ… وخدمةٌ لا تتوقف', `نُدير البنية التقنية في ${s.orgName} بأعلى معايير الأمان والموثوقية؛ دعمٌ فنيٌّ فوري، وأصولٌ مؤمَّنة، وبياناتٌ محفوظة.`)}</div>`);
+  </form></section>${Pages.scene('درعٌ رقميّ… وخدمةٌ لا تتوقف', `نُدير بنية تقنية المعلومات في ${s.orgName} بأعلى معايير الأمان والموثوقية؛ دعمٌ فنيٌّ فوري، وأصولٌ مؤمَّنة، وبياناتٌ محفوظة.`)}</div>`);
   const form = $('#loginForm'), err = $('#loginErr'), pw = $('#lp');
   $('.reveal', form).onclick = (e) => { const show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; e.currentTarget.innerHTML = String(UI.icon(show ? 'eye-off' : 'eye')); };
   UI.parallax($('#scene'));
@@ -3820,7 +3838,7 @@ Pages.newTicket = async (ctx) => {
       if ((st.persons || []).length) extra.persons = st.persons;
       if ((st.codes || []).length) extra.codes = st.codes;
       const t = await Data.tickets.create({ ...st, categoryId: st.cat, extra }, files);
-      view.innerHTML = String(html`${head}<section class="panel"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:24px">تم إرسال بلاغك بنجاح</h2><p class="muted">احتفظ برقم البلاغ للمتابعة، وسيصلك إشعار عند استلامه.</p><span class="stamp">${t.number}</span><div class="row" style="justify-content:center;margin-top:10px"><a class="btn btn-primary" href="#/tickets/${t.id}">${UI.icon('eye')} متابعة البلاغ</a><a class="btn" href="#/tickets/new">${UI.icon('plus')} بلاغ آخر</a><a class="btn btn-ghost" href="#/dashboard">${UI.icon('grid')} الرئيسية</a></div></div></section>`);
+      view.innerHTML = String(html`${head}<section class="panel"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:24px">تم إرسال بلاغك بنجاح</h2><p class="muted">احتفظ برقم البلاغ للمتابعة، وسيصلك إشعار عند استلامه.</p><span class="stamp">${t.number}</span><div class="row" style="justify-content:center;margin-top:10px"><a class="btn btn-primary" href="#/tickets/${t.id}">${UI.icon('eye')} متابعة البلاغ</a>${eformOn(t.categoryId) ? html`<button type="button" class="btn btn-soft" data-eformview="${t.id}">${UI.icon('paper')} عرض الاستمارة وطباعتها</button>` : ''}<a class="btn" href="#/tickets/new">${UI.icon('plus')} بلاغ آخر</a><a class="btn btn-ghost" href="#/dashboard">${UI.icon('grid')} الرئيسية</a></div></div></section>`);
       const r = $('.burst', view).getBoundingClientRect(); UI.confetti(r.left + r.width / 2, r.top + r.height / 2);
     } catch (ex) { UI.error(ex); UI.busy(btn, false); }
   });
@@ -3879,6 +3897,7 @@ Pages.ticket = async (ctx) => {
           ${staff ? Pages.ticketFlow(t) : ''}
           ${Pages.categoryFormBar(t.categoryId) ? UI.panel({ title: 'استمارة الفئة', icon: 'file', body: Pages.categoryFormBar(t.categoryId) }) : ''}
           ${Pages.cardPanel(t)}
+          ${Pages.eFormPanel(t)}
           ${staff ? await Pages.ticketParts(t) : ''}
         </div>
       </div>`);
@@ -5125,12 +5144,13 @@ const Forms = {
       const show = this.visible(f, v), opts = this.options(f, v), val = v[f.k] == null ? f.def || '' : v[f.k], isOther = val && opts.length && !opts.includes(val);
       const input = f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${optIcon(o) ? UI.icon(optIcon(o)) : ''}${o}</span></label>`)}</div>`
         : f.t === 'select' ? html`<select name="x_${f.k}">${html`<option value="">${opts.length ? 'اختر...' : 'لا توجد خيارات، اكتبها يدوياً'}</option>`}${opts.map((o) => html`<option value="${o}"${val === o ? raw(' selected') : ''}>${o}</option>`)}${f.other || !opts.length ? html`<option value="__other"${isOther ? raw(' selected') : ''}>أخرى / غير مدرج</option>` : ''}</select>${f.other || !opts.length ? html`<input class="input cf-other" name="x_${f.k}_other" placeholder="اكتب الاسم يدوياً" value="${isOther ? val : ''}"${isOther || !opts.length ? '' : raw(' hidden')}>` : ''}`
+        : f.t === 'table' ? Forms.tableHTML(f, val)
         : f.t === 'multi' ? html`<div class="choice-pick multi">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div>`
         : f.t === 'textarea' ? html`<textarea name="x_${f.k}" rows="3" placeholder="${f.hint || ''}">${val}</textarea>`
         : f.t === 'date' ? html`<input name="x_${f.k}" type="date" value="${val}">`
         : html`<input name="x_${f.k}" type="${f.t === 'number' ? 'number' : 'text'}"${f.t === 'number' ? raw(' min="1"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${val}" placeholder="${f.hint || ''}">`;
       const chips = (f.t === 'text' || f.t === 'textarea') && opts.length ? html`<div class="quick-chips cf-chips">${opts.map((o) => html`<button type="button" class="qchip" data-cffill="x_${f.k}" data-val="${o}">${o}</button>`)}</div>` : '';
-      return html`<div class="field cf${['choice', 'multi', 'textarea'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
+      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
     })}</div>`;
   },
   values(root) {
@@ -5143,6 +5163,7 @@ const Forms = {
       if (val === '__other') { const o = root.querySelector(`[name="x_${k}_other"]`); val = o ? String(o.value || '').trim() : ''; }
       if (val) v[k] = val;
     });
+    $$('[data-cftable]', root).forEach((tb) => { const rows = $$('tbody tr', tb).map((tr) => $$('[data-cfcell]', tr).map((i) => String(i.value || '').trim())).filter((r) => r.some(Boolean)); if (rows.length) v[tb.dataset.cftable] = rows; });
     return v;
   },
   extra(catId, v) { const fields = this.def(catId).filter((f) => this.visible(f, v) && v[f.k]).map((f) => ({ key: f.k, label: f.l, value: v[f.k] })); return fields.length ? { fields } : null; },
@@ -7046,7 +7067,7 @@ const dataToBlob = dataURLToBlob;
 const catForm = (catId) => (Data.c.categories.get(catId) || {}).formFile || null;
 
 const canCatDocs = () => canUser(Auth.user, 'categories.docs') || canUser(Auth.user, 'settings');
-const catFormRequired = (catId) => { const c = Data.c.categories.get(catId) || {}; return !!(c.formFile && c.formRequired); };
+const catFormRequired = (catId) => { const c = Data.c.categories.get(catId) || {}; return !!(c.formFile && c.formRequired) && !eformOn(catId); };
 Pages.categoryFormBar = (catId) => {
   const f = catForm(catId), builtIn = catId === 'card', manage = canCatDocs(), req = catFormRequired(catId);
   if (!f && !builtIn && !manage) return '';
@@ -7979,14 +8000,15 @@ Pages.formsPage = async (ctx) => {
       ${UI.pageHead({ title: 'النماذج والاستمارات', sub: 'استمارات جاهزة للمعاينة والتحميل والطباعة', illu: 'paper', actions: html`${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}<button class="btn btn-ghost" data-blankcard>${UI.icon('print')} استمارة بطاقة فارغة</button>` })}
       <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="fq" type="search" placeholder="ابحث باسم النموذج" value="${st.q}"></div><select id="fcat"><option value="">كل الفئات</option>${UI.opts('categories').map((o) => html`<option value="${o.value}"${st.cat === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><span class="faint small">${arCount(rows.length, AR.item).replace('صنف', 'نموذج').replace('أصناف', 'نماذج')}</span></div>
       ${rows.length ? html`<div class="forms-grid">${rows.map((f) => html`<article class="form-card">${UI.illu(f.icon || 'paper')}<div class="fc-body"><b>${f.title}</b>${f.desc ? html`<p class="t-sub">${f.desc}</p>` : ''}<div class="row" style="gap:6px;flex-wrap:wrap">${f.categoryId ? UI.chip('sky', Data.nameOf('categories', f.categoryId), 'tag') : ''}${f.file ? UI.chip('slate', fmtBytes(f.file.size)) : ''}</div></div>
-        <div class="fc-actions"><button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-primary" data-dl="${f.id}">${UI.icon('download')} تحميل</button>${manage ? html`<button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
+        <div class="fc-actions">${f.categoryId && eformOn(f.categoryId) && Data.c.categories.get(f.categoryId) && !Data.c.categories.get(f.categoryId).hidden ? html`<a class="btn btn-sm btn-primary" href="#/tickets/new?cat=${f.categoryId}">${UI.icon('edit')} تعبئة إلكترونية</a>` : ''}${!manage && (f.noDownload || docLocked(f.categoryId)) ? html`<span class="chip tone-slate">${UI.icon('lock')} التحميل موقوف</span>` : html`<button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-soft" data-dl="${f.id}">${UI.icon('download')} تحميل</button>`}${manage ? html`<button class="btn btn-sm btn-ghost" data-lockdl="${f.id}" title="${f.noDownload ? 'السماح بالتحميل للموظفين' : 'إيقاف التحميل للموظفين'}">${UI.icon(f.noDownload ? 'lock' : 'download')} ${f.noDownload ? 'موقوف' : 'متاح'}</button><button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
         : html`<div class="panel-body">${UI.empty({ illu: 'paper', title: 'لا توجد نماذج بعد', text: manage ? 'أضف الاستمارات التي يحتاجها الموظفون ليحمّلوها من هنا.' : 'ستظهر هنا الاستمارات فور إضافتها من تقنية المعلومات.', action: manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : '' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
     $('#fq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
     $('#fcat', ctx.view).onchange = (e) => { st.cat = e.target.value; draw(); };
   };
   UI.on(ctx.view, 'click', '[data-view]', async (e, el) => { const f = await DB.get('forms', el.dataset.view); if (f && f.file) Pages.previewFile(f.file); });
-  UI.on(ctx.view, 'click', '[data-dl]', async (e, el) => { const f = await DB.get('forms', el.dataset.dl); if (f && f.file) { downloadBlob(dataToBlob(f.file.data), f.file.name); UI.toast('تم التحميل'); } });
+  UI.on(ctx.view, 'click', '[data-lockdl]', async (e, el) => { const f = await DB.get('forms', el.dataset.lockdl); if (!f) return; f.noDownload = f.noDownload ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); Bus.emit('forms', {}); UI.toast(f.noDownload ? `أُوقف تحميل «${f.title}» للموظفين` : `أصبح «${f.title}» متاحاً للتحميل`); draw(); });
+  UI.on(ctx.view, 'click', '[data-dl]', async (e, el) => { const f = await DB.get('forms', el.dataset.dl); if (f && (f.noDownload || docLocked(f.categoryId)) && !canManageForms()) { UI.toast('التحميل موقوف لهذا النموذج', 'warn'); return; } if (f && f.file) { downloadBlob(dataToBlob(f.file.data), f.file.name); UI.toast('تم التحميل'); } });
   UI.on(ctx.view, 'click', '[data-edit]', async (e, el) => { if (await Pages.formModal(el.dataset.edit)) draw(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.formModal()) draw(); });
   ctx.onCleanup(Bus.on('forms', debounce(() => { if (ctx.alive()) draw(); }, 400)));
@@ -9674,7 +9696,7 @@ Pages.imagesTab = (el, ctx) => {
   ctx.onCleanup(Bus.on('imglib', () => draw()));
   draw();
 };
-PERM_GROUPS.find((g) => g.title === 'التقارير والإدارة').items.push(['categories.manage', 'إدارة البلاغات', 'بناء فئات البلاغات وخاناتها وصورها وملاحظاتها']);
+PERM_GROUPS.find((g) => g.title === 'التقارير والإدارة').items.push(['categories.manage', 'إدارة البلاغات والفئات', 'إضافة فئات البلاغات وتعديلها وإخفاؤها وحذفها، وخاناتها واستماراتها الإلكترونية']);
 PERM_KEYS.add('categories.manage'); PERM_LABEL['categories.manage'] = 'إدارة البلاغات';
 /* ══ إدارة البلاغات: بناء فئات البلاغات بالكامل (الصورة، المسمى، الخانات، العبارات الجاهزة، الملاحظات، المرفقات) ══ */
 const canCatAdmin = () => Auth.can('categories.manage') || Auth.can('settings');
@@ -9687,9 +9709,10 @@ const FIELD_TYPES = {
   textarea: { label: 'نص طويل', icon: 'paper', opts: 'عبارات جاهزة (تظهر أزراراً يضغطها الموظف)' },
   number: { label: 'رقم', icon: 'hash', opts: '' },
   date: { label: 'تاريخ', icon: 'calendar', opts: '' },
-  rankpick: { label: 'الرتبة', icon: 'star', opts: '' }
+  rankpick: { label: 'الرتبة', icon: 'star', opts: '' },
+  table: { label: 'جدول (أشخاص أو صفوف)', icon: 'users', opts: 'أعمدة الجدول — عمود في كل سطر. لخيارات جاهزة اكتب: الصلاحية = قراءة / قراءة وكتابة' }
 };
-const needsOpts = (t) => ['choice', 'select', 'multi'].includes(t);
+const needsOpts = (t) => ['choice', 'select', 'multi', 'table'].includes(t);
 const newKey = () => `f${Math.random().toString(36).slice(2, 7)}`;
 /* تعريف الخانات: من إعداد الفئة إن وُجد، وإلا التعريف المدمج. الخانات المرتبطة (مثل موديل الطابعة) تحتفظ بقوائمها التلقائية */
 Forms.def = (catId) => {
@@ -9704,7 +9727,9 @@ Forms.attachMsg = (id) => { const cf = catCfg(id) || {}; return cf.attachLabel ?
 {
   const descBase = Forms.descHint, labelBase = Forms.titleLabel, titleBase = Forms.title.bind(Forms);
   const extraBase = Forms.extra.bind(Forms);
-  Forms.extra = (id, v) => { const r = extraBase(id, v); if (!r) return r; const types = new Map(Forms.def(id).map((f) => [f.k, f.t])); r.fields = r.fields.map((f) => (types.get(f.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(f.value) ? { ...f, value: f.value.split('-').reverse().join('/') } : f)); return r; };
+  Forms.extra = (id, v) => { const r = extraBase(id, v); if (!r) return r; const types = new Map(Forms.def(id).map((f) => [f.k, f.t])); const defs = new Map(Forms.def(id).map((f) => [f.k, f]));
+    r.fields = r.fields.map((f) => (Array.isArray(f.value) ? { ...f, rows: f.value, cols: tableCols(defs.get(f.key) || {}).map((c) => c.l), value: f.value.map((row) => row.filter(Boolean).join(' - ')).join('، ') } : f));
+    r.fields = r.fields.map((f) => (types.get(f.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(f.value) ? { ...f, value: f.value.split('-').reverse().join('/') } : f)); return r; };
   Forms.descHint = (id) => { const cf = catCfg(id); return (cf && cf.descHint) || descBase(id); };
   Forms.titleLabel = (id) => { const cf = catCfg(id); return (cf && cf.titleLabel) || labelBase(id); };
   Forms.title = (id, v) => titleBase(id, v) || Forms.def(id).filter((f) => ['choice', 'select'].includes(f.t) && v[f.k]).slice(0, 2).map((f) => v[f.k]).join(' — ');
@@ -9751,6 +9776,17 @@ const CAT_TEMPLATES = [
     { k: 'kind', l: 'نوع الطلب', t: 'choice', req: 1, o: ['كاميرا لا تسجل', 'طلب استرجاع تسجيل', 'إضافة كاميرا جديدة'] },
     { k: 'camera', l: 'رقم الكاميرا أو موقعها', t: 'text' },
     { k: 'when', l: 'تاريخ التسجيل المطلوب', t: 'date', req: 1, showIf: { kind: ['طلب استرجاع تسجيل'] } }] } },
+  { id: 'svcform', name: 'استمارة طلب خدمة (الأنظمة والحسابات)', image: 'i3d:passcode', desc: 'مطابقة للاستمارة الرسمية: الشبكة والخدمات المطلوبة، مع الاعتمادات', form: { titleLabel: 'موضوع الطلب', descHint: 'أي ملاحظات إضافية على الطلب.', notes: ['تُعتمد الاستمارة من الضابط المسؤول قبل التنفيذ'], base: [], eform: { on: 1, title: 'استمارة طلب خدمة', signs: ['الضابط المسؤول', 'الإجراء المتخذ من قبل الفني'], notes: ['الرجاء تعبئة الاستمارة بالبيانات الصحيحة.'], noDownload: 1 }, fields: [
+    { k: 'net', l: 'النظام المطلوب على', t: 'choice', req: 1, o: ['شبكة الشرطة', 'شبكة الأكاديمية'] },
+    { k: 'svc', l: 'الخدمات المطلوبة', t: 'multi', req: 1, o: ['مستخدم جديد (لأول مرة)', 'إعادة تعيين كلمة المرور للنظام', 'إيقاف أو حذف مستخدم', 'إضافة أو حذف صلاحيات', 'طلبات البريد الإلكتروني', 'نظام الدخول والخروج', 'نظام مسار', 'المنصة التعليمية', 'خدمات أخرى'] },
+    { k: 'ext', l: 'رقم المحوّل', t: 'text', dir: 'ltr' }] } },
+  { id: 'folders', name: 'استمارة المجلدات المشتركة', image: 'i3d:folder', desc: 'مطابقة للاستمارة الرسمية: العملية، الشبكة، الغرض، وجدول صلاحيات المستخدمين', form: { titleLabel: 'اسم المجلد المطلوب', descHint: 'أي توضيح إضافي للطلب.', notes: ['تخضع الطلبات لمراجعة قسم تقنية المعلومات'], base: [], eform: { on: 1, title: 'استمارة المجلدات المشتركة', signs: ['اعتماد الضابط المسؤول', 'اعتماد رئيس قسم تقنية المعلومات', 'الإجراء المتخذ من قبل الفني'], notes: ['جميع الطلبات تخضع لمراجعة قسم تقنية المعلومات لضمان الالتزام بسياسات أمن المعلومات.', 'سمِّ الملفات بأسماء واضحة ودقيقة، وتأكد من تنظيمها داخل المجلدات.', 'لا تقم بتخزين ملفات شخصية، وسيقوم المختصون لدينا بالحذف إن وُجدت.', 'لا تقم بحذف أي مجلد قبل التأكد منه أو التواصل مع المختصين بقسم تقنية المعلومات.'], noDownload: 1 }, fields: [
+    { k: 'op', l: 'العملية المطلوبة للمجلد', t: 'choice', req: 1, o: ['مجلد مشترك جديد', 'إضافة مجلد فرعي', 'إضافة مستخدم', 'حذف مستخدم', 'إضافة صلاحيات للمستخدم', 'عمل آخر'] },
+    { k: 'other', l: 'توضيح العمل المطلوب', t: 'text', req: 1, showIf: { op: ['عمل آخر'] } },
+    { k: 'net', l: 'إنشاء المجلد المشترك على', t: 'choice', req: 1, o: ['شبكة الشرطة', 'شبكة الأكاديمية'] },
+    { k: 'purpose', l: 'الغرض من إنشاء المجلد', t: 'text', req: 1 },
+    { k: 'path', l: 'اسم المجلد المشترك (عند إضافة أو حذف صلاحية)', t: 'text', showIf: { op: ['إضافة مستخدم', 'حذف مستخدم', 'إضافة صلاحيات للمستخدم'] } },
+    { k: 'perms', l: 'الصلاحيات المطلوبة', t: 'table', req: 1, o: ['الرقم العسكري', 'الرتبة', 'الاسم', 'اسم المجلد / المجلد الفرعي', 'الصلاحية = قراءة / قراءة وكتابة'] }] } },
   { id: 'service', name: 'طلب خدمة عامة', image: 'i3d:bell', desc: 'الخدمة، التفاصيل، الموعد المناسب', form: { titleLabel: 'الخدمة المطلوبة', notes: [], base: [], fields: [
     { k: 'service', l: 'الخدمة', t: 'text', req: 1, o: ['تركيب جهاز', 'نقل جهاز', 'تجهيز مكتب جديد'] },
     { k: 'details', l: 'التفاصيل', t: 'textarea' },
@@ -9767,7 +9803,7 @@ const READY_NOTES = ['أعد تشغيل الجهاز قبل تقديم البل�
 const catDraft = (id) => {
   const c = Data.c.categories.get(id) || {}, cf = catCfg(id) || {};
   const fields = Forms.def(id).map(({ by, fallback, ...f }) => JSON.parse(JSON.stringify(f)));
-  return { name: c.name || '', image: CatIcon.ref(id), order: c.order || 0, hidden: c.hidden ? 1 : 0, titleLabel: Forms.titleLabel(id), descHint: Forms.descHint(id), quickTitles: [...Forms.quickTitles(id)], notes: [...Forms.notes(id)], base: [...Forms.baseShow(id)], attachReq: cf.attachReq ? 1 : 0, attachLabel: cf.attachLabel || '', fields };
+  return { name: c.name || '', image: CatIcon.ref(id), order: c.order || 0, hidden: c.hidden ? 1 : 0, titleLabel: Forms.titleLabel(id), descHint: Forms.descHint(id), quickTitles: [...Forms.quickTitles(id)], notes: [...Forms.notes(id)], base: [...Forms.baseShow(id)], attachReq: cf.attachReq ? 1 : 0, attachLabel: cf.attachLabel || '', fields, eform: { on: 0, title: `استمارة ${c.name || ''}`.trim(), signs: [...EFORM_SIGNS], notes: [], noDownload: 0, ...JSON.parse(JSON.stringify(eformOf(id) || {})) } };
 };
 Data.catAdmin = {
   guard() { if (!canCatAdmin()) throw new AppError('لا تملك صلاحية إدارة البلاغات'); },
@@ -9783,6 +9819,7 @@ Data.catAdmin = {
     return {
       titleLabel: String(d.titleLabel || '').trim(), descHint: String(d.descHint || '').trim(), quickTitles: d.quickTitles.map((x) => String(x).trim()).filter(Boolean),
       notes: d.notes.map((x) => String(x).trim()).filter(Boolean), base: d.base, attachReq: d.attachReq ? 1 : 0, attachLabel: String(d.attachLabel || '').trim(),
+      eform: d.eform ? { on: d.eform.on ? 1 : 0, title: String(d.eform.title || '').trim(), signs: (d.eform.signs || []).map((x) => String(x).trim()).filter(Boolean), notes: (d.eform.notes || []).map((x) => String(x).trim()).filter(Boolean), noDownload: d.eform.noDownload ? 1 : 0 } : undefined,
       fields: d.fields.map((f) => { const o = { ...f, l: String(f.l).trim(), o: (f.o || []).map((x) => String(x).trim()).filter(Boolean) }; if (!o.req) delete o.req; if (!o.note) delete o.note; if (!o.o.length) delete o.o; if (o.showIf && !Object.keys(o.showIf).every((k) => keys.has(k) && (o.showIf[k] || []).length)) delete o.showIf; if (o.dep && !keys.has(o.dep)) delete o.dep; return o; })
     };
   },
@@ -9797,15 +9834,35 @@ Data.catAdmin = {
   async create(tplId, name, fromCat = '') {
     this.guard();
     let d;
-    if (fromCat) { d = catDraft(fromCat); d.name = name || `${d.name} (نسخة)`; } else { const t = CAT_TEMPLATES.find((x) => x.id === tplId) || CAT_TEMPLATES[0]; const f = JSON.parse(JSON.stringify(t.form)); d = { name: name || t.name, image: t.image, order: Data.list('categories').length, hidden: 0, titleLabel: f.titleLabel || '', descHint: f.descHint || '', quickTitles: f.quickTitles || [], notes: f.notes || [], base: f.base || [], attachReq: f.attachReq || 0, attachLabel: f.attachLabel || '', fields: f.fields || [] }; }
+    if (fromCat) { d = catDraft(fromCat); d.name = name || `${d.name} (نسخة)`; } else { const t = CAT_TEMPLATES.find((x) => x.id === tplId) || CAT_TEMPLATES[0]; const f = JSON.parse(JSON.stringify(t.form)); d = { name: name || t.name, image: t.image, order: Data.list('categories').length, hidden: 0, titleLabel: f.titleLabel || '', descHint: f.descHint || '', quickTitles: f.quickTitles || [], notes: f.notes || [], base: f.base || [], attachReq: f.attachReq || 0, attachLabel: f.attachLabel || '', fields: f.fields || [], eform: f.eform || { on: 0, title: `استمارة ${name || t.name}`, signs: [...EFORM_SIGNS], notes: [], noDownload: 0 } }; }
     d.order = Data.list('categories').length; return this.save('', d);
   },
-  async remove(id) {
+  async count(id) { return (await DB.getAll('tickets')).filter((t) => t.categoryId === id).length; },
+  /* حذف الفئة، ونقل بلاغاتها (إن وُجدت) إلى فئة أخرى حتى لا تضيع */
+  async remove(id, moveTo = '') {
     this.guard();
-    const n = await DB.count('tickets', 'categoryId', KR(id)).catch(async () => (await DB.getAll('tickets')).filter((t) => t.categoryId === id).length);
-    if (n) throw new AppError(`لا يمكن حذف الفئة لأن فيها ${arCount(n, AR.ticket)}. يمكنك إخفاؤها عن الموظفين بدلاً من الحذف.`);
+    const tickets = (await DB.getAll('tickets')).filter((t) => t.categoryId === id);
+    if (tickets.length) {
+      if (!moveTo || moveTo === id || !Data.c.categories.get(moveTo)) throw new AppError(`في هذه الفئة ${arCount(tickets.length, AR.ticket)}. اختر فئة تُنقل إليها قبل الحذف.`);
+      const t0 = now(); await DB.bulkPut('tickets', tickets.map((t) => ({ ...t, categoryId: moveTo, updatedAt: t0 })));
+    }
+    const owners = (await DB.getAll('users')).filter((u) => (u.categories || []).includes(id));
+    if (owners.length) { await DB.bulkPut('users', owners.map((u) => ({ ...u, categories: u.categories.filter((x) => x !== id), updatedAt: now() }))); await Data.refresh('users'); }
+    const name = Data.nameOf('categories', id, '');
     await Data.deleteRecord('categories', id, 'فئة بلاغات');
-  }
+    if (tickets.length) { await Data.log('update', 'category', moveTo, `نقل ${tickets.length} بلاغ من فئة ${name} المحذوفة إلى ${Data.nameOf('categories', moveTo, '')}`); Bus.emit('tickets', {}); }
+    return tickets.length;
+  },
+  async setHidden(id, hidden) { this.guard(); const r = await DB.get('categories', id); if (!r) return; r.hidden = hidden ? 1 : 0; await Data.saveRecord('categories', r, hidden ? 'إخفاء فئة بلاغات' : 'إظهار فئة بلاغات'); }
+};
+/* نافذة حذف الفئة: تأكيد، ونقل البلاغات إن وُجدت */
+Pages.catDeleteModal = async (id) => {
+  const c = Data.c.categories.get(id); if (!c) return false;
+  const n = await Data.catAdmin.count(id), others = Data.list('categories').filter((x) => x.id !== id);
+  return UI.modal({ title: `حذف فئة «${c.name}»`, icon: 'trash', size: 'sm',
+    body: html`${n ? html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">في هذه الفئة <b>${arCount(n, AR.ticket)}</b>. ستُنقل إلى الفئة التي تختارها، ولن يُحذف أي بلاغ.</div></div>${UI.field({ name: 'moveTo', label: 'نقل البلاغات إلى', type: 'select', options: others.map((x) => ({ value: x.id, label: x.name })), placeholder: false }, others.some((x) => x.id === 'other') ? 'other' : (others[0] || {}).id)}` : html`<p class="muted">لا توجد بلاغات في هذه الفئة. سيُحذف إعدادها وخاناتها واستمارتها نهائياً.</p>`}
+      <p class="small faint mt">بديل الحذف: إخفاء الفئة، فتبقى بلاغاتها وإعداداتها وتختفي عن الموظفين فقط.</p>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حذف الفئة', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => { const moved = await Data.catAdmin.remove(id, UI.formValues(form).moveTo || ''); UI.toast(moved ? `حُذفت الفئة ونُقل ${arCount(moved, AR.ticket)}` : 'حُذفت الفئة'); return true; } }] });
 };
 
 /* نافذة توليد فئة جديدة من قالب جاهز أو نسخ فئة موجودة */
@@ -9832,11 +9889,15 @@ Pages.ticketAdmin = async (ctx) => {
     const head = UI.pageHead({ title: 'إدارة البلاغات', sub: 'ابنِ فئات البلاغات وعدّل صورها ومسمياتها وخاناتها وملاحظاتها ومرفقاتها', illu: 'clipboard', actions: st.tab === 'cats' ? html`<button class="btn btn-primary" data-act="newcat">${UI.icon('plus')} فئة جديدة</button>` : '' });
     if (st.tab === 'images') { ctx.view.innerHTML = String(html`${head}${tabs}<div id="imgTab"></div>`); Pages.imagesTab($('#imgTab', ctx.view), ctx); return; }
     const cats = Data.list('categories');
-    ctx.view.innerHTML = String(html`${head}${tabs}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<a class="cat-card${c.hidden ? ' off' : ''}" href="#/ticket-admin/${c.id}">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('slate', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><span class="btn btn-soft btn-sm">${UI.icon('edit')} تعديل</span></a>`; })}
+    ctx.view.innerHTML = String(html`${head}${tabs}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<div class="cat-card${c.hidden ? ' off' : ''}" data-open="${c.id}" tabindex="0" role="link">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('slate', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><div class="cc-acts"><button class="btn btn-soft btn-sm" data-open="${c.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-hide="${c.id}" title="${c.hidden ? 'إظهار للموظفين' : 'إخفاء عن الموظفين'}">${UI.icon(c.hidden ? 'eye' : 'eye-off')} ${c.hidden ? 'إظهار' : 'إخفاء'}</button><button class="btn btn-ghost btn-sm danger" data-cdel="${c.id}" title="حذف">${UI.icon('trash')}</button></div></div>`; })}
       <button class="cat-card add" data-act="newcat">${UI.icon('plus')}<div class="grow"><b>توليد فئة جديدة</b><div class="t-sub">من قالب جاهز أو بنسخ فئة موجودة</div></div></button></div>`);
   };
   UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/ticket-admin${st.tab === 'images' ? '?tab=images' : ''}`); draw(); });
   UI.on(ctx.view, 'click', '[data-act="newcat"]', async () => { const c = await Pages.catNewModal(); if (c) Router.go(`/ticket-admin/${c.id}`); });
+  UI.on(ctx.view, 'click', '[data-open]', (e, el) => { if (e.target.closest('[data-hide],[data-cdel]')) return; Router.go(`/ticket-admin/${el.dataset.open}`); });
+  UI.on(ctx.view, 'keydown', '.cat-card[data-open]', (e, el) => { if (e.key === 'Enter' && e.target === el) Router.go(`/ticket-admin/${el.dataset.open}`); });
+  UI.on(ctx.view, 'click', '[data-hide]', async (e, el) => { e.stopPropagation(); const c = Data.c.categories.get(el.dataset.hide); if (!c) return; try { await Data.catAdmin.setHidden(c.id, !c.hidden); UI.toast(c.hidden ? `أُظهرت فئة «${c.name}» للموظفين` : `أُخفيت فئة «${c.name}» عن الموظفين`); draw(); } catch (er) { UI.error(er); } });
+  UI.on(ctx.view, 'click', '[data-cdel]', async (e, el) => { e.stopPropagation(); if (await Pages.catDeleteModal(el.dataset.cdel)) draw(); });
   ctx.onCleanup(Bus.on('data:categories', () => { if (st.tab === 'cats') draw(); }));
   draw();
 };
@@ -9899,6 +9960,13 @@ Pages.catEditor = async (ctx) => {
         <div class="field wide">${UI.field({ name: 'ceShow', type: 'switch', text: 'إظهار الفئة للموظفين عند تقديم بلاغ' }, d.hidden ? 0 : 1)}</div></div></div>` })}
       ${UI.panel({ title: 'ملاحظات ومتطلبات تظهر للموظف', icon: 'info', sub: 'تظهر أعلى نموذج البلاغ قبل التعبئة', body: html`<div id="ceNotes">${notesHTML()}</div>` })}
       ${UI.panel({ title: 'خانات البلاغ', icon: 'menu', sub: 'رتّبها، واجعل ما تشاء إلزامياً، وأضف خيارات وعبارات جاهزة لكل خانة', body: html`<div id="ceFields">${fieldsHTML()}</div>` })}
+      ${UI.panel({ title: 'الاستمارة الإلكترونية', icon: 'paper', sub: 'بدل تحميل المستند وتعبئته ورفعه: تُنشأ الاستمارة الرسمية تلقائياً من خانات البلاغ', body: html`<div class="form-grid">
+        <div class="field wide">${UI.field({ name: 'ceEform', type: 'switch', text: 'تفعيل الاستمارة الإلكترونية لهذه الفئة' }, d.eform.on ? 1 : 0)}</div>
+        <div class="field wide"><label>عنوان الاستمارة</label><input data-ef="title" value="${d.eform.title || ''}" placeholder="مثال: استمارة طلب خدمة"></div>
+        <div class="field"><label>جهات الاعتماد والتوقيع <small class="faint">— سطر لكل جهة</small></label><textarea data-ef="signs" rows="4">${lines(d.eform.signs)}</textarea><small class="hint">الجهة التي فيها كلمة «الفني» تُعبّأ تلقائياً باسم الفني والإجراء المتخذ.</small></div>
+        <div class="field"><label>ملاحظات وتعليمات أسفل الاستمارة <small class="faint">— سطر لكل ملاحظة</small></label><textarea data-ef="notes" rows="4">${lines(d.eform.notes)}</textarea></div>
+        <div class="field wide">${UI.field({ name: 'ceNoDl', type: 'switch', text: 'إيقاف تحميل المستند الورقي للموظفين (يبقى متاحاً لمن يملك صلاحية إدارة المستندات)' }, d.eform.noDownload ? 1 : 0)}</div></div>
+        <button type="button" class="btn btn-soft mt" data-act="efprev">${UI.icon('eye')} معاينة شكل الاستمارة</button>` })}
       ${UI.panel({ title: 'المرفقات والمستند وخانات النظام', icon: 'clip', body: html`<div class="form-grid">
         <div class="field wide">${UI.field({ name: 'ceAttach', type: 'switch', text: 'إلزام الموظف بإرفاق ملف أو صورة مع البلاغ' }, d.attachReq)}</div>
         <div class="field wide"><label>ما المرفق المطلوب؟</label><input data-d="attachLabel" value="${d.attachLabel}" placeholder="مثال: صورة البطاقة التالفة، خطاب الاعتماد"></div>
@@ -9912,18 +9980,21 @@ Pages.catEditor = async (ctx) => {
     const t = e.target;
     if (t.dataset.d) { const k = t.dataset.d; d[k] = k === 'quickTitles' ? t.value.split(/\r?\n/) : t.value; mark(); pvLater(); return; }
     if (t.dataset.note != null) { d.notes[Number(t.dataset.note)] = t.value; mark(); pvLater(); return; }
+    if (t.dataset.ef) { d.eform[t.dataset.ef] = t.dataset.ef === 'title' ? t.value : t.value.split(/\r?\n/); mark(); return; }
     if (t.dataset.p && t.closest('[data-fi]') && t.type !== 'checkbox' && t.tagName !== 'SELECT') { const f = field(t); f[t.dataset.p] = t.dataset.p === 'o' ? t.value.split(/\r?\n/) : t.value; mark(); pvLater(); }
   });
   ctx.view.addEventListener('change', (e) => {
     const t = e.target;
     if (t.closest('#cePreview')) { pv = Forms.values($('#cePreview', ctx.view)); $('[data-pvfields]', ctx.view).innerHTML = String(Forms.render('__pv', pv)); return; }
     if (t.name === 'ceShow') { d.hidden = t.checked ? 0 : 1; mark(); return; }
+    if (t.name === 'ceEform') { d.eform.on = t.checked ? 1 : 0; mark(); return; }
+    if (t.name === 'ceNoDl') { d.eform.noDownload = t.checked ? 1 : 0; mark(); return; }
     if (t.name === 'ceAttach') { d.attachReq = t.checked ? 1 : 0; mark(); preview(); return; }
     if (t.name === 'ceDevice') { d.base = t.checked ? ['deviceName'] : []; mark(); preview(); return; }
     if (!t.closest('[data-fi]')) return;
     const f = field(t);
     if (t.dataset.p === 'req' || t.dataset.p === 'other') { f[t.dataset.p] = t.checked ? 1 : 0; mark(); if (t.dataset.p === 'req') t.closest('.fb-card').classList.toggle('req', t.checked); preview(); return; }
-    if (t.dataset.p === 't') { f.t = t.value; if (!needsOpts(f.t) && !FIELD_TYPES[f.t].opts) delete f.o; mark(); redrawFields(); return; }
+    if (t.dataset.p === 't') { f.t = t.value; if (!needsOpts(f.t) && !FIELD_TYPES[f.t].opts) delete f.o; if (f.t === 'table' && !(f.o || []).filter(Boolean).length) f.o = ['الرقم العسكري', 'الرتبة', 'الاسم']; mark(); redrawFields(); return; }
     if (t.dataset.p === 'o') { d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) x.showIf[f.k] = x.showIf[f.k].filter((v) => (f.o || []).includes(v)); }); mark(); redrawFields(); return; }
     if (t.matches('[data-cond]')) { if (t.value) f.showIf = { [t.value]: [] }; else delete f.showIf; mark(); redrawFields(); return; }
     if (t.matches('[data-condval]')) { const k = Object.keys(f.showIf || {})[0]; if (!k) return; const s = new Set(f.showIf[k]); if (t.checked) s.add(t.dataset.condval); else s.delete(t.dataset.condval); f.showIf[k] = [...s]; mark(); preview(); }
@@ -9932,17 +10003,18 @@ Pages.catEditor = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-fmove]', (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), j = i + Number(el.dataset.fmove); if (j < 0 || j >= d.fields.length) return; [d.fields[i], d.fields[j]] = [d.fields[j], d.fields[i]]; mark(); redrawFields(); });
   UI.on(ctx.view, 'click', '[data-fdup]', (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), f = JSON.parse(JSON.stringify(d.fields[i])); f.k = newKey(); f.l = `${f.l} (2)`; delete f.dep; d.fields.splice(i + 1, 0, f); open.add(f.k); mark(); redrawFields(); });
   UI.on(ctx.view, 'click', '[data-fdel]', async (e, el) => { const i = Number(el.closest('[data-fi]').dataset.fi), f = d.fields[i]; if (!(await UI.confirm(`حذف خانة «${f.l || 'بلا اسم'}»؟`, { danger: true, ok: 'حذف' }))) return; d.fields.splice(i, 1); d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) delete x.showIf; if (x.dep === f.k) delete x.dep; }); mark(); redrawFields(); });
-  UI.on(ctx.view, 'click', '[data-fadd]', (e, el) => { const f = { k: newKey(), l: '', t: el.dataset.fadd }; if (needsOpts(f.t)) f.o = ['', '']; d.fields.push(f); open.add(f.k); mark(); redrawFields(); const inp = $(`[data-fi="${d.fields.length - 1}"] .fb-label`, ctx.view); if (inp) { inp.focus(); inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } });
+  UI.on(ctx.view, 'click', '[data-fadd]', (e, el) => { const f = { k: newKey(), l: '', t: el.dataset.fadd }; if (f.t === 'table') f.o = ['الرقم العسكري', 'الرتبة', 'الاسم']; else if (needsOpts(f.t)) f.o = ['', '']; d.fields.push(f); open.add(f.k); mark(); redrawFields(); const inp = $(`[data-fi="${d.fields.length - 1}"] .fb-label`, ctx.view); if (inp) { inp.focus(); inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } });
   UI.on(ctx.view, 'click', '[data-fready]', (e, el) => { const f = { k: newKey(), ...JSON.parse(JSON.stringify(READY_FIELDS[Number(el.dataset.fready)])) }; d.fields.push(f); mark(); redrawFields(); UI.toast(`أُضيفت خانة «${f.l}»`); });
   UI.on(ctx.view, 'click', '[data-noteadd]', () => { d.notes.push(''); mark(); redrawNotes(); const all = $$('[data-note]', ctx.view); if (all.length) all[all.length - 1].focus(); });
   UI.on(ctx.view, 'click', '[data-noteready]', (e, el) => { d.notes.push(el.dataset.noteready); mark(); redrawNotes(); });
   UI.on(ctx.view, 'click', '[data-notedel]', (e, el) => { d.notes.splice(Number(el.dataset.notedel), 1); mark(); redrawNotes(); });
   UI.on(ctx.view, 'click', '[data-act="img"]', async () => { const r = await Pages.imgPickModal(d.image, d.name); if (r) { d.image = r; mark(); $('.ce-img', ctx.view).innerHTML = `${ImgLib.html(d.image, 'cat-ic')}<span>${UI.icon('photo')} تغيير</span>`; preview(); } });
+  UI.on(ctx.view, 'click', '[data-act="efprev"]', () => Pages.eFormView({ categoryId: id }, { blank: true, ef: { ...d.eform, title: d.eform.title || `استمارة ${d.name}` }, defs: d.fields.filter((f) => f.l) }));
   UI.on(ctx.view, 'click', '[data-act="owners"]', async () => { await Pages.lookupModal('categories', id); });
   UI.on(ctx.view, 'click', '[data-act="save"]', async (e, btn) => { UI.busy(btn, true); try { await Data.catAdmin.save(id, d); dirty = false; $('#ceDirty', ctx.view).hidden = true; UI.toast('حُفظت الفئة وتُطبَّق على البلاغات الجديدة فوراً'); } catch (er) { UI.error(er); } finally { UI.busy(btn, false); } });
   UI.on(ctx.view, 'click', '[data-act="reset"]', async () => { if (!catCfg(id)) { UI.toast('الفئة على إعدادها الأصلي، لا توجد تعديلات محفوظة', 'info'); return; } if (!(await UI.confirm('استعادة الخانات والملاحظات الأصلية لهذه الفئة؟ ستُحذف تعديلاتك عليها.', { danger: true, ok: 'استعادة' }))) return; await Data.catAdmin.reset(id); UI.toast('استُعيد الإعداد الأصلي'); Router.resolve(); });
   UI.on(ctx.view, 'click', '[data-act="copy"]', async () => { const n = await Data.catAdmin.create('', '', id); UI.toast(`أُنشئت «${n.name}»`); Router.go(`/ticket-admin/${n.id}`); });
-  UI.on(ctx.view, 'click', '[data-act="del"]', async () => { if (!(await UI.confirm(`حذف فئة «${c.name}» نهائياً؟`, { danger: true, ok: 'حذف' }))) return; try { await Data.catAdmin.remove(id); UI.toast('حُذفت الفئة'); dirty = false; Router.go('/ticket-admin'); } catch (er) { UI.error(er); } });
+  UI.on(ctx.view, 'click', '[data-act="del"]', async () => { if (await Pages.catDeleteModal(id)) { dirty = false; Router.go('/ticket-admin'); } });
   const warn = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', warn); ctx.onCleanup(() => { window.removeEventListener('beforeunload', warn); Forms._pv = null; });
 };
 {
@@ -10048,6 +10120,87 @@ Pages.bulkCredsModal = (r) => UI.modal({
     { label: 'تم', kind: 'primary', icon: 'check', value: true }]
 });
 document.addEventListener('click', (e) => { if (e.target.closest('[data-act="bulkadd"]')) { e.preventDefault(); Pages.bulkAddUsers(); } });
+/* ══ الاستمارات الإلكترونية: تُنشأ الاستمارة الرسمية من خانات البلاغ مباشرة بدل تحميلها وتعبئتها ورفعها ══ */
+const EFORM_SIGNS = ['الضابط المسؤول', 'رئيس قسم تقنية المعلومات', 'الإجراء المتخذ من قبل الفني'];
+const EFORM_BUILTIN = {
+  card: { on: 1, title: 'استمارة طلب بطاقة الدخول والخروج', signs: EFORM_SIGNS, noDownload: 0, notes: ['يجب إبراز البطاقة عند الدخول والخروج.', 'لا يحق لأي موظف أو زائر استخدام بطاقة شخص آخر.', 'يجب المحافظة على البطاقة وإبلاغ الإدارة فور فقدانها.'] }
+};
+const eformOf = (catId) => { const cf = catCfg(catId); return cf && cf.eform ? cf.eform : EFORM_BUILTIN[catId] || null; };
+const eformOn = (catId) => !!(eformOf(catId) || {}).on;
+const docLocked = (catId) => !!(eformOf(catId) || {}).noDownload;
+/* أعمدة حقل الجدول: عمود في كل سطر، والخيارات بعد علامة = مفصولة بـ / */
+const tableCols = (f) => ((f.o && f.o.length ? f.o : ['الرقم العسكري', 'الرتبة', 'الاسم'])).map((line) => { const [l, ch] = String(line).split('='); return { l: l.trim(), o: ch ? ch.split('/').map((x) => x.trim()).filter(Boolean) : /الرتبة/.test(l) ? Data.list('ranks').map((r) => r.name) : null }; });
+const tableRowHTML = (f, cols, r = []) => `<tr>${cols.map((c, i) => `<td>${c.o ? `<select data-cfcell aria-label="${esc(c.l)}"><option value=""></option>${c.o.map((o) => `<option${r[i] === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>` : `<input data-cfcell aria-label="${esc(c.l)}" value="${esc(r[i] || '')}"${/الرقم|الهاتف/.test(c.l) ? ' dir="ltr"' : ''}>`}</td>`).join('')}<td><button type="button" class="icon-btn" data-cftdel title="حذف الصف">${UI.icon('trash')}</button></td></tr>`;
+Forms.tableHTML = (f, val) => { const cols = tableCols(f), rows = Array.isArray(val) && val.length ? val : [[]]; return raw(`<div class="cf-table" data-cftable="${esc(f.k)}"><div class="table-wrap"><table><thead><tr>${cols.map((c) => `<th>${esc(c.l)}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map((r) => tableRowHTML(f, cols, r)).join('')}</tbody></table></div><button type="button" class="btn btn-soft btn-sm" data-cftadd>${UI.icon('plus')} إضافة صف</button></div>`); };
+document.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-cftadd]');
+  if (add) { e.preventDefault(); const tb = add.closest('[data-cftable]').querySelector('tbody'), last = tb.lastElementChild, row = last.cloneNode(true); row.querySelectorAll('[data-cfcell]').forEach((i) => { i.value = ''; }); tb.appendChild(row); const first = row.querySelector('[data-cfcell]'); if (first) first.focus(); return; }
+  const del = e.target.closest('[data-cftdel]');
+  if (del) { e.preventDefault(); const tr = del.closest('tr'), tb = tr.parentElement; if (tb.children.length > 1) tr.remove(); else tr.querySelectorAll('[data-cfcell]').forEach((i) => { i.value = ''; }); tb.closest('[data-cftable]').dispatchEvent(new Event('change', { bubbles: true })); }
+});
+
+/* شريط الاستمارة في نموذج البلاغ: الإلكترونية أولاً، وإخفاء التحميل إن أوقفه المشرف */
+{
+  const barBase = Pages.categoryFormBar, dlBase = Pages.downloadCategoryForm;
+  Pages.categoryFormBar = (catId) => {
+    const ef = eformOf(catId), on = !!(ef && ef.on), locked = docLocked(catId) && !canCatDocs();
+    const eBar = on ? `<div class="form-bar eform">${UI.icon('paper')}<div class="grow"><b>${esc(ef.title || 'استمارة إلكترونية')} <span class="chip tone-teal">إلكترونية</span></b><div class="t-sub">عبّئ الخانات أدناه، وتُنشأ الاستمارة الرسمية تلقائياً مع البلاغ دون تحميل أو رفع</div></div><button type="button" class="btn btn-sm btn-ghost" data-eformblank="${esc(catId)}">${UI.icon('eye')} شكل الاستمارة</button></div>` : '';
+    const base = locked ? '' : String(barBase(catId));
+    return eBar || base ? raw(eBar + base) : '';
+  };
+  Pages.downloadCategoryForm = (catId) => { if (docLocked(catId) && !canCatDocs()) { UI.toast('أوقف المشرف تحميل هذا المستند. عبّئ الاستمارة الإلكترونية بدلاً منه.', 'warn'); return; } dlBase(catId); };
+}
+
+/* بناء الاستمارة الرسمية من بيانات البلاغ (أو فارغة للمعاينة) */
+Pages.eFormHTML = async (t, { ef = null, blank = false, defs = null } = {}) => {
+  const s = Data.c.settings, c = Data.c.categories.get(t.categoryId) || {}, form = ef || eformOf(t.categoryId) || {};
+  const dots = '<span class="ef-dots"></span>', v = (x) => (blank || x == null || x === '' ? raw(dots) : x);
+  const req = blank ? {} : Data.c.users.get(t.requesterId) || {}, tech = !blank && t.assigneeId ? Data.c.users.get(t.assigneeId) || {} : {};
+  const evs = !blank && t.id ? await Data.tickets.events(t.id).catch(() => []) : [];
+  const done = evs.filter((e) => e.type === 'status' && e.to === 'resolved').pop();
+  const fields = blank ? (defs || Forms.def(t.categoryId)).map((f) => ({ label: f.l, value: '', cols: f.t === 'table' ? tableCols(f).map((x) => x.l) : null, rows: f.t === 'table' ? [[], [], []] : null })) : ((t.extra || {}).fields || []);
+  const persons = blank ? [] : ((t.extra || {}).persons || []);
+  const who = (u) => html`<tr><th>الرقم العسكري</th><td class="ltr">${v(u.militaryNo)}</td><th>الرتبة</th><td>${v(Data.nameOf('ranks', u.rankId, ''))}</td><th>الاسم</th><td>${v(u.name)}</td></tr>`;
+  const table = (cols, rows) => html`<table class="ef-sub"><thead><tr><th>م</th>${cols.map((x) => html`<th>${x}</th>`)}</tr></thead><tbody>${rows.map((r, i) => html`<tr><td>${i + 1}</td>${cols.map((_, j) => html`<td>${r[j] || ''}</td>`)}</tr>`)}</tbody></table>`;
+  return html`<div class="ef">
+    <div class="ef-head"><div><b>شرطة عُمان السلطانية</b><span>${s.orgName}</span></div><img src="${ASSETS.logo}" alt=""><div><b>مركز الصيانة ودعم تقنية المعلومات والاتصالات</b><span>قسم تقنية المعلومات</span></div></div>
+    <h2 class="ef-title">${form.title || `استمارة ${c.name || ''}`}</h2>
+    <div class="ef-meta"><span>رقم الطلب: <b class="ltr">${blank ? '..........' : t.number}</b></span><span>التاريخ: <b>${blank ? '..........' : fmtDate(t.createdAt)}</b></span><span>الفئة: <b>${c.name || ''}</b></span></div>
+    <section><h3>بيانات مقدم الطلب</h3><table class="ef-grid">${who(req)}
+      <tr><th>الإدارة / القسم</th><td colspan="3">${v([Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← '))}</td><th>الهاتف</th><td class="ltr">${v(t.contact || req.phone)}</td></tr>
+      <tr><th>الموقع</th><td colspan="3">${v([Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — '))}</td><th>التوقيع</th><td>${blank ? raw(dots) : html`<small>قُدِّم إلكترونياً ${fmtDateTime(t.createdAt)}</small>`}</td></tr></table></section>
+    <section><h3>تفاصيل الطلب</h3>${blank ? '' : html`<p class="ef-subject"><b>الموضوع:</b> ${t.title}</p>`}
+      <table class="ef-grid">${fields.filter((f) => !f.rows).map((f) => html`<tr><th style="width:30%">${f.label}</th><td>${v(f.value)}</td></tr>`)}</table>
+      ${fields.filter((f) => f.rows).map((f) => html`<h4>${f.label}</h4>${table(f.cols || [], f.rows)}`)}
+      ${persons.length ? html`<h4>الأشخاص المشمولون بالطلب</h4>${table(['الاسم', 'الرتبة', 'الرقم العسكري'], persons.map((p) => [p.name, p.rank, p.militaryNo]))}` : ''}
+      <p class="ef-notes"><b>الملاحظات:</b> ${blank || !t.description ? raw(dots + dots) : t.description}</p></section>
+    ${(form.signs && form.signs.length ? form.signs : EFORM_SIGNS).map((sg) => { const isTech = /الفني|الإجراء/.test(sg), u = isTech ? tech : {}; return html`<section class="ef-sign"><h3>${sg}</h3><table class="ef-grid">${who(u)}<tr><th>التاريخ</th><td>${isTech && done ? fmtDate(done.at) : raw(dots)}</td><th>التوقيع</th><td colspan="3">${raw(dots)}</td></tr></table>${isTech ? html`<p class="ef-notes"><b>الإجراء المتخذ:</b> ${done && done.text ? done.text : raw(dots + dots)}</p>` : ''}</section>`; })}
+    ${(form.notes || []).filter(Boolean).length ? html`<section class="ef-tips"><h3>ملاحظات وتعليمات</h3><ul>${form.notes.filter(Boolean).map((n) => html`<li>${n}</li>`)}</ul></section>` : ''}
+    <footer class="ef-foot">${s.supportPhone ? html`<span>الدعم الفني: <b class="ltr">${s.supportPhone}</b></span>` : ''}<span>${s.systemName || 'نظام تقنية المعلومات'} — استمارة إلكترونية${blank ? ' (نموذج فارغ)' : ` مرتبطة بالبلاغ ${t.number}`}</span></footer>
+  </div>`;
+};
+Pages.printEForm = (content, title) => {
+  const root = $('#print-root'); root.innerHTML = `<div class="print-doc ef-print">${content}</div>`;
+  document.body.classList.add('printing');
+  setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80);
+  document.title = title || document.title;
+};
+Pages.eFormView = async (t, opts = {}) => {
+  const content = String(await Pages.eFormHTML(t, opts)), title = (opts.ef || eformOf(t.categoryId) || {}).title || 'الاستمارة';
+  return UI.modal({ title, icon: 'paper', size: 'lg', body: raw(`<div class="ef-screen">${content}</div>`),
+    actions: [{ label: 'إغلاق', kind: 'ghost' }, { label: 'طباعة / حفظ PDF', kind: 'primary', icon: 'print', handler: () => { Pages.printEForm(content, title); return false; } }] });
+};
+Pages.eFormPanel = (t) => {
+  if (!eformOn(t.categoryId)) return '';
+  const ef = eformOf(t.categoryId);
+  return UI.panel({ title: 'الاستمارة الإلكترونية', icon: 'paper', body: html`<p class="muted" style="margin:0 0 10px">${ef.title || 'الاستمارة'} — أُنشئت تلقائياً من بيانات هذا البلاغ، وتُحدَّث بالإجراء المتخذ عند الحل.</p><button class="btn btn-soft btn-block" data-eformview="${t.id}">${UI.icon('eye')} عرض وطباعة الاستمارة</button>` });
+};
+document.addEventListener('click', async (e) => {
+  const vw = e.target.closest('[data-eformview]');
+  if (vw) { e.preventDefault(); const t = await DB.get('tickets', vw.dataset.eformview); if (t) Pages.eFormView(t); return; }
+  const bl = e.target.closest('[data-eformblank]');
+  if (bl) { e.preventDefault(); Pages.eFormView({ categoryId: bl.dataset.eformblank }, { blank: true }); }
+});
 Router.add('/ticket-admin', 'categories.manage', Pages.ticketAdmin, 'إدارة البلاغات'); Router.add('/ticket-admin/:id', 'categories.manage', Pages.catEditor, 'تعديل فئة');
 
 /* تحميل مخزن الصور مع كل تحديث للبيانات */
