@@ -1555,7 +1555,13 @@ img.iso{object-fit:contain;display:block}
 .cat-admin{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-top:14px}
 .cat-card{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font:inherit;text-align:start;cursor:pointer;transition:transform .25s var(--spring),box-shadow .25s,border-color .25s}
 .cat-card:hover{transform:translateY(-3px);box-shadow:var(--glow);border-color:rgba(var(--accent),.45)}.cat-card .iso{width:74px;height:74px;flex:none}.cat-card b{font-size:16px}
-.cat-card.off{opacity:.62}.cat-card.add{border-style:dashed;background:transparent}.cat-card.add>.ic{width:40px;height:40px;padding:10px;border-radius:14px;background:rgba(var(--accent),.12);color:rgb(var(--accent-ink));flex:none}
+.cat-card.off{border:2px solid #e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.12);background:linear-gradient(0deg,rgba(229,72,77,.05),rgba(229,72,77,.05)),var(--surface)}.cat-card.off .iso{filter:grayscale(.7);opacity:.75}.cat-card.off:hover{border-color:#e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.2)}
+.ce-hidden{border:2px solid #e5484d!important}
+/* الأداء: لا يرسم المتصفح البطاقات خارج الشاشة، ووضع خفيف عند إيقاف الحركات */
+.ucard,.tcard,.form-card,.img-card,.cat-card,.kb-card,.list-row,.fb-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
+.more-row{display:flex;justify-content:center;padding:16px}
+html[data-lite="1"] *,html[data-lite="1"] *::before,html[data-lite="1"] *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html[data-lite="1"] .tilt{transform:none!important}.cat-card.add{border-style:dashed;background:transparent}.cat-card.add>.ic{width:40px;height:40px;padding:10px;border-radius:14px;background:rgba(var(--accent),.12);color:rgb(var(--accent-ink));flex:none}
 .cc-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-3);margin:4px 0 6px}.cc-meta span{display:inline-flex;align-items:center;gap:4px}.cc-meta .ic{width:13px;height:13px}.cc-tags{display:flex;flex-wrap:wrap;gap:5px}
 .ce-grid{align-items:start}.ce-main{display:grid;gap:16px;min-width:0}.ce-side{position:sticky;top:84px;min-width:0}.ce-side .panel{max-height:calc(100vh - 110px);overflow:auto}
 .ce-id{display:flex;gap:16px;align-items:flex-start}.ce-img{position:relative;flex:none;width:118px;height:118px;border-radius:20px;border:1px dashed var(--line);background:var(--surface-2);cursor:pointer;display:grid;place-items:center;padding:8px}
@@ -3096,7 +3102,9 @@ UI.sound = (kind = 'notify', force = false) => {
   } catch (_) { /* الصوت غير مدعوم */ }
 };
 UI.theme = {
-  apply() { const h = document.documentElement; h.dataset.theme = localStorage.getItem('sq_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); h.dataset.accent = localStorage.getItem('sq_accent') || 'brass'; h.dataset.motion = localStorage.getItem('sq_motion') || 'on'; },
+  apply() { const h = document.documentElement; h.dataset.theme = localStorage.getItem('sq_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); h.dataset.accent = localStorage.getItem('sq_accent') || 'brass'; h.dataset.motion = localStorage.getItem('sq_motion') || (UI.theme.weak() ? 'off' : 'on'); h.dataset.lite = h.dataset.motion === 'off' ? '1' : ''; },
+  /* جهاز ضعيف (أنوية أو ذاكرة قليلة): تُخفف المؤثرات تلقائياً ما لم يختر المستخدم غير ذلك */
+  weak() { try { return (navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMemory || 8) <= 2; } catch (_) { return false; } },
   set(k, v) { localStorage.setItem(`sq_${k}`, v); this.apply(); Bus.emit('theme'); },
   toggle(ev) {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', run = () => this.set('theme', next);
@@ -4403,7 +4411,7 @@ Pages.settings = async (ctx) => {
 async function boot() {
   UI.theme.apply();
   document.body.insertAdjacentHTML('afterbegin', SPRITE + '<div class="app-bg" aria-hidden="true"><i></i><i></i><i></i></div>');
-  try { await DB.open(); await Sync.init(); if (Sync.on) await Sync.pull(true); await Migration.run(); if (!(Sync.on && !Sync.serverEmpty)) await Seed.ensure(); await Data.refresh(); await renameOrgDefaults(); await Auth.restore(); }
+  try { await DB.open(); await Sync.init(); if (Sync.on) await Sync.pull(Sync.needFull()); await Migration.run(); if (!(Sync.on && !Sync.serverEmpty)) await Seed.ensure(); await Data.refresh(); await renameOrgDefaults(); await Auth.restore(); }
   catch (e) {
     console.error(e);
     const bb = $('#boot'); if (bb) bb.remove();
@@ -4713,7 +4721,7 @@ Pages.userModal = async (id) => {
   });
 };
 Pages.users = async (ctx) => {
-  const st = { q: '', role: ctx.query.role || '', dep: '', loc: '', active: '', view: localStorage.getItem('sq_uview') || 'cards' };
+  const st = { q: '', role: ctx.query.role || '', dep: '', loc: '', active: '', view: localStorage.getItem('sq_uview') || 'cards', limit: 60 };
   const sel = (id, label, opts) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
     <div class="role-cards" id="roleCards"></div>
@@ -4727,10 +4735,10 @@ Pages.users = async (ctx) => {
     $('#roleCards', ctx.view).innerHTML = String(html`${Object.entries(ROLE_INFO).map(([k, r]) => html`<button class="role-card tone-${r.tone} ${st.role === k ? 'active' : ''}" data-rolecard="${k}">${UI.illu(r.illu)}<div class="rc-top"><b>${r.label}</b><span class="rc-count">${fmtNum(all.filter((x) => x.role === k).length)}</span></div><p>${r.desc}</p></button>`)}`);
     $('#urole', ctx.view).value = st.role;
     const rows = all.filter((u) => (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!st.loc || u.locationId === st.loc) && (st.active === '' || String(u.active) === st.active) && (!qn || normalizeAr([u.name, u.username, u.militaryNo, u.phone, u.office].join(' ')).includes(qn)));
-    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, 400).map((u) => html`<div class="ucard ${u.active ? '' : 'off'}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم يُحدد الموقع')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد الكل"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>`);
+    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, st.limit).map((u) => html`<div class="ucard ${u.active ? '' : 'off'}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم يُحدد الموقع')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد الكل"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.slice(0, st.limit).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>${rows.length > st.limit ? html`<div class="more-row"><button class="btn btn-soft" data-act="more">${UI.icon('plus')} عرض المزيد (${fmtNum(rows.length - st.limit)} متبقٍ)</button></div>` : ''}`);
     renderBulk();
   };
-  $('#uq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value; load(); }, 200));
+  $('#uq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value; st.limit = 60; load(); }, 200));
   [['urole', 'role'], ['udep', 'dep'], ['uloc', 'loc'], ['uact', 'active']].forEach(([i, k]) => { $('#' + i, ctx.view).onchange = (e) => { st[k] = e.target.value; load(); }; });
   UI.on(ctx.view, 'change', '[data-sel]', (e, el) => { if (el.checked) picked.add(el.dataset.sel); else picked.delete(el.dataset.sel); el.closest('tr').classList.toggle('selected', el.checked); renderBulk(); });
   UI.on(ctx.view, 'change', '[data-selall]', (e, el) => { $$('[data-sel]', ctx.view).forEach((c) => { c.checked = el.checked; if (el.checked) picked.add(c.dataset.sel); else picked.delete(c.dataset.sel); c.closest('tr').classList.toggle('selected', el.checked); }); renderBulk(); });
@@ -4739,6 +4747,7 @@ Pages.users = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-rolecard]', (e, el) => { st.role = st.role === el.dataset.rolecard ? '' : el.dataset.rolecard; load(); });
   UI.on(ctx.view, 'change', 'input[name="uview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_uview', el.value); load(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.userModal()) load(); });
+  UI.on(ctx.view, 'click', '[data-act="more"]', () => { st.limit += 120; load(); });
   UI.on(ctx.view, 'click', '[data-user]', async (e, el) => { if (await Pages.userModal(el.dataset.user)) load(); });
   UI.on(ctx.view, 'keydown', '.ucard', (e, el) => { if (e.key === 'Enter') el.click(); });
   UI.on(ctx.view, 'click', '[data-reset]', async (e, el) => {
@@ -5871,7 +5880,8 @@ const Sync = {
   },
   keyOf(store, rec) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? k.map((f) => String(rec[f])).join('|') : String(rec[k]); },
   stores() { return Object.keys(DB.SCHEMA).filter((s) => s !== 'sessions'); },
-  saveQueue() { try { localStorage.setItem('sq_queue', JSON.stringify(this.queue.slice(0, 4000))); } catch (_) { /* تجاهل */ } },
+  /* تُحفظ مراجع التعديلات فقط (المحتوى موجود أصلاً في قاعدة الجهاز)، وبتأجيل بسيط بدل الحفظ مع كل عملية */
+  saveQueue() { clearTimeout(this._sq); this._sq = setTimeout(() => { try { localStorage.setItem('sq_queue', JSON.stringify(this.queue.slice(0, 20000).map(({ store, id, rev, deleted }) => ({ store, id, rev, deleted })))); } catch (_) { /* تجاهل */ } }, 400); },
   loadQueue() { try { this.queue = JSON.parse(localStorage.getItem('sq_queue') || '[]'); } catch (_) { this.queue = []; } },
   setStatus(s, err = '') { this.status = s; this.lastError = err; const b = $('#syncBtn'); if (b) { b.dataset.state = s; b.title = { online: 'متصل بالخادم', syncing: 'جارٍ المزامنة', offline: 'انقطع الاتصال بالخادم', local: 'وضع محلي: البيانات على هذا الجهاز فقط' }[s] || s; } },
 
@@ -5896,14 +5906,18 @@ const Sync = {
   /* اعتراض كل كتابة محلية ودفعها إلى الخادم */
   hook() {
     const putBase = DB.put, delBase = DB.del, bulkBase = DB.bulkPut, runBase = DB.run;
-    DB.put = async (store, rec) => { const r = await putBase(store, rec); if (!this.applying) this.enqueue([{ store, id: this.keyOf(store, rec), rev: Number(rec._rev || 0), data: rec }]); return r; };
+    /* كتابات قادمة من الخادم تُحفظ مباشرة دون إعادة إرسالها، بلا علم مشترك قد يُسقط كتابات المستخدم المتزامنة */
+    this.raw = { put: (st, r) => putBase(st, r), del: (st, k) => delBase(st, k), bulkPut: (st, rows) => bulkBase(st, rows) };
+    /* سجلات النظام الداخلية (meta): آخر كتابة تفوز، فلا تتعارض مع نفسها */
+    const revOf = (store, rec) => (store === 'meta' ? -1 : Number(rec._rev || 0));
+    DB.put = async (store, rec) => { const r = await putBase(store, rec); if (!this.applying) this.enqueue([{ store, id: this.keyOf(store, rec), rev: revOf(store, rec), data: rec }]); return r; };
     DB.del = async (store, key) => { let rev = 0; try { const old = await DB.get(store, key); rev = Number((old || {})._rev || 0); } catch (_) { /* تجاهل */ } const r = await delBase(store, key); if (!this.applying) this.enqueue([{ store, id: Array.isArray(key) ? key.map(String).join('|') : String(key), rev, deleted: 1 }]); return r; };
-    DB.bulkPut = async (store, rows, chunk) => { const r = await bulkBase(store, rows, chunk); if (!this.applying && rows.length) this.enqueue(rows.map((rec) => ({ store, id: this.keyOf(store, rec), rev: Number(rec._rev || 0), data: rec }))); return r; };
+    DB.bulkPut = async (store, rows, chunk) => { const r = await bulkBase(store, rows, chunk); if (!this.applying && rows.length) this.enqueue(rows.map((rec) => ({ store, id: this.keyOf(store, rec), rev: revOf(store, rec), data: rec }))); return r; };
     DB.run = async (names, fn) => {
       const writes = [];
       const out = await runBase(names, (T) => fn({
         get: T.get, getAll: T.getAll,
-        put: (s, v) => { writes.push({ store: s, id: this.keyOf(s, v), rev: Number(v._rev || 0), data: v }); return T.put(s, v); },
+        put: (s, v) => { writes.push({ store: s, id: this.keyOf(s, v), rev: revOf(s, v), data: v }); return T.put(s, v); },
         del: (s, k) => { writes.push({ store: s, id: Array.isArray(k) ? k.map(String).join('|') : String(k), rev: -1, deleted: 1 }); return T.del(s, k); }
       }));
       if (!this.applying && writes.length) this.enqueue(writes);
@@ -5920,12 +5934,21 @@ const Sync = {
     this.flushing = true; this.setStatus('syncing');
     try {
       while (this.queue.length) {
-        const batch = this.queue.slice(0, 400);
+        const taken = this.queue.slice(0, 400);
+        /* دمج التعديلات المتتالية على السجل نفسه: يُرسل آخرها فقط (أخف، ويمنع تعارض السجل مع نفسه) */
+        const last = new Map(); taken.forEach((op) => last.set(`${op.store}\u0001${op.id}`, op));
+        const batch = [...last.values()];
+        /* تعديلات محفوظة من جلسة سابقة: يُقرأ محتواها الحالي من قاعدة الجهاز */
+        await Promise.all(batch.filter((op) => !op.deleted && !op.data).map((op) => DB.get(op.store, this.localKey(op.store, op.id)).catch(() => null).then((rec) => { if (rec) op.data = rec; else op.skip = 1; })));
+        for (let i = batch.length - 1; i >= 0; i--) if (batch[i].skip) batch.splice(i, 1);
         await this.prepFiles(batch);
         const res = await this.call('push', { body: { ops: batch } });
-        this.queue = this.queue.slice(batch.length); this.saveQueue();
-        this.applying = true;
-        try { for (const a of res.applied || []) { const rec = await DB.get(a.store, this.localKey(a.store, a.id)); if (rec) { rec._rev = a.rev; await DB.put(a.store, rec); } } } finally { this.applying = false; }
+        this.queue = this.queue.slice(taken.length); this.saveQueue();
+        const revs = new Map((res.applied || []).map((a) => [`${a.store}\u0001${a.id}`, a]));
+        /* التعديلات التي أُضيفت أثناء الإرسال تأخذ رقم النسخة الجديد حتى لا تُعدّ تعارضاً */
+        for (const op of this.queue) { const a = revs.get(`${op.store}\u0001${op.id}`); if (a && op.rev !== -1) op.rev = a.rev; }
+        const byStore = new Map(); (res.applied || []).forEach((a) => { if (!byStore.has(a.store)) byStore.set(a.store, []); byStore.get(a.store).push(a); });
+        for (const [st, list] of byStore) { const recs = (await Promise.all(list.map((a) => DB.get(st, this.localKey(st, a.id)).then((rec) => { if (rec) rec._rev = a.rev; return rec; }).catch(() => null)))).filter(Boolean); if (recs.length) await this.raw.bulkPut(st, recs); }
         if ((res.conflicts || []).length) await this.resolve(res.conflicts);
         this.head = res.rev || this.head;
       }
@@ -5937,19 +5960,17 @@ const Sync = {
     } finally { this.flushing = false; }
   },
 
+  /* سحب كامل فقط أول مرة على الجهاز أو إذا أُعيد تهيئة الخادم، وإلا فالتغييرات الجديدة فقط */
+  needFull() { return !this.rev || (this.head && this.head < this.rev); },
   localKey(store, id) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? id.split('|') : id; },
 
   async resolve(conflicts) {
     const big = []; let denied = 0;
-    this.applying = true;
-    try {
-      for (const c of conflicts) {
-        if (c.reason === 'too_large') { big.push(c); continue; }
-        if (c.reason === 'no_permission') { denied += 1; if (!c.data) continue; }
-        if (c.deleted) await DB.del(c.store, this.localKey(c.store, c.id));
-        else if (c.data) { c.data._rev = c.rev; await DB.put(c.store, c.data); }
-      }
-    } finally { this.applying = false; }
+    for (const c of conflicts) {
+      if (c.reason === 'too_large') { big.push(c); continue; }
+      if (c.reason === 'no_permission') { denied += 1; if (!c.data) continue; }
+      if (c.deleted) { try { await this.raw.del(c.store, this.localKey(c.store, c.id)); } catch (_) { /* غير موجود */ } } else if (c.data) { c.data._rev = c.rev; await this.raw.put(c.store, c.data); }
+    }
     const stores = [...new Set(conflicts.map((c) => c.store))];
     this.notifyStores(stores);
     if (big.length) UI.toast(`لم يُحفظ على الخادم ${big.length === 1 ? 'ملف كبير' : `${fmtNum(big.length)} ملفات كبيرة`} (${fmtBytes(Math.max(...big.map((c) => c.size || 0)))}). ارفع قيمة max_allowed_packet في إعدادات MySQL إلى 64M`, 'warn', 12000);
@@ -5967,20 +5988,22 @@ const Sync = {
         const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500` });
         const docs = res.docs || [];
         if (docs.length) {
-          this.applying = true;
-          try {
-            for (const d of docs) {
-              if (d.deleted) { try { await DB.del(d.store, this.localKey(d.store, d.id)); } catch (_) { /* غير موجود */ } continue; }
-              if (!d.data) continue;
-              d.data._rev = d.rev;
-              await DB.put(d.store, d.data);
-            }
-          } finally { this.applying = false; }
+          /* حفظ دفعة واحدة لكل جدول بدل معاملة لكل سجل */
+          const puts = new Map();
+          for (const d of docs) {
+            if (!DB.SCHEMA[d.store]) continue;
+            if (d.deleted) { const arr = puts.get(d.store); if (arr) { const i = arr.findIndex((x) => this.keyOf(d.store, x) === d.id); if (i >= 0) arr.splice(i, 1); } try { await this.raw.del(d.store, this.localKey(d.store, d.id)); } catch (_) { /* غير موجود */ } continue; }
+            if (!d.data) continue;
+            d.data._rev = d.rev;
+            if (!puts.has(d.store)) puts.set(d.store, []);
+            puts.get(d.store).push(d.data);
+          }
+          for (const [st, rows] of puts) if (rows.length) await this.raw.bulkPut(st, rows);
           this.notifyStores([...new Set(docs.map((d) => d.store))]);
           total += docs.length;
         }
         this.rev = Math.max(this.rev, res.rev || 0); this.head = res.head || this.rev;
-        this.applying = true; try { await DB.put('meta', { key: 'sync:rev', value: this.rev }); } finally { this.applying = false; }
+        await this.raw.put('meta', { key: 'sync:rev', value: this.rev });
         if (!res.more || ++guard > 40) break;
       }
       this.lastAt = now(); if (this.status !== 'syncing') this.setStatus('online');
@@ -6006,9 +6029,9 @@ const Sync = {
       if (this.serverEmpty) { try { this.flush(); await this.waitIdle(); } catch (_) { /* يكمل */ } }
       const r = await this.call('login', { body: { username: String(username || '').trim(), password: String(password || '') } });
       this.token = r.token; localStorage.setItem('sq_token', r.token);
-      await this.pull(true);
+      await this.pull(this.needFull());
       let u = await DB.get('users', r.user.id);
-      if (!u) { this.applying = true; try { await DB.put('users', r.user); } finally { this.applying = false; } u = r.user; }
+      if (!u) { await this.raw.put('users', r.user); u = r.user; }
       Auth.user = u;
       this.serverEmpty = false;
       sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + 12 * HOUR }));
@@ -6042,7 +6065,7 @@ const Sync = {
     const r = await this.call('seq', { body: { names: { [name]: 1 } } });
     const end = ((r.seq || {})[name] || {}).end;
     if (!end) return null;
-    this.applying = true; try { await DB.put('meta', { key: `seq:${name}`, value: end - 1 }); } finally { this.applying = false; }
+    await this.raw.put('meta', { key: `seq:${name}`, value: end - 1 });
     return end;
   },
   hookSeq() {
@@ -6078,7 +6101,7 @@ const Sync = {
         const blob = rec && rec.blob instanceof Blob ? rec.blob : op.data.blob instanceof Blob ? op.data.blob : null;
         if (blob) {
           data.fileId = uid('f'); await this.uploadBlob(data.fileId, blob, data.name, data.type);
-          if (rec) { rec.fileId = data.fileId; this.applying = true; try { await DB.put('attachments', rec); } finally { this.applying = false; } }
+          if (rec) { rec.fileId = data.fileId; await this.raw.put('attachments', rec); }
         }
       }
       op.data = data;
@@ -9889,7 +9912,7 @@ Pages.ticketAdmin = async (ctx) => {
     const head = UI.pageHead({ title: 'إدارة البلاغات', sub: 'ابنِ فئات البلاغات وعدّل صورها ومسمياتها وخاناتها وملاحظاتها ومرفقاتها', illu: 'clipboard', actions: st.tab === 'cats' ? html`<button class="btn btn-primary" data-act="newcat">${UI.icon('plus')} فئة جديدة</button>` : '' });
     if (st.tab === 'images') { ctx.view.innerHTML = String(html`${head}${tabs}<div id="imgTab"></div>`); Pages.imagesTab($('#imgTab', ctx.view), ctx); return; }
     const cats = Data.list('categories');
-    ctx.view.innerHTML = String(html`${head}${tabs}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<div class="cat-card${c.hidden ? ' off' : ''}" data-open="${c.id}" tabindex="0" role="link">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('slate', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><div class="cc-acts"><button class="btn btn-soft btn-sm" data-open="${c.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-hide="${c.id}" title="${c.hidden ? 'إظهار للموظفين' : 'إخفاء عن الموظفين'}">${UI.icon(c.hidden ? 'eye' : 'eye-off')} ${c.hidden ? 'إظهار' : 'إخفاء'}</button><button class="btn btn-ghost btn-sm danger" data-cdel="${c.id}" title="حذف">${UI.icon('trash')}</button></div></div>`; })}
+    ctx.view.innerHTML = String(html`${head}${tabs}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<div class="cat-card${c.hidden ? ' off' : ''}" data-open="${c.id}" tabindex="0" role="link">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('red', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><div class="cc-acts"><button class="btn btn-soft btn-sm" data-open="${c.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-hide="${c.id}" title="${c.hidden ? 'إظهار للموظفين' : 'إخفاء عن الموظفين'}">${UI.icon(c.hidden ? 'eye' : 'eye-off')} ${c.hidden ? 'إظهار' : 'إخفاء'}</button><button class="btn btn-ghost btn-sm danger" data-cdel="${c.id}" title="حذف">${UI.icon('trash')}</button></div></div>`; })}
       <button class="cat-card add" data-act="newcat">${UI.icon('plus')}<div class="grow"><b>توليد فئة جديدة</b><div class="t-sub">من قالب جاهز أو بنسخ فئة موجودة</div></div></button></div>`);
   };
   UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/ticket-admin${st.tab === 'images' ? '?tab=images' : ''}`); draw(); });
@@ -9950,6 +9973,7 @@ Pages.catEditor = async (ctx) => {
   const pvLater = debounce(preview, 250);
   const owners = Data.list('users').filter((u) => u.active && (u.categories || []).includes(id));
   ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/ticket-admin">إدارة البلاغات</a>`, title: `تعديل فئة: ${c.name}`, sub: 'كل تعديل يظهر فوراً في المعاينة، ولا يُطبَّق على البلاغات الجديدة إلا بعد الحفظ', actions: html`<span class="chip tone-amber" id="ceDirty" hidden>${UI.icon('edit')} تغييرات غير محفوظة</span><button class="btn btn-primary" data-act="save">${UI.icon('check')} حفظ الفئة</button>` })}
+    <div class="banner tone-red ce-hidden mb" id="ceHidden"${d.hidden ? '' : raw(' hidden')}>${UI.icon('eye-off')}<div class="grow"><b>هذه الفئة مخفية عن الموظفين</b><div class="small">لا تظهر عند تقديم بلاغ جديد، وتبقى بلاغاتها السابقة كما هي. فعّل «إظهار الفئة للموظفين» ثم احفظ لإظهارها.</div></div></div>
     <div class="grid g-main ce-grid"><div class="ce-main">
       ${UI.panel({ title: 'الصورة والمسمى', icon: 'tag', body: html`<div class="ce-id"><button type="button" class="ce-img" data-act="img" title="تغيير الصورة">${raw(ImgLib.html(d.image, 'cat-ic'))}<span>${UI.icon('photo')} تغيير</span></button><div class="grow form-grid">
         <div class="field wide"><label>اسم الفئة<em>*</em></label><input data-d="name" value="${d.name}"></div>
@@ -9986,7 +10010,7 @@ Pages.catEditor = async (ctx) => {
   ctx.view.addEventListener('change', (e) => {
     const t = e.target;
     if (t.closest('#cePreview')) { pv = Forms.values($('#cePreview', ctx.view)); $('[data-pvfields]', ctx.view).innerHTML = String(Forms.render('__pv', pv)); return; }
-    if (t.name === 'ceShow') { d.hidden = t.checked ? 0 : 1; mark(); return; }
+    if (t.name === 'ceShow') { d.hidden = t.checked ? 0 : 1; $('#ceHidden', ctx.view).hidden = !d.hidden; mark(); return; }
     if (t.name === 'ceEform') { d.eform.on = t.checked ? 1 : 0; mark(); return; }
     if (t.name === 'ceNoDl') { d.eform.noDownload = t.checked ? 1 : 0; mark(); return; }
     if (t.name === 'ceAttach') { d.attachReq = t.checked ? 1 : 0; mark(); preview(); return; }

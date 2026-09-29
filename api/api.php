@@ -17,6 +17,9 @@ function cut(string $s, int $n): string { return function_exists('mb_substr') ? 
 
 $CONFIG = require __DIR__ . '/config.php';
 
+/* ضغط الردود (JSON يصغر 5 إلى 10 مرات) — لا يُطبق على تنزيل الملفات */
+if (($_GET['a'] ?? '') !== 'file' && function_exists('ob_gzhandler') && !ini_get('zlib.output_compression')) @ob_start('ob_gzhandler');
+
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
@@ -66,10 +69,17 @@ function max_doc_bytes(): int {
 }
 
 function setup(): void {
+  /* الفحص الكامل مرة كل 10 دقائق فقط، لا مع كل طلب */
+  $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sqapa_setup_' . md5(__FILE__);
+  if (is_file($flag) && time() - filemtime($flag) < 600) return;
   $pdo = db();
-  /* رفع الحد تلقائياً إن سمحت صلاحيات المستخدم (حساب root في XAMPP يسمح). يسري على الاتصالات التالية حتى إعادة تشغيل MySQL */
+  /* رفع الحدود تلقائياً إن سمحت صلاحيات المستخدم (حساب root في XAMPP يسمح). تسري حتى إعادة تشغيل MySQL */
   try { if ((int) $pdo->query('SELECT @@global.max_allowed_packet')->fetchColumn() < 67108864) $pdo->exec('SET GLOBAL max_allowed_packet = 67108864'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
-  try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); return; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
+  /* ذاكرة القاعدة: قيمة XAMPP الافتراضية 16 ميجابايت فقط، فتُقرأ البيانات من القرص في كل طلب */
+  try { if ((int) $pdo->query('SELECT @@global.innodb_buffer_pool_size')->fetchColumn() < 268435456) $pdo->exec('SET GLOBAL innodb_buffer_pool_size = 268435456'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
+  $ready = false;
+  try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); $ready = true; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
+  if ($ready) { @touch($flag); return; }
   $pdo->exec("CREATE TABLE IF NOT EXISTS docs (
     store VARCHAR(40) NOT NULL,
     doc_id VARCHAR(120) NOT NULL,
@@ -100,6 +110,7 @@ function setup(): void {
     created BIGINT NOT NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   $pdo->prepare("INSERT IGNORE INTO counters (name, value) VALUES ('rev', 0)")->execute();
+  @touch($flag);
 }
 
 function bump_rev(int $n = 1): int {
@@ -317,6 +328,9 @@ case 'pull': {
   session_user();
   $since = (int) ($_GET['since'] ?? (body()['since'] ?? 0));
   $limit = min(3000, max(50, (int) ($_GET['limit'] ?? 1500)));
+  /* لا جديد منذ آخر سحب: رد فوري دون استعلام (أغلب طلبات الأجهزة الدورية) */
+  $head = current_rev();
+  if ($since >= $head) out(['rev' => $since, 'head' => $head, 'docs' => [], 'more' => false]);
   $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE rev > ? ORDER BY rev ASC, store ASC LIMIT " . $limit);
   $st->execute([$since]);
   $docs = [];
