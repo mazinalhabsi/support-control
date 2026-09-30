@@ -1749,6 +1749,49 @@ td .rank{display:inline-grid}
 .quiet .chart .line,.quiet .spark .sl{stroke-dashoffset:0}.quiet .chart .area-f,.quiet .spark .sa{opacity:1}
 .kpi-foot>span:first-child{white-space:nowrap}.kpi .spark{flex:0 1 100px;min-width:48px}
 
+/* ملاحظة التسليم وحالة العمل الحي */
+.ho-note{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:14px;margin-bottom:16px;background:rgba(var(--violet),.1);border:1.5px dashed rgba(var(--violet),.6);color:var(--ink)}
+.ho-note>.ic{width:22px;height:22px;color:rgb(var(--violet));flex:none;margin-top:2px}
+.ho-note .ho-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.ho-note .ho-head b{color:rgb(var(--violet));font-size:14px}
+.ho-note p{margin:6px 0 0;white-space:pre-wrap;line-height:1.8;font-size:14px}
+.bubble.ho{background:rgba(var(--violet),.1);border:1.5px dashed rgba(var(--violet),.55)}
+.ho-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ho-chip{display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);overflow:hidden}
+.ho-chip button{border:0;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;padding:6px 12px;cursor:pointer}
+.ho-chip button:hover{color:var(--ink);background:rgba(var(--violet),.12)}
+.ho-chip .x{padding:6px 9px;border-inline-start:1px solid var(--line);color:var(--ink-3)}
+.ho-chip.saved{border-color:rgba(var(--violet),.5)}
+.live-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-radius:14px;margin-bottom:14px;border:1px solid rgba(var(--t),.4);background:rgba(var(--t),.09)}
+.live-bar>.ic{width:22px;height:22px;color:rgb(var(--t));flex:none}
+.live-bar .grow{display:flex;flex-direction:column;gap:2px;min-width:200px}
+.live-bar b{font-size:14px}.live-bar span{font-size:12.5px;color:var(--ink-2)}
+.live-bar.on{border-width:2px;box-shadow:0 0 0 4px rgba(var(--t),.12)}
+.live-pulse{width:12px;height:12px;border-radius:50%;background:rgb(var(--t));flex:none;animation:livePulse 1.6s infinite}
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(var(--teal),.55)}70%{box-shadow:0 0 0 10px rgba(var(--teal),0)}100%{box-shadow:0 0 0 0 rgba(var(--teal),0)}}
+.live-chip{--t:var(--teal);display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;color:rgb(var(--t));background:rgba(var(--t),.12);border:1px solid rgba(var(--t),.4)}
+.live-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:rgb(var(--t));animation:livePulse 1.6s infinite}
+.ho-dot{display:inline-flex;color:rgb(var(--violet))}.ho-dot .ic{width:16px;height:16px}
+.table tr.t-live td{background:rgba(var(--teal),.05)}.table tr.t-live td:first-child{box-shadow:inset -3px 0 0 rgb(var(--teal))}
+.svc-until{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:rgb(var(--sky));margin:4px 0}.svc-until .ic{width:14px;height:14px}
+.form-card.off{border:2px solid #e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.12)}.form-card.off>.iso{opacity:.6;filter:grayscale(.6)}
+/* العرض الشبكي والقائمة */
+.vseg{margin-inline-start:4px}
+.vm-list .svc-grid,.vm-list .forms-grid,.vm-list .cat-admin,.vm-list .grid.g-3{grid-template-columns:1fr!important}
+.vm-list .form-card{flex-direction:row;align-items:center;flex-wrap:wrap}.vm-list .form-card>.iso{height:52px;width:62px;flex:none}.vm-list .form-card .fc-body{min-width:200px}
+.vm-list .wh{flex-direction:row;align-items:center;flex-wrap:wrap;gap:16px}.vm-list .wh .wh-head{flex:1;min-width:220px}.vm-list .wh .shelf{flex:1;min-width:140px}
+.vm-list .cat-card .iso{width:52px;height:52px}
+.vm-grid .table-wrap{overflow:visible}
+.vm-grid .table-wrap .table,.vm-grid .table-wrap .table tbody{display:block}
+.vm-grid .table-wrap .table thead{display:none}
+.vm-grid .table-wrap .table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:12px}
+.vm-grid .table-wrap .table tr{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-2);box-shadow:var(--shadow)}
+.vm-grid .table-wrap .table tr:hover{border-color:rgba(var(--accent),.45)}
+.vm-grid .table-wrap .table td{display:block;padding:0;border:0!important;white-space:normal;background:none!important;box-shadow:none!important}
+.vm-grid .table-wrap .table td:empty{display:none}
+.vm-grid .table-wrap .table td:first-child{font-weight:600}
+.vm-grid .table-wrap .table tr.t-live{border:2px solid rgb(var(--teal));box-shadow:0 0 0 4px rgba(var(--teal),.12)}
+.vm-grid .table-wrap .ellipsis{max-width:100%!important}
 </style>
 </head>
 <body>
@@ -2479,7 +2522,8 @@ Data.sample = {
 /* ── المصادقة والجلسات ──────────────────────────────────────── */
 const Auth = {
   user: null,
-  can(perm) { return canUser(this.user, perm); },
+  /* «أ|ب» تعني أيّاً من الصلاحيتين */
+  can(perm) { return String(perm || '').includes('|') ? perm.split('|').some((p) => canUser(this.user, p)) : canUser(this.user, perm); },
   async restore() {
     try {
       const s = JSON.parse(sessionStorage.getItem('sq_session') || 'null'); if (!s || s.exp < now()) { sessionStorage.removeItem('sq_session'); return null; }
@@ -3288,10 +3332,11 @@ const Shell = {
   mounted: false, offs: [],
   nav() {
     return [
-      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }] },
-      { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
+      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
+      { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }] },
-      { group: 'الإدارة', items: [{ path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+      { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
+      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
     ].map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm)) })).filter((g) => g.items.length);
   },
   mount() {
@@ -3400,6 +3445,8 @@ const Router = {
     if (match && match.bare) { if (Shell.mounted) Shell.unmount(); ctx.view = fresh($('#app')); }
     else { if (!Shell.mounted) Shell.mount(); ctx.view = fresh($('#view')); Shell.setActive(path); Shell.closeMenu(); Shell.closePops(); }
     const view = ctx.view;
+    view.classList.remove('vm-grid', 'vm-list'); UI._vkey = match && !match.bare && VIEW_MODES[path] ? path : '';
+    if (UI._vkey) view.classList.add('vm-' + UI.vmode(path, VIEW_MODES[path]));
     if (!match) { view.innerHTML = String(UI.empty({ illu: 'box', title: 'الصفحة غير موجودة', text: 'الرابط غير صحيح أو تم نقل الصفحة.', action: html`<a class="btn btn-primary" href="#/dashboard">العودة إلى لوحة القيادة</a>` })); return; }
     if (match.perm && !Auth.can(match.perm)) { view.innerHTML = String(UI.empty({ illu: 'key', title: 'لا تملك صلاحية لهذه الصفحة', text: 'تواصل مع مشرف النظام إذا كنت تحتاج إلى هذه الصلاحية.' })); return; }
     if (!match.bare) view.innerHTML = '<div class="page-loading"><div class="skel" style="height:96px"></div><div class="skel" style="height:128px"></div><div class="skel" style="height:340px"></div></div>';
@@ -3696,12 +3743,12 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
 /* ── البلاغات: القائمة ───────────────────────────────────────── */
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
-  const st = { scope: q.scope || (staff ? await Pages.ticketsAutoScope(me) : 'all'), view: staff ? q.view || localStorage.getItem('sq_tview') || 'table' : 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
+  const st = { scope: q.scope || (staff ? 'unassigned' : 'all'), view: q.view || localStorage.getItem(staff ? 'sq_tview' : 'sq_tview_e') || 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
   const scopes = staff ? [['unassigned', 'البلاغات المستلمة', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
     ${UI.pageHead({ title: staff ? 'البلاغات' : 'بلاغاتي', sub: staff ? 'تابع البلاغات ووزّعها وأنجزها ضمن مواعيدها' : 'كل البلاغات التي قدّمتها وحالتها لحظة بلحظة', illu: 'bell', actions: html`${Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : ''}<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button>` })}
-    <div class="row" style="justify-content:space-between;align-items:flex-start"><div class="tabs" id="scopes"></div>${staff ? html`<div class="seg" role="radiogroup" aria-label="طريقة العرض" style="margin-bottom:16px"><label><input type="radio" name="tview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')} جدول</span></label><label><input type="radio" name="tview" value="board"${st.view === 'board' ? raw(' checked') : ''}><span>${UI.icon('layers')} لوحة</span></label></div>` : ''}</div>
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div class="tabs" id="scopes"></div><div class="seg" role="radiogroup" aria-label="طريقة العرض" style="margin-bottom:16px">${[['table', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid'], ...(staff ? [['board', 'لوحة', 'layers']] : [])].map(([k, l, ic]) => html`<label><input type="radio" name="tview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
     <section class="panel" id="tPanel"><div class="toolbar">
       <div class="search-box">${UI.icon('search')}<input id="tq" type="search" placeholder="ابحث برقم البلاغ أو العنوان أو اسم مقدم البلاغ" value="${st.q}"></div>
       ${sel('tstatus', 'كل الحالات', Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label })), st.status)}
@@ -3711,7 +3758,10 @@ Pages.tickets = async (ctx) => {
       <input type="date" dir="ltr" lang="en-GB" id="tfrom" value="${st.from}" aria-label="من تاريخ" title="من تاريخ"><input type="date" dir="ltr" lang="en-GB" id="tto" value="${st.to}" aria-label="إلى تاريخ" title="إلى تاريخ">
       <button class="btn btn-ghost btn-sm" data-act="clear">${UI.icon('x')} مسح</button>
     </div><div id="tbody"></div></section><div id="tBoard" hidden></div>`);
+  if (!staff && st.view === 'board') st.view = 'table';
   const view = ctx.view, body = $('#tbody', view), myCats = new Set(Auth.user.categories || []);
+  let live = new Map();
+  const liveOn = (t) => staff && t.assigneeId && t.assigneeId !== me && OPEN.includes(t.status) && (live.get(t.assigneeId) || {}).active;
   const filter = () => {
     const f = { q: st.q, priority: st.priority, categoryId: st.categoryId, departmentId: st.departmentId, from: fromDateInput(st.from), to: st.to ? fromDateInput(st.to, true) : 0, offset: st.offset, limit: st.limit };
     if (!staff) { f.requesterId = me; f.status = st.status || (st.scope === 'open' ? OPEN : st.scope === 'closed' ? ['resolved', 'closed', 'cancelled'] : ''); return f; }
@@ -3731,12 +3781,12 @@ Pages.tickets = async (ctx) => {
     if (f.status === '') delete f.status;
     return Data.tickets.list(f);
   };
-  const row = (t) => html`<tr data-href="#/tickets/${t.id}"><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''}</div></div></div></td>
+  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) ? raw(' class="t-live"') : ''}><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''}</div></div></div></td>
     <td>${staff ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.requesterId, 'av-sm')}<div><div>${Data.userName(t.requesterId)}</div><div class="t-sub">${Data.nameOf('departments', t.departmentId, '')}</div></div></div>` : Data.nameOf('departments', t.departmentId)}</td>
     <td>${UI.priority(t.priority)}</td><td>${UI.status(t.status)}</td>
-    <td>${t.assigneeId ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.assigneeId, 'av-sm')}<span>${Data.userName(t.assigneeId)}</span></div>` : html`<span class="faint">لم يُسند بعد</span>`}</td>
+    <td>${t.assigneeId ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.assigneeId, 'av-sm')}<span>${Data.userName(t.assigneeId)}</span>${liveOn(t) ? html`<span class="live-chip" title="الفني متصل ونشط الآن">قيد العمل</span>` : ''}${staff && t.handover && t.handover.text && OPEN.includes(t.status) ? html`<span class="ho-dot" title="ملاحظة تسليم: ${t.handover.text}">${UI.icon('clipboard')}</span>` : ''}</div>` : html`<span class="faint">لم يُسند بعد</span>`}</td>
     <td>${UI.sla(t)}</td><td class="nowrap faint" title="${fmtDateTime(t.createdAt)}">${timeAgo(t.createdAt)}</td></tr>`;
-  const sync = () => history.replaceState(null, '', '#/tickets?' + new URLSearchParams(Object.entries({ scope: st.scope, view: staff ? st.view : '', q: st.q, status: st.status, priority: st.priority, cat: st.categoryId, dep: st.departmentId, from: st.from, to: st.to, offset: st.offset || '' }).filter(([, v]) => v !== '' && v != null)));
+  const sync = () => history.replaceState(null, '', '#/tickets?' + new URLSearchParams(Object.entries({ scope: st.scope, view: st.view === 'table' ? '' : st.view, q: st.q, status: st.status, priority: st.priority, cat: st.categoryId, dep: st.departmentId, from: st.from, to: st.to, offset: st.offset || '' }).filter(([, v]) => v !== '' && v != null)));
   const tabs = async () => {
     let counts = {};
     if (staff) { const [mine, neu, all, over] = await Promise.all([Promise.all(OPEN.map((s) => Data.tickets.countFor(me, s))), DB.count('tickets', 'status', KR('new')), Data.tickets.countByStatus(), Data.tickets.countOverdue()]); counts = { mine: mine.reduce((a, b) => a + b, 0), unassigned: neu, open: OPEN.reduce((a, k) => a + all[k], 0), overdue: over }; }
@@ -3748,8 +3798,8 @@ Pages.tickets = async (ctx) => {
     sync();
     const board = $('#tBoard', view), panel = $('#tPanel', view);
     if (staff && st.view === 'board') { panel.hidden = true; board.hidden = false; await Board.render(board, { all: st.scope !== 'mine', limit: 30 }); return; }
-    panel.hidden = false; board.hidden = true;
-    const res = await fetch(); if (!ctx.alive()) return;
+    panel.hidden = false; board.hidden = true; panel.classList.toggle('vm-grid', st.view === 'grid');
+    const [res, lv] = await Promise.all([fetch(), staff ? Presence.map() : new Map()]); if (!ctx.alive()) return; live = lv;
     body.innerHTML = String(res.rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>البلاغ</th><th>${staff ? 'مقدم البلاغ' : 'القسم'}</th><th>الأولوية</th><th>الحالة</th><th>المسؤول</th><th>الموعد</th><th>الإنشاء</th></tr></thead><tbody class="stagger">${res.rows.map(row)}</tbody></table></div>${UI.pager({ offset: st.offset, limit: st.limit, count: res.rows.length, hasMore: res.hasMore })}` : UI.empty({ illu: 'box', title: 'لا توجد بلاغات مطابقة', text: st.q || st.status || st.priority || st.categoryId ? 'غيّر عوامل التصفية أو ابحث بكلمة أخرى.' : 'لا توجد بلاغات في هذا القسم حالياً.', action: Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : '' }));
   };
   const reset = () => { st.offset = 0; load(); };
@@ -3757,7 +3807,7 @@ Pages.tickets = async (ctx) => {
   [['tstatus', 'status'], ['tprio', 'priority'], ['tcat', 'categoryId'], ['tdep', 'departmentId'], ['tfrom', 'from'], ['tto', 'to']].forEach(([id, k]) => { const el = $('#' + id, view); if (el) el.addEventListener('change', () => { st[k] = el.value; reset(); }); });
   UI.on(view, 'click', '[data-act="clear"]', () => { Object.assign(st, { q: '', status: '', priority: '', categoryId: '', departmentId: '', from: '', to: '' }); $$('.toolbar input, .toolbar select', view).forEach((el) => { el.value = ''; }); reset(); });
   UI.on(view, 'click', '[data-scope]', (e, el) => { st.scope = el.dataset.scope; st.status = ''; const s = $('#tstatus', view); if (s) s.value = ''; $$('[data-scope]', view).forEach((b) => b.classList.toggle('active', b === el)); reset(); });
-  UI.on(view, 'change', 'input[name="tview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_tview', el.value); load(); });
+  UI.on(view, 'change', 'input[name="tview"]', (e, el) => { st.view = el.value; try { localStorage.setItem(staff ? 'sq_tview' : 'sq_tview_e', el.value); } catch (_) { /* تجاهل */ } load(); });
   UI.on(view, 'click', '[data-page]', (e, el) => { st.offset = Math.max(0, st.offset + (el.dataset.page === 'next' ? st.limit : -st.limit)); load().then(() => $('#tPanel', view).scrollIntoView({ behavior: 'smooth', block: 'start' })); });
   UI.on(view, 'click', 'tr[data-href]', (e, el) => { if (!e.target.closest('a,button')) Router.go(el.dataset.href.slice(1)); });
   UI.on(view, 'click', '[data-act="csv"]', async (e, btn) => {
@@ -3891,7 +3941,8 @@ const EVENT_VIEW = {
   priority: (e) => ['alert', (PRIORITY[e.to] || {}).tone || 'amber', html`<b>${Data.userName(e.userId)}</b> غيّر الأولوية إلى ${UI.priority(e.to)}`],
   rating: (e) => ['star', 'brass', html`<b>${Data.userName(e.userId)}</b> قيّم الخدمة ${UI.stars(e.stars)}`],
   attachment: (e) => ['clip', 'sky', html`<b>${Data.userName(e.userId)}</b> أضاف مرفقات`],
-  takeover: (e) => ['swap', 'amber', html`<b>${Data.userName(e.to)}</b> استكمل البلاغ بدلاً من <b>${Data.userName(e.from)}</b>`]
+  takeover: (e) => ['swap', 'amber', html`<b>${Data.userName(e.to)}</b> استكمل البلاغ بدلاً من <b>${Data.userName(e.from)}</b>`],
+  handover: (e) => ['clipboard', 'violet', html`<b>${Data.userName(e.userId)}</b> ${e.text ? 'كتب ملاحظة تسليم' : 'أزال ملاحظة التسليم'}${e.release ? html` ${UI.chip('violet', 'أتاح البلاغ للاستكمال', 'swap')}` : ''}`]
 };
 Pages.ticket = async (ctx) => {
   const id = ctx.params.id, me = Auth.user, staff = Auth.can('tickets.work'), mgr = Auth.can('tickets.manage'), view = ctx.view, urls = [];
@@ -3908,6 +3959,7 @@ Pages.ticket = async (ctx) => {
     const acts = [];
     if (staff && OPEN.includes(t.status) && !t.assigneeId) acts.push(html`<button class="btn btn-primary" data-act="claim">${UI.icon('user-plus')} استلام البلاغ</button>`);
     if (staff && OPEN.includes(t.status) && t.assigneeId && t.assigneeId !== me.id) acts.push(html`<button class="btn btn-soft" data-act="takeover" title="البلاغ مع ${Data.userName(t.assigneeId)} ولم يُنجز بعد">${UI.icon('swap')} استكمال البلاغ</button>`);
+    if (staff && OPEN.includes(t.status) && t.assigneeId && (t.assigneeId === me.id || mgr)) acts.push(html`<button class="btn btn-ghost" data-act="handover" title="ملاحظة تظهر للفنيين ولمن يستكمل البلاغ">${UI.icon('clipboard')} ملاحظة تسليم</button>`);
     if (can && ['assigned', 'waiting'].includes(t.status)) acts.push(html`<button class="btn btn-soft" data-act="start">${UI.icon('play')} بدء العمل</button>`);
     if (can && ['assigned', 'in_progress'].includes(t.status)) acts.push(html`<button class="btn" data-act="wait">${UI.icon('pause')} تعليق</button>`);
     if (can && OPEN.includes(t.status)) acts.push(html`<button class="btn btn-ok" data-act="resolve">${UI.icon('check')} تم الحل</button>`);
@@ -3916,9 +3968,10 @@ Pages.ticket = async (ctx) => {
     if ((mine && ['new', 'assigned'].includes(t.status)) || (mgr && OPEN.includes(t.status))) acts.push(html`<button class="btn btn-ghost" data-act="cancel">${UI.icon('x')} إلغاء</button>`);
     acts.push(html`<button class="icon-btn" data-act="print" title="طباعة" aria-label="طباعة">${UI.icon('print')}</button>`);
     const gallery = atts.map((a) => { let thumb = UI.icon('file'); if (a.blob && String(a.type).startsWith('image/')) { a._url = URL.createObjectURL(a.blob); urls.push(a._url); thumb = html`<img src="${a._url}" alt="">`; } return html`<div class="file" data-att="${a.id}" title="${a.name}"><div class="thumb">${thumb}</div><div class="fname">${a.name}</div></div>`; });
-    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
+    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
+      ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -3941,13 +3994,17 @@ Pages.ticket = async (ctx) => {
     if (prio) prio.onchange = () => run(() => Data.tickets.setPriority(id, prio.value), 'تم تغيير الأولوية');
     if (tpl) tpl.onchange = () => { const x = templates.find((y) => y.id === tpl.value); if (x) { const box = $('#cmt', view); box.value = (box.value ? box.value + '\n' : '') + x.body; box.focus(); } tpl.value = ''; };
     UI.hydrate(view);
+    if (staff) Pages.paintLive(view, t);
   };
+  if (staff) { const liveT = setInterval(() => { if (ctx.alive() && t) Pages.paintLive(view, t); }, 20000); ctx.onCleanup(() => clearInterval(liveT)); }
   const run = async (fn, msg) => { try { await fn(); if (msg) UI.toast(msg); } catch (ex) { UI.error(ex); } };
   const textModal = (title, icon, label, required, okLabel, kind = 'primary', tplList = []) => UI.modal({ title, icon, body: html`${tplList.length ? html`<div class="quick-chips" style="margin-bottom:10px">${tplList.map((x) => html`<button type="button" class="qchip" data-tpl="${x.body}">${x.name}</button>`)}</div>` : ''}${UI.field({ name: 'text', label, type: 'textarea', rows: 4, required })}`, onMount: (form) => UI.on(form, 'click', '[data-tpl]', (e, b) => { form.querySelector('textarea').value = b.dataset.tpl; }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: okLabel, kind, submit: true, handler: (form) => { const v = form.querySelector('textarea').value.trim(); if (required && !v) throw new AppError('هذا الحقل مطلوب'); return { text: v }; } }] });
   UI.on(view, 'click', '[data-act]', async (e, el) => {
     const a = el.dataset.act;
     if (a === 'claim') return run(() => Data.tickets.claim(id), 'استلمت البلاغ، بالتوفيق!');
-    if (a === 'takeover') { const cur = await DB.get('tickets', id); const r = await textModal(`استكمال البلاغ بدلاً من ${Data.userName((cur || {}).assigneeId)}`, 'swap', 'سبب الاستكمال (اختياري) — مثال: الفني في إجازة أو خارج الدوام', false, 'استكمال البلاغ'); if (r) run(() => Data.tickets.takeOver(id, r.text), 'أصبح البلاغ مسنداً إليك، تابع العمل من حيث توقف'); return; }
+    if (a === 'takeover') { await Pages.takeoverFlow(id, run); return; }
+    if (a === 'handover') { await Pages.handoverModal(id); return; }
+    if (a === 'hoclear') { if (await UI.confirm('إزالة ملاحظة التسليم؟', { ok: 'إزالة' })) run(() => Data.tickets.handover(id, '', false), 'أُزيلت ملاحظة التسليم'); return; }
     if (a === 'start') return run(() => Data.tickets.setStatus(id, 'in_progress'), 'بدأ العمل على البلاغ');
     if (a === 'wait') { const r = await textModal('تعليق البلاغ', 'pause', 'سبب التعليق (يظهر للمستفيد)', false, 'تعليق'); if (r) run(() => Data.tickets.setStatus(id, 'waiting', r.text), 'تم تعليق البلاغ'); return; }
     if (a === 'resolve') { const r = await textModal('تسجيل الحل', 'check', 'ملخص الحل الذي تم تنفيذه', true, 'تأكيد الحل', 'ok', templates); if (r) { await run(() => Data.tickets.setStatus(id, 'resolved', r.text), 'تم تسجيل الحل وإشعار المستفيد'); UI.sound('success'); } return; }
@@ -4454,7 +4511,7 @@ async function boot() {
   }
   const R = (p, perm, fn, t, bare) => Router.add(p, perm, fn, t, bare);
   R('/dashboard', 'dashboard', Pages.dashboard, 'لوحة القيادة'); R('/tickets', 'tickets.view', Pages.tickets, 'البلاغات'); R('/tickets/new', 'tickets.create', Pages.newTicket, 'بلاغ جديد'); R('/tickets/:id', 'tickets.view', Pages.ticket, 'تفاصيل البلاغ');
-  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', '', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read', Pages.maintenance, 'الصيانة'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
+  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read|custody.direct', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read|custody.direct', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', '', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read', Pages.maintenance, 'الصيانة'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
   R('/kb', 'kb.read', Pages.kb, 'قاعدة المعرفة'); R('/org', 'org.manage', Pages.org, 'الهيكل التنظيمي'); R('/reports', 'reports', Pages.reports, 'التقارير'); R('/users', 'users.manage', Pages.users, 'المستخدمون'); R('/activity', 'activity', Pages.activity, 'سجل النشاط'); R('/settings', 'settings', Pages.settings, 'الإعدادات');
   R('/notifications', null, Pages.notifications, 'الإشعارات'); R('/profile', null, Pages.profile, 'الملف الشخصي'); R('/welcome', null, Pages.welcome, 'أكمل بياناتك', true); R('/monitor', null, Pages.monitor, 'شاشة المراقبة', true);
   window.addEventListener('hashchange', () => Router.resolve());
@@ -4464,7 +4521,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl };
   const b = $('#boot'); if (b) b.remove();
   await Router.resolve();
 }
@@ -4655,8 +4712,8 @@ Object.entries(ROLE_INFO).forEach(([k, r]) => { ROLES[k] = r.label; });
 const BASE_PERMS = ['dashboard', 'profile', 'notifications'];
 const PERM_GROUPS = [
   { title: 'البلاغات', icon: 'ticket', items: [['tickets.create', 'تقديم البلاغات', 'فتح بلاغ أو طلب خدمة'], ['tickets.view', 'متابعة البلاغات', 'عرض البلاغات المسموح بها'], ['tickets.all', 'عرض كل البلاغات', 'بلاغات جميع الأقسام والمواقع'], ['tickets.work', 'استلام البلاغات وحلها', 'الاستلام والرد وتحديث الحالة'], ['chat.answer', 'الرد على الاستفسارات', 'استقبال استفسارات الموظفين والرد عليها'], ['users.password', 'إصدار كلمات المرور', 'إصدار أو تغيير كلمة مرور الحسابات الأدنى'], ['forms.manage', 'إدارة النماذج والاستمارات', 'إضافة الاستمارات وتعديلها وحذفها'], ['backup.manage', 'النسخ الاحتياطي والبيانات', 'أخذ النسخ والاسترداد وجدولة النسخ التلقائي'], ['announce.manage', 'التعاميم وحالة الخدمات', 'نشر الإعلانات وتحديث حالة الخدمات'], ['worklog', 'تسجيل أعمال القسم', 'تسجيل الأعمال اليومية والزيارات والورش'], ['worklog.all', 'الاطلاع على أعمال القسم كاملة', 'عرض أعمال جميع الفنيين والإداريين وتقاريرها'], ['works', 'متابعة الأعمال الداخلية والخارجية', 'المجلدات والمواضيع والمرفقات ومتابعتها'], ['tickets.manage', 'إدارة البلاغات', 'الإسناد لفني آخر وتغيير الأولوية والإلغاء']] },
-  { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد']] },
-  { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه']] },
+  { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة']] },
+  { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['forms.hide', 'إخفاء المستندات', 'إخفاء النماذج والاستمارات عن الموظفين وإظهارها'], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه']] },
   { title: 'التقارير والإدارة', icon: 'chart', items: [['reports', 'التقارير والتحليلات', ''], ['activity', 'سجل النشاط', ''], ['users.manage', 'إدارة المستخدمين', 'إضافة الحسابات وتعديلها'], ['org.manage', 'تعديل الهيكل التنظيمي', 'إضافة الإدارات والأقسام ورسمها'], ['sync.manage', 'المزامنة مع الخادم', 'ربط النظام بخادم XAMPP ومتابعة حالته'], ['settings', 'الإعدادات والبيانات', 'القوائم والنسخ الاحتياطي']] }
 ];
 const PERM_KEYS = new Set(PERM_GROUPS.flatMap((g) => g.items.map((i) => i[0])));
@@ -5327,6 +5384,7 @@ setInterval(() => Escalate.run(), 5 * MIN);
 MOVES.dept_return = { label: 'إرجاع من إدارة', sign: 1 };
 MOVES.dept_transfer = { label: 'نقل بين الإدارات', sign: 0 };
 MOVE_TONE.dept_return = 'green'; MOVE_TONE.dept_transfer = 'violet';
+MOVES.dept_opening = { label: 'إضافة عهدة مباشرة', sign: 0 }; MOVE_TONE.dept_opening = 'brass';
 AR.day = ['يوم واحد', 'يومين', 'أيام', 'يوماً', 'يوم'];
 
 Data.dept = {
@@ -5386,6 +5444,7 @@ Data.dept.rebuild = async () => {
     const add = (dep, q) => { if (!dep) return; const k = key(dep, m.itemId); map.set(k, (map.get(k) || 0) + q); };
     if (m.type === 'issue') add(m.departmentId, m.qty);
     else if (m.type === 'dept_return') add(m.departmentId, -m.qty);
+    else if (m.type === 'dept_opening') add(m.departmentId, m.qty);
     else if (m.type === 'dept_transfer') { add(m.departmentId, -m.qty); add(m.toDepartmentId, m.qty); }
   });
   const old = await DB.getAll('deptStock');
@@ -5411,11 +5470,12 @@ Pages.deptTransferModal = async (departmentId, itemId = '') => {
 /* صفحة عهد الإدارات */
 Pages.deptStock = async (ctx) => {
   const draw = async () => {
-    const [list, loans] = await Promise.all([Data.dept.all(), DB.getAll('loans', 'status', KR('active'))]);
+    const [list, loans, cbar] = await Promise.all([Data.dept.all(), DB.getAll('loans', 'status', KR('active')), Pages.custodyBar('')]);
     if (!ctx.alive()) return;
     const units = list.reduce((s, d) => s + d.units, 0), deps = Data.list('departments');
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'عهدة الإدارات', sub: 'ما بحوزة كل إدارة من أجهزة وأصناف صُرفت من المخزن', illu: 'network', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-primary" data-move="issue">${UI.icon('upload')} صرف لإدارة</button><button class="btn btn-ok" data-act="dret">${UI.icon('undo')} إرجاع إلى المخزن</button><button class="btn" data-act="dtr">${UI.icon('swap')} نقل بين إدارتين</button>` : ''}<a class="btn btn-ghost" href="#/inventory/report">${UI.icon('chart')} تقرير شامل</a>` })}
+      ${cbar}
       <div class="kpis">
         ${UI.kpi({ label: 'إدارات لديها عهدة', icon: 'building', tone: 'violet', value: list.length })}
         ${UI.kpi({ label: 'وحدات بعهدة الإدارات', icon: 'layers', tone: 'sky', value: units })}
@@ -6104,7 +6164,8 @@ const Sync = {
       }
     };
     Auth.logout = async () => {
-      if (this.on && this.token) { try { await this.flush(); await this.call('logout'); } catch (_) { /* تجاهل */ } this.token = ''; localStorage.removeItem('sq_token'); }
+      /* إزالة التواجد قبل رفع التعديلات وإنهاء الجلسة، حتى يعلم الآخرون فوراً أن الفني خرج (ويُتاح استكمال بلاغاته) */
+      if (this.on && this.token) { try { if (Auth.user) await Presence.leave(Auth.user); await this.flush(); await this.call('logout'); } catch (_) { /* تجاهل */ } this.token = ''; localStorage.removeItem('sq_token'); }
       return local.logout();
     };
   },
@@ -6373,7 +6434,7 @@ Pages.deptDetail = async (ctx) => {
   const id = ctx.params.id;
   const st = { open: new Set(), unit: '', view: localStorage.getItem('sq_devview') || 'list' };
   const draw = async () => {
-    const [rows, loans, tree, unitData] = await Promise.all([Data.dept.of(id), DB.getAll('loans', 'status', KR('active')), Data.units.tree(id), Data.units.byDepartment(id)]);
+    const [rows, loans, tree, unitData, cbar] = await Promise.all([Data.dept.of(id), DB.getAll('loans', 'status', KR('active')), Data.units.tree(id), Data.units.byDepartment(id), Pages.custodyBar(id)]);
     const items = new Map((await Promise.all(rows.map((r) => DB.get('items', r.itemId)))).filter(Boolean).map((i) => [i.id, i]));
     if (!ctx.alive()) return;
     const name = Data.nameOf('departments', id, 'غير محدد'), units = rows.reduce((s, r) => s + r.qty, 0), mine = loans.filter((l) => l.departmentId === id);
@@ -6383,6 +6444,7 @@ Pages.deptDetail = async (ctx) => {
     const itemLine = (r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف' }; return html`<button type="button" class="list-row unit-item" data-device="${r.itemId}"><div class="grow ellipsis"><b>${it.name}</b>${it.model ? html`<div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div>` : ''}</div>${UI.chip('teal', fmtNum(r.qty))}${UI.icon('eye')}</button>`; };
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/inventory/departments">عهدة الإدارات</a>${UI.icon('chevron-left')}<span>${name}</span>`, title: `عهدة ${name}`, sub: `${arCount(rows.length, AR.item)} بإجمالي ${fmtNum(units)} وحدة — ${fmtNum(tree.length)} قسم و${fmtNum(officeCount)} مكتب`, illu: 'box', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-primary" data-move="issue" data-dept="${id}">${UI.icon('upload')} صرف جديد</button><button class="btn btn-ok" data-act="dret">${UI.icon('undo')} إرجاع</button><button class="btn" data-act="dtr">${UI.icon('swap')} نقل لإدارة</button>` : ''}${Auth.can('inventory.manage') ? html`<button class="btn btn-soft" data-act="addunit">${UI.icon('plus')} قسم أو مكتب</button>` : ''}<button class="btn btn-ghost" data-scanfor="lookup">${UI.icon('search')} بحث بالشفرة</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} كشف العهدة</button><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} Excel</button>` })}
+      ${cbar}
       <div class="kpis">
         ${UI.kpi({ label: 'إجمالي الوحدات', icon: 'layers', tone: 'sky', value: units })}
         ${UI.kpi({ label: 'الأصناف', icon: 'box', tone: 'teal', value: rows.length })}
@@ -8026,12 +8088,13 @@ Pages.maintHistory = async (itemId, assetId = '') => {
 /* ── مكتبة النماذج والاستمارات، وأيقونات الماركات ── */
 const FORM_ICONS = ['card', 'book', 'clipboard', 'paper', 'archive', 'key', 'tools', 'printer', 'computer', 'network', 'box', 'bell', 'smartcard', 'fingerprint', 'barcode', 'router'];
 const canManageForms = () => canUser(Auth.user, 'users.manage') || canUser(Auth.user, 'forms.manage');
+const canHideForms = () => canManageForms() || canUser(Auth.user, 'forms.hide');
 Data.forms = {
   async list() { try { await this.seedBuiltin(); } catch (e) { console.warn('forms seed', e); } return (await DB.getAll('forms')).sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.title).localeCompare(String(b.title), 'ar')); },
   async save(rec) {
     if (!canManageForms()) throw new AppError('لا تملك صلاحية إدارة النماذج');
     const t = now();
-    const out = { id: rec.id || uid('fm'), title: String(rec.title || '').trim(), desc: String(rec.desc || '').trim(), icon: rec.icon || 'paper', categoryId: rec.categoryId || '', file: rec.file || null, order: Number(rec.order) || 0, createdAt: rec.createdAt || t, updatedAt: t, userId: rec.userId || Auth.user.id, _rev: rec._rev };
+    const out = { id: rec.id || uid('fm'), title: String(rec.title || '').trim(), desc: String(rec.desc || '').trim(), icon: rec.icon || 'paper', categoryId: rec.categoryId || '', file: rec.file || null, order: Number(rec.order) || 0, noDownload: rec.noDownload ? 1 : 0, hidden: rec.hidden ? 1 : 0, createdAt: rec.createdAt || t, updatedAt: t, userId: rec.userId || Auth.user.id, _rev: rec._rev };
     if (!out.title) throw new AppError('اكتب اسم النموذج');
     if (!out.file) throw new AppError('ارفع ملف النموذج');
     await DB.put('forms', out);
@@ -8040,16 +8103,22 @@ Data.forms = {
     return out;
   },
   /* الاستمارات الرسمية المضمّنة في الملف تُضاف إلى المكتبة مرة واحدة فقط */
+  /* علامة الإضافة محلية لكل جهاز: من يملك إدارة النماذج يرفعها للخادم، وغيره يضيفها لجهازه فقط حتى تصله نسخة الخادم */
   async seedBuiltin() {
-    if (await DB.get('meta', 'seed:forms')) return;
+    const flag = `sq_seed_forms_v2:${Auth.user ? Auth.user.id : ''}`; try { if (localStorage.getItem(flag)) return; } catch (_) { /* تجاهل */ }
     const CAT = [[/شبكة/, 'network', 'network'], [/مجلد/, 'service_request', 'folder'], [/بطاقة/, 'card', 'card']], t = now();
     const recs = $$('script[data-form]').map((el, i) => {
       const name = el.dataset.name || `استمارة ${i + 1}`, [, categoryId = '', icon = 'paper'] = CAT.find(([re]) => re.test(name)) || [];
       const b64 = el.textContent.trim();
       return { id: `fm_builtin_${i + 1}`, title: name, desc: 'استمارة رسمية معتمدة — للمعاينة والطباعة والتحميل', icon, categoryId, order: i, createdAt: t, updatedAt: t, file: { name: `${name}.pdf`, type: 'application/pdf', size: Number(el.dataset.size) || Math.round(b64.length * 0.75), at: t, data: `data:application/pdf;base64,${b64}` } };
     });
-    for (const r of recs) if (!(await DB.get('forms', r.id))) await DB.put('forms', r);
-    await DB.put('meta', { key: 'seed:forms', value: { at: t, count: recs.length } });
+    const local = Sync.on && Sync.raw && !canManageForms();
+    for (const r of recs) {
+      const cur = await DB.get('forms', r.id);
+      if (!cur) await (local ? Sync.raw.put('forms', r) : DB.put('forms', r));
+      else if (!local && Sync.on && !cur._rev) await DB.put('forms', cur); /* نسخة محلية لم تصل الخادم بعد */
+    }
+    try { localStorage.setItem(flag, String(t)); } catch (_) { /* تجاهل */ }
   },
   async remove(id) {
     if (!canManageForms()) throw new AppError('لا تملك صلاحية حذف النماذج');
@@ -8094,13 +8163,13 @@ Pages.formsPage = async (ctx) => {
     const all = await Data.forms.list();
     if (!ctx.alive()) return;
     const qn = normalizeAr(st.q);
-    const rows = all.filter((f) => (!st.cat || f.categoryId === st.cat) && (!qn || normalizeAr(`${f.title} ${f.desc} ${Data.nameOf('categories', f.categoryId, '')}`).includes(qn)));
-    const manage = canManageForms();
+    const rows = all.filter((f) => (!f.hidden || canHideForms()) && (!st.cat || f.categoryId === st.cat) && (!qn || normalizeAr(`${f.title} ${f.desc} ${Data.nameOf('categories', f.categoryId, '')}`).includes(qn)));
+    const manage = canManageForms(), hider = canHideForms();
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'النماذج والاستمارات', sub: 'استمارات جاهزة للمعاينة والتحميل والطباعة', illu: 'paper', actions: html`${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}<button class="btn btn-ghost" data-blankcard>${UI.icon('print')} استمارة بطاقة فارغة</button>` })}
       <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="fq" type="search" placeholder="ابحث باسم النموذج" value="${st.q}"></div><select id="fcat"><option value="">كل الفئات</option>${UI.opts('categories').map((o) => html`<option value="${o.value}"${st.cat === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><span class="faint small">${arCount(rows.length, AR.item).replace('صنف', 'نموذج').replace('أصناف', 'نماذج')}</span></div>
-      ${rows.length ? html`<div class="forms-grid">${rows.map((f) => html`<article class="form-card">${UI.illu(f.icon || 'paper')}<div class="fc-body"><b>${f.title}</b>${f.desc ? html`<p class="t-sub">${f.desc}</p>` : ''}<div class="row" style="gap:6px;flex-wrap:wrap">${f.categoryId ? UI.chip('sky', Data.nameOf('categories', f.categoryId), 'tag') : ''}${f.file ? UI.chip('slate', fmtBytes(f.file.size)) : ''}</div></div>
-        <div class="fc-actions">${f.categoryId && eformOn(f.categoryId) && Data.c.categories.get(f.categoryId) && !Data.c.categories.get(f.categoryId).hidden ? html`<a class="btn btn-sm btn-primary" href="#/tickets/new?cat=${f.categoryId}">${UI.icon('edit')} تعبئة إلكترونية</a>` : ''}${!manage && (f.noDownload || docLocked(f.categoryId)) ? html`<span class="chip tone-slate">${UI.icon('lock')} التحميل موقوف</span>` : html`<button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-soft" data-dl="${f.id}">${UI.icon('download')} تحميل</button>`}${manage ? html`<button class="btn btn-sm btn-ghost" data-lockdl="${f.id}" title="${f.noDownload ? 'السماح بالتحميل للموظفين' : 'إيقاف التحميل للموظفين'}">${UI.icon(f.noDownload ? 'lock' : 'download')} ${f.noDownload ? 'موقوف' : 'متاح'}</button><button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
+      ${rows.length ? html`<div class="forms-grid">${rows.map((f) => html`<article class="form-card${f.hidden ? ' off' : ''}">${UI.illu(f.icon || 'paper')}<div class="fc-body"><b>${f.title}</b>${f.desc ? html`<p class="t-sub">${f.desc}</p>` : ''}<div class="row" style="gap:6px;flex-wrap:wrap">${f.categoryId ? UI.chip('sky', Data.nameOf('categories', f.categoryId), 'tag') : ''}${f.file ? UI.chip('slate', fmtBytes(f.file.size)) : ''}${f.hidden ? UI.chip('red', 'مخفي عن الموظفين', 'eye-off') : ''}</div></div>
+        <div class="fc-actions">${f.categoryId && eformOn(f.categoryId) && Data.c.categories.get(f.categoryId) && !Data.c.categories.get(f.categoryId).hidden ? html`<a class="btn btn-sm btn-primary" href="#/tickets/new?cat=${f.categoryId}">${UI.icon('edit')} تعبئة إلكترونية</a>` : ''}${!manage && (f.noDownload || docLocked(f.categoryId)) ? html`<span class="chip tone-slate">${UI.icon('lock')} التحميل موقوف</span>` : html`<button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-soft" data-dl="${f.id}">${UI.icon('download')} تحميل</button>`}${hider ? html`<button class="btn btn-sm btn-ghost" data-hideform="${f.id}" title="${f.hidden ? 'إظهار المستند للموظفين' : 'إخفاء المستند عن الموظفين'}">${UI.icon(f.hidden ? 'eye' : 'eye-off')} ${f.hidden ? 'إظهار' : 'إخفاء'}</button>` : ''}${manage ? html`<button class="btn btn-sm btn-ghost" data-lockdl="${f.id}" title="${f.noDownload ? 'السماح بالتحميل للموظفين' : 'إيقاف التحميل للموظفين'}">${UI.icon(f.noDownload ? 'lock' : 'download')} ${f.noDownload ? 'موقوف' : 'متاح'}</button><button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
         : html`<div class="panel-body">${UI.empty({ illu: 'paper', title: 'لا توجد نماذج بعد', text: manage ? 'أضف الاستمارات التي يحتاجها الموظفون ليحمّلوها من هنا.' : 'ستظهر هنا الاستمارات فور إضافتها من تقنية المعلومات.', action: manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : '' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
     $('#fq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
@@ -8108,6 +8177,7 @@ Pages.formsPage = async (ctx) => {
   };
   UI.on(ctx.view, 'click', '[data-view]', async (e, el) => { const f = await DB.get('forms', el.dataset.view); if (f && f.file) Pages.previewFile(f.file); });
   UI.on(ctx.view, 'click', '[data-lockdl]', async (e, el) => { const f = await DB.get('forms', el.dataset.lockdl); if (!f) return; f.noDownload = f.noDownload ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); Bus.emit('forms', {}); UI.toast(f.noDownload ? `أُوقف تحميل «${f.title}» للموظفين` : `أصبح «${f.title}» متاحاً للتحميل`); draw(); });
+  UI.on(ctx.view, 'click', '[data-hideform]', async (e, el) => { if (!canHideForms()) return; const f = await DB.get('forms', el.dataset.hideform); if (!f) return; f.hidden = f.hidden ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); await Data.log('update', 'settings', f.id, `${f.hidden ? 'إخفاء' : 'إظهار'} نموذج: ${f.title}`); Bus.emit('forms', {}); UI.toast(f.hidden ? `أُخفي «${f.title}» عن الموظفين` : `أصبح «${f.title}» ظاهراً للموظفين`); draw(); });
   UI.on(ctx.view, 'click', '[data-dl]', async (e, el) => { const f = await DB.get('forms', el.dataset.dl); if (f && (f.noDownload || docLocked(f.categoryId)) && !canManageForms()) { UI.toast('التحميل موقوف لهذا النموذج', 'warn'); return; } if (f && f.file) { downloadBlob(dataToBlob(f.file.data), f.file.name); UI.toast('تم التحميل'); } });
   UI.on(ctx.view, 'click', '[data-edit]', async (e, el) => { if (await Pages.formModal(el.dataset.edit)) draw(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.formModal()) draw(); });
@@ -8593,7 +8663,7 @@ Data.org = {
     this.guard();
     const name = String(rec.name || '').trim(); if (!name) throw new AppError('اكتب اسم الإدارة');
     if (Data.list('departments').some((d) => d.id !== rec.id && normalizeAr(d.name) === normalizeAr(name))) throw new AppError('توجد إدارة بالاسم نفسه');
-    const out = await Data.saveRecord('departments', { ...rec, name, code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), icon: rec.icon || 'building', tone: rec.tone || 'brass', order: rec.order != null && rec.order !== '' ? Number(rec.order) : rec.order }, 'إدارة');
+    const out = await Data.saveRecord('departments', { ...rec, name, code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), locationId: rec.locationId || '', room: String(rec.room || '').trim(), icon: rec.icon || 'building', tone: rec.tone || 'brass', order: rec.order != null && rec.order !== '' ? Number(rec.order) : rec.order }, 'إدارة');
     Bus.emit('org', {}); return out;
   },
   async removeDept(id) {
@@ -8612,7 +8682,7 @@ Data.org = {
   async saveUnit(rec) {
     this.guard();
     const all = await DB.getAll('deptUnits'), t = now(), cur = rec.id ? all.find((u) => u.id === rec.id) : null;
-    const out = { ...(cur || {}), id: rec.id || uid('un'), departmentId: rec.departmentId, parentId: rec.parentId || '', type: UNIT_TYPES[rec.type] ? rec.type : 'section', name: String(rec.name || '').trim(), code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), icon: rec.icon || '', tone: rec.tone || '', order: rec.order != null && rec.order !== '' ? Number(rec.order) : cur ? cur.order : all.filter((u) => u.departmentId === rec.departmentId && (u.parentId || '') === (rec.parentId || '')).length + 1, createdAt: (cur && cur.createdAt) || t, updatedAt: t };
+    const out = { ...(cur || {}), id: rec.id || uid('un'), departmentId: rec.departmentId, parentId: rec.parentId || '', type: UNIT_TYPES[rec.type] ? rec.type : 'section', name: String(rec.name || '').trim(), code: String(rec.code || '').trim(), head: String(rec.head || '').trim(), phone: String(rec.phone || '').trim(), locationId: rec.locationId || '', room: String(rec.room || '').trim(), icon: rec.icon || '', tone: rec.tone || '', order: rec.order != null && rec.order !== '' ? Number(rec.order) : cur ? cur.order : all.filter((u) => u.departmentId === rec.departmentId && (u.parentId || '') === (rec.parentId || '')).length + 1, createdAt: (cur && cur.createdAt) || t, updatedAt: t };
     if (!out.name) throw new AppError('اكتب الاسم');
     if (out.parentId) {
       const par = all.find((u) => u.id === out.parentId); if (!par) throw new AppError('الوحدة الأم غير موجودة');
@@ -8669,6 +8739,7 @@ UI.bindOrgCascade = async (form, { dep = 'departmentId', unit = 'unitId', value 
   const units = await DB.getAll('deptUnits');
   const fill = (keep) => { const list = orgUnitsFlat(units, ds.value); us.innerHTML = `<option value="">${list.length ? '— الإدارة كلها —' : 'لا توجد أقسام لهذه الإدارة'}</option>` + list.map(({ u, depth }) => `<option value="${esc(u.id)}"${u.id === keep ? ' selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(u.name)} (${esc((UNIT_TYPES[u.type] || UNIT_TYPES.section).label)})</option>`).join(''); us.disabled = !list.length; };
   fill(value); ds.addEventListener('change', () => fill(''));
+  UI.orgAutoLoc(form, { dep, unit });
 };
 /* نافذة الإدارة أو الوحدة: الاسم والرمز والأيقونة واللون، وإضافة عدة فروع دفعة واحدة */
 Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' }) => {
@@ -8677,7 +8748,7 @@ Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' })
   if (kind === 'dept') {
     const rec = id ? Data.c.departments.get(id) : {};
     return UI.modal({ title: id ? `تعديل الإدارة: ${rec.name}` : 'إدارة جديدة', icon: 'building', size: 'lg',
-      body: html`${UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT' }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }], rec)}${look(rec, 'building', 'brass')}`,
+      body: html`${UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT' }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), hint: 'يُعبّأ تلقائياً في البلاغات والحسابات لمن يتبع هذه الإدارة' }, { name: 'room', label: 'المكتب / الطابق (اختياري)', placeholder: 'مثال: الطابق الأول' }], rec)}${look(rec, 'building', 'brass')}`,
       actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const r = await Data.org.saveDept({ ...rec, ...UI.formValues(form), id: id || undefined }); UI.toast('حُفظت الإدارة'); return r; } }] });
   }
   const units = await DB.getAll('deptUnits'), rec = id ? units.find((u) => u.id === id) : { departmentId, parentId, type: parentId ? 'branch' : 'section' };
@@ -8686,7 +8757,7 @@ Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' })
   return UI.modal({ title: id ? `تعديل: ${rec.name}` : 'إضافة فرع تنظيمي', icon: 'layers', size: 'lg',
     body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${Data.nameOf('departments', dep)}</b>${rec.parentId ? html`<div class="t-sub">داخل: ${(units.find((u) => u.id === rec.parentId) || {}).name || ''}</div>` : ''}</div></div>
       <div class="field"><label>نوع الفرع</label><div class="choice-pick">${ORG_TYPE_ORDER.map((k) => html`<label><input type="radio" name="type" value="${k}"${(rec.type || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
-      ${UI.fields([{ name: 'name', label: id ? 'الاسم' : 'الاسم (أو اكتب عدة أسماء في الخانة أدناه)', wide: true, placeholder: 'مثال: قسم الشبكات' }, { name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }], rec)}
+      ${UI.fields([{ name: 'name', label: id ? 'الاسم' : 'الاسم (أو اكتب عدة أسماء في الخانة أدناه)', wide: true, placeholder: 'مثال: قسم الشبكات' }, { name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), placeholder: '— نفس مبنى الإدارة —' }, { name: 'room', label: 'المكتب / الغرفة (اختياري)', placeholder: 'مثال: مكتب 214 - الطابق الثاني' }], rec)}
       ${id ? '' : html`<div class="field mt"><label>إضافة عدة فروع دفعة واحدة <small class="faint">(اسم في كل سطر — اختياري)</small></label><textarea name="bulk" rows="3" placeholder="شعبة الخوادم&#10;شعبة الشبكات اللاسلكية&#10;شعبة الدعم الميداني"></textarea></div>`}
       ${look(rec, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).icon, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).tone)}`,
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
@@ -9050,15 +9121,16 @@ Data.svc = {
     const t = now();
     await DB.bulkPut('services', DEFAULT_SERVICES.map(([name, icon, cat], i) => ({ id: uid('sv'), name, icon, categoryId: cat, status: 'up', note: '', order: i, updatedAt: t })));
   },
-  async list() { await Data.svc.ensure(); return (await DB.getAll('services')).sort((a, b) => (a.order || 0) - (b.order || 0)); },
-  async set(id, status, note = '') {
+  /* الحالة الفعلية: إذا انتهت مدة التوقف المحددة تُعرض الخدمة «تعمل» حتى قبل حفظ ذلك */
+  async list() { await Data.svc.ensure(); const t = now(); return (await DB.getAll('services')).map((s) => (s.until && s.until <= t && s.status !== 'up' ? { ...s, status: 'up', note: '', until: 0, expired: 1 } : s)).sort((a, b) => (a.order || 0) - (b.order || 0)); },
+  async set(id, status, note = '', until = 0) {
     if (!canAnnounce()) throw new AppError('تحديث حالة الخدمات لمن يملك صلاحية التعاميم');
     const s = await DB.get('services', id); if (!s) return;
-    const was = s.status; s.status = status; s.note = note; s.updatedAt = now(); s.by = Auth.user.id;
+    const was = s.until && s.until <= now() ? 'up' : s.status; s.status = status; s.note = note; s.until = status !== 'up' && until > now() ? until : 0; s.updatedAt = now(); s.by = Auth.user.id;
     await DB.put('services', s);
     if (was !== status) {
       const all = Data.list('users').filter((u) => u.active).map((u) => u.id);
-      await Data.notify(all, { title: `${s.name}: ${SVC_STATUS[status].label}`, body: note || (status === 'up' ? 'عادت الخدمة للعمل' : 'نعمل على الإصلاح، لا حاجة لتقديم بلاغ جديد'), link: '/status', kind: 'system' });
+      await Data.notify(all, { title: `${s.name}: ${SVC_STATUS[status].label}`, body: note || (status === 'up' ? 'عادت الخدمة للعمل' : 'نعمل على الإصلاح، لا حاجة لتقديم بلاغ جديد') + (s.until ? ` — حتى ${fmtDateTime(s.until)}` : ''), link: '/status', kind: 'system' });
     }
     Bus.emit('status', {});
   },
@@ -9106,13 +9178,20 @@ Pages.status = async (ctx) => {
     const t = now();
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'حالة الخدمات والتعاميم', sub: 'تحقق من حالة الخدمة قبل تقديم البلاغ، وتابع إعلانات تقنية المعلومات', illu: 'network', actions: manage ? html`<button class="btn btn-primary" data-act="ann">${UI.icon('bell')} تعميم جديد</button><button class="btn btn-ghost" data-act="svc">${UI.icon('plus')} خدمة</button>` : '' })}
-      <div class="svc-grid">${svcs.map((s) => html`<div class="svc-card tone-${SVC_STATUS[s.status].tone}">${UI.illu(s.icon || 'network')}<div class="grow"><b>${s.name}</b><span class="chip tone-${SVC_STATUS[s.status].tone}"><i class="dot"></i>${SVC_STATUS[s.status].label}</span>${s.note ? html`<p class="t-sub">${s.note}</p>` : ''}<small class="faint">آخر تحديث ${timeAgo(s.updatedAt)}</small></div>${manage ? html`<select class="input" data-svc="${s.id}" style="height:34px;max-width:170px">${Object.entries(SVC_STATUS).map(([k, v]) => html`<option value="${k}"${s.status === k ? raw(' selected') : ''}>${v.label}</option>`)}</select>` : ''}</div>`)}</div>
+      <div class="svc-grid">${svcs.map((s) => html`<div class="svc-card tone-${SVC_STATUS[s.status].tone}">${UI.illu(s.icon || 'network')}<div class="grow"><b>${s.name}</b><span class="chip tone-${SVC_STATUS[s.status].tone}"><i class="dot"></i>${SVC_STATUS[s.status].label}</span>${s.note ? html`<p class="t-sub">${s.note}</p>` : ''}${s.until ? html`<span class="svc-until">${UI.icon('clock')} تعود للعمل تلقائياً ${fmtDateTime(s.until)} (بعد ${fmtDuration(s.until - t)})</span>` : ''}<small class="faint">آخر تحديث ${timeAgo(s.updatedAt)}</small></div>${manage ? html`${s.status !== 'up' ? html`<button class="icon-btn" data-svcdur="${s.id}" title="تعديل المدة والملاحظة" aria-label="تعديل المدة">${UI.icon('clock')}</button>` : ''}<select class="input" data-svc="${s.id}" style="height:34px;max-width:170px">${Object.entries(SVC_STATUS).map(([k, v]) => html`<option value="${k}"${s.status === k ? raw(' selected') : ''}>${v.label}</option>`)}</select>` : ''}</div>`)}</div>
       ${UI.panel({ title: 'التعاميم', icon: 'bell', cls: 'mt', body: anns.length ? html`<div class="list">${anns.sort((a, b) => b.createdAt - a.createdAt).map((a) => { const live = (!a.endsAt || a.endsAt >= t); return html`<div class="list-row ann-row"><span class="n-ic tone-${ANN_LEVEL[a.level].tone}">${UI.icon(ANN_LEVEL[a.level].icon)}</span><div class="grow"><b>${a.title}</b>${a.body ? html`<div class="t-sub">${a.body}</div>` : ''}<small class="faint">${fmtDateTime(a.createdAt)}${a.endsAt ? ` — حتى ${fmtDate(a.endsAt)}` : ''} — ${Data.userName(a.userId)}</small></div>${live ? UI.chip('teal', 'سارٍ') : UI.chip('slate', 'منتهٍ')}${manage ? html`<button class="icon-btn" data-anndel="${a.id}" aria-label="حذف">${UI.icon('trash')}</button>` : ''}</div>`; })}</div>` : UI.noData('لا توجد تعاميم') })}`);
     UI.hydrate(ctx.view);
   };
   UI.on(ctx.view, 'change', '[data-svc]', async (e, el) => {
-    const note = el.value === 'up' ? '' : await UI.modal({ title: 'ملاحظة للمستخدمين', icon: 'bell', size: 'sm', body: UI.field({ name: 'note', label: 'ماذا يحدث؟ ومتى يُتوقع الحل؟', type: 'textarea', rows: 3, wide: true }), actions: [{ label: 'تخطي', kind: 'ghost', value: '' }, { label: 'نشر', kind: 'primary', submit: true, handler: (f) => f.querySelector('[name="note"]').value }] });
-    try { await Data.svc.set(el.dataset.svc, el.value, note || ''); UI.toast('حُدِّثت حالة الخدمة وأُبلغ المستخدمون'); draw(); } catch (ex) { UI.error(ex); }
+    if (el.value === 'up') { try { await Data.svc.set(el.dataset.svc, 'up', ''); UI.toast('عادت الخدمة للعمل وأُبلغ المستخدمون'); draw(); } catch (ex) { UI.error(ex); } return; }
+    const r = await Pages.svcStatusModal(el.dataset.svc, el.value);
+    if (!r) { draw(); return; }
+    try { await Data.svc.set(el.dataset.svc, el.value, r.note, r.until); UI.toast(r.until ? `حُدِّثت الحالة، وتعود الخدمة للعمل تلقائياً ${fmtDateTime(r.until)}` : 'حُدِّثت حالة الخدمة وأُبلغ المستخدمون'); draw(); } catch (ex) { UI.error(ex); }
+  });
+  UI.on(ctx.view, 'click', '[data-svcdur]', async (e, el) => {
+    const s = await DB.get('services', el.dataset.svcdur); if (!s) return;
+    const r = await Pages.svcStatusModal(s.id, s.status, s); if (!r) return;
+    try { await Data.svc.set(s.id, s.status, r.note, r.until); UI.toast('حُدِّثت المدة'); draw(); } catch (ex) { UI.error(ex); }
   });
   UI.on(ctx.view, 'click', '[data-anndel]', async (e, el) => { if (await UI.confirm('حذف التعميم؟', { danger: true, ok: 'حذف' })) { await Data.ann.remove(el.dataset.anndel); draw(); } });
   UI.on(ctx.view, 'click', '[data-act="svc"]', async () => {
@@ -9120,10 +9199,12 @@ Pages.status = async (ctx) => {
     if (r) draw();
   });
   UI.on(ctx.view, 'click', '[data-act="ann"]', async () => {
-    const r = await UI.modal({ title: 'تعميم جديد', icon: 'bell', size: 'lg', body: html`${UI.fields([{ name: 'title', label: 'العنوان', required: true, wide: true, placeholder: 'مثال: صيانة مجدولة للشبكة مساء الخميس' }, { name: 'body', label: 'التفاصيل', type: 'textarea', rows: 3, wide: true }, { name: 'level', label: 'الأهمية', type: 'select', placeholder: false, options: Object.entries(ANN_LEVEL).map(([k, v]) => ({ value: k, label: v.label })) }, { name: 'audience', label: 'الموجه إليهم', type: 'select', placeholder: false, options: [{ value: 'all', label: 'جميع الحسابات وشاشة المراقبة' }, { value: 'employees', label: 'الموظفون فقط' }, { value: 'staff', label: 'فريق الدعم وشاشة المراقبة' }, { value: 'monitor', label: 'شاشة المراقبة فقط' }] }, { name: 'kind', label: 'نوع المحتوى', type: 'select', placeholder: false, options: [{ value: 'notice', label: 'إشعار' }, { value: 'message', label: 'رسالة' }, { value: 'guide', label: 'توضيح أو إرشاد' }, { value: 'article', label: 'مقالة' }, { value: 'service', label: 'حالة خدمة' }] }, { name: 'endsAt', label: 'ينتهي في', type: 'date' }, { name: 'pinned', type: 'switch', text: 'تثبيت أعلى الصفحة (لا يمكن إخفاؤه)' }])}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نشر وإرسال إشعار', kind: 'primary', icon: 'bell', submit: true, handler: (f) => { const v = UI.formValues(f); return Data.ann.save({ ...v, endsAt: v.endsAt ? startOfDay(fromDateInput(v.endsAt, true)) + DAY - 1 : 0, pinned: Number(v.pinned) ? 1 : 0 }); } }] });
+    const r = await UI.modal({ title: 'تعميم جديد', icon: 'bell', size: 'lg', onMount: (f) => AnnTpl.bind(f), body: html`<div class="field"><label>قوالب جاهزة <small class="faint">(انقر لتعبئة التعميم)</small></label><div class="ho-chips" data-anntpl></div></div>${UI.fields([{ name: 'title', label: 'العنوان', required: true, wide: true, placeholder: 'مثال: صيانة مجدولة للشبكة مساء الخميس' }, { name: 'body', label: 'التفاصيل', type: 'textarea', rows: 3, wide: true }, { name: 'level', label: 'الأهمية', type: 'select', placeholder: false, options: Object.entries(ANN_LEVEL).map(([k, v]) => ({ value: k, label: v.label })) }, { name: 'audience', label: 'الموجه إليهم', type: 'select', placeholder: false, options: [{ value: 'all', label: 'جميع الحسابات وشاشة المراقبة' }, { value: 'employees', label: 'الموظفون فقط' }, { value: 'staff', label: 'فريق الدعم وشاشة المراقبة' }, { value: 'monitor', label: 'شاشة المراقبة فقط' }] }, { name: 'kind', label: 'نوع المحتوى', type: 'select', placeholder: false, options: [{ value: 'notice', label: 'إشعار' }, { value: 'message', label: 'رسالة' }, { value: 'guide', label: 'توضيح أو إرشاد' }, { value: 'article', label: 'مقالة' }, { value: 'service', label: 'حالة خدمة' }] }, { name: 'endsAt', label: 'ينتهي في', type: 'date' }, { name: 'pinned', type: 'switch', text: 'تثبيت أعلى الصفحة (لا يمكن إخفاؤه)' }])}<label class="row mt" style="gap:8px;cursor:pointer"><input type="checkbox" name="saveTpl"><span>حفظ هذا التعميم كقالب جاهز لاستخدامه لاحقاً</span></label>`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نشر وإرسال إشعار', kind: 'primary', icon: 'bell', submit: true, handler: async (f) => { const v = UI.formValues(f); if (f.querySelector('[name="saveTpl"]').checked) await AnnTpl.add(v); return Data.ann.save({ ...v, endsAt: v.endsAt ? startOfDay(fromDateInput(v.endsAt, true)) + DAY - 1 : 0, pinned: Number(v.pinned) ? 1 : 0 }); } }] });
     if (r) { UI.toast('نُشر التعميم وأُرسل إشعار للجميع'); draw(); }
   });
   ctx.onCleanup(Bus.on('status', debounce(() => { if (ctx.alive()) draw(); }, 400)));
+  const tick = setInterval(() => { if (ctx.alive()) Data.svc.sweep().then((n) => { if (n) draw(); }); }, 30000); ctx.onCleanup(() => clearInterval(tick));
+  await Data.svc.sweep();
   await draw();
 };
 
@@ -9686,8 +9767,8 @@ Pages.monitor = async (ctx) => {
 const Presence = {
   TTL: 150000, timer: 0, tick: 0,
   canSee() { const r = Auth.user && Auth.user.role; return r === 'supervisor' || r === 'technician' || r === 'support_manager'; },
-  async beat() { const u = Auth.user; if (!u || u.role === 'monitor') return; try { await DB.put('meta', { key: `presence:${u.id}`, value: { userId: u.id, role: u.role, at: now(), since: (this.since = this.since || now()) } }); } catch (_) { /* تجاهل */ } },
-  async leave(u) { if (!u) return; try { await DB.del('meta', `presence:${u.id}`); } catch (_) { /* تجاهل */ } this.since = 0; },
+  async beat() { const u = Auth.user; if (!u || u.role === 'monitor') return; try { await DB.put('meta', { key: `presence:${u.id}`, value: { userId: u.id, role: u.role, at: (this.lastBeat = now()), since: (this.since = this.since || now()), act: this.act || now(), page: (location.hash.slice(1) || '/').split('?')[0] } }); } catch (_) { /* تجاهل */ } },
+  async leave(u) { if (!u) return; try { if (await DB.get('meta', `presence:${u.id}`)) await DB.del('meta', `presence:${u.id}`); } catch (_) { /* تجاهل */ } this.since = 0; },
   async online() {
     const t = now(), rows = (await DB.getAll('meta')).filter((r) => String(r.key).startsWith('presence:') && r.value && t - r.value.at < this.TTL);
     return rows.map((r) => ({ ...r.value, user: Data.c.users.get(r.value.userId) })).filter((p) => p.user && p.user.active && p.user.role !== 'monitor');
@@ -9736,6 +9817,7 @@ UI.bindOrgChain = async (form, { dep = 'departmentId', unit = 'unitId', value = 
   box.addEventListener('change', (e) => { const s = e.target.closest('select[data-oclevel]'); if (!s) return; e.stopPropagation(); draw(s.value || s.dataset.ocparent); hid.dispatchEvent(new Event('change', { bubbles: true })); });
   ds.addEventListener('change', () => draw(''));
   draw(value && (byId.get(value) || {}).departmentId === ds.value ? value : '');
+  UI.orgAutoLoc(form, { dep, unit });
 };
 const orgUnitPath = async (unitId) => { if (!unitId) return ''; const units = await DB.getAll('deptUnits'), byId = new Map(units.map((u) => [u.id, u])), out = []; let u = byId.get(unitId), g = 0; while (u && g++ < 20) { out.unshift(u.name); u = byId.get(u.parentId); } return out.join(' ← '); };
 {
@@ -10304,7 +10386,7 @@ document.addEventListener('click', async (e) => {
   const bl = e.target.closest('[data-eformblank]');
   if (bl) { e.preventDefault(); Pages.eFormView({ categoryId: bl.dataset.eformblank }, { blank: true }); }
 });
-/* صفحة البلاغات للفني: تفتح على التبويب الذي فيه عمل (المسندة إليه، ثم المستلمة غير المسندة، ثم كل المفتوحة) */
+/* (سابقاً) اختيار التبويب تلقائياً؛ أصبحت صفحة البلاغات تفتح دائماً على «البلاغات المستلمة» */
 Pages.ticketsAutoScope = async (me) => {
   try {
     const mine = (await Promise.all(OPEN.map((s) => DB.count('tickets', 'assignee_status', KR([me, s]))))).reduce((a, b) => a + b, 0);
@@ -10317,6 +10399,304 @@ Router.add('/ticket-admin', 'categories.manage', Pages.ticketAdmin, 'إدارة 
 
 /* تحميل مخزن الصور مع كل تحديث للبيانات */
 { const refreshImg = Data.refresh.bind(Data); Data.refresh = async (which) => { const r = await refreshImg(which); if (!which || which === 'settings' || which === 'categories') await ImgLib.load(); return r; }; }
+
+/* ── حالة العمل الحي على البلاغ وملاحظات التسليم ─────────────── */
+/* النشاط: آخر تفاعل فعلي (نقر أو كتابة)، ويُعد الفني غير نشط بعد 10 دقائق بلا تفاعل */
+Presence.IDLE = 10 * MIN;
+Presence.state = (v) => {
+  const t = now();
+  if (!v || t - v.at >= Presence.TTL) return { online: false, active: false, at: v ? v.at : 0, act: v ? v.act || v.at : 0, page: '' };
+  const act = v.act || v.at;
+  return { online: true, active: t - act < Presence.IDLE, at: v.at, act, page: v.page || '' };
+};
+Presence.of = async (userId) => {
+  if (!userId) return Presence.state(null);
+  if (Auth.user && userId === Auth.user.id) return { online: true, active: true, at: now(), act: now(), page: '' };
+  try { const r = await DB.get('meta', `presence:${userId}`); return Presence.state(r && r.value); } catch (_) { return Presence.state(null); }
+};
+Presence.map = async () => {
+  const m = new Map();
+  try { (await DB.getAll('meta', null, KR('presence:', 'presence:￿'))).forEach((r) => { if (r.value && r.value.userId) m.set(r.value.userId, Presence.state(r.value)); }); } catch (_) { /* تجاهل */ }
+  return m;
+};
+{
+  let lastPush = 0;
+  const touch = () => { const t = now(), idle = !Presence.act || t - Presence.act > Presence.IDLE / 2; Presence.act = t; if (idle && Auth.user && t - lastPush > 5000) { lastPush = t; Presence.beat(); } };
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((ev) => document.addEventListener(ev, touch, { passive: true, capture: true }));
+  /* تحديث الصفحة الحالية فور التنقل حتى يرى الآخرون أن الفني يتصفح البلاغ */
+  window.addEventListener('hashchange', () => { const t = now(); if (!Auth.user || t - lastPush < 4000) return; lastPush = t; setTimeout(() => Presence.beat(), 60); });
+}
+
+const Handover = {
+  KEY: 'handover:phrases',
+  DEF: ['اضطررت لزيارة الموقع لمواصلة العمل', 'بانتظار قطعة غيار من المخزن', 'تم التواصل مع المستفيد وبانتظار رده', 'انتهى دوامي، يُرجى الاستكمال', 'تم تشخيص المشكلة والمتبقي التركيب والتجربة', 'يحتاج متابعة مع الشركة المورّدة'],
+  async phrases() { try { const r = await DB.get('meta', this.KEY); return r && Array.isArray(r.value) ? r.value : [...this.DEF]; } catch (_) { return [...this.DEF]; } },
+  async save(list) { await DB.put('meta', { key: this.KEY, value: [...new Set(list.map((s) => String(s || '').trim()).filter(Boolean))].slice(0, 40) }); },
+  async add(p) { const l = await this.phrases(); if (!l.includes(p)) l.push(p); await this.save(l); },
+  async remove(p) { await this.save((await this.phrases()).filter((x) => x !== p)); },
+  /* الإتاحة للاستكمال تسري فقط ما دام البلاغ مع الفني نفسه الذي أتاحه */
+  released: (t) => !!(t && t.handover && t.handover.release && t.handover.for === t.assigneeId)
+};
+Data.tickets.handover = function (id, text, release) {
+  const me = Auth.user.id, clean = String(text || '').trim(); let rel = false;
+  const n = () => (rel ? Data.tickets.staffIds().filter((x) => x !== me) : []); n.title = 'بلاغ متاح للاستكمال';
+  return this.mutate(id, (t) => {
+    if (!canUser(Auth.user, 'tickets.work')) throw new AppError('ملاحظات التسليم للفنيين فقط');
+    if (t.assigneeId !== me && !canUser(Auth.user, 'tickets.manage')) throw new AppError('ملاحظة التسليم يكتبها الفني المستلم للبلاغ');
+    rel = !!release && !!clean && OPEN.includes(t.status) && !!t.assigneeId;
+    t.handover = clean ? { text: clean, by: me, at: now(), release: rel ? 1 : 0, for: t.assigneeId || '' } : null;
+    return { type: 'handover', text: clean, internal: true, release: rel ? 1 : 0 };
+  }, n);
+};
+{
+  const baseTake = Data.tickets.takeOver;
+  Data.tickets.takeOver = async function (id, reason = '') {
+    const t = await DB.get('tickets', id);
+    if (t && t.assigneeId && t.assigneeId !== Auth.user.id && !canUser(Auth.user, 'tickets.manage') && !Handover.released(t)) {
+      const p = await Presence.of(t.assigneeId);
+      if (p.active) throw new AppError(`البلاغ قيد العمل الآن بواسطة ${Data.userName(t.assigneeId)}، ويُتاح استكماله عند خروجه من النظام أو توقف نشاطه`);
+    }
+    return baseTake.call(this, id, reason);
+  };
+}
+Pages.handoverBox = (t, me, mgr) => {
+  const h = t.handover; if (!h || !h.text || !OPEN.includes(t.status)) return '';
+  const edit = t.assigneeId === me.id || mgr, prev = h.by !== t.assigneeId;
+  return html`<div class="ho-note">${UI.icon('clipboard')}<div class="grow"><div class="ho-head"><b>ملاحظة تسليم</b><span>من ${Data.userName(h.by)}</span><span class="faint" title="${fmtDateTime(h.at)}">· ${timeAgo(h.at)}</span>${prev ? UI.chip('slate', 'من الفني السابق', 'undo') : ''}${Handover.released(t) ? UI.chip('violet', 'متاح للاستكمال', 'swap') : ''}</div><p>${h.text}</p></div>${edit ? html`<div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn btn-sm btn-ghost" data-act="handover">${UI.icon('edit')} تعديل</button><button class="icon-btn" data-act="hoclear" title="إزالة الملاحظة" aria-label="إزالة الملاحظة">${UI.icon('x')}</button></div>` : ''}</div>`;
+};
+/* شريط «قيد العمل الآن» وتفعيل زر الاستكمال حسب نشاط الفني المسؤول */
+Pages.paintLive = async (view, t) => {
+  const box = $('#liveWork', view); if (!box) return;
+  const me = Auth.user.id, btn = $('[data-act="takeover"]', view);
+  if (!t || !t.assigneeId || !OPEN.includes(t.status) || t.assigneeId === me) { box.innerHTML = ''; return; }
+  const p = await Presence.of(t.assigneeId), who = Data.userName(t.assigneeId), rel = Handover.released(t), mgr = Auth.can('tickets.manage');
+  const locked = p.active && !rel, here = p.page === `/tickets/${t.id}`;
+  box.innerHTML = String(rel ? html`<div class="live-bar tone-violet">${UI.icon('swap')}<div class="grow"><b>${who} أتاح البلاغ للاستكمال</b><span>يمكن لأي فني استكماله الآن، اطّلع على ملاحظة التسليم أدناه.</span></div></div>`
+    : locked ? html`<div class="live-bar tone-teal on"><i class="live-pulse"></i><div class="grow"><b>قيد العمل الآن بواسطة ${who}</b><span>${here ? 'يتصفح هذا البلاغ الآن' : 'متصل ونشط في النظام'} — آخر نشاط ${timeAgo(p.act)}. يُتاح الاستكمال عند خروجه من النظام أو توقف نشاطه ${fmtNum(Presence.IDLE / MIN)} دقائق.</span></div></div>`
+    : html`<div class="live-bar tone-${p.online ? 'amber' : 'slate'}">${UI.icon(p.online ? 'clock' : 'user')}<div class="grow"><b>${p.online ? `${who} متصل لكنه غير نشط` : `${who} غير متصل الآن`}</b><span>${p.act ? `آخر نشاط ${timeAgo(p.act)}` : 'لا يوجد نشاط مسجل'} — يمكن استكمال البلاغ.</span></div></div>`);
+  if (btn) { btn.disabled = locked && !mgr; btn.title = locked ? (mgr ? `${who} يعمل عليه الآن؛ الاستكمال متاح لك بصلاحية إدارة البلاغات` : `لا يمكن الاستكمال: ${who} يعمل على البلاغ الآن`) : `البلاغ مع ${who} ولم يُنجز بعد`; }
+};
+Pages.takeoverFlow = async (id, run) => {
+  const cur = await DB.get('tickets', id); if (!cur || !cur.assigneeId) return;
+  const who = Data.userName(cur.assigneeId), mgr = Auth.can('tickets.manage'), p = await Presence.of(cur.assigneeId), locked = p.active && !Handover.released(cur);
+  if (locked && !mgr) { UI.toast(`البلاغ قيد العمل الآن بواسطة ${who}. يُتاح الاستكمال عند خروجه من النظام أو توقف نشاطه`, 'warn'); return; }
+  const h = cur.handover && cur.handover.text ? cur.handover : null;
+  const r = await UI.modal({ title: `استكمال البلاغ بدلاً من ${who}`, icon: 'swap',
+    body: html`${locked ? html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">${who} نشط الآن على النظام؛ ستستكمل البلاغ بصلاحية إدارة البلاغات وسيصله إشعار بذلك.</div></div>` : ''}${h ? html`<div class="ho-note">${UI.icon('clipboard')}<div class="grow"><div class="ho-head"><b>ملاحظة التسليم</b><span>من ${Data.userName(h.by)}</span><span class="faint">· ${timeAgo(h.at)}</span></div><p>${h.text}</p></div></div>` : ''}${UI.field({ name: 'text', label: 'سبب الاستكمال (اختياري) — مثال: الفني في إجازة أو خارج الدوام', type: 'textarea', rows: 3 })}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'استكمال البلاغ', kind: 'primary', icon: 'swap', submit: true, handler: (f) => ({ text: f.querySelector('textarea').value.trim() }) }] });
+  if (r) await run(() => Data.tickets.takeOver(id, r.text), 'أصبح البلاغ مسنداً إليك، تابع العمل من حيث توقف');
+};
+Pages.handoverModal = async (id) => {
+  const t = await DB.get('tickets', id); if (!t) return false;
+  const chips = (list) => html`${list.map((p) => html`<span class="ho-chip"><button type="button" data-hop="${p}">${p}</button><button type="button" class="x" data-hodel="${p}" title="حذف العبارة" aria-label="حذف العبارة">×</button></span>`)}`;
+  const list = await Handover.phrases();
+  return UI.modal({ title: 'ملاحظة تسليم', icon: 'clipboard',
+    body: html`<p class="muted" style="margin-top:0">تظهر الملاحظة بلون مميز لجميع الفنيين، وتظهر لمن يستكمل البلاغ قبل استلامه.</p>
+      <div class="field"><label>عبارات جاهزة <small class="faint">(انقر لإضافتها)</small></label><div class="ho-chips" data-hochips>${chips(list)}</div></div>
+      ${UI.field({ name: 'text', label: 'الملاحظة', type: 'textarea', rows: 4, required: true, placeholder: 'ما الذي تم؟ وما المتبقي؟ وأين وصل العمل؟' }, (t.handover || {}).text || '')}
+      <label class="row mt" style="gap:8px;cursor:pointer"><input type="checkbox" name="release"${Handover.released(t) ? raw(' checked') : ''}><span>إتاحة البلاغ لفني آخر الآن دون انتظار خروجي من النظام</span></label>
+      <label class="row" style="gap:8px;cursor:pointer;margin-top:8px"><input type="checkbox" name="savePhrase"><span>حفظ النص كعبارة جاهزة للاستخدام لاحقاً</span></label>`,
+    onMount: (form) => {
+      const box = form.querySelector('textarea[name="text"]');
+      UI.on(form, 'click', '[data-hop]', (e, b) => { box.value = box.value.trim() ? `${box.value.trim()}\n${b.dataset.hop}` : b.dataset.hop; box.focus(); });
+      UI.on(form, 'click', '[data-hodel]', async (e, b) => { await Handover.remove(b.dataset.hodel); form.querySelector('[data-hochips]').innerHTML = String(chips(await Handover.phrases())); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ الملاحظة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const text = form.querySelector('textarea[name="text"]').value.trim(); if (!text) throw new AppError('اكتب الملاحظة أو اختر عبارة جاهزة');
+      const rel = form.querySelector('[name="release"]').checked;
+      if (form.querySelector('[name="savePhrase"]').checked) await Handover.add(text);
+      await Data.tickets.handover(id, text, rel); UI.toast(rel ? 'حُفظت الملاحظة وأُتيح البلاغ للاستكمال' : 'حُفظت ملاحظة التسليم'); return true;
+    } }] });
+};
+/* ── حالة الخدمة لمدة محددة ثم العودة التلقائية، وقوالب التعاميم ── */
+const DUR_UNITS = { m: { label: 'دقيقة', ms: MIN }, h: { label: 'ساعة', ms: 60 * MIN }, d: { label: 'يوم', ms: DAY } };
+Pages.svcStatusModal = (id, status, cur = null) => {
+  const s = SVC_STATUS[status] || SVC_STATUS.down, left = cur && cur.until ? Math.max(0, cur.until - now()) : 0;
+  const init = left ? (left % DAY === 0 ? [left / DAY, 'd'] : left >= 60 * MIN ? [Math.round(left / (60 * MIN)), 'h'] : [Math.max(1, Math.round(left / MIN)), 'm']) : ['', 'h'];
+  const quick = [[30, 'm', '30 دقيقة'], [1, 'h', 'ساعة'], [2, 'h', 'ساعتان'], [4, 'h', '4 ساعات'], [1, 'd', 'يوم'], [3, 'd', '3 أيام']];
+  return UI.modal({ title: `الحالة: ${s.label}`, icon: s.icon, size: 'sm',
+    body: html`${UI.field({ name: 'note', label: 'ماذا يحدث؟ ومتى يُتوقع الحل؟', type: 'textarea', rows: 3, wide: true }, cur ? cur.note || '' : '')}
+      <div class="field mt"><label>المدة <small class="faint">(تعود الخدمة بعدها إلى «تعمل بشكل طبيعي» تلقائياً)</small></label>
+        <div class="ho-chips">${quick.map(([n, u, l]) => html`<span class="ho-chip"><button type="button" data-dq="${n}|${u}">${l}</button></span>`)}<span class="ho-chip"><button type="button" data-dq="|">بدون مدة</button></span></div>
+        <div class="row" style="gap:8px;flex-wrap:nowrap;margin-top:8px"><input class="input" type="number" name="dur" min="1" step="1" dir="ltr" placeholder="المدة" value="${init[0]}" style="max-width:120px"><select class="input" name="unit">${Object.entries(DUR_UNITS).map(([k, v]) => html`<option value="${k}"${init[1] === k ? raw(' selected') : ''}>${v.label}</option>`)}</select></div>
+        <small class="hint" data-duruntil></small></div>`,
+    onMount: (f) => {
+      const dur = f.querySelector('[name="dur"]'), unit = f.querySelector('[name="unit"]'), hint = f.querySelector('[data-duruntil]');
+      const upd = () => { const n = Number(dur.value); hint.textContent = n > 0 ? `تعود للعمل تلقائياً: ${fmtDateTime(now() + n * DUR_UNITS[unit.value].ms)}` : 'بدون مدة: تبقى الحالة حتى تغييرها يدوياً'; };
+      UI.on(f, 'click', '[data-dq]', (e, b) => { const [n, u] = b.dataset.dq.split('|'); dur.value = n; if (u) unit.value = u; upd(); });
+      dur.addEventListener('input', upd); unit.addEventListener('change', upd); upd();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'نشر', kind: 'primary', icon: 'bell', submit: true, handler: (f) => {
+      const n = Number(f.querySelector('[name="dur"]').value), u = f.querySelector('[name="unit"]').value;
+      if (f.querySelector('[name="dur"]').value && !(n > 0)) throw new AppError('أدخل مدة صحيحة أكبر من صفر');
+      return { note: f.querySelector('[name="note"]').value.trim(), until: n > 0 ? now() + Math.round(n * DUR_UNITS[u].ms) : 0 };
+    } }] });
+};
+/* حفظ العودة التلقائية وإبلاغ المستخدمين (ينفذه أي حساب يملك صلاحية التعاميم) */
+Data.svc.sweep = async () => {
+  if (!Auth.user || !canAnnounce()) return 0;
+  let n = 0;
+  try {
+    const t = now();
+    for (const s of await DB.getAll('services')) {
+      if (!s.until || s.until > t || s.status === 'up') continue;
+      const fresh = await DB.get('services', s.id); if (!fresh || fresh.status === 'up' || !fresh.until || fresh.until > t) continue;
+      await DB.put('services', { ...fresh, status: 'up', note: '', until: 0, updatedAt: t, by: '' }); n++;
+      await Data.notify(Data.list('users').filter((u) => u.active).map((u) => u.id), { title: `${fresh.name}: ${SVC_STATUS.up.label}`, body: 'انتهت مدة التوقف المحددة وعادت الخدمة للعمل', link: '/status', kind: 'system' });
+    }
+    if (n) Bus.emit('status', {});
+  } catch (e) { console.warn('svc sweep', e); }
+  return n;
+};
+setInterval(() => { Data.svc.sweep(); }, 60000);
+
+const AnnTpl = {
+  KEY: 'ann:templates',
+  BUILTIN: [
+    { name: 'صيانة مجدولة', title: 'صيانة مجدولة للشبكة', body: 'ستُجرى أعمال صيانة مجدولة للشبكة، وقد تنقطع الخدمة خلال فترة الصيانة. نعتذر عن الإزعاج.', level: 'warn', kind: 'service', audience: 'all' },
+    { name: 'انقطاع البريد', title: 'انقطاع مؤقت في البريد الإلكتروني', body: 'نعمل على إعادة الخدمة في أقرب وقت، لا حاجة لتقديم بلاغ جديد.', level: 'critical', kind: 'service', audience: 'all' },
+    { name: 'تحديث كلمات المرور', title: 'تذكير بتحديث كلمة المرور', body: 'يُرجى تحديث كلمة المرور وعدم مشاركتها مع أي شخص.', level: 'info', kind: 'guide', audience: 'employees' },
+    { name: 'عودة الخدمة', title: 'عودة الخدمة للعمل', body: 'عادت الخدمة للعمل بشكل طبيعي، شكراً لتعاونكم.', level: 'info', kind: 'notice', audience: 'all' }
+  ],
+  async list() { try { const r = await DB.get('meta', this.KEY); return r && Array.isArray(r.value) ? r.value : []; } catch (_) { return []; } },
+  async add(v) {
+    const name = String(v.title || '').trim(); if (!name) return;
+    const list = (await this.list()).filter((x) => x.name !== name);
+    list.push({ id: uid('at'), name, title: name, body: String(v.body || '').trim(), level: v.level || 'info', kind: v.kind || 'notice', audience: v.audience || 'all', pinned: Number(v.pinned) ? 1 : 0 });
+    await DB.put('meta', { key: this.KEY, value: list.slice(-30) });
+  },
+  async remove(id) { await DB.put('meta', { key: this.KEY, value: (await this.list()).filter((x) => x.id !== id) }); },
+  async bind(form) {
+    const box = form.querySelector('[data-anntpl]'); if (!box) return;
+    const draw = async () => { const mine = await this.list(); box.innerHTML = String(html`${mine.map((x) => html`<span class="ho-chip saved"><button type="button" data-atpl="${x.id}">${x.name}</button><button type="button" class="x" data-atdel="${x.id}" title="حذف القالب" aria-label="حذف القالب">×</button></span>`)}${this.BUILTIN.map((x, i) => html`<span class="ho-chip"><button type="button" data-atpl="b${i}">${x.name}</button></span>`)}`); };
+    UI.on(form, 'click', '[data-atpl]', async (e, b) => {
+      const k = b.dataset.atpl, x = k[0] === 'b' && this.BUILTIN[Number(k.slice(1))] ? this.BUILTIN[Number(k.slice(1))] : (await this.list()).find((y) => y.id === k); if (!x) return;
+      ['title', 'body', 'level', 'kind', 'audience'].forEach((n) => { const el = form.querySelector(`[name="${n}"]`); if (el && x[n] != null) el.value = x[n]; });
+      const p = form.querySelector('[name="pinned"]'); if (p && p.type === 'checkbox') p.checked = !!x.pinned;
+    });
+    UI.on(form, 'click', '[data-atdel]', async (e, b) => { await this.remove(b.dataset.atdel); draw(); });
+    await draw();
+  }
+};
+/* ── المبنى والمكتب من الهيكل التنظيمي ─────────────────────────── */
+/* عند اختيار الإدارة أو القسم يُعبّأ «الموقع / المبنى» و«المكتب» من أقرب مستوى محدد له ذلك، ما لم يعدّلهما المستخدم يدوياً */
+UI.orgAutoLoc = async (form, { dep = 'departmentId', unit = 'unitId' } = {}) => {
+  const ds = form.querySelector(`[name="${dep}"]`), us = form.querySelector(`[name="${unit}"]`), ls = form.querySelector('[name="locationId"]'), os = form.querySelector('[name="location"], [name="office"]');
+  if (!ds || (!ls && !os) || form.dataset.autoloc) return;
+  form.dataset.autoloc = '1';
+  const units = await DB.getAll('deptUnits'), byId = new Map(units.map((u) => [u.id, u]));
+  [ls, os].forEach((el) => { if (el) ['input', 'change'].forEach((ev) => el.addEventListener(ev, (e) => { if (e.isTrusted) el.dataset.manual = '1'; })); });
+  const put = (el, v) => {
+    if (!el || el.dataset.manual === '1') return;
+    if (el.value && el.value !== (el.dataset.auto || '')) return;
+    if (el.tagName === 'SELECT' && v && ![...el.options].some((o) => o.value === v)) return;
+    el.value = v || ''; el.dataset.auto = v || '';
+  };
+  const apply = () => {
+    let loc = '', room = '', u = byId.get(us ? us.value : ''), g = 0;
+    while (u && g++ < 20) { if (!loc && u.locationId) loc = u.locationId; if (!room) room = u.room || (u.type === 'office' ? u.name : ''); u = byId.get(u.parentId); }
+    const d = Data.c.departments.get(ds.value) || {};
+    put(ls, loc || d.locationId || ''); put(os, room || d.room || '');
+  };
+  form.addEventListener('change', (e) => { if (e.target === ds || e.target === us) apply(); });
+  apply();
+};
+
+/* ── الإضافة المباشرة لعهدة الإدارات بقفل يتحكم به المشرف ───────── */
+const Custody = {
+  KEY: 'custody:direct',
+  async state() { let v = {}; try { const r = await DB.get('meta', this.KEY); v = (r && r.value) || {}; } catch (_) { /* تجاهل */ } return { ...v, open: !!v.open && (!v.until || v.until > now()) }; },
+  canToggle: () => !!Auth.user && Auth.user.role === 'supervisor',
+  async allowed() { return canUser(Auth.user, 'custody.direct') && (await this.state()).open; },
+  async set(open, until = 0) {
+    if (!this.canToggle()) throw new AppError('فتح الإضافة المباشرة وإغلاقها للمشرف فقط');
+    await DB.put('meta', { key: this.KEY, value: { open: open ? 1 : 0, until: open ? until : 0, by: Auth.user.id, at: now() } });
+    await Data.log('update', 'inventory', '', open ? `فتح الإضافة المباشرة لعهدة الإدارات${until ? ` حتى ${fmtDateTime(until)}` : ''}` : 'إغلاق الإضافة المباشرة لعهدة الإدارات');
+    const who = Data.list('users').filter((u) => u.active && u.role !== 'supervisor' && canUser(u, 'custody.direct')).map((u) => u.id);
+    await Data.notify(who, { title: open ? 'فُتحت الإضافة المباشرة لعهدة الإدارات' : 'أُغلقت الإضافة المباشرة لعهدة الإدارات', body: open ? (until ? `متاحة حتى ${fmtDateTime(until)}` : 'متاحة حتى يغلقها المشرف') : 'تتم العهدة الآن عبر الصرف أو الإعارة أو الاستبدال أو النقل', link: '/inventory/departments', kind: 'system' });
+    Bus.emit('inventory', {});
+  }
+};
+Data.dept.addDirect = async ({ departmentId, itemId, qty, unitId = '', serials = [], holderId = '', note = '' }) => {
+  if (!(await Custody.allowed())) throw new AppError('الإضافة المباشرة مغلقة؛ تتم العهدة عبر الصرف أو الإعارة أو الاستبدال أو النقل');
+  const n = Math.floor(Number(qty)); if (!(n > 0)) throw new AppError('أدخل كمية صحيحة أكبر من صفر');
+  if (!Data.c.departments.get(departmentId)) throw new AppError('اختر الإدارة');
+  const item = await DB.get('items', itemId); if (!item) throw new AppError('اختر الصنف');
+  const pairs = serials.filter((p) => p.serial || p.tag);
+  if (pairs.length > n) throw new AppError('عدد الأرقام التسلسلية أكبر من الكمية');
+  await Data.assets.check(pairs);
+  const at = now(), me = Auth.user.id, holder = holderId ? Data.userName(holderId) : '';
+  let mv;
+  await DB.run(['movements', 'deptStock'], async (T) => {
+    const ds = (await T.get('deptStock', [departmentId, itemId])) || { departmentId, itemId, qty: 0 };
+    ds.qty += n; ds.updatedAt = at;
+    mv = { id: uid('mv'), type: 'dept_opening', itemId, warehouseId: '', qty: n, delta: 0, balance: null, at, userId: me, note: note || 'إضافة مباشرة لعهدة الإدارة', ref: '', party: holder || Data.nameOf('departments', departmentId), departmentId };
+    await T.put('deptStock', ds); await T.put('movements', mv);
+  });
+  if (pairs.length) await DB.bulkPut('assets', pairs.map((p) => ({ id: uid('as'), itemId, serial: p.serial || p.tag, tag: p.tag || '', host: String(p.host || '').trim(), status: 'issued', warehouseId: '', departmentId, holder, holderId, loanId: '', note: 'إضافة مباشرة', addedAt: at, updatedAt: at })));
+  if (unitId) { try { await Data.units.add(unitId, departmentId, itemId, n); } catch (_) { /* تجاهل */ } }
+  await Data.log('move', 'inventory', itemId, `إضافة مباشرة: ${fmtNum(n)} × ${item.name} إلى عهدة ${Data.nameOf('departments', departmentId)}`);
+  Bus.emit('inventory', { itemId }); return mv;
+};
+Pages.custodyBar = async (departmentId = '') => {
+  const sup = Custody.canToggle(), perm = canUser(Auth.user, 'custody.direct');
+  if (!sup && !perm) return '';
+  const s = await Custody.state();
+  const add = s.open && perm ? html`<button class="btn btn-primary btn-sm" data-cdirect="${departmentId}">${UI.icon('plus')} إضافة عهدة مباشرة</button>` : '';
+  const tog = sup ? (s.open ? html`<button class="btn btn-sm btn-danger" data-clock="close">${UI.icon('lock')} إيقاف الإضافة المباشرة</button>` : html`<button class="btn btn-sm btn-soft" data-clock="open">${UI.icon('key')} فتح الإضافة المباشرة</button>`) : '';
+  return html`<div class="live-bar custody-bar tone-${s.open ? 'teal' : 'slate'}">${UI.icon(s.open ? 'key' : 'lock')}<div class="grow"><b>${s.open ? 'الإضافة المباشرة لعهدة الإدارات مفتوحة' : 'الإضافة المباشرة لعهدة الإدارات مغلقة'}</b><span>${s.open ? (s.until ? `حتى ${fmtDateTime(s.until)} (متبقٍ ${fmtDuration(s.until - now())})` : 'حتى يغلقها المشرف') + (s.by ? ` — فتحها ${Data.userName(s.by)}` : '') : 'تتم العهدة عبر الصرف أو الإعارة أو الاستبدال أو النقل. لا يمكن لأحد الإضافة المباشرة حتى يفتحها المشرف.'}</span></div><div class="row" style="gap:8px">${add}${tog}</div></div>`;
+};
+Pages.custodyOpenModal = () => UI.modal({ title: 'فتح الإضافة المباشرة', icon: 'key', size: 'sm',
+  body: html`<p class="muted" style="margin-top:0">يستطيع من يملك صلاحية «إضافة عهدة للإدارات مباشرة» تسجيل العهد القائمة خلال هذه الفترة، ثم تُغلق تلقائياً.</p>
+    <div class="ho-chips">${[[1, 'h', 'ساعة'], [4, 'h', '4 ساعات'], [1, 'd', 'يوم'], [3, 'd', '3 أيام'], [7, 'd', 'أسبوع']].map(([n, u, l]) => html`<span class="ho-chip"><button type="button" data-dq="${n}|${u}">${l}</button></span>`)}<span class="ho-chip"><button type="button" data-dq="|">حتى أغلقها</button></span></div>
+    <div class="row" style="gap:8px;flex-wrap:nowrap;margin-top:10px"><input class="input" type="number" name="dur" min="1" dir="ltr" value="1" style="max-width:120px"><select class="input" name="unit">${Object.entries(DUR_UNITS).map(([k, v]) => html`<option value="${k}"${k === 'd' ? raw(' selected') : ''}>${v.label}</option>`)}</select></div>`,
+  onMount: (f) => UI.on(f, 'click', '[data-dq]', (e, b) => { const [n, u] = b.dataset.dq.split('|'); f.querySelector('[name="dur"]').value = n; if (u) f.querySelector('[name="unit"]').value = u; }),
+  actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'فتح', kind: 'primary', icon: 'key', submit: true, handler: async (f) => { const n = Number(f.querySelector('[name="dur"]').value), u = f.querySelector('[name="unit"]').value, until = n > 0 ? now() + Math.round(n * DUR_UNITS[u].ms) : 0; await Custody.set(true, until); UI.toast(until ? `فُتحت الإضافة المباشرة حتى ${fmtDateTime(until)}` : 'فُتحت الإضافة المباشرة حتى تغلقها'); return true; } }] });
+Pages.directCustodyModal = async (departmentId = '') => {
+  if (!(await Custody.allowed())) { UI.toast('الإضافة المباشرة مغلقة حالياً', 'warn'); return false; }
+  const items = (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
+  return UI.modal({ title: 'إضافة عهدة مباشرة للإدارة', icon: 'plus', size: 'lg',
+    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">لتسجيل العهد الموجودة فعلاً لدى الإدارة دون صرف من المخزن. لا تتأثر أرصدة المخازن، وتُسجل حركة «إضافة عهدة مباشرة».</div></div>
+      ${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments'), required: true }, { name: 'unitId', label: 'القسم / المكتب', type: 'select', options: [] }, { name: 'itemId', label: 'الصنف', type: 'select', required: true, options: items.map((i) => ({ value: i.id, label: [i.name, i.brand, i.model].filter(Boolean).join(' — ') })) }, { name: 'qty', label: 'الكمية', type: 'number', min: 1, value: 1, required: true }, { name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [] }, { name: 'note', label: 'ملاحظات', type: 'textarea', rows: 2, wide: true }], { departmentId })}
+      <div data-dsn class="mt"></div>`,
+    onMount: (form) => {
+      UI.bindOrgCascade(form, { value: '' });
+      const dep = form.querySelector('[name="departmentId"]'), hs = form.querySelector('[name="holderId"]'), is = form.querySelector('[name="itemId"]'), qs = form.querySelector('[name="qty"]'), box = form.querySelector('[data-dsn]');
+      const people = () => { const list = Data.list('users').filter((u) => u.active && u.departmentId === dep.value); hs.innerHTML = `<option value="">— الإدارة —</option>${list.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; };
+      const sn = () => { const it = items.find((x) => x.id === is.value), n = Math.min(200, Math.max(0, Math.floor(Number(qs.value) || 0))); box.innerHTML = it && isSerialItem(it) && n ? String(UI.serialBox(n, UI.serialPairs(box))) : ''; };
+      dep.addEventListener('change', people); is.addEventListener('change', sn); qs.addEventListener('change', sn); people(); sn();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة إلى العهدة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), noSn = form.querySelector('[name="noSerial"]');
+      const pairs = noSn && noSn.checked ? [] : UI.serialPairs(form);
+      await Data.dept.addDirect({ departmentId: v.departmentId, unitId: v.unitId, itemId: v.itemId, qty: v.qty, holderId: v.holderId, note: v.note, serials: pairs });
+      UI.toast('أُضيفت العهدة إلى الإدارة'); return true;
+    } }] });
+};
+document.addEventListener('click', async (e) => {
+  const d = e.target.closest('[data-cdirect]'), l = e.target.closest('[data-clock]');
+  if (d) { e.preventDefault(); await Pages.directCustodyModal(d.dataset.cdirect); return; }
+  if (!l) return;
+  e.preventDefault();
+  try {
+    if (l.dataset.clock === 'open') await Pages.custodyOpenModal();
+    else if (await UI.confirm('إيقاف الإضافة المباشرة للجميع؟ ستتم العهدة بعدها عبر الصرف أو الإعارة أو الاستبدال أو النقل.', { ok: 'إيقاف', danger: true })) { await Custody.set(false); UI.toast('أُوقفت الإضافة المباشرة للجميع'); }
+  } catch (ex) { UI.error(ex); }
+});
+
+/* ── العرض الشبكي أو القائمة لكل الصفحات الممكنة ─────────────────── */
+const VIEW_MODES = { '/status': 'grid', '/forms': 'grid', '/inventory/departments': 'grid', '/ticket-admin': 'grid', '/kb': 'grid', '/worklog': 'list', '/inventory/items': 'list', '/inventory/movements': 'list', '/inventory/loans': 'list', '/inventory/vouchers': 'list', '/inventory/retired': 'list', '/maintenance': 'list', '/activity': 'list', '/passwords': 'list' };
+UI.vmode = (key, def = 'grid') => { try { return localStorage.getItem('sq_vm:' + key) || def; } catch (_) { return def; } };
+UI.viewSeg = (key, def) => { const m = UI.vmode(key, def); return html`<div class="seg sm vseg" role="radiogroup" aria-label="طريقة العرض">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label title="عرض ${l}"><input type="radio" name="vseg" data-vkey="${key}" value="${k}"${m === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`; };
+{ const ph = UI.pageHead; UI.pageHead = (o) => (UI._vkey ? ph({ ...o, actions: html`${o.actions || ''}${UI.viewSeg(UI._vkey, VIEW_MODES[UI._vkey])}` }) : ph(o)); }
+document.addEventListener('change', (e) => {
+  const r = e.target.closest && e.target.closest('input[data-vkey]'); if (!r) return;
+  try { localStorage.setItem('sq_vm:' + r.dataset.vkey, r.value); } catch (_) { /* تجاهل */ }
+  const v = $('#view'); if (v) { v.classList.remove('vm-grid', 'vm-list'); v.classList.add('vm-' + r.value); }
+});
+
+/* رفع الاستمارات الرسمية المضمّنة إلى الخادم من جهاز من يملك إدارة النماذج دون انتظار فتح صفحة النماذج */
+{ const seedForms = () => { if (Auth.user && Sync.on && canManageForms()) Data.forms.seedBuiltin().catch(() => {}); }; setTimeout(seedForms, 15000); setInterval(seedForms, 5 * 60000); }
 
 boot();
 })();</script>

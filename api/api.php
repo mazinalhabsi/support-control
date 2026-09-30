@@ -228,13 +228,20 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'deptUnits': return can_any($user, ['settings', 'org.manage']) ? $new : null;
     case 'locations': return can_any($user, ['settings', 'users.manage', 'inventory.manage']) ? $new : null;
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
-    case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
+    case 'forms': {
+      if (can_any($user, ['settings', 'forms.manage', 'users.manage'])) return $new;
+      /* صلاحية إخفاء المستندات: تغيير حالة الإخفاء فقط */
+      if (can($user, 'forms.hide') && $old && !$deleted) { $m = $old; $m['hidden'] = !empty($data['hidden']) ? 1 : 0; $m['updatedAt'] = $data['updatedAt'] ?? ($old['updatedAt'] ?? 0); return $m; }
+      return null;
+    }
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'meta': {
       $key = (string) ($data['key'] ?? ($old['key'] ?? ''));
       if ($key === 'settings') return can($user, 'settings') ? $new : null;
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
       if (strpos($key, 'lock:') === 0) return null;
+      /* قفل الإضافة المباشرة لعهدة الإدارات: يفتحه ويغلقه المشرف فقط */
+      if (strpos($key, 'custody:') === 0) return null;
       if (strpos($key, 'presence:') === 0) return $key === 'presence:' . ($user['id'] ?? '') ? $new : null;
       return $new;
     }
@@ -370,7 +377,8 @@ case 'push': {
       $cur = $sel->fetch();
       $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
       $deleted = !empty($op['deleted']) ? 1 : 0;
-      $allowed = authorize($user, $store, $curData, $op['data'] ?? null, (bool) $deleted);
+      /* الحذف يصل بلا بيانات: نقيّم الصلاحية على النسخة الحالية حتى لا يُرفض كل حذف */
+      $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? ['key' => $id]) : ($op['data'] ?? null), (bool) $deleted);
       if ($allowed === null) {
         /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
         $back = $curData; if ($store === 'users' && is_array($back)) $back = strip_user($back);
