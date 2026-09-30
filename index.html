@@ -1557,6 +1557,7 @@ img.iso{object-fit:contain;display:block}
 .cat-card:hover{transform:translateY(-3px);box-shadow:var(--glow);border-color:rgba(var(--accent),.45)}.cat-card .iso{width:74px;height:74px;flex:none}.cat-card b{font-size:16px}
 .cat-card.off{border:2px solid #e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.12);background:linear-gradient(0deg,rgba(229,72,77,.05),rgba(229,72,77,.05)),var(--surface)}.cat-card.off .iso{filter:grayscale(.7);opacity:.75}.cat-card.off:hover{border-color:#e5484d;box-shadow:0 0 0 4px rgba(229,72,77,.2)}
 .ce-hidden{border:2px solid #e5484d!important}
+.toast-link{cursor:pointer}.toast-link:hover{filter:brightness(1.05)}
 /* الأداء: لا يرسم المتصفح البطاقات خارج الشاشة، ووضع خفيف عند إيقاف الحركات */
 .ucard,.tcard,.form-card,.img-card,.cat-card,.kb-card,.list-row,.fb-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
 .more-row{display:flex;justify-content:center;padding:16px}
@@ -3671,7 +3672,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
 /* ── البلاغات: القائمة ───────────────────────────────────────── */
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
-  const st = { scope: q.scope || (staff ? 'mine' : 'all'), view: staff ? q.view || localStorage.getItem('sq_tview') || 'table' : 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
+  const st = { scope: q.scope || (staff ? await Pages.ticketsAutoScope(me) : 'all'), view: staff ? q.view || localStorage.getItem('sq_tview') || 'table' : 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
   const scopes = staff ? [['unassigned', 'البلاغات المستلمة', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
@@ -5960,6 +5961,25 @@ const Sync = {
     } finally { this.flushing = false; }
   },
 
+  /* تنبيه فوري للفنيين بما يصل من بلاغات واستفسارات جديدة أثناء عملهم */
+  seen: new Set(), bootAt: now(),
+  newArrivals(docs) {
+    const u = Auth.user, out = []; if (!u) return out;
+    const work = Auth.can('tickets.work'), answer = Auth.can('chat.answer'), since = this.bootAt - MIN;
+    for (const d of docs) {
+      if (d.deleted || !d.data || this.seen.has(`${d.store}:${d.id}`)) continue;
+      if (work && d.store === 'tickets' && d.data.status === 'new' && d.data.requesterId !== u.id && d.data.createdAt > since) { this.seen.add(`tickets:${d.id}`); out.push({ kind: 'ticket', id: d.data.id, title: d.data.title, by: d.data.requesterId }); }
+      if (answer && d.store === 'chats' && d.data.userId !== u.id && d.data.createdAt > since) { this.seen.add(`chats:${d.id}`); out.push({ kind: 'chat', id: d.data.id, title: d.data.subject, by: d.data.userId }); }
+    }
+    return out;
+  },
+  announce(list) {
+    const one = list.length === 1 ? list[0] : null, tickets = list.filter((x) => x.kind === 'ticket').length, chats = list.length - tickets;
+    const msg = one ? `${one.kind === 'ticket' ? 'بلاغ جديد' : 'استفسار جديد'}: ${one.title} — ${Data.userName(one.by)}` : `وصل ${[tickets ? arCount(tickets, AR.ticket) : '', chats ? `${fmtNum(chats)} استفسار` : ''].filter(Boolean).join(' و')} جديد`;
+    UI.toast(msg, 'info', 10000); UI.sound('notify');
+    const el = $('#toasts') && $('#toasts').lastElementChild;
+    if (el) { el.classList.add('toast-link'); el.title = 'اضغط للفتح'; el.addEventListener('click', (e) => { if (e.target.closest('.toast-x')) return; Router.go(one ? (one.kind === 'ticket' ? `/tickets/${one.id}` : `/chat/${one.id}`) : tickets ? '/tickets?scope=unassigned' : '/chat'); el.remove(); }); }
+  },
   /* سحب كامل فقط أول مرة على الجهاز أو إذا أُعيد تهيئة الخادم، وإلا فالتغييرات الجديدة فقط */
   needFull() { return !this.rev || (this.head && this.head < this.rev); },
   localKey(store, id) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? id.split('|') : id; },
@@ -5988,6 +6008,7 @@ const Sync = {
         const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500` });
         const docs = res.docs || [];
         if (docs.length) {
+          const alerts = this.newArrivals(docs);
           /* حفظ دفعة واحدة لكل جدول بدل معاملة لكل سجل */
           const puts = new Map();
           for (const d of docs) {
@@ -5999,6 +6020,7 @@ const Sync = {
             puts.get(d.store).push(d.data);
           }
           for (const [st, rows] of puts) if (rows.length) await this.raw.bulkPut(st, rows);
+          if (alerts.length) this.announce(alerts);
           this.notifyStores([...new Set(docs.map((d) => d.store))]);
           total += docs.length;
         }
@@ -10225,6 +10247,15 @@ document.addEventListener('click', async (e) => {
   const bl = e.target.closest('[data-eformblank]');
   if (bl) { e.preventDefault(); Pages.eFormView({ categoryId: bl.dataset.eformblank }, { blank: true }); }
 });
+/* صفحة البلاغات للفني: تفتح على التبويب الذي فيه عمل (المسندة إليه، ثم المستلمة غير المسندة، ثم كل المفتوحة) */
+Pages.ticketsAutoScope = async (me) => {
+  try {
+    const mine = (await Promise.all(OPEN.map((s) => DB.count('tickets', 'assignee_status', KR([me, s]))))).reduce((a, b) => a + b, 0);
+    if (mine) return 'mine';
+    if (await DB.count('tickets', 'status', KR('new'))) return 'unassigned';
+  } catch (_) { /* افتراضي */ }
+  return 'open';
+};
 Router.add('/ticket-admin', 'categories.manage', Pages.ticketAdmin, 'إدارة البلاغات'); Router.add('/ticket-admin/:id', 'categories.manage', Pages.catEditor, 'تعديل فئة');
 
 /* تحميل مخزن الصور مع كل تحديث للبيانات */
