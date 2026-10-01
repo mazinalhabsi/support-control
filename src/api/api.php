@@ -15,6 +15,13 @@
  *  - file: منع تنفيذ ملفات HTML/SVG المرفوعة داخل النظام (XSS)، وتخزين المرفقات مؤقتاً في المتصفح.
  *  - upload: لا يُستبدل ملف موجود برقم معرّف مكرر.
  *  - عدم كشف تفاصيل الأخطاء الداخلية للمتصفح، وتصفير عداد المحاولات الخاطئة بعد الدخول الناجح.
+ *
+ * تحديث 2026-10 (مئات المستخدمين في الوقت نفسه):
+ *  - الموظف يستلم في المزامنة بياناته فقط (بلاغاته، إشعاراته، استفساراته، عهده) والقوائم المشتركة،
+ *    بدل نسخة كاملة من قاعدة البيانات لكل جهاز.
+ *  - localhost يُستبدل بـ 127.0.0.1 (في Windows يحاول IPv6 أولاً فيتأخر كل اتصال).
+ *  - جدولا التواجد والحجوزات في الذاكرة (MEMORY) بلا كتابة على القرص.
+ *  - ping خفيف، وإجراء diag للمشرف يقيس سرعة الخادم ويعرض الإعدادات الناقصة.
  */
 declare(strict_types=1);
 @ini_set('display_errors', '0');
@@ -54,7 +61,9 @@ const DAY_MS = 86400000;
 function db(): PDO {
   global $CONFIG; static $pdo = null;
   if ($pdo instanceof PDO) return $pdo;
-  $dsn = $CONFIG['dsn'] ?: sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $CONFIG['host'], $CONFIG['port'], $CONFIG['database']);
+  /* في Windows يُترجم localhost إلى IPv6 أولاً ثم يعود إلى IPv4، فيتأخر كل اتصال (قد يصل إلى ثانية كاملة لكل طلب) */
+  $host = strtolower((string) $CONFIG['host']) === 'localhost' ? '127.0.0.1' : (string) $CONFIG['host'];
+  $dsn = $CONFIG['dsn'] ?: sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $CONFIG['port'], $CONFIG['database']);
   $opts = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false];
   try {
     $pdo = new PDO($dsn, $CONFIG['user'], $CONFIG['password'], $opts);
@@ -62,7 +71,7 @@ function db(): PDO {
     /* قاعدة البيانات غير موجودة بعد: تُنشأ تلقائياً في أول تشغيل */
     if (empty($CONFIG['dsn']) && (int) ($e->errorInfo[1] ?? 0) === 1049) {
       try {
-        $root = new PDO(sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $CONFIG['host'], $CONFIG['port']), $CONFIG['user'], $CONFIG['password'], $opts);
+        $root = new PDO(sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $CONFIG['port']), $CONFIG['user'], $CONFIG['password'], $opts);
         $root->exec('CREATE DATABASE IF NOT EXISTS `' . str_replace('`', '', $CONFIG['database']) . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
         $pdo = new PDO($dsn, $CONFIG['user'], $CONFIG['password'], $opts);
       } catch (Throwable $e2) { fail('تعذر إنشاء قاعدة البيانات: ' . $e2->getMessage(), 500); }
@@ -83,15 +92,17 @@ function setup(): void {
   /* الفحص الكامل مرة كل 10 دقائق فقط، لا مع كل طلب */
   $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sqapa_setup_' . md5(__FILE__);
   /* العلامة تحمل رقم إصدار الجداول: ترقية الملف تُنشئ الجداول الجديدة فوراً دون انتظار انتهاء المدة */
-  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v4') return;
+  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v5') return;
   $pdo = db();
   /* رفع الحدود تلقائياً إن سمحت صلاحيات المستخدم (حساب root في XAMPP يسمح). تسري حتى إعادة تشغيل MySQL */
   try { if ((int) $pdo->query('SELECT @@global.max_allowed_packet')->fetchColumn() < 67108864) $pdo->exec('SET GLOBAL max_allowed_packet = 67108864'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   /* ذاكرة القاعدة: قيمة XAMPP الافتراضية 16 ميجابايت فقط، فتُقرأ البيانات من القرص في كل طلب */
   try { if ((int) $pdo->query('SELECT @@global.innodb_buffer_pool_size')->fetchColumn() < 268435456) $pdo->exec('SET GLOBAL innodb_buffer_pool_size = 268435456'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
+  /* مئات المستخدمين: القيمة الافتراضية 151 اتصالاً تنفد عند الذروة فتظهر أخطاء Too many connections */
+  try { if ((int) $pdo->query('SELECT @@global.max_connections')->fetchColumn() < 500) $pdo->exec('SET GLOBAL max_connections = 500'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   $ready = false;
   try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); $ready = true; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
-  if ($ready) { setup_v4($pdo); @file_put_contents($flag, 'v4'); return; }
+  if ($ready) { setup_v4($pdo); @file_put_contents($flag, 'v5'); return; }
   $pdo->exec("CREATE TABLE IF NOT EXISTS docs (
     store VARCHAR(40) NOT NULL,
     doc_id VARCHAR(120) NOT NULL,
@@ -123,25 +134,95 @@ function setup(): void {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   $pdo->prepare("INSERT IGNORE INTO counters (name, value) VALUES ('rev', 0)")->execute();
   setup_v4($pdo);
-  @file_put_contents($flag, 'v4');
+  @file_put_contents($flag, 'v5');
 }
 
 /** جداول الإصدار 4: التواجد وحجوزات المهام (لا تمر بسجل التغييرات) */
 function setup_v4(PDO $pdo): void {
-  $pdo->exec("CREATE TABLE IF NOT EXISTS presence (
-    user_id VARCHAR(120) NOT NULL PRIMARY KEY,
-    at BIGINT NOT NULL,
-    data TEXT NOT NULL,
-    KEY idx_at (at)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-  $pdo->exec("CREATE TABLE IF NOT EXISTS leases (
-    name VARCHAR(120) NOT NULL PRIMARY KEY,
-    holder CHAR(32) NOT NULL,
-    expires_at BIGINT NOT NULL
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  /* بيانات مؤقتة بطبيعتها: في الذاكرة (MEMORY) بلا كتابة على القرص مع كل نبضة. تُفرغ عند إعادة تشغيل MySQL ولا ضرر */
+  $tables = [
+    'presence' => "CREATE TABLE IF NOT EXISTS presence (user_id VARCHAR(120) NOT NULL PRIMARY KEY, at BIGINT NOT NULL, data VARCHAR(600) NOT NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4",
+    'leases' => "CREATE TABLE IF NOT EXISTS leases (name VARCHAR(120) NOT NULL PRIMARY KEY, holder CHAR(32) NOT NULL, expires_at BIGINT NOT NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4",
+  ];
+  foreach ($tables as $t => $ddl) {
+    $st = $pdo->prepare("SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?");
+    $st->execute([$t]);
+    $eng = $st->fetchColumn();
+    if ($eng !== false && strcasecmp((string) $eng, 'MEMORY') !== 0) $pdo->exec("DROP TABLE `$t`");
+    try { $pdo->exec($ddl); } catch (Throwable $e) { $pdo->exec(str_replace('ENGINE=MEMORY', 'ENGINE=InnoDB', $ddl)); }
+  }
 }
 
 const PRESENCE_TTL = 150000;
+
+/*
+ * نطاق المزامنة: الموظف (بلا صلاحيات إضافية) لا يحتاج إلا بياناته والقوائم المشتركة.
+ * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
+ * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
+ */
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles'];
+function sync_scope(array $u): string {
+  return (($u['role'] ?? '') === 'department' && empty($u['extraPerms'])) ? 'self' : 'all';
+}
+/** شرط SQL لنطاق الموظف: يستبعد في قاعدة البيانات نفسها ما لا يخصه، فلا يُنقل ولا يُفك في PHP */
+function self_sql(array $u): array {
+  $skip = implode(',', array_map(fn($x) => db()->quote($x), SELF_SKIP));
+  $j = fn(string $f) => "JSON_UNQUOTE(JSON_EXTRACT(data, '$.$f'))";
+  $me = (string) ($u['id'] ?? ''); $dep = (string) ($u['departmentId'] ?? '');
+  $cond = " AND (deleted = 1 OR (store NOT IN ($skip)"
+    . " AND (store <> 'tickets' OR {$j('requesterId')} = ?)"
+    . " AND (store NOT IN ('notifications', 'chats') OR {$j('userId')} = ?)"
+    . " AND (store <> 'loans' OR {$j('borrowerId')} = ?)"
+    . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)))";
+  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep]];
+}
+/** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
+function owners_of(string $store, array $ids, string $field, array $known): array {
+  $out = [];
+  foreach ($ids as $id) if (isset($known[$id])) $out[$id] = $known[$id];
+  $need = array_values(array_diff($ids, array_keys($out)));
+  foreach (array_chunk($need, 500) as $chunk) {
+    $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = ? AND doc_id IN (" . implode(',', array_fill(0, count($chunk), '?')) . ")");
+    $st->execute(array_merge([$store], $chunk));
+    foreach ($st->fetchAll() as $r) { $d = json_decode($r['data'], true); $out[$r['doc_id']] = is_array($d) ? (string) ($d[$field] ?? '') : ''; }
+  }
+  return $out;
+}
+/** يُبقي من دفعة السحب ما يخص الموظف فقط. $rows: صفوف فيها '_d' (البيانات بعد فك JSON) */
+function visible_rows(array $rows, array $u): array {
+  $me = (string) ($u['id'] ?? ''); $dep = (string) ($u['departmentId'] ?? '');
+  $tKnown = []; $cKnown = []; $tNeed = []; $cNeed = [];
+  foreach ($rows as $r) {
+    $d = $r['_d'];
+    if (!is_array($d)) continue;
+    if ($r['store'] === 'tickets') $tKnown[$r['doc_id']] = (string) ($d['requesterId'] ?? '');
+    elseif ($r['store'] === 'chats') $cKnown[$r['doc_id']] = (string) ($d['userId'] ?? '');
+    elseif ($r['store'] === 'ticketEvents' || $r['store'] === 'attachments') $tNeed[(string) ($d['ticketId'] ?? '')] = 1;
+    elseif ($r['store'] === 'chatMsgs') $cNeed[(string) ($d['chatId'] ?? '')] = 1;
+  }
+  $tOwn = $tNeed ? owners_of('tickets', array_keys($tNeed), 'requesterId', $tKnown) : [];
+  $cOwn = $cNeed ? owners_of('chats', array_keys($cNeed), 'userId', $cKnown) : [];
+  $out = [];
+  foreach ($rows as $r) {
+    $st = $r['store']; $d = $r['_d'];
+    if (in_array($st, SELF_SKIP, true)) continue;
+    /* حذف سجل: لا بيانات لمعرفة صاحبه، ويُرسل (لا ضرر من حذف ما ليس عند الجهاز) */
+    if ((int) $r['deleted'] || !is_array($d)) { $out[] = $r; continue; }
+    switch ($st) {
+      case 'meta': $k = (string) ($d['key'] ?? $r['doc_id']); $ok = strpos($k, 'lock:') !== 0 && strpos($k, 'presence:') !== 0; break;
+      case 'tickets': $ok = (string) ($d['requesterId'] ?? '') === $me; break;
+      case 'ticketEvents': case 'attachments': $ok = ($tOwn[(string) ($d['ticketId'] ?? '')] ?? '') === $me; break;
+      case 'notifications': $ok = (string) ($d['userId'] ?? '') === $me; break;
+      case 'chats': $ok = (string) ($d['userId'] ?? '') === $me; break;
+      case 'chatMsgs': $ok = ($cOwn[(string) ($d['chatId'] ?? '')] ?? '') === $me; break;
+      case 'loans': $ok = (string) ($d['borrowerId'] ?? '') === $me; break;
+      case 'assets': $ok = (string) ($d['holderId'] ?? '') === $me || ($dep !== '' && (string) ($d['departmentId'] ?? '') === $dep); break;
+      default: $ok = true;
+    }
+    if ($ok) $out[] = $r;
+  }
+  return $out;
+}
 /** المتواجدون الآن. الموظف العادي لا يرى الصفحة التي يتصفحها غيره */
 function presence_list(array $user): array {
   $st = db()->prepare("SELECT data FROM presence WHERE at > ?");
@@ -313,13 +394,9 @@ $action = (string) ($_GET['a'] ?? $_GET['action'] ?? 'ping');
 switch ($action) {
 
 case 'ping': {
-  $counts = [];
-  foreach (['users', 'tickets', 'items', 'movements'] as $s) {
-    $st = db()->prepare("SELECT COUNT(*) c FROM docs WHERE store = ? AND deleted = 0");
-    $st->execute([$s]);
-    $counts[$s] = (int) $st->fetch()['c'];
-  }
-  out(['ok' => true, 'server' => 'sqapa-sync', 'version' => 3, 'rev' => current_rev(), 'time' => now_ms(), 'counts' => $counts, 'empty' => $counts['users'] === 0]);
+  /* كان يعدّ أربعة جداول كاملة مع كل فتح للصفحة؛ الواجهة تحتاج فقط: هل يوجد مستخدمون؟ */
+  $has = (bool) db()->query("SELECT 1 FROM docs WHERE store = 'users' AND deleted = 0 LIMIT 1")->fetchColumn();
+  out(['ok' => true, 'server' => 'sqapa-sync', 'version' => 5, 'rev' => current_rev(), 'time' => now_ms(), 'empty' => !$has]);
 }
 
 case 'login': {
@@ -386,30 +463,35 @@ case 'pull': {
   $extra = !empty($_GET['pres']) ? ['presence' => presence_list($user)] : [];
   /* لا جديد منذ آخر سحب: رد فوري دون استعلام (أغلب طلبات الأجهزة الدورية) */
   $head = current_rev();
-  if ($since >= $head) out(['rev' => $since, 'head' => $head, 'docs' => [], 'more' => false] + $extra);
-  $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE rev > ? ORDER BY rev ASC LIMIT " . ($limit + 1));
-  $st->execute([$since]);
-  $rows = $st->fetchAll();
+  if ($since >= $head) out(['rev' => $since, 'head' => $head, 'docs' => [], 'more' => false, 'scope' => sync_scope($user)] + $extra);
+  $scope = sync_scope($user);
+  [$cond, $args] = $scope === 'self' ? self_sql($user) : ['', []];
+  $fetch = function (string $where, array $params, string $limit = '') use (&$cond, &$args) {
+    try { $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE $where$cond ORDER BY rev ASC$limit"); $st->execute(array_merge($params, $args)); }
+    catch (Throwable $e) { /* MySQL قديم بلا دوال JSON: التصفية في PHP وحدها */ $cond = ''; $args = []; $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE $where ORDER BY rev ASC$limit"); $st->execute($params); }
+    return $st->fetchAll();
+  };
+  $rows = $fetch('rev > ?', [$since], ' LIMIT ' . ($limit + 1));
   $more = count($rows) > $limit;
   if ($more) {
     /* كل سجلات الدفعة الواحدة تحمل رقم التغيير نفسه: لا تُقطع الصفحة في منتصف رقم، وإلا ضاع باقيه في السحب التالي (rev > آخر رقم) */
     $last = (int) $rows[$limit]['rev'];
     $rows = array_values(array_filter(array_slice($rows, 0, $limit), fn($r) => (int) $r['rev'] !== $last));
-    if (!$rows) {
-      $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE rev = ?");
-      $st->execute([$last]);
-      $rows = $st->fetchAll();
-    }
+    if (!$rows) $rows = $fetch('rev = ?', [$last]);
   }
   $docs = [];
   $max = $since;
+  foreach ($rows as $i => $row) { $rows[$i]['_d'] = json_decode($row['data'], true); unset($rows[$i]['data']); $max = max($max, (int) $row['rev']); }
+  /* رقم التقدم يشمل الصفوف المحجوبة عن هذا المستخدم، وإلا أعاد طلبها في كل سحب.
+     بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
+  if (!$more) $max = max($max, $head);
+  if ($scope === 'self') $rows = visible_rows($rows, $user);
   foreach ($rows as $row) {
-    $data = json_decode($row['data'], true);
+    $data = $row['_d'];
     if ($row['store'] === 'users' && is_array($data)) $data = strip_user($data);
     $docs[] = ['store' => $row['store'], 'id' => $row['doc_id'], 'rev' => (int) $row['rev'], 'deleted' => (int) $row['deleted'], 'data' => $data];
-    $max = max($max, (int) $row['rev']);
   }
-  out(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more] + $extra);
+  out(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more, 'scope' => $scope] + $extra);
 }
 
 case 'beat': {
@@ -427,7 +509,7 @@ case 'beat': {
     'since' => (int) ($v['since'] ?? $t), 'act' => min($t, (int) ($v['act'] ?? $t)), 'page' => cut((string) ($v['page'] ?? ''), 120),
   ];
   db()->prepare("REPLACE INTO presence (user_id, at, data) VALUES (?, ?, ?)")->execute([$uid, $t, json_encode($val, JSON_UNESCAPED_UNICODE)]);
-  if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - DAY_MS]);
+  if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - PRESENCE_TTL]);
   out(['ok' => true, 'presence' => presence_list($user)]);
 }
 
@@ -596,6 +678,33 @@ case 'file': {
   header('Cache-Control: private, max-age=31536000, immutable');
   readfile($path);
   exit;
+}
+
+case 'diag': {
+  /* فحص سرعة الخادم وإعداداته: يظهر للمشرف في نافذة «المزامنة والخادم» */
+  $user = session_user();
+  if (!is_sup($user)) fail('هذه الصفحة للمشرف فقط', 403);
+  global $CONFIG;
+  $t0 = microtime(true);
+  try { $p = new PDO(sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', strtolower((string) $CONFIG['host']) === 'localhost' ? '127.0.0.1' : $CONFIG['host'], $CONFIG['port'], $CONFIG['database']), $CONFIG['user'], $CONFIG['password']); $p = null; } catch (Throwable $e) { /* يظهر في القياس */ }
+  $connect = round((microtime(true) - $t0) * 1000, 1);
+  $t0 = microtime(true); for ($i = 0; $i < 20; $i++) db()->query('SELECT 1')->fetchColumn(); $query = round((microtime(true) - $t0) * 1000 / 20, 2);
+  $t0 = microtime(true); db()->query("SELECT COUNT(*) FROM docs WHERE rev > " . max(0, current_rev() - 200))->fetchColumn(); $pullq = round((microtime(true) - $t0) * 1000, 1);
+  $g = function (string $v) { try { return db()->query("SELECT @@global.$v")->fetchColumn(); } catch (Throwable $e) { return null; } };
+  $status = []; foreach (db()->query("SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Max_used_connections','Uptime')")->fetchAll() as $r) $status[$r['Variable_name']] = (int) $r['Value'];
+  $size = (int) db()->query("SELECT COALESCE(SUM(data_length + index_length),0) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()")->fetchColumn();
+  $op = function_exists('opcache_get_status') ? @opcache_get_status(false) : false;
+  $checks = [
+    ['opcache', 'تسريع PHP (OPcache)', !empty($op['opcache_enabled']), 'فعّل zend_extension=opcache و opcache.enable=1 في php.ini'],
+    ['connect', "زمن الاتصال بقاعدة البيانات: {$connect} ms", $connect < 50, 'أكثر من 50ms: اجعل host في config.php = 127.0.0.1 وأضف skip-name-resolve في my.ini'],
+    ['query', "زمن الاستعلام: {$query} ms", $query < 5, 'الخادم مشغول أو القرص بطيء'],
+    ['maxconn', 'الحد الأقصى للاتصالات: ' . $g('max_connections'), (int) $g('max_connections') >= 500, 'max_connections=500 في my.ini'],
+    ['pool', 'ذاكرة قاعدة البيانات: ' . round((int) $g('innodb_buffer_pool_size') / 1048576) . ' MB', (int) $g('innodb_buffer_pool_size') >= 268435456, 'innodb_buffer_pool_size=512M في my.ini'],
+    ['packet', 'أقصى حجم للسجل: ' . round((int) $g('max_allowed_packet') / 1048576) . ' MB', (int) $g('max_allowed_packet') >= 33554432, 'max_allowed_packet=64M في my.ini'],
+    ['flush', 'كتابة السجل على القرص: ' . $g('innodb_flush_log_at_trx_commit'), (int) $g('innodb_flush_log_at_trx_commit') !== 1, 'اختياري لتسريع الحفظ: innodb_flush_log_at_trx_commit=2'],
+  ];
+  out(['php' => PHP_VERSION, 'mysql' => (string) $g('version'), 'connect_ms' => $connect, 'query_ms' => $query, 'pull_ms' => $pullq, 'status' => $status, 'db_bytes' => $size, 'docs' => (int) db()->query('SELECT COUNT(*) FROM docs')->fetchColumn(), 'online' => count(presence_list($user)),
+    'checks' => array_map(fn($c) => ['key' => $c[0], 'label' => $c[1], 'ok' => (bool) $c[2], 'fix' => $c[3]], $checks)]);
 }
 
 case 'stats': {

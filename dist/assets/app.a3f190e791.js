@@ -187,25 +187,66 @@ const DB = (() => {
   };
   let db = null;
   const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  function open() {
-    if (!window.indexedDB) return Promise.reject(new AppError('هذا المتصفح لا يدعم قاعدة البيانات المحلية. استخدم Chrome أو Edge أو Firefox حديثاً.'));
+  /* فتح قاعدة الجهاز بشكل لا يتعطل:
+     - لا يُطلب رقم إصدار ثابت: إن كانت القاعدة من نسخة أحدث (VersionError) تُستخدم كما هي، ويُضاف الناقص فقط
+     - قاعدة تالفة (UnknownError) أو لا تستجيب: تُحذف وتُنشأ من جديد (البيانات الأصلية على الخادم)
+     - المتصفح يمنع التخزين نهائياً: قاعدة في الذاكرة، فيعمل النظام ويعيد تحميل البيانات من الخادم عند كل فتح */
+  let idb = null;
+  const factory = () => idb || window.indexedDB;
+  const timed = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => { const e = new Error(what); e.name = 'TimeoutError'; rej(e); }, ms))]);
+  function upgrade(d, tx) {
+    for (const [name, def] of Object.entries(SCHEMA)) {
+      const s = d.objectStoreNames.contains(name) ? tx.objectStore(name) : d.createObjectStore(name, { keyPath: def.key });
+      for (const [iname, spec] of Object.entries(def.idx || {})) {
+        if (s.indexNames.contains(iname)) continue;
+        const path = typeof spec === 'string' || Array.isArray(spec) ? spec : spec.path;
+        s.createIndex(iname, path, { unique: !!spec.unique });
+      }
+    }
+  }
+  function openRaw(version) {
     return new Promise((res, rej) => {
-      const r = indexedDB.open(NAME, VERSION);
-      r.onupgradeneeded = () => {
-        const d = r.result, tx = r.transaction;
-        for (const [name, def] of Object.entries(SCHEMA)) {
-          const s = d.objectStoreNames.contains(name) ? tx.objectStore(name) : d.createObjectStore(name, { keyPath: def.key });
-          for (const [iname, spec] of Object.entries(def.idx || {})) {
-            if (s.indexNames.contains(iname)) continue;
-            const path = typeof spec === 'string' || Array.isArray(spec) ? spec : spec.path;
-            s.createIndex(iname, path, { unique: !!spec.unique });
-          }
-        }
-      };
-      r.onsuccess = () => { db = r.result; db.onversionchange = () => { db.close(); location.reload(); }; res(db); };
-      r.onerror = () => rej(r.error || new AppError('تعذر فتح قاعدة البيانات'));
-      r.onblocked = () => rej(new AppError('قاعدة البيانات مفتوحة في تبويب آخر بإصدار أقدم. أغلق التبويبات الأخرى ثم حدّث الصفحة.'));
+      let blockedT = 0;
+      const r = version ? factory().open(NAME, version) : factory().open(NAME);
+      r.onupgradeneeded = () => { if (version) upgrade(r.result, r.transaction); };
+      r.onsuccess = () => { clearTimeout(blockedT); res(r.result); };
+      r.onerror = () => { clearTimeout(blockedT); rej(r.error || new AppError('تعذر فتح قاعدة البيانات')); };
+      /* تبويب آخر بنسخة أقدم: يُغلق نفسه ويُحدَّث تلقائياً، فننتظر قليلاً بدل الفشل فوراً */
+      r.onblocked = () => { blockedT = setTimeout(() => { const e = new AppError('النظام مفتوح في تبويب آخر بنسخة أقدم. أغلق التبويبات الأخرى للنظام ثم حدّث الصفحة.'); e.blocked = true; rej(e); }, 6000); };
     });
+  }
+  const complete = (d) => Object.entries(SCHEMA).every(([name, def]) => {
+    if (!d.objectStoreNames.contains(name)) return false;
+    const want = Object.keys(def.idx || {}); if (!want.length) return true;
+    try { const st = d.transaction(name, 'readonly').objectStore(name); return want.every((x) => st.indexNames.contains(x)); } catch (_) { return false; }
+  });
+  async function openSmart() {
+    const cur = await timed(openRaw(0), 10000, 'لم تستجب قاعدة الجهاز');
+    if (cur.version >= VERSION && complete(cur)) return cur;
+    const v = Math.max(cur.version + 1, VERSION); cur.close();
+    return timed(openRaw(v), 15000, 'لم تستجب قاعدة الجهاز');
+  }
+  const loadMemory = () => new Promise((res, rej) => {
+    if (window.__memIDB) return res(window.__memIDB);
+    const sc = document.createElement('script'); sc.src = (window.__ASSETS && window.__ASSETS.idbMemory) || 'vendor/idb-memory.js';
+    sc.onload = () => (window.__memIDB ? res(window.__memIDB) : rej(new Error('memory db'))); sc.onerror = () => rej(new Error('memory db')); document.head.appendChild(sc);
+  });
+  const remove = () => timed(new Promise((res) => { const r = factory().deleteDatabase(NAME); r.onsuccess = r.onerror = r.onblocked = () => res(); }), 5000, 'delete');
+  async function open() {
+    let first = null;
+    if (window.indexedDB) {
+      try { db = await openSmart(); } catch (e) { first = e; }
+      if (!db && !(first && first.blocked) && first && first.name !== 'SecurityError') {
+        try { await remove(); db = await openSmart(); DB.repaired = true; } catch (_) { /* ننتقل للذاكرة */ }
+      }
+      if (!db && first && first.blocked) throw first;
+    }
+    if (!db) {
+      try { const m = await loadMemory(); idb = m.indexedDB; window.IDBKeyRange = m.IDBKeyRange; db = await openSmart(); DB.memory = true; }
+      catch (_) { const e = new AppError('هذا المتصفح يمنع قاعدة البيانات المحلية' + (first ? ` (${first.name}: ${first.message})` : '') + '. اسمح بحفظ بيانات المواقع لهذا العنوان، أو استخدم المتصفح بوضع عادي.'); e.cause = first; throw e; }
+    }
+    db.onversionchange = () => { db.close(); location.reload(); };
+    return db;
   }
   const os = (name, mode = 'readonly') => db.transaction(name, mode).objectStore(name);
   const src = (name, index) => { const s = os(name); return index ? s.index(index) : s; };
@@ -2749,8 +2790,11 @@ async function boot() {
       ? 'أنت تفتح النظام من ملف مباشر أو مجلد مشترك (file://)، والمتصفح يمنع التخزين في هذه الحالة. ضع الملف في مجلد الخادم htdocs وافتحه بعنوان مثل http://اسم-الخادم/it/'
       : e instanceof AppError ? e.message
         : 'التخزين محجوب في هذا المتصفح: قد يكون وضع التصفح الخاص، أو سياسة الجهاز تمنع «بيانات المواقع». افتح النظام في Chrome أو Edge بوضع عادي، واسمح ببيانات المواقع لهذا العنوان.';
-    $('#app').innerHTML = String(UI.empty({ illu: 'drive', title: 'تعذر تشغيل قاعدة البيانات', text: why, action: html`<div class="boot-diag"><div>العنوان الحالي: <b class="ltr">${String(location.href).slice(0, 110)}</b></div><div>طريقة الفتح: <b class="ltr">${proto}</b>${isFile ? html` <span class="chip tone-red"><i class="dot"></i>غير مدعومة</span>` : ''}</div><button type="button" class="btn btn-primary mt" data-act="reload">${UI.icon('refresh')} إعادة المحاولة</button></div>` }));
+    window.__sqBooted = true; clearTimeout(window.__sqWatch);
+    const ua = navigator.userAgent, br = (ua.match(/Edg\/[\d.]+/) || ua.match(/Chrome\/[\d.]+/) || ua.match(/Firefox\/[\d.]+/) || ua.match(/Version\/[\d.]+ Safari/) || [''])[0];
+    $('#app').innerHTML = String(UI.empty({ illu: 'drive', title: 'تعذر تشغيل النظام على هذا المتصفح', text: why, action: html`<div class="boot-diag"><div>العنوان الحالي: <b class="ltr">${String(location.href).slice(0, 110)}</b></div><div>طريقة الفتح: <b class="ltr">${proto}</b>${isFile ? html` <span class="chip tone-red"><i class="dot"></i>غير مدعومة</span>` : ''}</div><div>المتصفح: <b class="ltr">${br}</b></div><div>تفاصيل الخطأ: <b class="ltr">${String((e && e.name) || '')}: ${String((e && e.message) || e).slice(0, 160)}</b></div><div class="row mt" style="gap:8px;justify-content:center"><button type="button" class="btn btn-primary" data-act="reload">${UI.icon('refresh')} إعادة المحاولة</button><button type="button" class="btn" data-act="repair">${UI.icon('trash')} إصلاح بيانات المتصفح</button></div><p class="hint mt">«إصلاح بيانات المتصفح» يحذف النسخة المحلية فقط، وبياناتك محفوظة على الخادم.</p></div>` }));
     const rb = document.querySelector('[data-act="reload"]'); if (rb) rb.onclick = () => location.reload();
+    const fb = document.querySelector('[data-act="repair"]'); if (fb) fb.onclick = () => window.__sqRepair();
     return;
   }
   const R = (p, perm, fn, t, bare) => Router.add(p, perm, fn, t, bare);
@@ -2767,7 +2811,10 @@ async function boot() {
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
   window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep };
   const b = $('#boot'); if (b) b.remove();
+  window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
+  if (DB.memory || window.__sqNoStore) setTimeout(() => UI.toast(Sync.on ? 'هذا المتصفح يمنع حفظ بيانات المواقع، فيعمل النظام بوضع مؤقت ويعيد تحميل البيانات عند كل فتح. للحل الدائم: اسمح بحفظ البيانات لهذا العنوان من إعدادات المتصفح (ملفات تعريف الارتباط وبيانات المواقع).' : 'هذا المتصفح يمنع حفظ البيانات ولا يوجد اتصال بالخادم: أي تعديل سيضيع عند إغلاق الصفحة.', 'warn', 15000), 1500);
+  else if (DB.repaired) setTimeout(() => UI.toast('أُصلحت قاعدة البيانات المحلية لهذا المتصفح وأُعيد تحميل البيانات من الخادم', 'info', 8000), 1500);
 }
 
 /* ── إضافات: عدّ عربي سليم، تحديث حي للوحات، بيانات تجريبية واقعية ── */
@@ -4201,7 +4248,8 @@ document.addEventListener('click', (e) => { const el = e.target.closest('[data-c
 /* ── المزامنة مع خادم XAMPP: قاعدة بيانات مركزية مع ذاكرة محلية سريعة ── */
 const Sync = {
   url: '', token: '', on: false, rev: 0, queue: [], flushing: false, applying: false, status: 'local', lastAt: 0, lastError: '', pullTimer: 0, head: 0,
-  defaultUrl() { const saved = localStorage.getItem('sq_api'); if (saved) return saved; const base = location.href.split('#')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
+  autoUrl() { const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
+  defaultUrl() { const saved = localStorage.getItem('sq_api'); return saved || this.autoUrl(); },
   async call(action, { body, form, query = '', timeout = 20000 } = {}) {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
     try {
@@ -4223,11 +4271,18 @@ const Sync = {
     this.loadQueue();
     try {
       this.url = url;
-      const ping = await this.call('ping', { timeout: 5000 });
+      let ping = null;
+      try { ping = await this.call('ping', { timeout: 6000 }); }
+      catch (e) {
+        /* عنوان محفوظ قديم أو بغير بروتوكول الصفحة (Chrome يحوّل http إلى https تلقائياً فيُمنع الطلب): نجرب عنوان الصفحة نفسها */
+        const auto = this.autoUrl(); if (url === auto || location.protocol === 'file:') throw e;
+        this.url = auto; ping = await this.call('ping', { timeout: 6000 }); try { localStorage.removeItem('sq_api'); } catch (_) { /* تجاهل */ }
+      }
       if (!ping || !ping.ok) throw new AppError('استجابة غير متوقعة');
       this.on = true; this.head = ping.rev || 0; this.serverEmpty = !!ping.empty;
       this.token = localStorage.getItem('sq_token') || '';
       this.rev = Number(((await DB.get('meta', 'sync:rev')) || {}).value || 0);
+      this.scope = String(((await DB.get('meta', 'sync:scope')) || {}).value || '');
       this.hook(); this.setStatus('online');
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.pull(); });
       window.addEventListener('online', () => { this.pull(); this.flush(); });
@@ -4342,6 +4397,7 @@ const Sync = {
       for (;;) {
         const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500&pres=1` });
         if (Array.isArray(res.presence)) { Sync.presence = true; Presence.setList(res.presence); }
+        if (res.scope && res.scope !== this.scope) { if (this.scope === 'self' && res.scope === 'all') this._widen = true; this.scope = res.scope; await this.raw.put('meta', { key: 'sync:scope', value: res.scope }); }
         const docs = res.docs || [];
         if (docs.length) {
           const alerts = this.newArrivals(docs);
@@ -4365,6 +4421,7 @@ const Sync = {
         if (!res.more || ++guard > 40) break;
       }
       this.lastAt = now(); if (this.status !== 'syncing') this.setStatus('online');
+      if (this._widen) { this._widen = false; setTimeout(() => this.pull(true), 50); }
       return total;
     } catch (e) { this.setStatus('offline', e && e.message); return 0; } finally { this._pulling = false; }
   },
@@ -4372,7 +4429,7 @@ const Sync = {
   notifyStores(stores) {
     const set = new Set(stores);
     const look = ['users', 'departments', 'categories', 'itemCategories', 'warehouses', 'ranks', 'printers', 'locations', 'settings'].filter((s) => set.has(s));
-    if (look.length) Promise.all(look.map((s) => Data.refresh(s))).catch(() => {});
+    if (look.length) { look.forEach((x) => (this._look = this._look || new Set()).add(x)); clearTimeout(this._lookT); this._lookT = setTimeout(() => { const l = [...this._look]; this._look.clear(); Promise.all(l.map((x) => Data.refresh(x))).catch(() => {}); }, 700); }
     if (set.has('tickets') || set.has('ticketEvents')) Bus.emit('tickets', { remote: true });
     if (['items', 'stock', 'movements', 'loans', 'deptStock', 'assets', 'vouchers'].some((s) => set.has(s))) Bus.emit('inventory', { remote: true });
     if (set.has('users')) Bus.emit('users', { remote: true, synced: true });
@@ -4394,7 +4451,7 @@ const Sync = {
       Auth.user = u;
       this.serverEmpty = false;
       sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + 12 * HOUR }));
-      const rec = await DB.get('users', u.id); if (rec) { rec.lastLoginAt = now(); await DB.put('users', rec); Auth.user = rec; }
+      const rec = await DB.get('users', u.id); if (rec) { if (!(now() - (rec.lastLoginAt || 0) < 6 * HOUR)) { rec.lastLoginAt = now(); await DB.put('users', rec); } Auth.user = rec; }
       await this.flush();
       return Auth.user;
     };
@@ -4506,13 +4563,16 @@ const Sync = {
 /* واجهة حالة المزامنة */
 Pages.syncModal = async () => {
   let stats = null;
-  if (Sync.on && Sync.token && Auth.user && Auth.user.role === 'supervisor') { try { stats = await Sync.call('stats'); } catch (_) { /* تجاهل */ } }
+  let diag = null;
+  if (Sync.on && Sync.token && Auth.user && Auth.user.role === 'supervisor') { try { stats = await Sync.call('stats'); } catch (_) { /* تجاهل */ } try { diag = await Sync.call('diag', { timeout: 15000 }); } catch (_) { /* خادم أقدم */ } }
   const state = { online: ['teal', 'متصل بالخادم', 'check'], syncing: ['sky', 'جارٍ المزامنة', 'refresh'], offline: ['red', 'انقطع الاتصال بالخادم', 'alert'], local: ['amber', 'وضع محلي: البيانات على هذا الجهاز فقط', 'database'] }[Sync.status] || ['slate', Sync.status, 'info'];
   return UI.modal({
     title: 'المزامنة والخادم', icon: 'database', size: 'lg',
     body: html`<div class="banner tone-${state[0]}">${UI.icon(state[2])}<div class="grow"><b>${state[1]}</b><div class="small muted">${Sync.on ? `عنوان الخادم: ${Sync.url}` : 'لم يُعثر على خادم، النظام يعمل على هذا الجهاز فقط.'}${Sync.lastError ? ` — ${Sync.lastError}` : ''}</div></div></div>
       <dl class="kv mt"><dt>${UI.icon('refresh')} آخر مزامنة</dt><dd>${Sync.lastAt ? timeAgo(Sync.lastAt) : '—'}</dd><dt>${UI.icon('layers')} رقم آخر تغيير</dt><dd class="ltr">${fmtNum(Sync.rev)} / ${fmtNum(Sync.head)}</dd><dt>${UI.icon('upload')} بانتظار الإرسال</dt><dd>${fmtNum(Sync.queue.length)}</dd></dl>
       ${stats ? html`<div class="mt">${UI.chart.hbars(stats.stores.slice(0, 8).map((s, i) => ({ label: s.store, value: Number(s.c), tone: TONES[i % TONES.length] })))}<p class="hint mt">جلسات نشطة: ${fmtNum(stats.sessions)} — مرفقات: ${fmtNum(stats.files.count)} (${fmtBytes(stats.files.bytes)})</p></div>` : ''}
+      ${diag ? html`<div class="mt"><b>${UI.icon('pulse')} صحة الخادم</b> <span class="faint small ltr">PHP ${diag.php} — MySQL ${diag.mysql} — ${fmtBytes(diag.db_bytes)} — متصل الآن: ${fmtNum(diag.online)} — أعلى عدد اتصالات: ${fmtNum((diag.status || {}).Max_used_connections || 0)}</span>
+        <div class="list mt">${diag.checks.map((c) => html`<div class="list-row"><span class="chip tone-${c.ok ? 'teal' : 'amber'}">${UI.icon(c.ok ? 'check' : 'alert')}</span><div class="grow"><b>${c.label}</b>${c.ok ? '' : html`<div class="small faint">${c.fix}</div>`}</div></div>`)}</div></div>` : ''}
       ${UI.field({ name: 'url', label: 'عنوان الخادم (API)', dir: 'ltr', hint: 'مثال: http://sqapa-server/it/api/api.php' }, Sync.url || Sync.defaultUrl())}
       <div class="row mt"><button type="button" class="btn btn-soft" data-sync="now">${UI.icon('refresh')} مزامنة الآن</button>${Auth.user && Auth.user.role === 'supervisor' ? html`<button type="button" class="btn" data-sync="boot">${UI.icon('upload')} رفع بيانات هذا الجهاز إلى الخادم</button>` : ''}</div>
       <div class="imp-progress mt" hidden><div class="progress"><i style="width:0%"></i></div><span></span></div>`,

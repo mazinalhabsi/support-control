@@ -95,6 +95,13 @@ js = scripts[0].group(1)
 js_rel = write(f'assets/app.{h8(js)}.js', js)
 body = body[:scripts[0].start()] + f'<script src="{js_rel}"></script>' + body[scripts[0].end():]
 
+# قاعدة الذاكرة البديلة (تُحمَّل فقط إن منع المتصفح التخزين)
+VENDOR = os.path.join(os.path.dirname(SRC), 'vendor', 'idb-memory.js')
+if os.path.isfile(VENDOR):
+    raw = open(VENDOR, 'rb').read()
+    rel = write(f'assets/idb-memory.{h8(raw)}.js', raw)
+    head = head.replace("idbMemory:'vendor/idb-memory.js'", f"idbMemory:'{rel}'")
+
 write('index.html', head + body)
 
 # 4) إعدادات Apache: ضغط وتخزين مؤقت
