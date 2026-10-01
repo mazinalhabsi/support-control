@@ -1563,7 +1563,8 @@ img.iso{object-fit:contain;display:block}
 .ucard,.tcard,.form-card,.img-card,.cat-card,.kb-card,.list-row,.fb-card{content-visibility:auto;contain-intrinsic-size:auto 160px}
 .more-row{display:flex;justify-content:center;padding:16px}
 html[data-lite="1"] *,html[data-lite="1"] *::before,html[data-lite="1"] *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-html[data-lite="1"] .tilt{transform:none!important}.cat-card.add{border-style:dashed;background:transparent}.cat-card.add>.ic{width:40px;height:40px;padding:10px;border-radius:14px;background:rgba(var(--accent),.12);color:rgb(var(--accent-ink));flex:none}
+html[data-lite="1"] .tilt{transform:none!important}
+html[data-lite="1"] .app-bg i{animation:none!important;will-change:auto!important}.cat-card.add{border-style:dashed;background:transparent}.cat-card.add>.ic{width:40px;height:40px;padding:10px;border-radius:14px;background:rgba(var(--accent),.12);color:rgb(var(--accent-ink));flex:none}
 .cc-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--ink-3);margin:4px 0 6px}.cc-meta span{display:inline-flex;align-items:center;gap:4px}.cc-meta .ic{width:13px;height:13px}.cc-tags{display:flex;flex-wrap:wrap;gap:5px}
 .ce-grid{align-items:start}.ce-main{display:grid;gap:16px;min-width:0}.ce-side{position:sticky;top:84px;min-width:0}.ce-side .panel{max-height:calc(100vh - 110px);overflow:auto}
 .ce-id{display:flex;gap:16px;align-items:flex-start}.ce-img{position:relative;flex:none;width:118px;height:118px;border-radius:20px;border:1px dashed var(--line);background:var(--surface-2);cursor:pointer;display:grid;place-items:center;padding:8px}
@@ -1959,6 +1960,7 @@ const fromDateInput = (s, end) => { if (!s) return 0; const [y, m, d] = s.split(
 const startOfDay = (ts = now()) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const normalizeAr = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\u064B-\u065F\u0670]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
 const uid = (p) => { const b = new Uint8Array(5); crypto.getRandomValues(b); return `${p}_${now().toString(36)}${Array.from(b, (x) => pad(x.toString(36))).join('')}`; };
+const AR_COLL = new Intl.Collator('ar');
 const debounce = (fn, ms = 250) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 function downloadBlob(blob, name) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 8000); }
@@ -2134,6 +2136,18 @@ const DB = (() => {
   return { open, get, put, del, clear, getAll, count, bulkPut, each, page, run, exportAll, importAll, SCHEMA, K: () => IDBKeyRange };
 })();
 const KR = (...a) => (a.length === 1 ? IDBKeyRange.only(a[0]) : IDBKeyRange.bound(a[0], a[1]));
+/* مهام الصيانة الدورية (التصعيد، الإغلاق التلقائي، تنبيهات العهد...): ينفذها جهاز واحد فقط عبر حجز ذري على الخادم،
+   بدل أن ينفذها كل جهاز مفتوح فتتكرر الكتابات والإشعارات وتتضاعف المزامنة. بدون خادم: قفل محلي كما كان */
+const Jobs = {
+  async claim(key, ms) {
+    if (Sync.on && Sync.token && Sync.leases !== false) {
+      const u = Auth.user; if (!u || u.role === 'department' || u.role === 'monitor') return false;
+      try { const r = await Sync.call('lease', { body: { name: key, ttl: Math.round(ms) }, timeout: 8000 }); return !!(r && r.ok); } catch (e) { if (e && e.status === 404) { Sync.leases = false; return Jobs.local(key, ms); } return false; }
+    }
+    return Jobs.local(key, ms);
+  },
+  async local(key, ms) { const lock = await DB.get('meta', key); if (lock && now() - lock.value < ms) return false; await DB.put('meta', { key, value: now() }); return true; }
+};
 
 /* ── ثوابت النظام ───────────────────────────────────────────── */
 const ROLES = { department: 'موظف قسم', technician: 'فني دعم', support_manager: 'مدير الدعم الفني', supervisor: 'مشرف النظام', monitor: 'شاشة المراقبة' };
@@ -2282,7 +2296,7 @@ const Data = {
   c: { settings: { ...DEFAULT_SETTINGS }, departments: new Map(), ranks: new Map(), categories: new Map(), warehouses: new Map(), itemCategories: new Map(), users: new Map(), printers: new Map() },
   async refresh(which) {
     const lists = which === 'settings' ? [] : which ? [which] : ['departments', 'ranks', 'categories', 'warehouses', 'itemCategories', 'users', 'printers', 'locations'];
-    await Promise.all(lists.map(async (name) => { const rows = await DB.getAll(name); rows.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name), 'ar')); this.c[name] = new Map(rows.map((r) => [r.id, r])); }));
+    await Promise.all(lists.map(async (name) => { const rows = await DB.getAll(name); rows.sort((a, b) => (a.order || 0) - (b.order || 0) || AR_COLL.compare(String(a.name), String(b.name))); this.c[name] = new Map(rows.map((r) => [r.id, r])); }));
     if (!which || which === 'settings') { const s = await DB.get('meta', 'settings'); const v = (s && s.value) || {}; this.c.settings = { ...DEFAULT_SETTINGS, ...v, sla: { ...DEFAULT_SETTINGS.sla, ...(v.sla || {}) } }; }
   },
   list(map) { return [...this.c[map].values()]; },
@@ -3215,7 +3229,7 @@ UI.sound = (kind = 'notify', force = false) => {
 UI.theme = {
   apply() { const h = document.documentElement; h.dataset.theme = localStorage.getItem('sq_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); h.dataset.accent = localStorage.getItem('sq_accent') || 'brass'; h.dataset.motion = localStorage.getItem('sq_motion') || (UI.theme.weak() ? 'off' : 'on'); h.dataset.lite = h.dataset.motion === 'off' ? '1' : ''; },
   /* جهاز ضعيف (أنوية أو ذاكرة قليلة): تُخفف المؤثرات تلقائياً ما لم يختر المستخدم غير ذلك */
-  weak() { try { return (navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMemory || 8) <= 2; } catch (_) { return false; } },
+  weak() { try { return (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4; } catch (_) { return false; } },
   set(k, v) { localStorage.setItem(`sq_${k}`, v); this.apply(); Bus.emit('theme'); },
   toggle(ev) {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', run = () => this.set('theme', next);
@@ -4567,9 +4581,9 @@ async function boot() {
   window.addEventListener('hashchange', () => Router.resolve());
   document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && Auth.user && Auth.user.role !== 'monitor') { e.preventDefault(); UI.palette(); } });
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (!localStorage.getItem('sq_theme')) UI.theme.apply(); });
-  ['departments', 'categories', 'warehouses', 'itemCategories', 'printers', 'ranks', 'users'].forEach((k) => Bus.on(k === 'users' ? 'users' : `data:${k}`, (e) => { if (e.detail && e.detail.remote) Data.refresh(k); }));
+  ['departments', 'categories', 'warehouses', 'itemCategories', 'printers', 'ranks', 'users'].forEach((k) => Bus.on(k === 'users' ? 'users' : `data:${k}`, (e) => { if (e.detail && e.detail.remote && !e.detail.synced) Data.refresh(k); }));
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
-  setInterval(async () => { if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
+  setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
   window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl };
   const b = $('#boot'); if (b) b.remove();
@@ -5417,8 +5431,7 @@ const Escalate = {
   async run() {
     try {
       if (!Auth.user || !canUser(Auth.user, 'tickets.work')) return;
-      const lock = await DB.get('meta', 'escalate:at'); if (lock && now() - lock.value < 4 * MIN) return;
-      await DB.put('meta', { key: 'escalate:at', value: now() });
+      if (!(await Jobs.claim('escalate:at', 4 * MIN))) return;
       const after = Number(Data.c.settings.escalateAfter || 60), late = [];
       await DB.each('tickets', { index: 'openDue', range: KR(1, now() - after * MIN) }, (t) => { if (!t.escalated) late.push(t); });
       if (!late.length) return;
@@ -5611,8 +5624,7 @@ const AutoClose = {
       if (!Auth.user || !canUser(Auth.user, 'tickets.work')) return;
       const s = Data.c.settings, days = Number(s.autoCloseDays || 3);
       if (s.autoClose === 0 || !(days > 0)) return;
-      const lock = await DB.get('meta', 'autoclose:at'); if (lock && now() - lock.value < 10 * MIN) return;
-      await DB.put('meta', { key: 'autoclose:at', value: now() });
+      if (!(await Jobs.claim('autoclose:at', 10 * MIN))) return;
       const rows = await DB.getAll('tickets', 'status_createdAt', KR(['resolved', 0], ['resolved', Infinity])), remindAfter = days > 1 ? (days - 1) * DAY : DAY / 2;
       for (const t of rows) {
         const base = t.resolvedAt || t.updatedAt, age = now() - base;
@@ -5846,8 +5858,7 @@ const LoanAlerts = {
   async run() {
     try {
       if (!Auth.user) return;
-      const lock = await DB.get('meta', 'loanalert:at'); if (lock && now() - lock.value < 30 * MIN) return;
-      await DB.put('meta', { key: 'loanalert:at', value: now() });
+      if (!(await Jobs.claim('loanalert:at', 30 * MIN))) return;
       const rows = await DB.getAll('loans', 'status', KR('active')), managers = Data.list('users').filter((u) => u.active && canUser(u, 'loans.manage')).map((u) => u.id);
       for (const l of rows) {
         if (!l.dueAt) continue;
@@ -6040,7 +6051,10 @@ const Sync = {
       this.hook(); this.setStatus('online');
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.pull(); });
       window.addEventListener('online', () => { this.pull(); this.flush(); });
-      this.pullTimer = setInterval(() => { if (!document.hidden && Auth.user) this.pull(); }, 6000);
+      /* سحب متكيّف: كل 5 ثوانٍ مع وجود تغييرات، ويتباطأ تدريجياً حتى 15 ثانية حين لا جديد، ويعود سريعاً عند تفاعل المستخدم */
+      const loop = async () => { let n = 0; try { if (!document.hidden && Auth.user) n = await this.pull(); } finally { this._idle = n ? 0 : Math.min((this._idle || 0) + 1, 8); this.pullTimer = setTimeout(loop, 5000 + this._idle * 1250); } };
+      this.pullTimer = setTimeout(loop, 5000);
+      ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (this._idle > 2) { this._idle = 0; clearTimeout(this.pullTimer); this.pullTimer = setTimeout(loop, 300); } }, { passive: true, capture: true }));
     } catch (e) { this.on = false; this.setStatus('local'); }
     return this.on;
   },
@@ -6146,7 +6160,8 @@ const Sync = {
     try {
       let total = 0, guard = 0;
       for (;;) {
-        const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500` });
+        const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500&pres=1` });
+        if (Array.isArray(res.presence)) { Sync.presence = true; Presence.setList(res.presence); }
         const docs = res.docs || [];
         if (docs.length) {
           const alerts = this.newArrivals(docs);
@@ -6176,10 +6191,11 @@ const Sync = {
 
   notifyStores(stores) {
     const set = new Set(stores);
-    if (['users', 'departments', 'categories', 'itemCategories', 'warehouses', 'ranks', 'printers', 'locations', 'settings'].some((s) => set.has(s))) Data.refresh().catch(() => {});
+    const look = ['users', 'departments', 'categories', 'itemCategories', 'warehouses', 'ranks', 'printers', 'locations', 'settings'].filter((s) => set.has(s));
+    if (look.length) Promise.all(look.map((s) => Data.refresh(s))).catch(() => {});
     if (set.has('tickets') || set.has('ticketEvents')) Bus.emit('tickets', { remote: true });
     if (['items', 'stock', 'movements', 'loans', 'deptStock', 'assets', 'vouchers'].some((s) => set.has(s))) Bus.emit('inventory', { remote: true });
-    if (set.has('users')) Bus.emit('users', { remote: true });
+    if (set.has('users')) Bus.emit('users', { remote: true, synced: true });
     if (set.has('notifications')) Bus.emit('notifications', { remote: true });
     if (set.has('kb')) Bus.emit('data:kb', { remote: true });
   },
@@ -7045,8 +7061,7 @@ const ChatAutoClose = {
   async run() {
     try {
       if (!Auth.user) return;
-      const lock = await DB.get('meta', 'chatclose:at'); if (lock && now() - lock.value < 30 * MIN) return;
-      await DB.put('meta', { key: 'chatclose:at', value: now() });
+      if (!(await Jobs.claim('chatclose:at', 30 * MIN))) return;
       for (const c of await DB.getAll('chats')) {
         if (c.status === 'closed') continue;
         const base = c.staffClosedAt || 0;
@@ -7561,8 +7576,7 @@ const ChatPurge = {
   async run() {
     try {
       if (!Auth.user) return;
-      const lock = await DB.get('meta', 'chatpurge:at'); if (lock && now() - lock.value < 6 * 60 * MIN) return;
-      await DB.put('meta', { key: 'chatpurge:at', value: now() });
+      if (!(await Jobs.claim('chatpurge:at', 6 * 60 * MIN))) return;
       const chats = await DB.getAll('chats'), keep = [];
       for (const c of chats) {
         const closedAt = c.status === 'closed' ? Math.max(c.userClosedAt || 0, c.staffClosedAt || 0, c.updatedAt || 0) : 0;
@@ -8164,11 +8178,12 @@ Data.forms = {
   async seedBuiltin() {
     const flag = `sq_seed_forms_v2:${Auth.user ? Auth.user.id : ''}`; try { if (localStorage.getItem(flag)) return; } catch (_) { /* تجاهل */ }
     const CAT = [[/شبكة/, 'network', 'network'], [/مجلد/, 'service_request', 'folder'], [/بطاقة/, 'card', 'card']], t = now();
-    const recs = $$('script[data-form]').map((el, i) => {
+    const recs = await Promise.all($$('script[data-form]').map(async (el, i) => {
       const name = el.dataset.name || `استمارة ${i + 1}`, [, categoryId = '', icon = 'paper'] = CAT.find(([re]) => re.test(name)) || [];
-      const b64 = el.textContent.trim();
-      return { id: `fm_builtin_${i + 1}`, title: name, desc: 'استمارة رسمية معتمدة — للمعاينة والطباعة والتحميل', icon, categoryId, order: i, createdAt: t, updatedAt: t, file: { name: `${name}.pdf`, type: 'application/pdf', size: Number(el.dataset.size) || Math.round(b64.length * 0.75), at: t, data: `data:application/pdf;base64,${b64}` } };
-    });
+      const b64 = el.dataset.src ? '' : el.textContent.trim();
+      const data = el.dataset.src ? await fetch(el.dataset.src).then((r) => { if (!r.ok) throw new AppError('تعذر تحميل الاستمارة'); return r.blob(); }).then((b) => blobToDataURL(new Blob([b], { type: 'application/pdf' }))) : `data:application/pdf;base64,${b64}`;
+      return { id: `fm_builtin_${i + 1}`, title: name, desc: 'استمارة رسمية معتمدة — للمعاينة والطباعة والتحميل', icon, categoryId, order: i, createdAt: t, updatedAt: t, file: { name: `${name}.pdf`, type: 'application/pdf', size: Number(el.dataset.size) || Math.round(b64.length * 0.75), at: t, data } };
+    }));
     const local = Sync.on && Sync.raw && !canManageForms();
     for (const r of recs) {
       const cur = await DB.get('forms', r.id);
@@ -9049,8 +9064,7 @@ Data.backup = {
   async autoRun() {
     try {
       if (!Auth.user || !canBackup() || !Data.backup.due()) return;
-      const lock = await DB.get('meta', 'backup:at'); if (lock && now() - lock.value < 6 * HOUR) return;
-      await DB.put('meta', { key: 'backup:at', value: now() });
+      if (!(await Jobs.claim('backup:at', 6 * HOUR))) return;
       const bk = await Data.backup.create({ scope: 'full', note: 'نسخة تلقائية مجدولة' });
       const wrote = await Data.backup.writeToFolder(bk.blob, bk.name);
       await Data.backup.setSchedule({ lastAt: now() });
@@ -9680,8 +9694,7 @@ Data.chat.hiddenFor = (c) => (isChatStaff() ? !!c.staffClosedAt : !!c.userClosed
 ChatPurge.run = async () => {
   try {
     if (!Auth.user) return;
-    const lock = await DB.get('meta', 'chatpurge:at'); if (lock && now() - lock.value < 30 * MIN) return;
-    await DB.put('meta', { key: 'chatpurge:at', value: now() });
+    if (!(await Jobs.claim('chatpurge:at', 30 * MIN))) return;
     for (const c of await DB.getAll('chats')) {
       const both = c.staffClosedAt && c.userClosedAt;
       const one = c.staffClosedAt || c.userClosedAt;
@@ -10462,9 +10475,34 @@ Presence.state = (v) => {
 Presence.of = async (userId) => {
   if (!userId) return Presence.state(null);
   if (Auth.user && userId === Auth.user.id) return { online: true, active: true, at: now(), act: now(), page: '' };
+  if (Presence.remote()) return Presence.state(Presence.cache.get(userId));
   try { const r = await DB.get('meta', `presence:${userId}`); return Presence.state(r && r.value); } catch (_) { return Presence.state(null); }
 };
+/* التواجد عبر الخادم (جدول مستقل لا يرفع رقم التغيير): كانت كل نبضة من كل مستخدم سجلاً متزامناً يسحبه كل جهاز */
+Presence.cache = new Map();
+Presence.remote = () => Sync.on && !!Sync.token && Sync.presence !== false;
+Presence.setList = (list) => { const m = new Map(); (list || []).forEach((v) => { if (v && v.userId) m.set(v.userId, v); }); Presence.cache = m; };
+{
+  const beatBase = Presence.beat.bind(Presence), leaveBase = Presence.leave.bind(Presence), onlineBase = Presence.online.bind(Presence);
+  Presence.beat = async () => {
+    if (!Presence.remote()) return beatBase();
+    const u = Auth.user; if (!u || u.role === 'monitor') return;
+    const value = { userId: u.id, role: u.role, at: (Presence.lastBeat = now()), since: (Presence.since = Presence.since || now()), act: Presence.act || now(), page: (location.hash.slice(1) || '/').split('?')[0] };
+    try { const r = await Sync.call('beat', { body: { value }, timeout: 8000 }); Sync.presence = true; if (r && Array.isArray(r.presence)) Presence.setList(r.presence); } catch (e) { if (e && e.status === 404) { Sync.presence = false; return beatBase(); } }
+  };
+  Presence.leave = async (u) => {
+    if (!u) return;
+    if (Presence.remote()) { try { await Sync.call('beat', { body: { leave: 1 }, timeout: 5000 }); } catch (_) { /* تجاهل */ } Presence.cache.delete(u.id); Presence.since = 0; }
+    return leaveBase(u);
+  };
+  Presence.online = async () => {
+    if (!Presence.remote()) return onlineBase();
+    const t = now();
+    return [...Presence.cache.values()].filter((v) => t - v.at < Presence.TTL).map((v) => ({ ...v, user: Data.c.users.get(v.userId) })).filter((p) => p.user && p.user.active && p.user.role !== 'monitor');
+  };
+}
 Presence.map = async () => {
+  if (Presence.remote()) { const m = new Map(); Presence.cache.forEach((v, k) => m.set(k, Presence.state(v))); return m; }
   const m = new Map();
   try { (await DB.getAll('meta', null, KR('presence:', 'presence:￿'))).forEach((r) => { if (r.value && r.value.userId) m.set(r.value.userId, Presence.state(r.value)); }); } catch (_) { /* تجاهل */ }
   return m;
@@ -10594,6 +10632,7 @@ Data.svc.sweep = async () => {
     for (const s of await DB.getAll('services')) {
       if (!s.until || s.until > t || s.status === 'up') continue;
       const fresh = await DB.get('services', s.id); if (!fresh || fresh.status === 'up' || !fresh.until || fresh.until > t) continue;
+      if (!(await Jobs.claim(`svcup:${s.id}:${fresh.until}`, 10 * MIN))) continue;
       await DB.put('services', { ...fresh, status: 'up', note: '', until: 0, updatedAt: t, by: '' }); n++;
       await Data.notify(Data.list('users').filter((u) => u.active).map((u) => u.id), { title: `${fresh.name}: ${SVC_STATUS.up.label}`, body: 'انتهت مدة التوقف المحددة وعادت الخدمة للعمل', link: '/status', kind: 'system' });
     }
