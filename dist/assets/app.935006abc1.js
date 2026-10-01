@@ -282,6 +282,38 @@ const DB = (() => {
 const KR = (...a) => (a.length === 1 ? IDBKeyRange.only(a[0]) : IDBKeyRange.bound(a[0], a[1]));
 /* مهام الصيانة الدورية (التصعيد، الإغلاق التلقائي، تنبيهات العهد...): ينفذها جهاز واحد فقط عبر حجز ذري على الخادم،
    بدل أن ينفذها كل جهاز مفتوح فتتكرر الكتابات والإشعارات وتتضاعف المزامنة. بدون خادم: قفل محلي كما كان */
+/* إخفاء أقسام القائمة حسب نوع الحساب (يحدده المشرف أو من يملك nav.manage). المشرف يرى كل شيء دائماً */
+const NAV_ROLES = [['department', 'الموظفون'], ['technician', 'الفنيون'], ['support_manager', 'الإداريون']];
+const NAV_LOCKED = new Set(['/dashboard', '/profile', '/nav-visibility']);
+const Nav = {
+  hidden(path) {
+    const u = Auth.user, p = String(path || '').split('?')[0]; if (!u || u.role === 'supervisor' || u.role === 'monitor' || NAV_LOCKED.has(p)) return false;
+    const m = Data.c.navHide || {}; if (!Object.keys(m).length) return false;
+    Nav.paths = Nav.paths || new Set(Shell.navAll().flatMap((g) => g.items.map((i) => i.path)));
+    /* صفحة من القائمة: حسب إعدادها هي فقط. صفحة فرعية (مثل تفاصيل بلاغ): تتبع أقرب صفحة أم في القائمة */
+    const key = Nav.paths.has(p) ? p : [...Nav.paths].filter((k) => k !== '/' && p.startsWith(k + '/')).sort((a, b) => b.length - a.length)[0];
+    return !!key && (m[key] || []).includes(u.role);
+  },
+  async save(map) { if (!Auth.can('nav.manage')) throw new AppError('لا تملك صلاحية إظهار وإخفاء الأقسام'); await DB.put('meta', { key: 'navhide', value: map }); Data.c.navHide = map; await Data.log('update', 'settings', 'navhide', 'تحديث إظهار أقسام القائمة'); }
+};
+/* الإشعارات: المقروءة تُحذف بعد 3 أيام من فتحها، وإشعار «بلاغ جديد» يُحذف من حسابك حين يستلم البلاغ فني آخر */
+const NOTE_KEEP_DAYS = 3;
+const NoteSweep = {
+  busy: false,
+  async run() {
+    const u = Auth.user; if (!u || this.busy) return 0; this.busy = true; let n = 0;
+    try {
+      const t = now(), mine = await DB.getAll('notifications', 'user_at', KR([u.id, 0], [u.id, Infinity]));
+      for (const x of mine) {
+        let drop = !!x.read && t - (x.readAt || x.at) >= NOTE_KEEP_DAYS * DAY;
+        if (!drop && /^بلاغ جديد /.test(x.title || '') && /^\/tickets\/[^/?]+$/.test(x.link || '')) { const tk = await DB.get('tickets', x.link.slice(9)); drop = !!tk && tk.assigneeId !== u.id && (!!tk.assigneeId || tk.status !== 'new'); }
+        if (drop) { try { await DB.del('notifications', x.id); n++; } catch (_) { /* تجاهل */ } }
+      }
+      if (n) Bus.emit('notifications');
+    } catch (e) { console.warn('notes sweep', e); } finally { this.busy = false; }
+    return n;
+  }
+};
 const Jobs = {
   async claim(key, ms) {
     if (Sync.on && Sync.token && Sync.leases !== false) {
@@ -308,7 +340,7 @@ const STATUS = { new: { label: 'جديد', tone: 'sky' }, assigned: { label: 'م
 const OPEN = ['new', 'assigned', 'in_progress', 'waiting'];
 const PRIORITY = { urgent: { label: 'عاجل', tone: 'red', rank: 4 }, high: { label: 'عالية', tone: 'amber', rank: 3 }, medium: { label: 'متوسطة', tone: 'sky', rank: 2 }, low: { label: 'منخفضة', tone: 'teal', rank: 1 } };
 const MOVES = { receive: { label: 'استلام', sign: 1 }, issue: { label: 'صرف', sign: -1 }, transfer_out: { label: 'تحويل صادر', sign: -1 }, transfer_in: { label: 'تحويل وارد', sign: 1 }, adjust: { label: 'تسوية جرد', sign: 0 }, loan_out: { label: 'تسليم عهدة', sign: -1 }, loan_return: { label: 'إرجاع عهدة', sign: 1 } };
-const DEFAULT_SETTINGS = { orgName: 'أكاديمية السلطان قابوس لعلوم الشرطة', systemName: 'تقنية المعلومات', supportPhone: '25446850', sessionHours: 12, sla: { urgent: { respond: 30, resolve: 240 }, high: { respond: 60, resolve: 480 }, medium: { respond: 240, resolve: 1440 }, low: { respond: 480, resolve: 4320 } } };
+const DEFAULT_SETTINGS = { orgName: 'أكاديمية السلطان قابوس لعلوم الشرطة', systemName: 'قسم تقنية المعلومات', supportPhone: '25446850', sessionHours: 12, sla: { urgent: { respond: 30, resolve: 240 }, high: { respond: 60, resolve: 480 }, medium: { respond: 240, resolve: 1440 }, low: { respond: 480, resolve: 4320 } } };
 const CAT_ILLU = { hardware: 'computer', printer: 'printer', network: 'network', software: 'software', email: 'email', card: 'card', path_code: 'key', backup: 'archive', ink: 'toner', scanner: 'scanner', service_request: 'bell', other: 'box' };
 const ITEMCAT_ILLU = { laptop: 'laptop', printer: 'printer', scanner: 'scanner', projector: 'projector', monitor: 'display', camera: 'cctv', audio: 'speaker', network: 'network', cable: 'cable', storage: 'drive', power: 'ups', ink: 'ink', hardware: 'box', other: 'box' };
 
@@ -337,7 +369,7 @@ const Seed = {
     if (!(await DB.count('printers'))) await DB.bulkPut('printers', this.printers.map((name, i) => ({ id: `pr_${i + 1}`, name, models: '', order: i })));
     if (!(await DB.count('locations'))) await DB.bulkPut('locations', ['المبنى الرئيسي (القيادة)', 'مبنى الكلية', 'مبنى تقنية المعلومات', 'مبنى الشؤون الإدارية', 'مبنى التدريب', 'السكن الداخلي'].map((name, i) => ({ id: `loc_${i + 1}`, name, description: '', order: i, createdAt: t })));
     if (!(await DB.count('templates'))) await DB.bulkPut('templates', this.templates.map(([name, body], i) => ({ id: `tpl_${i + 1}`, name, body, order: i })));
-    if (!(await DB.count('kb'))) await DB.bulkPut('kb', this.kb.map(([categoryId, title, body, keywords], i) => ({ id: `kb_${i + 1}`, categoryId, title, body, keywords, views: 0, helpful: 0, author: 'تقنية المعلومات', createdAt: t, updatedAt: t })));
+    if (!(await DB.count('kb'))) await DB.bulkPut('kb', this.kb.map(([categoryId, title, body, keywords], i) => ({ id: `kb_${i + 1}`, categoryId, title, body, keywords, views: 0, helpful: 0, author: 'قسم تقنية المعلومات', createdAt: t, updatedAt: t })));
     if (!(await DB.get('meta', 'settings'))) await DB.put('meta', { key: 'settings', value: {} });
     await SysAccounts.ensure();
   }
@@ -441,7 +473,7 @@ const Data = {
   async refresh(which) {
     const lists = which === 'settings' ? [] : which ? [which] : ['departments', 'ranks', 'categories', 'warehouses', 'itemCategories', 'users', 'printers', 'locations'];
     await Promise.all(lists.map(async (name) => { const rows = await DB.getAll(name); rows.sort((a, b) => (a.order || 0) - (b.order || 0) || AR_COLL.compare(String(a.name), String(b.name))); this.c[name] = new Map(rows.map((r) => [r.id, r])); }));
-    if (!which || which === 'settings') { const s = await DB.get('meta', 'settings'); const v = (s && s.value) || {}; this.c.settings = { ...DEFAULT_SETTINGS, ...v, sla: { ...DEFAULT_SETTINGS.sla, ...(v.sla || {}) } }; }
+    if (!which || which === 'settings') { const s = await DB.get('meta', 'settings'); const v = (s && s.value) || {}; this.c.settings = { ...DEFAULT_SETTINGS, ...v, sla: { ...DEFAULT_SETTINGS.sla, ...(v.sla || {}) } }; if (String(this.c.settings.systemName || '').trim() === 'تقنية المعلومات') this.c.settings.systemName = 'قسم تقنية المعلومات'; const nh = await DB.get('meta', 'navhide'); this.c.navHide = (nh && nh.value) || {}; }
   },
   list(map) { return [...this.c[map].values()]; },
   nameOf(map, id, fb = '—') { const x = this.c[map].get(id); return x ? x.name : fb; },
@@ -1488,10 +1520,11 @@ UI.hydrate = (root) => {
 UI.palette = () => {
   if ($('.cmdk')) return;
   const wrap = document.createElement('div'); wrap.className = 'cmdk';
-  wrap.innerHTML = String(html`<div class="cmdk-box" role="dialog" aria-modal="true" aria-label="البحث السريع"><div class="cmdk-in">${UI.icon('search')}<input placeholder="ابحث عن بلاغ أو صنف أو مقال أو صفحة..." aria-label="بحث" autocomplete="off"><kbd>Esc</kbd></div><div class="cmdk-list" role="listbox"></div><div class="cmdk-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> للتنقل</span><span><kbd>Enter</kbd> للفتح</span><span><kbd>Ctrl</kbd> + <kbd>K</kbd> في أي وقت</span></div></div>`);
+  wrap.innerHTML = String(html`<div class="cmdk-box" role="dialog" aria-modal="true" aria-label="البحث السريع"><div class="cmdk-in">${UI.icon('search')}<input placeholder="ابحث عن بلاغ أو صنف أو مقال أو صفحة..." aria-label="بحث" autocomplete="off"><kbd>Esc</kbd><button type="button" class="icon-btn cmdk-x" aria-label="إغلاق" title="إغلاق">${UI.icon('x')}</button></div><div class="cmdk-list" role="listbox"></div><div class="cmdk-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> للتنقل</span><span><kbd>Enter</kbd> للفتح</span><span><kbd>Ctrl</kbd> + <kbd>K</kbd> في أي وقت</span></div></div>`);
   document.body.appendChild(wrap);
   const input = $('input', wrap), list = $('.cmdk-list', wrap); let items = [], active = 0, token = 0;
   const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey, true); };
+  $('.cmdk-x', wrap).onclick = (e) => { e.stopPropagation(); close(); };
   const base = () => {
     const nav = Shell.nav().flatMap((g) => g.items.map((i) => ({ group: 'الصفحات', icon: i.icon, label: i.label, run: () => Router.go(i.path) })));
     const acts = [{ group: 'أوامر سريعة', icon: 'sun', label: 'تبديل المظهر الفاتح/الداكن', run: () => UI.theme.toggle() }, { group: 'أوامر سريعة', icon: 'user', label: 'الملف الشخصي والتخصيص', run: () => Router.go('/profile') }, { group: 'أوامر سريعة', icon: 'logout', label: 'تسجيل الخروج', run: () => Shell.logout() }];
@@ -1531,21 +1564,23 @@ UI.palette = () => {
 
 /* ── الإشعارات ───────────────────────────────────────────────── */
 Data.notes = {
-  async read(id) { const n = await DB.get('notifications', id); if (n && !n.read) { n.read = 1; await DB.put('notifications', n); } },
-  async readAll() { const rows = await DB.getAll('notifications', 'user_read', KR([Auth.user.id, 0])); rows.forEach((r) => { r.read = 1; }); await DB.bulkPut('notifications', rows); Bus.emit('notifications'); }
+  async read(id) { const n = await DB.get('notifications', id); if (n && !n.read) { n.read = 1; n.readAt = now(); await DB.put('notifications', n); } },
+  async remove(ids) { for (const id of [].concat(ids)) { try { await DB.del('notifications', id); } catch (_) { /* محذوف مسبقاً */ } } Bus.emit('notifications'); },
+  async readAll() { const rows = await DB.getAll('notifications', 'user_read', KR([Auth.user.id, 0])); const t = now(); rows.forEach((r) => { r.read = 1; r.readAt = t; }); await DB.bulkPut('notifications', rows); Bus.emit('notifications'); }
 };
 
 /* ── الهيكل العام ───────────────────────────────────────────── */
 const Shell = {
   mounted: false, offs: [],
-  nav() {
+  nav() { return this.navAll().map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm) && !Nav.hidden(i.path)) })).filter((g) => g.items.length); },
+  navAll() {
     return [
       { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
-      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
-    ].map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm)) })).filter((g) => g.items.length);
+      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/nav-visibility', label: 'إظهار الأقسام', icon: 'eye', perm: 'nav.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+    ];
   },
   mount() {
     const s = Data.c.settings, u = Auth.user;
@@ -1656,7 +1691,7 @@ const Router = {
     view.classList.remove('vm-grid', 'vm-list'); UI._vkey = match && !match.bare && VIEW_MODES[path] ? path : '';
     if (UI._vkey) view.classList.add('vm-' + UI.vmode(path, VIEW_MODES[path]));
     if (!match) { view.innerHTML = String(UI.empty({ illu: 'box', title: 'الصفحة غير موجودة', text: 'الرابط غير صحيح أو تم نقل الصفحة.', action: html`<a class="btn btn-primary" href="#/dashboard">العودة إلى لوحة القيادة</a>` })); return; }
-    if (match.perm && !Auth.can(match.perm)) { view.innerHTML = String(UI.empty({ illu: 'key', title: 'لا تملك صلاحية لهذه الصفحة', text: 'تواصل مع مشرف النظام إذا كنت تحتاج إلى هذه الصلاحية.' })); return; }
+    if (Nav.hidden(path) || (match.perm && !Auth.can(match.perm))) { view.innerHTML = String(UI.empty({ illu: 'key', title: 'لا تملك صلاحية لهذه الصفحة', text: 'تواصل مع مشرف النظام إذا كنت تحتاج إلى هذه الصلاحية.' })); return; }
     if (!match.bare) view.innerHTML = '<div class="page-loading"><div class="skel" style="height:96px"></div><div class="skel" style="height:128px"></div><div class="skel" style="height:340px"></div></div>';
     try {
       await match.render(ctx);
@@ -1771,8 +1806,9 @@ Pages.auth = async () => ((Sync.on && !Sync.serverEmpty) || (await DB.count('use
 /* مشهد الواجهة الفاخر: شعار الأكاديمية في قلب نواة رقمية، مدارات أيقونات، كوكبة شبكية، ونقش هندسي عُماني */
 const SCENE_NODES = [[120, 140], [260, 90], [390, 180], [210, 260], [80, 380], [300, 400], [150, 520], [880, 120], [760, 200], [930, 300], [820, 380], [700, 90], [900, 520], [760, 560], [600, 60], [470, 70]];
 const SCENE_EDGES = [[0, 1], [1, 2], [0, 3], [3, 2], [3, 4], [4, 5], [5, 3], [4, 6], [7, 8], [8, 9], [9, 10], [8, 11], [11, 7], [10, 12], [12, 13], [10, 13], [11, 14], [14, 15], [15, 2], [5, 6]];
-Pages.scene = (title, text, kicker = 'قسم تقنية المعلومات') => {
-  const chips = [['shield', 'أمن المعلومات'], ['layers', 'البرامج'], ['database', 'البيانات'], ['lock', 'الصلاحيات'], ['monitor', 'الأنظمة'], ['pulse', 'المراقبة']];
+Pages.scene = (title, text, kicker = '') => {
+  const sp = Data.c.settings.supportPhone;
+  const chips = [['shield', 'أمن المعلومات'], ['layers', 'البرامج'], ['database', 'البيانات'], ['lock', 'الصلاحيات'], ['monitor', 'الأنظمة'], ['pulse', 'المتابعة']];
   const net = SCENE_EDGES.map(([a, b], i) => { const [x1, y1] = SCENE_NODES[a], [x2, y2] = SCENE_NODES[b]; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${i % 3 === 0 ? `<line class="pk" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" pathLength="100" style="animation-delay:${(i * 0.7).toFixed(1)}s"/>` : ''}`; }).join('')
     + SCENE_NODES.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 4 ? 2.4 : 3.6}" style="animation-delay:${(i * 0.45).toFixed(2)}s"/>`).join('');
   return html`<section class="login-scene lux" id="scene" aria-hidden="true">
@@ -1785,8 +1821,8 @@ Pages.scene = (title, text, kicker = 'قسم تقنية المعلومات') => 
       <div class="lux-orbit">${chips.map(([ic, label], i) => html`<span class="lux-chip" style="--a:${i * 60}deg"><span>${UI.icon(ic)}<em>${label}</em></span></span>`)}</div>
       <div class="lux-crest"><img src="${ASSETS.logo}" alt=""></div>
     </div>
-    <div class="scene-caption"><span class="lux-kicker">${kicker}</span><b>${title}</b><span class="lux-text">${text}</span>
-      <div class="scene-badges"><span>${UI.icon('shield')} حماية وأمن المعلومات</span><span>${UI.icon('clock')} دعم فني على مدار الساعة</span><span>${UI.icon('database')} بنية تحتية موثوقة</span></div></div>
+    <div class="scene-caption">${kicker ? html`<span class="lux-kicker">${kicker}</span>` : ''}<b>${title}</b>${text ? html`<span class="lux-text">${text}</span>` : ''}
+      <div class="scene-badges"><span>${UI.icon('shield')} حماية وأمن المعلومات</span>${sp ? html`<span>${UI.icon('phone')} رقم التواصل <bdi class="ltr">${sp}</bdi></span>` : ''}</div></div>
   </section>`;
 };
 Pages.login = () => {
@@ -1799,8 +1835,7 @@ Pages.login = () => {
     <label class="check"><input type="checkbox" name="remember"${last ? raw(' checked') : ''}><span>تذكر اسم المستخدم على هذا الجهاز</span></label>
     <p class="form-error" id="loginErr" role="alert" hidden></p>
     <button class="btn btn-primary btn-lg btn-block" type="submit">${UI.icon('key')} دخول</button>
-    <p class="login-help">${UI.icon('phone')} نسيت كلمة المرور؟ اتصل بالدعم الفني <span class="ltr">${s.supportPhone}</span></p>
-  </form></section>${Pages.scene('درعٌ رقميّ… وخدمةٌ لا تتوقف', `نُدير بنية تقنية المعلومات في ${s.orgName} بأعلى معايير الأمان والموثوقية؛ دعمٌ فنيٌّ فوري، وأصولٌ مؤمَّنة، وبياناتٌ محفوظة.`)}</div>`);
+  </form></section>${Pages.scene('قسم تقنية المعلومات', '')}</div>`);
   const form = $('#loginForm'), err = $('#loginErr'), pw = $('#lp');
   $('.reveal', form).onclick = (e) => { const show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; e.currentTarget.innerHTML = String(UI.icon(show ? 'eye-off' : 'eye')); };
   UI.parallax($('#scene'));
@@ -1930,7 +1965,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
   if (!ctx.alive()) return;
   const open = rows.filter((t) => OPEN.includes(t.status)), waitingMe = rows.filter((t) => t.status === 'resolved');
   ctx.view.innerHTML = String(html`${await Pages.announceBar()}
-    ${Pages.hello(u, open.length ? `لديك ${arCount(open.length, AR.ticket)} قيد المتابعة، وسنبقيك على اطلاع بكل تحديث.` : 'لا توجد لديك بلاغات مفتوحة. نحن هنا متى احتجت إلى مساعدة.', html`<a class="btn btn-primary btn-sm" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a><a class="btn btn-soft btn-sm" href="#/kb">${UI.icon('book')} حلول سريعة</a>`)}
+    ${Pages.hello(u, open.length ? `لديك ${arCount(open.length, AR.ticket)} قيد المتابعة، وسنبقيك على اطلاع بكل تحديث.` : 'لا توجد لديك بلاغات مفتوحة. نحن هنا متى احتجت إلى مساعدة.', html`<a class="btn btn-primary btn-sm" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>${Nav.hidden('/kb') ? '' : html`<a class="btn btn-soft btn-sm" href="#/kb">${UI.icon('book')} حلول لمشاكل متكررة</a>`}`)}
     ${waitingMe.length ? html`<div class="banner tone-amber">${UI.icon('star')}<div class="grow"><b>${arCount(waitingMe.length, AR.ticket)} بانتظار تأكيدك للحل</b><div class="small muted">أكّد الحل وقيّم الخدمة ليُغلق البلاغ.</div></div><a class="btn btn-sm btn-soft" href="#/tickets/${waitingMe[0].id}">${UI.icon('star')} تقييم الآن</a></div>` : ''}
     <div class="kpis">
       ${UI.kpi({ label: 'كل بلاغاتي', icon: 'ticket', tone: 'sky', value: rows.length })}
@@ -1938,10 +1973,10 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
       ${UI.kpi({ label: 'تم حلها', icon: 'check', tone: 'teal', value: rows.filter((t) => ['resolved', 'closed'].includes(t.status)).length })}
       ${UI.kpi({ label: 'متوسط زمن الحل', icon: 'pulse', tone: 'violet', value: Stats.avgRes(rows) / HOUR, dec: 1, suffix: ' س' })}
     </div>
-    ${UI.panel({ title: 'بماذا نساعدك اليوم؟', icon: 'plus', sub: 'اختر نوع المشكلة لبدء بلاغ جديد خلال أقل من دقيقة', cls: 'mt', body: html`<div class="tiles">${Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
+    ${UI.panel({ cls: 'mt', body: html`<div class="tiles">${Nav.hidden('/chat') ? '' : Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
       ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
-      <div class="stack">${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${UI.panel({ title: 'حلول سريعة', icon: 'book', sub: 'قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
+      <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
     </div>`);
 }, null);
 
@@ -2039,7 +2074,7 @@ Pages.newTicket = async (ctx) => {
   if (st.cat) st.step = 2;
   ctx.onCleanup(() => urls.forEach((x) => URL.revokeObjectURL(x)));
   const steps = () => html`<div class="wiz-steps">${['نوع المشكلة', 'تفاصيل البلاغ', 'المراجعة والإرسال'].map((l, i) => html`<div class="wiz-step ${st.step === i + 1 ? 'on' : st.step > i + 1 ? 'done' : ''}"><i>${st.step > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
-  const head = UI.pageHead({ title: 'بلاغ جديد', sub: 'صف المشكلة بوضوح وسيصل البلاغ فوراً إلى فريق الدعم الفني', illu: 'bell' });
+  const head = UI.pageHead({ title: 'بلاغ جديد', illu: 'bell' });
   const save = () => { const form = $('#tkForm', view); if (form) Object.assign(st, UI.formValues(form)); const cf = $('#catFields', view); if (cf) st.x = Forms.values(cf); const pb = $('[data-persons]', view); if (pb) st.persons = Forms.readPersons(pb); const cb2 = $('[data-codes]', view); if (cb2) st.codes = Forms.readCodes(cb2); };
   const step1 = () => {
     view.innerHTML = String(html`${head}${steps()}${UI.panel({ title: 'ما نوع المشكلة؟', icon: 'grid', sub: 'اختر الفئة الأقرب لمشكلتك', body: html`<div class="tiles stagger">${cats.map((c) => html`<button type="button" class="tile tilt ${st.cat === c.id ? 'selected' : ''}" data-cat="${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b><small>${(QUICK_TITLES[c.id] || [])[0] || 'مشكلة أخرى'}</small></button>`)}</div>` })}`);
@@ -2609,15 +2644,16 @@ Pages.kb = async (ctx) => {
 /* ── الإشعارات وسجل النشاط ─────────────────────────────────── */
 Pages.notifications = async (ctx) => {
   const st = { unread: false, offset: 0, limit: 40 }, me = Auth.user.id;
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الإشعارات', sub: 'كل ما يخصك من تحديثات', illu: 'bell', actions: html`<label class="switch"><input type="checkbox" id="nUnread"><i></i><span>غير المقروءة فقط</span></label><button class="btn" data-act="readall">${UI.icon('check')} قراءة الكل</button>` })}<section class="panel"><div class="panel-body" id="nList"></div></section>`);
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الإشعارات', sub: 'كل ما يخصك من تحديثات', illu: 'bell', actions: html`<label class="switch"><input type="checkbox" id="nUnread"><i></i><span>غير المقروءة فقط</span></label><button class="btn" data-act="readall">${UI.icon('check')} قراءة الكل</button><button class="btn" data-act="delread">${UI.icon('trash')} حذف المقروءة</button>` })}<section class="panel"><div class="panel-body" id="nList"></div></section><p class="hint mt">تُحذف الإشعارات المقروءة تلقائياً بعد ${NOTE_KEEP_DAYS} أيام من فتحها.</p>`);
   const load = async () => {
     const { rows, hasMore } = await DB.page('notifications', { index: 'user_at', range: KR([me, 0], [me, Infinity]), offset: st.offset, limit: st.limit, filter: st.unread ? (n) => !n.read : null }); if (!ctx.alive()) return;
     let last = '';
-    $('#nList', ctx.view).innerHTML = String(rows.length ? html`${rows.map((n) => { const day = fmtDate(n.at), headRow = day !== last ? html`<div class="day-head">${startOfDay(n.at) === startOfDay() ? 'اليوم' : startOfDay(n.at) === startOfDay() - DAY ? 'أمس' : day}</div>` : ''; last = day; return html`${headRow}<div class="note tone-${n.kind === 'inventory' ? 'amber' : n.kind === 'ticket' ? 'sky' : 'teal'} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}"><span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span><div class="grow"><b>${n.title}</b><small>${n.body || ''}</small></div><small class="faint nowrap">${fmtTime(n.at)}</small></div>`; })}${UI.pager({ offset: st.offset, limit: st.limit, count: rows.length, hasMore })}` : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستصلك هنا تحديثات البلاغات والمخازن.' }));
+    $('#nList', ctx.view).innerHTML = String(rows.length ? html`${rows.map((n) => { const day = fmtDate(n.at), headRow = day !== last ? html`<div class="day-head">${startOfDay(n.at) === startOfDay() ? 'اليوم' : startOfDay(n.at) === startOfDay() - DAY ? 'أمس' : day}</div>` : ''; last = day; return html`${headRow}<div class="note tone-${n.kind === 'inventory' ? 'amber' : n.kind === 'ticket' ? 'sky' : 'teal'} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}"><span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span><div class="grow"><b>${n.title}</b><small>${n.body || ''}</small></div><small class="faint nowrap">${fmtTime(n.at)}</small><button type="button" class="icon-btn n-del" data-del="${n.id}" aria-label="حذف الإشعار" title="حذف">${UI.icon('x')}</button></div>`; })}${UI.pager({ offset: st.offset, limit: st.limit, count: rows.length, hasMore })}` : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستصلك هنا تحديثات البلاغات والمخازن.' }));
   };
   $('#nUnread', ctx.view).onchange = (e) => { st.unread = e.target.checked; st.offset = 0; load(); };
   UI.on(ctx.view, 'click', '[data-act="readall"]', async () => { await Data.notes.readAll(); load(); });
-  UI.on(ctx.view, 'click', '.note', async (e, el) => { await Data.notes.read(el.dataset.id); Shell.refreshBell(); if (el.dataset.link) Router.go(el.dataset.link); else load(); });
+  UI.on(ctx.view, 'click', '[data-act="delread"]', async () => { const rows = (await DB.getAll('notifications', 'user_at', KR([me, 0], [me, Infinity]))).filter((n) => n.read); if (!rows.length) { UI.toast('لا توجد إشعارات مقروءة'); return; } await Data.notes.remove(rows.map((n) => n.id)); UI.toast(`حُذف ${fmtNum(rows.length)} إشعار`); Shell.refreshBell(); load(); });
+  UI.on(ctx.view, 'click', '.note', async (e, el) => { const d = e.target.closest('[data-del]'); if (d) { e.stopPropagation(); await Data.notes.remove(d.dataset.del); Shell.refreshBell(); load(); return; } await Data.notes.read(el.dataset.id); Shell.refreshBell(); if (el.dataset.link) Router.go(el.dataset.link); else load(); });
   UI.on(ctx.view, 'click', '[data-page]', (e, el) => { st.offset = Math.max(0, st.offset + (el.dataset.page === 'next' ? st.limit : -st.limit)); load(); });
   await load();
 };
@@ -2729,7 +2765,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep };
   const b = $('#boot'); if (b) b.remove();
   await Router.resolve();
 }
@@ -2922,7 +2958,7 @@ const PERM_GROUPS = [
   { title: 'البلاغات', icon: 'ticket', items: [['tickets.create', 'تقديم البلاغات', 'فتح بلاغ أو طلب خدمة'], ['tickets.view', 'متابعة البلاغات', 'عرض البلاغات المسموح بها'], ['tickets.all', 'عرض كل البلاغات', 'بلاغات جميع الأقسام والمواقع'], ['tickets.work', 'استلام البلاغات وحلها', 'الاستلام والرد وتحديث الحالة'], ['chat.answer', 'الرد على الاستفسارات', 'استقبال استفسارات الموظفين والرد عليها'], ['users.password', 'إصدار كلمات المرور', 'إصدار أو تغيير كلمة مرور الحسابات الأدنى'], ['forms.manage', 'إدارة النماذج والاستمارات', 'إضافة الاستمارات وتعديلها وحذفها'], ['backup.manage', 'النسخ الاحتياطي والبيانات', 'أخذ النسخ والاسترداد وجدولة النسخ التلقائي'], ['announce.manage', 'التعاميم وحالة الخدمات', 'نشر الإعلانات وتحديث حالة الخدمات'], ['worklog', 'تسجيل أعمال القسم', 'تسجيل الأعمال اليومية والزيارات والورش'], ['worklog.all', 'الاطلاع على أعمال القسم كاملة', 'عرض أعمال جميع الفنيين والإداريين وتقاريرها'], ['works', 'متابعة الأعمال الداخلية والخارجية', 'المجلدات والمواضيع والمرفقات ومتابعتها'], ['tickets.manage', 'إدارة البلاغات', 'الإسناد لفني آخر وتغيير الأولوية والإلغاء']] },
   { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة']] },
   { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['forms.hide', 'إخفاء المستندات', 'إخفاء النماذج والاستمارات عن الموظفين وإظهارها'], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه']] },
-  { title: 'التقارير والإدارة', icon: 'chart', items: [['reports', 'التقارير والتحليلات', ''], ['activity', 'سجل النشاط', ''], ['users.manage', 'إدارة المستخدمين', 'إضافة الحسابات وتعديلها'], ['org.manage', 'تعديل الهيكل التنظيمي', 'إضافة الإدارات والأقسام ورسمها'], ['sync.manage', 'المزامنة مع الخادم', 'ربط النظام بخادم XAMPP ومتابعة حالته'], ['settings', 'الإعدادات والبيانات', 'القوائم والنسخ الاحتياطي']] }
+  { title: 'التقارير والإدارة', icon: 'chart', items: [['reports', 'التقارير والتحليلات', ''], ['activity', 'سجل النشاط', ''], ['users.manage', 'إدارة المستخدمين', 'إضافة الحسابات وتعديلها'], ['org.manage', 'تعديل الهيكل التنظيمي', 'إضافة الإدارات والأقسام ورسمها'], ['sync.manage', 'المزامنة مع الخادم', 'ربط النظام بخادم XAMPP ومتابعة حالته'], ['settings', 'الإعدادات والبيانات', 'القوائم والنسخ الاحتياطي'], ['nav.manage', 'إظهار وإخفاء أقسام القائمة', 'تحديد ما يظهر للموظفين والفنيين والإداريين من صفحات']] }
 ];
 const PERM_KEYS = new Set(PERM_GROUPS.flatMap((g) => g.items.map((i) => i[0])));
 const PERM_LABEL = Object.fromEntries(PERM_GROUPS.flatMap((g) => g.items.map((i) => [i[0], i[1]])));
@@ -4730,7 +4766,7 @@ async function renameOrgDefaults() {
     const rec = await DB.get('meta', 'settings'); if (!rec) return;
     const v = rec.value || {}; let ch = false;
     if (String(v.orgName || '').includes('قابوس') && !String(v.orgName).includes('لعلوم')) { v.orgName = 'أكاديمية السلطان قابوس لعلوم الشرطة'; ch = true; }
-    if (String(v.systemName || '').includes('نظام الدعم الفني')) { v.systemName = 'تقنية المعلومات'; ch = true; }
+    if (String(v.systemName || '').includes('نظام الدعم الفني')) { v.systemName = 'قسم تقنية المعلومات'; ch = true; }
     if (ch) { rec.value = v; await DB.put('meta', rec); await Data.refresh('settings'); }
   } catch (e) { console.warn('rename', e); }
 }
@@ -4995,12 +5031,12 @@ Pages.chat = async (ctx) => {
     const msgs = chat ? await Data.chat.messages(chat.id) : [];
     if (chat) Data.chat.markRead(chat.id);
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'الاستفسارات', sub: staff ? 'أسئلة الموظفين السريعة قبل فتح بلاغ رسمي' : 'اسأل تقنية المعلومات مباشرة دون تقديم بلاغ', illu: 'bell', actions: html`${!staff ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استفسار جديد</button>` : ''}<a class="btn btn-ghost" href="#/kb">${UI.icon('book')} قاعدة المعرفة</a>` })}
+      ${UI.pageHead({ title: 'الاستفسارات', sub: staff ? 'أسئلة الموظفين السريعة قبل فتح بلاغ رسمي' : 'اسأل قسم تقنية المعلومات مباشرة دون تقديم بلاغ', illu: 'bell', actions: html`${!staff ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استفسار جديد</button>` : ''}<a class="btn btn-ghost" href="#/kb">${UI.icon('book')} قاعدة المعرفة</a>` })}
       <div class="chat-wrap">
         <aside class="chat-list">
           <div class="chat-tools"><div class="search-box">${UI.icon('search')}<input id="cq" type="search" placeholder="ابحث في الاستفسارات" value="${st.q}"></div>
             <div class="seg sm">${[['all', 'الكل'], ['open', 'بانتظار الرد'], ['answered', 'تم الرد'], ['closed', 'مغلق']].map(([k, l]) => html`<label><input type="radio" name="cf" value="${k}"${st.filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
-          <div class="chat-items">${list.length ? list.map((c) => { const unread = staff ? c.unreadStaff : c.unreadUser; return html`<button type="button" class="chat-item${c.id === st.id ? ' active' : ''}" data-chat="${c.id}">${UI.avatar(c.userId, 'av-sm')}<div class="grow ellipsis"><b class="ellipsis">${c.subject}</b><div class="t-sub ellipsis">${staff ? Data.userName(c.userId) : Data.nameOf('departments', c.departmentId, 'تقنية المعلومات')} — ${timeAgo(c.lastAt)}</div></div>${unread ? html`<span class="chat-badge">${fmtNum(unread)}</span>` : (() => { const s = Data.chat.state(c); return UI.chip(s.tone, s.label); })()}</button>`; }) : html`<div class="panel-body">${UI.noData('لا توجد استفسارات')}</div>`}</div>
+          <div class="chat-items">${list.length ? list.map((c) => { const unread = staff ? c.unreadStaff : c.unreadUser; return html`<button type="button" class="chat-item${c.id === st.id ? ' active' : ''}" data-chat="${c.id}">${UI.avatar(c.userId, 'av-sm')}<div class="grow ellipsis"><b class="ellipsis">${c.subject}</b><div class="t-sub ellipsis">${staff ? Data.userName(c.userId) : Data.nameOf('departments', c.departmentId, 'قسم تقنية المعلومات')} — ${timeAgo(c.lastAt)}</div></div>${unread ? html`<span class="chat-badge">${fmtNum(unread)}</span>` : (() => { const s = Data.chat.state(c); return UI.chip(s.tone, s.label); })()}</button>`; }) : html`<div class="panel-body">${UI.noData('لا توجد استفسارات')}</div>`}</div>
         </aside>
         <section class="chat-main">${chat ? html`
           <header class="chat-head">${UI.avatar(chat.userId)}<div class="grow"><b>${chat.subject}</b><div class="t-sub">${Data.userName(chat.userId)} — ${Data.nameOf('departments', chat.departmentId, '')}</div></div>
@@ -5008,12 +5044,12 @@ Pages.chat = async (ctx) => {
             ${staff ? html`<button class="btn btn-sm btn-soft" data-act="toticket">${UI.icon('ticket')} تحويل إلى بلاغ</button>` : ''}
             ${chat.status !== 'closed' ? html`<button class="btn btn-sm btn-ghost" data-act="close">${UI.icon('check')} إغلاق</button>` : html`<button class="btn btn-sm btn-ghost" data-act="reopen">${UI.icon('refresh')} إعادة فتح</button>`}
           </header>
-          <div class="chat-msgs" id="cmsgs">${msgs.map((m) => html`<div class="msg${m.userId === Auth.user.id ? ' me' : ''}">${m.userId !== Auth.user.id ? UI.avatar(m.userId, 'av-sm') : ''}<div class="bubble"><div class="b-who">${Data.userName(m.userId)}${m.staff ? UI.chip('teal', 'تقنية المعلومات', 'shield') : ''}</div><p>${m.text}</p>${m.file ? html`<button type="button" class="chat-file" data-msgfile="${m.id}">${UI.icon('file')}<span>${m.file.name}</span><small>${fmtBytes(m.file.size)}</small>${UI.icon('download')}</button>` : ''}<time>${fmtDateTime(m.at)}</time></div></div>`)}</div>
+          <div class="chat-msgs" id="cmsgs">${msgs.map((m) => html`<div class="msg${m.userId === Auth.user.id ? ' me' : ''}">${m.userId !== Auth.user.id ? UI.avatar(m.userId, 'av-sm') : ''}<div class="bubble"><div class="b-who">${Data.userName(m.userId)}${m.staff ? UI.chip('teal', 'قسم تقنية المعلومات', 'shield') : ''}</div><p>${m.text}</p>${m.file ? html`<button type="button" class="chat-file" data-msgfile="${m.id}">${UI.icon('file')}<span>${m.file.name}</span><small>${fmtBytes(m.file.size)}</small>${UI.icon('download')}</button>` : ''}<time>${fmtDateTime(m.at)}</time></div></div>`)}</div>
           ${chat.ticketId ? html`<div class="banner tone-sky" style="margin:0 16px 12px">${UI.icon('ticket')}<div class="grow">حُوِّل هذا الاستفسار إلى بلاغ رسمي</div><a class="btn btn-sm" href="#/tickets/${chat.ticketId}">فتح البلاغ</a></div>` : ''}
           <form class="chat-send" id="csend">
             <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">${UI.replyTools('chat', 'cinput')}<label class="btn btn-ghost btn-sm" style="cursor:pointer">${UI.icon('clip')} إرفاق ملف<input type="file" id="chatFile" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"></label></div>
             <div class="row"><textarea id="cinput" rows="2" placeholder="${chat.status === 'closed' ? 'أعد فتح الاستفسار للرد' : 'اكتب رسالتك... (Ctrl+Enter للإرسال)'}"${chat.status === 'closed' ? raw(' disabled') : ''}></textarea><button class="btn btn-primary" type="submit"${chat.status === 'closed' ? raw(' disabled') : ''}>${UI.icon('send')} إرسال</button></div>
-          </form>` : html`<div class="chat-empty">${UI.empty({ illu: 'bell', title: staff ? 'اختر استفساراً للرد عليه' : 'اطرح سؤالك على تقنية المعلومات', text: staff ? 'تصل استفسارات الموظفين هنا قبل أن تتحول إلى بلاغات.' : 'للأسئلة السريعة التي لا تحتاج بلاغاً رسمياً، مثل طريقة استخدام برنامج أو استفسار عن خدمة.', action: !staff ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استفسار جديد</button>` : '' })}</div>`}
+          </form>` : html`<div class="chat-empty">${UI.empty({ illu: 'bell', title: staff ? 'اختر استفساراً للرد عليه' : 'اطرح سؤالك', text: staff ? 'تصل استفسارات الموظفين هنا قبل أن تتحول إلى بلاغات.' : 'للأسئلة السريعة التي لا تحتاج بلاغاً، مثل طريقة استخدام برنامج أو استفسار عن خدمة.', action: !staff ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استفسار جديد</button>` : '' })}</div>`}
         </section>
       </div>`);
     UI.hydrate(ctx.view);
@@ -5029,7 +5065,7 @@ Pages.chat = async (ctx) => {
   UI.on(ctx.view, 'keydown', '#cinput', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); send(); } });
   UI.on(ctx.view, 'change', '#chatFile', async (e, el) => { const f = (el.files || [])[0]; if (!f || !st.id) return; try { await Data.chat.attach(st.id, f); el.value = ''; UI.toast('أُرسل الملف'); draw(); } catch (ex) { UI.error(ex); } });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => {
-    const r = await UI.modal({ title: 'استفسار جديد', icon: 'bell', size: 'lg', body: html`<p class="muted" style="margin-bottom:10px">للأسئلة السريعة. إن كانت لديك مشكلة تحتاج إصلاحاً فقدّم بلاغاً ليُتابع رسمياً.</p>${UI.fields([{ name: 'subject', label: 'موضوع الاستفسار', required: true, wide: true, placeholder: 'مثال: كيف أضيف بريدي على الجوال؟' }, { name: 'text', label: 'تفاصيل السؤال', type: 'textarea', rows: 4, required: true, wide: true }])}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إرسال', kind: 'primary', icon: 'send', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!String(v.text).trim()) throw new AppError('اكتب تفاصيل السؤال'); return Data.chat.start({ subject: v.subject, text: v.text }); } }] });
+    const r = await UI.modal({ title: 'استفسار جديد', icon: 'bell', size: 'lg', body: html`<p class="muted" style="margin-bottom:10px">للأسئلة السريعة. إن كانت لديك مشكلة تحتاج إصلاحاً فقدّم بلاغاً ليُتابع.</p>${UI.fields([{ name: 'subject', label: 'موضوع الاستفسار', required: true, wide: true, placeholder: 'مثال: كيف أضيف بريدي على الجوال؟' }, { name: 'text', label: 'تفاصيل السؤال', type: 'textarea', rows: 4, required: true, wide: true }])}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إرسال', kind: 'primary', icon: 'send', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!String(v.text).trim()) throw new AppError('اكتب تفاصيل السؤال'); return Data.chat.start({ subject: v.subject, text: v.text }); } }] });
     if (r) { st.id = r.id; UI.toast('أُرسل استفسارك، سيصلك الرد هنا'); draw(); }
   });
   UI.on(ctx.view, 'click', '[data-act="close"]', async () => { await Data.chat.closeSide(st.id); UI.toast('أُغلقت المحادثة من جهتك'); draw(); });
@@ -5182,7 +5218,7 @@ Data.chat.closeSide = async (chatId) => {
   if (c.staffClosedAt && c.userClosedAt) c.status = 'closed';
   c.updatedAt = t;
   await DB.put('chats', c);
-  await DB.put('chatMsgs', { id: uid('cm'), chatId, userId: Auth.user.id, text: staff ? `أُغلق الاستفسار من جهة تقنية المعلومات. يبقى مفتوحاً لديك ${arCount(CHAT_CLOSE_DAYS, AR.day)} إن كان لديك سؤال آخر.` : 'أغلق مقدّم الاستفسار المحادثة.', at: t, staff: staff ? 1 : 0, system: 1 });
+  await DB.put('chatMsgs', { id: uid('cm'), chatId, userId: Auth.user.id, text: staff ? `أُغلق الاستفسار من جهة قسم تقنية المعلومات. يبقى مفتوحاً لديك ${arCount(CHAT_CLOSE_DAYS, AR.day)} إن كان لديك سؤال آخر.` : 'أغلق مقدّم الاستفسار المحادثة.', at: t, staff: staff ? 1 : 0, system: 1 });
   if (staff && c.userId) await Data.notify([c.userId], { title: `تم الرد على استفسارك: ${c.subject}`, body: `إن اكتفيت بالرد أغلق المحادثة، وإلا ستُغلق تلقائياً بعد ${arCount(CHAT_CLOSE_DAYS, AR.day)}.`, link: `/chat/${chatId}`, kind: 'chat' });
   Bus.emit('chat', {});
   return c;
@@ -5226,11 +5262,11 @@ const CHAT_SUGGESTIONS = ['كيف أضيف بريدي الرسمي على الج
 Pages.quickChat = async () => {
   const r = await UI.modal({
     title: 'استفسار سريع', icon: 'bell', size: 'lg',
-    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">للأسئلة السريعة التي لا تحتاج بلاغاً رسمياً. إن كان لديك عطل يحتاج إصلاحاً فقدّم بلاغاً ليُتابَع ويُسند لفني.</div></div>
+    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">للأسئلة السريعة التي لا تحتاج بلاغاً. إن كان لديك عطل يحتاج إصلاحاً فقدّم بلاغاً ليُتابَع ويُسند لفني.</div></div>
       <div class="chat-sugg mt">${CHAT_SUGGESTIONS.map((s) => html`<button type="button" class="qchip" data-sugg="${s}">${UI.icon('search')} ${s}</button>`)}</div>
       ${UI.fields([{ name: 'subject', label: 'موضوع الاستفسار', required: true, wide: true, placeholder: 'اكتب سؤالك باختصار' }, { name: 'text', label: 'التفاصيل', type: 'textarea', rows: 4, required: true, wide: true }])}`,
     onMount: (form) => { UI.on(form, 'click', '[data-sugg]', (e, el) => { form.querySelector('[name="subject"]').value = el.dataset.sugg; form.querySelector('[name="text"]').focus(); }); },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إرسال إلى تقنية المعلومات', kind: 'primary', icon: 'send', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!String(v.text || '').trim()) throw new AppError('اكتب تفاصيل السؤال'); return Data.chat.start({ subject: v.subject, text: v.text }); } }]
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إرسال إلى قسم تقنية المعلومات', kind: 'primary', icon: 'send', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!String(v.text || '').trim()) throw new AppError('اكتب تفاصيل السؤال'); return Data.chat.start({ subject: v.subject, text: v.text }); } }]
   });
   if (r) { UI.toast('أُرسل استفسارك، وسيصلك الرد في صفحة الاستفسارات'); UI.sound('success'); Router.go(`/chat/${r.id}`); }
   return r;
@@ -5239,7 +5275,7 @@ Data.chat.counts = async () => {
   const rows = await Data.chat.list(), staff = isChatStaff();
   return { total: rows.length, unread: rows.reduce((s, c) => s + (staff ? c.unreadStaff || 0 : c.unreadUser || 0), 0), open: rows.filter((c) => c.status !== 'closed').length };
 };
-Pages.chatTile = (unread = 0) => html`<a class="tile tilt chat-tile" href="#/chat">${unread ? html`<span class="count">${fmtNum(unread)}</span>` : ''}${UI.illu('bell')}<b>استفسار سريع</b><small>اسأل تقنية المعلومات مباشرة</small></a>`;
+Pages.chatTile = (unread = 0) => html`<a class="tile tilt chat-tile" href="#/chat">${unread ? html`<span class="count">${fmtNum(unread)}</span>` : ''}${UI.illu('bell')}<b>استفسار سريع</b><small>اسأل قسم تقنية المعلومات مباشرة</small></a>`;
 
 /* لوحة الاستفسارات لشاشة المراقبة والفنيين */
 Pages.chatPanel = async () => {
@@ -5363,7 +5399,7 @@ Pages.printAccessCards = (t) => {
     <table><tr><th>م</th><th>الاسم</th><th>الرتبة</th><th>الرقم العسكري</th><th>التوقيع</th></tr>
       ${people.map((p, i) => html`<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.rank || ''}</td><td class="ltr">${p.militaryNo || ''}</td><td style="width:110px"></td></tr>`)}</table>
     <p style="font-size:12.5px;line-height:1.9">أتعهد بالمحافظة على البطاقة وعدم تمكين غيري من استخدامها، وإعادتها عند انتهاء الحاجة أو انتهاء الخدمة.</p>
-    ${UI.signBlock([{ title: 'طالب الإصدار', userId: t.requesterId }, { title: 'مدير الإدارة' }, { title: 'فني تقنية المعلومات', userId: t.assigneeId }])}`, `بطاقات ${t.number}`);
+    ${UI.signBlock([{ title: 'طالب الإصدار', userId: t.requesterId }, { title: 'مدير الإدارة' }, { title: 'فني قسم تقنية المعلومات', userId: t.assigneeId }])}`, `بطاقات ${t.number}`);
 };
 Pages.cardPanel = (t) => {
   if (t.categoryId !== 'card') return '';
@@ -5468,7 +5504,7 @@ Pages.printBlankCardForm = (rows = 6) => {
     <table><tr><th style="width:34px">م</th><th>الاسم الكامل</th><th style="width:110px">الرتبة</th><th style="width:120px">الرقم العسكري</th><th style="width:120px">رقم البطاقة</th><th style="width:110px">التوقيع</th></tr>
       ${Array.from({ length: rows }, (_, i) => html`<tr><td>${i + 1}</td><td style="height:26px"></td><td></td><td></td><td></td><td></td></tr>`)}</table>
     <p style="font-size:12.5px;line-height:1.9">أتعهد نيابة عن المذكورين أعلاه بالمحافظة على البطاقات وعدم تمكين غيرهم من استخدامها، وإعادتها عند انتهاء الحاجة أو انتهاء الخدمة.</p>
-    ${UI.signBlock([{ title: 'طالب الإصدار' }, { title: 'مدير الإدارة' }, { title: 'فني تقنية المعلومات' }])}`, 'استمارة بطاقة دخول وخروج');
+    ${UI.signBlock([{ title: 'طالب الإصدار' }, { title: 'مدير الإدارة' }, { title: 'فني قسم تقنية المعلومات' }])}`, 'استمارة بطاقة دخول وخروج');
 };
 document.addEventListener('click', (e) => {
   const d = e.target.closest('[data-catform]');
@@ -6387,7 +6423,7 @@ Pages.formsPage = async (ctx) => {
       <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="fq" type="search" placeholder="ابحث باسم النموذج" value="${st.q}"></div><select id="fcat"><option value="">كل الفئات</option>${UI.opts('categories').map((o) => html`<option value="${o.value}"${st.cat === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><span class="faint small">${arCount(rows.length, AR.item).replace('صنف', 'نموذج').replace('أصناف', 'نماذج')}</span></div>
       ${rows.length ? html`<div class="forms-grid">${rows.map((f) => html`<article class="form-card${f.hidden ? ' off x-off' : ''}${(manage || hider) && (f.noDownload || docLocked(f.categoryId)) ? ' x-lock' : ''}">${UI.illu(f.icon || 'paper')}<div class="fc-body"><b>${f.title}</b>${f.desc ? html`<p class="t-sub">${f.desc}</p>` : ''}<div class="row" style="gap:6px;flex-wrap:wrap">${f.categoryId ? UI.chip('sky', Data.nameOf('categories', f.categoryId), 'tag') : ''}${f.file ? UI.chip('slate', fmtBytes(f.file.size)) : ''}${f.hidden ? UI.chip('red', 'مخفي عن الموظفين', 'eye-off') : ''}${(manage || hider) && (f.noDownload || docLocked(f.categoryId)) ? UI.chip('amber', 'التحميل موقوف', 'lock') : ''}</div></div>
         <div class="fc-actions">${f.categoryId && eformOn(f.categoryId) && Data.c.categories.get(f.categoryId) && !Data.c.categories.get(f.categoryId).hidden ? html`<a class="btn btn-sm btn-primary" href="#/tickets/new?cat=${f.categoryId}">${UI.icon('edit')} تعبئة إلكترونية</a>` : ''}${!manage && (f.noDownload || docLocked(f.categoryId)) ? html`<span class="chip tone-slate">${UI.icon('lock')} التحميل موقوف</span>` : html`<button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-soft" data-dl="${f.id}">${UI.icon('download')} تحميل</button>`}${hider ? html`<button class="btn btn-sm btn-ghost" data-hideform="${f.id}" title="${f.hidden ? 'إظهار المستند للموظفين' : 'إخفاء المستند عن الموظفين'}">${UI.icon(f.hidden ? 'eye' : 'eye-off')} ${f.hidden ? 'إظهار' : 'إخفاء'}</button>` : ''}${manage ? html`<button class="btn btn-sm btn-ghost" data-lockdl="${f.id}" title="${f.noDownload ? 'السماح بالتحميل للموظفين' : 'إيقاف التحميل للموظفين'}">${UI.icon(f.noDownload ? 'lock' : 'download')} ${f.noDownload ? 'موقوف' : 'متاح'}</button><button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
-        : html`<div class="panel-body">${UI.empty({ illu: 'paper', title: 'لا توجد نماذج بعد', text: manage ? 'أضف الاستمارات التي يحتاجها الموظفون ليحمّلوها من هنا.' : 'ستظهر هنا الاستمارات فور إضافتها من تقنية المعلومات.', action: manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : '' })}</div>`}</section>`);
+        : html`<div class="panel-body">${UI.empty({ illu: 'paper', title: 'لا توجد نماذج بعد', text: manage ? 'أضف الاستمارات التي يحتاجها الموظفون ليحمّلوها من هنا.' : 'ستظهر هنا الاستمارات فور إضافتها من قسم تقنية المعلومات.', action: manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : '' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
     $('#fq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
     $('#fcat', ctx.view).onchange = (e) => { st.cat = e.target.value; draw(); };
@@ -7393,7 +7429,7 @@ Pages.status = async (ctx) => {
     const manage = canAnnounce();
     const t = now();
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'حالة الخدمات والتعاميم', sub: 'تحقق من حالة الخدمة قبل تقديم البلاغ، وتابع إعلانات تقنية المعلومات', illu: 'network', actions: manage ? html`<button class="btn btn-primary" data-act="ann">${UI.icon('bell')} تعميم جديد</button><button class="btn btn-ghost" data-act="svc">${UI.icon('plus')} خدمة</button>` : '' })}
+      ${UI.pageHead({ title: 'حالة الخدمات والتعاميم', sub: 'تحقق من حالة الخدمة قبل تقديم البلاغ، وتابع إعلانات قسم تقنية المعلومات', illu: 'network', actions: manage ? html`<button class="btn btn-primary" data-act="ann">${UI.icon('bell')} تعميم جديد</button><button class="btn btn-ghost" data-act="svc">${UI.icon('plus')} خدمة</button>` : '' })}
       ${manage ? UI.stateLegend(['off', 'lock', 'time'], { off: 'متوقفة', lock: 'أداء متأثر أو صيانة', time: 'تعود تلقائياً بعد مدة' }) : ''}<div class="svc-grid">${svcs.map((s) => html`<div class="svc-card tone-${SVC_STATUS[s.status].tone}${s.status === 'down' ? ' x-off' : s.status !== 'up' ? ' x-lock' : ''}${s.until ? ' x-time' : ''}">${UI.illu(s.icon || 'network')}<div class="grow"><b>${s.name}</b><span class="chip tone-${SVC_STATUS[s.status].tone}"><i class="dot"></i>${SVC_STATUS[s.status].label}</span>${s.note ? html`<p class="t-sub">${s.note}</p>` : ''}${s.until ? html`<span class="svc-until">${UI.icon('clock')} تعود للعمل تلقائياً ${fmtDateTime(s.until)} (بعد ${fmtDuration(s.until - t)})</span>` : ''}<small class="faint">آخر تحديث ${timeAgo(s.updatedAt)}</small></div>${manage ? html`${s.status !== 'up' ? html`<button class="icon-btn" data-svcdur="${s.id}" title="تعديل المدة والملاحظة" aria-label="تعديل المدة">${UI.icon('clock')}</button>` : ''}<select class="input" data-svc="${s.id}" style="height:34px;max-width:170px">${Object.entries(SVC_STATUS).map(([k, v]) => html`<option value="${k}"${s.status === k ? raw(' selected') : ''}>${v.label}</option>`)}</select>` : ''}</div>`)}</div>
       ${UI.panel({ title: 'التعاميم', icon: 'bell', cls: 'mt', body: anns.length ? html`<div class="list">${anns.sort((a, b) => b.createdAt - a.createdAt).map((a) => { const live = (!a.endsAt || a.endsAt >= t); return html`<div class="list-row ann-row"><span class="n-ic tone-${ANN_LEVEL[a.level].tone}">${UI.icon(ANN_LEVEL[a.level].icon)}</span><div class="grow"><b>${a.title}</b>${a.body ? html`<div class="t-sub">${a.body}</div>` : ''}<small class="faint">${fmtDateTime(a.createdAt)}${a.endsAt ? ` — حتى ${fmtDate(a.endsAt)}` : ''} — ${Data.userName(a.userId)}</small></div>${live ? UI.chip('teal', 'سارٍ') : UI.chip('slate', 'منتهٍ')}${manage ? html`<button class="icon-btn" data-anndel="${a.id}" aria-label="حذف">${UI.icon('trash')}</button>` : ''}</div>`; })}</div>` : UI.noData('لا توجد تعاميم') })}`);
     UI.hydrate(ctx.view);
@@ -7487,7 +7523,7 @@ Pages.forecastPanel = async () => {
 Pages.serviceNotice = async (catId) => {
   const down = await Data.svc.downFor(catId);
   if (!down.length) return '';
-  return html`<div class="banner tone-amber mb">${UI.icon('alert')}<div class="grow"><b>${down.map((s) => `${s.name}: ${SVC_STATUS[s.status].label}`).join(' — ')}</b><div class="small">${down[0].note || 'فريق تقنية المعلومات على علم بالمشكلة ويعمل على حلها، ولا حاجة لتقديم بلاغ جديد عنها.'}</div></div><a class="btn btn-sm btn-ghost" href="#/status">التفاصيل</a></div>`;
+  return html`<div class="banner tone-amber mb">${UI.icon('alert')}<div class="grow"><b>${down.map((s) => `${s.name}: ${SVC_STATUS[s.status].label}`).join(' — ')}</b><div class="small">${down[0].note || 'فريق قسم تقنية المعلومات على علم بالمشكلة ويعمل على حلها، ولا حاجة لتقديم بلاغ جديد عنها.'}</div></div><a class="btn btn-sm btn-ghost" href="#/status">التفاصيل</a></div>`;
 };
 
 /* ── منتقي التاريخ الموحد، التوقيعات بالأرقام العسكرية، الصرف السريع بالمسح، المسح الضوئي للمستندات ── */
@@ -7871,7 +7907,7 @@ Pages.monitor = async (ctx) => {
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
-      <div class="tv2-title"><h1>مركز متابعة الدعم الفني</h1><p>${s.orgName || 'تقنية المعلومات'}</p></div>
+      <div class="tv2-title"><h1>مركز متابعة الدعم الفني</h1><p>${s.orgName || 'قسم تقنية المعلومات'}</p></div>
       <div class="tv2-pills" data-pills></div>
       <div class="tv2-clock"><b data-clock>--:--</b><span data-greg></span><span class="faint" data-hijri></span></div>
       <div class="tv2-ctrl">
@@ -8515,7 +8551,7 @@ Pages.bulkCredsModal = (r) => UI.modal({
   body: html`<div class="banner tone-teal">${UI.icon('check')}<div class="grow"><b>${r.role} — ${r.dep}</b><div class="small muted">${r.where || ''}${r.mustChange ? ' · سيُطلب من كل شخص تغيير كلمة المرور عند أول دخول' : ''}</div></div></div>
     <div class="banner tone-amber mt">${UI.icon('alert')}<div class="grow">احفظ كلمات المرور أو اطبعها الآن، فلن تظهر مرة أخرى.</div></div>
     <div class="table-wrap mt"><table class="table"><thead><tr><th>#</th><th>الاسم</th><th>الرتبة</th><th>اسم المستخدم</th><th>كلمة المرور</th></tr></thead><tbody>${r.creds.map((c, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${c.name}</td><td>${c.rank}</td><td class="ltr">${c.username}</td><td class="ltr"><code>${c.pw}</code></td></tr>`)}</tbody></table></div>`,
-  actions: [{ label: 'طباعة بطاقات الدخول', kind: 'soft', icon: 'print', handler: () => { UI.print(html`<h2 style="text-align:center">بيانات الدخول إلى نظام تقنية المعلومات</h2><p style="text-align:center">${r.dep}${r.where ? ` — ${r.where}` : ''}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.creds.map((c) => html`<div style="border:1px dashed #888;border-radius:8px;padding:10px 12px;break-inside:avoid"><b>${c.rank ? `${c.rank} / ` : ''}${c.name}</b><div>اسم المستخدم: <b dir="ltr">${c.username}</b></div><div>كلمة المرور: <b dir="ltr">${c.pw}</b></div>${r.mustChange ? html`<small>غيّر كلمة المرور عند أول دخول</small>` : ''}</div>`)}</div>`, 'بيانات الدخول'); return false; } },
+  actions: [{ label: 'طباعة بطاقات الدخول', kind: 'soft', icon: 'print', handler: () => { UI.print(html`<h2 style="text-align:center">بيانات الدخول إلى نظام قسم تقنية المعلومات</h2><p style="text-align:center">${r.dep}${r.where ? ` — ${r.where}` : ''}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.creds.map((c) => html`<div style="border:1px dashed #888;border-radius:8px;padding:10px 12px;break-inside:avoid"><b>${c.rank ? `${c.rank} / ` : ''}${c.name}</b><div>اسم المستخدم: <b dir="ltr">${c.username}</b></div><div>كلمة المرور: <b dir="ltr">${c.pw}</b></div>${r.mustChange ? html`<small>غيّر كلمة المرور عند أول دخول</small>` : ''}</div>`)}</div>`, 'بيانات الدخول'); return false; } },
     { label: 'تنزيل Excel', kind: 'soft', icon: 'download', handler: () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [30, 16, 16, 18, 16], rows: [['الاسم', 'الرتبة', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور'], ...r.creds.map((c) => [c.name, c.rank, c.militaryNo, c.username, c.pw])] }]), 'حسابات-جديدة.xlsx'); return false; } },
     { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { try { await navigator.clipboard.writeText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n')); UI.toast('نُسخت البيانات'); } catch { UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); } return false; } },
     { label: 'تم', kind: 'primary', icon: 'check', value: true }]
@@ -8577,7 +8613,7 @@ Pages.eFormHTML = async (t, { ef = null, blank = false, defs = null } = {}) => {
       <p class="ef-notes"><b>الملاحظات:</b> ${blank || !t.description ? raw(dots + dots) : t.description}</p></section>
     ${(form.signs && form.signs.length ? form.signs : EFORM_SIGNS).map((sg) => { const isTech = /الفني|الإجراء/.test(sg), u = isTech ? tech : {}; return html`<section class="ef-sign"><h3>${sg}</h3><table class="ef-grid">${who(u)}<tr><th>التاريخ</th><td>${isTech && done ? fmtDate(done.at) : raw(dots)}</td><th>التوقيع</th><td colspan="3">${raw(dots)}</td></tr></table>${isTech ? html`<p class="ef-notes"><b>الإجراء المتخذ:</b> ${done && done.text ? done.text : raw(dots + dots)}</p>` : ''}</section>`; })}
     ${(form.notes || []).filter(Boolean).length ? html`<section class="ef-tips"><h3>ملاحظات وتعليمات</h3><ul>${form.notes.filter(Boolean).map((n) => html`<li>${n}</li>`)}</ul></section>` : ''}
-    <footer class="ef-foot">${s.supportPhone ? html`<span>الدعم الفني: <b class="ltr">${s.supportPhone}</b></span>` : ''}<span>${s.systemName || 'نظام تقنية المعلومات'} — استمارة إلكترونية${blank ? ' (نموذج فارغ)' : ` مرتبطة بالبلاغ ${t.number}`}</span></footer>
+    <footer class="ef-foot">${s.supportPhone ? html`<span>الدعم الفني: <b class="ltr">${s.supportPhone}</b></span>` : ''}<span>${s.systemName || 'قسم تقنية المعلومات'} — استمارة إلكترونية${blank ? ' (نموذج فارغ)' : ` مرتبطة بالبلاغ ${t.number}`}</span></footer>
   </div>`;
 };
 Pages.printEForm = (content, title) => {
@@ -9127,6 +9163,26 @@ Pages.bindOptEditor = (root, { field, fields, builtin, mark, redraw }) => {
   UI.on(root, 'click', '[data-oicx]', (e, b) => { const { f, path, i } = ctx(b), o = listOf(f, path)[i]; if (f.oi) { delete f.oi[o]; if (!Object.keys(f.oi).length) delete f.oi; } mark(); redraw(); });
   UI.on(root, 'click', '[data-oicon]', async (e, b) => { const { f, path, i } = ctx(b), o = listOf(f, path, true)[i]; if (!o) { UI.toast('اكتب اسم الخيار أولاً', 'warn'); return; } const r = await Pages.iconBank((f.oi || {})[o] || ''); if (!r) return; if (r === 'none') { if (f.oi) delete f.oi[o]; } else { f.oi = { ...(f.oi || {}), [o]: r }; } mark(); redraw(); });
 };
+
+setTimeout(() => NoteSweep.run(), 20000);
+setInterval(() => NoteSweep.run(), 30 * MIN);
+Bus.on('tickets', debounce(() => NoteSweep.run(), 4000));
+Pages.navVisibility = async (ctx) => {
+  const map = JSON.parse(JSON.stringify(Data.c.navHide || {}));
+  const groups = Shell.navAll().map((g) => ({ ...g, items: g.items.filter((i) => !NAV_LOCKED.has(i.path)) })).filter((g) => g.items.length);
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إظهار أقسام القائمة', sub: 'حدد الأقسام التي تظهر لكل نوع من الحسابات. المشرف يرى كل الأقسام دائماً.', illu: 'key', actions: html`<button class="btn btn-primary" data-act="save">${UI.icon('check')} حفظ</button>` })}
+    <section class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>القسم</th>${NAV_ROLES.map(([, l]) => html`<th style="text-align:center">${l}</th>`)}</tr></thead><tbody>
+    ${groups.map((g) => html`<tr><td colspan="${NAV_ROLES.length + 1}" class="faint small"><b>${g.group}</b></td></tr>${g.items.map((i) => html`<tr><td><span class="row nowrap" style="gap:8px">${UI.icon(i.icon)}${i.label}</span></td>${NAV_ROLES.map(([r]) => html`<td style="text-align:center"><label class="switch" title="${(map[i.path] || []).includes(r) ? 'مخفي' : 'ظاهر'}"><input type="checkbox" data-path="${i.path}" data-role="${r}"${(map[i.path] || []).includes(r) ? '' : raw(' checked')}><i></i></label></td>`)}</tr>`)}`)}
+    </tbody></table></div></section>
+    <p class="hint mt">يظهر القسم فقط إن كان الحساب يملك صلاحيته أصلاً. يسري التغيير على الأجهزة الأخرى عند الدخول التالي أو تحديث الصفحة. يمكن منح هذه الصلاحية لفني أو إداري من صفحة المستخدمين («إظهار وإخفاء أقسام القائمة»).</p>`);
+  UI.on(ctx.view, 'click', '[data-act="save"]', async (e, btn) => {
+    const out = {};
+    $$('input[data-path]', ctx.view).forEach((x) => { if (!x.checked) (out[x.dataset.path] = out[x.dataset.path] || []).push(x.dataset.role); });
+    UI.busy(btn, true);
+    try { await Nav.save(out); UI.toast('حُفظ إظهار الأقسام'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+  });
+};
+Router.add('/nav-visibility', 'nav.manage', Pages.navVisibility, 'إظهار أقسام القائمة');
 
 boot();
 })();

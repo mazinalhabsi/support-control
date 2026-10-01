@@ -274,10 +274,13 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
     case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
     case 'settings': return can($user, 'settings') ? $new : null;
+    /* الإشعارات: يُنشئها النظام لأي مستخدم، لكن لا يحذفها إلا صاحبها */
+    case 'notifications': return !$deleted || (string) (($old ?? [])['userId'] ?? '') === (string) ($user['id'] ?? '') ? $new : null;
     case 'meta': {
       $key = (string) ($data['key'] ?? ($old['key'] ?? ''));
       if ($key === 'settings') return can($user, 'settings') ? $new : null;
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
+      if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if (strpos($key, 'lock:') === 0) return null;
       if (strpos($key, 'presence:') === 0) return $key === 'presence:' . ($user['id'] ?? '') ? $new : null;
       return $new;
@@ -470,14 +473,15 @@ case 'push': {
       $cur = $sel->fetch();
       $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
       $deleted = !empty($op['deleted']) ? 1 : 0;
-      $allowed = authorize($user, $store, $curData, $op['data'] ?? null, (bool) $deleted);
+      /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null) */
+      $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
       if ($allowed === null) {
         /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
         $back = $curData; if ($store === 'users' && is_array($back)) $back = strip_user($back);
         $conflicts[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0, 'deleted' => $cur ? (int) $cur['deleted'] : 0, 'data' => $back, 'reason' => 'no_permission'];
         continue;
       }
-      $op['data'] = $allowed;
+      $op['data'] = $deleted ? null : $allowed;
       $expected = (int) ($op['rev'] ?? 0);
       if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1) {
         $data = json_decode($cur['data'], true);

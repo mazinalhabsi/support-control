@@ -166,7 +166,8 @@ kbd{font:600 11px var(--f-body);padding:1px 6px;border-radius:5px;border:1px sol
 .brand img{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.45));transition:transform .6s var(--spring)}
 .brand:hover img{transform:rotate(-8deg) scale(1.06)}
 .brand b{display:block;font-family:var(--f-display);font-size:13.5px;line-height:1.4;color:#F3F6FA}
-.brand small{display:block;font-size:11.5px;color:#8FA3BD;line-height:1.4}
+.brand small{display:block;font-size:11.5px;color:#8FA3BD;line-height:1.4;text-align:center}
+.brand b{text-align:center}
 .nav{display:flex;flex-direction:column;gap:14px;flex:1;padding-top:6px}
 .nav-title{display:block;font-size:11px;font-weight:600;color:#657B98;padding:0 12px 4px}
 .nav-link{position:relative;display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:11px;color:#B8C6D8;font-size:14px;transition:background .25s,color .25s}
@@ -645,6 +646,9 @@ dialog.modal::backdrop{background:rgba(3,8,16,.62);-webkit-backdrop-filter:blur(
 .cmdk-box{width:min(660px,calc(100vw - 24px));background:var(--surface-solid);border:1px solid var(--line-2);border-radius:18px;box-shadow:0 40px 90px -30px rgba(0,0,0,.9);overflow:hidden;animation:modal-in .3s var(--spring)}
 .cmdk-in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .cmdk-in .ic{width:20px;height:20px;color:rgb(var(--accent-ink))}
+.cmdk-x{flex:none;width:34px;height:34px}
+.note .n-del{flex:none;width:30px;height:30px;opacity:.55}
+.note .n-del:hover{opacity:1;color:rgb(var(--red))}
 .cmdk-in input{flex:1;border:0;background:none;font-size:16px;outline:none;box-shadow:none!important;min-width:0}
 .cmdk-list{max-height:min(60vh,470px);overflow-y:auto;padding:8px}
 .cmdk-group{font-size:11.5px;color:var(--ink-3);padding:8px 10px 4px;font-weight:600}
