@@ -22,6 +22,12 @@
  *  - localhost يُستبدل بـ 127.0.0.1 (في Windows يحاول IPv6 أولاً فيتأخر كل اتصال).
  *  - جدولا التواجد والحجوزات في الذاكرة (MEMORY) بلا كتابة على القرص.
  *  - ping خفيف، وإجراء diag للمشرف يقيس سرعة الخادم ويعرض الإعدادات الناقصة.
+ *
+ * تحديث 2026-10 (الاستبيانات والتقييم والردود الجاهزة):
+ *  - الاستبيانات يديرها من يملك surveys.manage، ولا يُقبل رد إلا على استبيان منشور ضمن مدته وجمهوره.
+ *  - رد واحد لكل مستخدم، ويُسجّل الخادم بنفسه أن المستخدم شارك (حتى في الاستبيان مجهول الهوية).
+ *  - لا يرى أحد ردود غيره إلا من يدير الاستبيانات. svstats: نِسب مجمّعة للمشارك إن سُمح بها.
+ *  - الردود الجاهزة العامة يعدّلها من يملك replies.manage، والخاصة لصاحبها فقط.
  */
 declare(strict_types=1);
 @ini_set('display_errors', '0');
@@ -155,6 +161,45 @@ function setup_v4(PDO $pdo): void {
 
 const PRESENCE_TTL = 150000;
 
+/* ── الاستبيانات ── */
+function survey_doc(string $sid): ?array {
+  if ($sid === '') return null;
+  $d = doc_get('surveys', $sid);
+  if (!$d || !empty($d['deleted'])) return null;
+  $s = json_decode($d['data'], true);
+  return is_array($s) ? $s : null;
+}
+function survey_in_audience(array $s, array $u): bool {
+  $a = is_array($s['audience'] ?? null) ? $s['audience'] : [];
+  $roles = (array) ($a['roles'] ?? []); $deps = (array) ($a['departments'] ?? []); $users = (array) ($a['users'] ?? []);
+  if (in_array((string) ($u['id'] ?? ''), $users, true)) return true;
+  if ($users && !$roles && !$deps) return false;
+  return (!$roles || in_array($u['role'] ?? '', $roles, true)) && (!$deps || in_array((string) ($u['departmentId'] ?? ''), $deps, true));
+}
+function survey_like(string $sid): string { return addcslashes($sid, '\\%_') . ':%'; }
+function survey_marks_count(string $sid): int {
+  $st = db()->prepare("SELECT COUNT(*) FROM docs WHERE store = 'surveyMarks' AND deleted = 0 AND doc_id LIKE ?");
+  $st->execute([survey_like($sid)]);
+  return (int) $st->fetchColumn();
+}
+/** هل يُقبل رد هذا المستخدم الآن؟ منشور، ظاهر، ضمن المدة والجمهور، ولم يصل حد المشاركات */
+function survey_open_for(?array $s, array $u, bool $edit = false): bool {
+  if (!$s || ($s['status'] ?? '') !== 'live' || !empty($s['hidden'])) return false;
+  $t = now_ms();
+  if (!empty($s['startAt']) && $t < (int) $s['startAt']) return false;
+  if (!empty($s['endAt']) && $t > (int) $s['endAt'] + 5 * 60000) return false;
+  if (!survey_in_audience($s, $u)) return false;
+  if ($edit) return !empty($s['allowEdit']) && empty($s['anonymous']);
+  if (!empty($s['maxResponses']) && survey_marks_count((string) ($s['id'] ?? '')) >= (int) $s['maxResponses']) return false;
+  return true;
+}
+/** من يرى ردود الآخرين وتسجيلات المشاركة: مدير الاستبيانات فقط */
+function survey_private_rows(array $rows, array $user): array {
+  if (can($user, 'surveys.manage')) return $rows;
+  $me = (string) ($user['id'] ?? '');
+  return array_values(array_filter($rows, fn($r) => !in_array($r['store'], ['surveyResponses', 'surveyMarks'], true) || (int) $r['deleted'] || (string) (($r['_d'] ?? [])['userId'] ?? '') === $me));
+}
+
 /*
  * نطاق المزامنة: الموظف (بلا صلاحيات إضافية) لا يحتاج إلا بياناته والقوائم المشتركة.
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
@@ -173,8 +218,9 @@ function self_sql(array $u): array {
     . " AND (store <> 'tickets' OR {$j('requesterId')} = ?)"
     . " AND (store NOT IN ('notifications', 'chats') OR {$j('userId')} = ?)"
     . " AND (store <> 'loans' OR {$j('borrowerId')} = ?)"
-    . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)))";
-  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep]];
+    . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)"
+    . " AND (store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?)))";
+  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me]];
 }
 /** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
 function owners_of(string $store, array $ids, string $field, array $known): array {
@@ -217,6 +263,7 @@ function visible_rows(array $rows, array $u): array {
       case 'chatMsgs': $ok = ($cOwn[(string) ($d['chatId'] ?? '')] ?? '') === $me; break;
       case 'loans': $ok = (string) ($d['borrowerId'] ?? '') === $me; break;
       case 'assets': $ok = (string) ($d['holderId'] ?? '') === $me || ($dep !== '' && (string) ($d['departmentId'] ?? '') === $dep); break;
+      case 'surveyResponses': case 'surveyMarks': $ok = (string) ($d['userId'] ?? '') === $me; break;
       default: $ok = true;
     }
     if ($ok) $out[] = $r;
@@ -355,6 +402,33 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
     case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
     case 'settings': return can($user, 'settings') ? $new : null;
+    case 'surveys': return can($user, 'surveys.manage') ? $new : null;
+    case 'surveyResponses': {
+      if ($deleted) return can($user, 'surveys.manage') ? $new : null;
+      $me = (string) ($user['id'] ?? ''); $sid = (string) ($data['surveyId'] ?? ''); $rid = (string) ($data['id'] ?? ''); $uid = (string) ($data['userId'] ?? '');
+      if ($sid === '' || strpos($rid, $sid . ':') !== 0) return null;
+      $s = survey_doc($sid); if (!$s) return null;
+      if (!empty($s['anonymous'])) {
+        /* مجهول الهوية: بلا اسم، وبمعرّف لا يدل على صاحبه، ومرة واحدة فقط */
+        if ($uid !== '' || $old || $rid === "$sid:$me") return null;
+        if (doc_get('surveyMarks', "$sid:$me")) return null;
+        return survey_open_for($s, $user) ? $new : null;
+      }
+      if ($uid !== $me || $rid !== "$sid:$me") return null;
+      if ($old) return ((string) ($old['userId'] ?? '') === $me && survey_open_for($s, $user, true)) ? $new : null;
+      return survey_open_for($s, $user) ? $new : null;
+    }
+    case 'surveyMarks': {
+      if ($deleted) return can($user, 'surveys.manage') ? $new : null;
+      $me = (string) ($user['id'] ?? ''); $sid = (string) ($data['surveyId'] ?? '');
+      if ((string) ($data['userId'] ?? '') !== $me || (string) ($data['id'] ?? '') !== "$sid:$me") return null;
+      return doc_get('surveyMarks', "$sid:$me") ? $new : null;
+    }
+    case 'replies': {
+      $me = (string) ($user['id'] ?? ''); $tgt = $old ?: $data;
+      if (($tgt['scope'] ?? '') === 'all' || ($data['scope'] ?? '') === 'all') return can_any($user, ['replies.manage', 'users.manage']) ? $new : null;
+      return ((string) ($tgt['userId'] ?? '') === $me && (!$old || (string) ($old['userId'] ?? '') === $me)) ? $new : null;
+    }
     /* الإشعارات: يُنشئها النظام لأي مستخدم، لكن لا يحذفها إلا صاحبها */
     case 'notifications': return !$deleted || (string) (($old ?? [])['userId'] ?? '') === (string) ($user['id'] ?? '') ? $new : null;
     case 'meta': {
@@ -362,6 +436,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'settings') return can($user, 'settings') ? $new : null;
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
       if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
+      if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
+      if ($key === 'seed:replies2') return can_any($user, ['replies.manage', 'users.manage']) ? $new : null;
       if (strpos($key, 'lock:') === 0) return null;
       if (strpos($key, 'presence:') === 0) return $key === 'presence:' . ($user['id'] ?? '') ? $new : null;
       return $new;
@@ -486,6 +562,7 @@ case 'pull': {
      بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
   if (!$more) $max = max($max, $head);
   if ($scope === 'self') $rows = visible_rows($rows, $user);
+  else $rows = survey_private_rows($rows, $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
     if ($row['store'] === 'users' && is_array($data)) $data = strip_user($data);
@@ -580,6 +657,14 @@ case 'push': {
       if ($json !== false && strlen($json) > max_doc_bytes()) { $conflicts[] = ['store' => $store, 'id' => $id, 'reason' => 'too_large', 'size' => strlen($json), 'max' => max_doc_bytes()]; continue; }
       $ins->execute([$store, $id, $rev, now_ms(), $deleted, $json === false ? '{}' : $json]);
       $applied[] = ['store' => $store, 'id' => $id, 'rev' => $rev];
+      /* رد جديد على استبيان: يسجّل الخادم بنفسه أن المستخدم شارك، فلا يُكرَّر الرد ولو تجاوز أحد الواجهة */
+      if ($store === 'surveyResponses' && !$deleted && !$cur && is_array($data)) {
+        $sid = (string) ($data['surveyId'] ?? ''); $mid = $sid . ':' . (string) ($user['id'] ?? '');
+        if ($sid !== '' && !doc_get('surveyMarks', $mid)) {
+          $ins->execute(['surveyMarks', $mid, $rev, now_ms(), 0, json_encode(['id' => $mid, 'surveyId' => $sid, 'userId' => (string) ($user['id'] ?? ''), 'at' => now_ms()], JSON_UNESCAPED_UNICODE)]);
+          $applied[] = ['store' => 'surveyMarks', 'id' => $mid, 'rev' => $rev];
+        }
+      }
     }
     $pdo->commit();
   } catch (Throwable $e) {
@@ -678,6 +763,35 @@ case 'file': {
   header('Cache-Control: private, max-age=31536000, immutable');
   readfile($path);
   exit;
+}
+
+case 'svstats': {
+  $user = session_user();
+  $sid = (string) ($_GET['id'] ?? '');
+  $s = survey_doc($sid); if (!$s) fail('الاستبيان غير موجود', 404);
+  $me = (string) $user['id'];
+  if (!can($user, 'surveys.manage') && !(!empty($s['showResults']) && doc_get('surveyMarks', "$sid:$me"))) fail('النتائج غير متاحة لهذا الاستبيان', 403);
+  $types = []; foreach ((array) ($s['questions'] ?? []) as $q) if (is_array($q)) $types[(string) ($q['id'] ?? '')] = (string) ($q['t'] ?? '');
+  $st = db()->prepare("SELECT data FROM docs WHERE store = 'surveyResponses' AND deleted = 0 AND doc_id LIKE ?");
+  $st->execute([survey_like($sid)]);
+  $agg = []; $n = 0;
+  foreach ($st->fetchAll() as $r) {
+    $d = json_decode($r['data'], true); if (!is_array($d)) continue; $n++;
+    foreach ((array) ($d['answers'] ?? []) as $qid => $v) {
+      $qid = (string) $qid; $t = $types[$qid] ?? '';
+      if ($t === '' || in_array($t, ['text', 'textarea', 'date', 'section'], true)) continue;
+      if (!isset($agg[$qid])) $agg[$qid] = ['n' => 0, 'c' => [], 'sum' => 0, 'num' => 0, 'rows' => []];
+      $agg[$qid]['n']++;
+      if ($t === 'matrix' && is_array($v)) { foreach ($v as $row => $k) { $row = (string) $row; if (!isset($agg[$qid]['rows'][$row])) $agg[$qid]['rows'][$row] = ['n' => 0, 'sum' => 0]; $agg[$qid]['rows'][$row]['n']++; $agg[$qid]['rows'][$row]['sum'] += (float) $k; } continue; }
+      foreach ((is_array($v) ? $v : [$v]) as $x) {
+        if (!is_scalar($x)) continue;
+        $k = (string) $x; $agg[$qid]['c'][$k] = ($agg[$qid]['c'][$k] ?? 0) + 1;
+        if (is_int($x) || is_float($x)) { $agg[$qid]['sum'] += $x; $agg[$qid]['num']++; }
+      }
+    }
+  }
+  foreach ($agg as &$a) { $a['c'] = (object) $a['c']; $a['rows'] = (object) $a['rows']; $a['texts'] = []; } unset($a);
+  out(['n' => $n, 'q' => (object) $agg]);
 }
 
 case 'diag': {

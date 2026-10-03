@@ -149,7 +149,7 @@ const Bus = (() => {
 
 /* ── قاعدة البيانات IndexedDB ───────────────────────────────── */
 const DB = (() => {
-  const NAME = 'sqapa_it_system', VERSION = 12;
+  const NAME = 'sqapa_it_system', VERSION = 13;
   const SCHEMA = {
     meta: { key: 'key' },
     users: { key: 'id', idx: { username: { path: 'username', unique: true }, role: 'role' } },
@@ -183,7 +183,10 @@ const DB = (() => {
     movements: { key: 'id', idx: { at: 'at', item_at: ['itemId', 'at'], type: 'type' } },
     loans: { key: 'id', idx: { status: 'status', issuedAt: 'issuedAt', itemId: 'itemId' } },
     assets: { key: 'id', idx: { serial: 'serial', itemId: 'itemId', status: 'status', item_status: ['itemId', 'status'], departmentId: 'departmentId', loanId: 'loanId' } },
-    vouchers: { key: 'id', idx: { at: 'at', type: 'type', holderId: 'holderId' } }
+    vouchers: { key: 'id', idx: { at: 'at', type: 'type', holderId: 'holderId' } },
+    surveys: { key: 'id', idx: { status: 'status', updatedAt: 'updatedAt' } },
+    surveyResponses: { key: 'id', idx: { surveyId: 'surveyId', at: 'at' } },
+    surveyMarks: { key: 'id', idx: { surveyId: 'surveyId', userId: 'userId' } }
   };
   let db = null;
   const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -514,7 +517,7 @@ const Data = {
   async refresh(which) {
     const lists = which === 'settings' ? [] : which ? [which] : ['departments', 'ranks', 'categories', 'warehouses', 'itemCategories', 'users', 'printers', 'locations'];
     await Promise.all(lists.map(async (name) => { const rows = await DB.getAll(name); rows.sort((a, b) => (a.order || 0) - (b.order || 0) || AR_COLL.compare(String(a.name), String(b.name))); this.c[name] = new Map(rows.map((r) => [r.id, r])); }));
-    if (!which || which === 'settings') { const s = await DB.get('meta', 'settings'); const v = (s && s.value) || {}; this.c.settings = { ...DEFAULT_SETTINGS, ...v, sla: { ...DEFAULT_SETTINGS.sla, ...(v.sla || {}) } }; if (String(this.c.settings.systemName || '').trim() === 'تقنية المعلومات') this.c.settings.systemName = 'قسم تقنية المعلومات'; const nh = await DB.get('meta', 'navhide'); this.c.navHide = (nh && nh.value) || {}; }
+    if (!which || which === 'settings') { const s = await DB.get('meta', 'settings'); const v = (s && s.value) || {}; this.c.settings = { ...DEFAULT_SETTINGS, ...v, sla: { ...DEFAULT_SETTINGS.sla, ...(v.sla || {}) } }; if (String(this.c.settings.systemName || '').trim() === 'تقنية المعلومات') this.c.settings.systemName = 'قسم تقنية المعلومات'; const nh = await DB.get('meta', 'navhide'); this.c.navHide = (nh && nh.value) || {}; const rc = await DB.get('meta', 'ratingcfg'); this.c.ratingCfg = (rc && rc.value) || {}; }
   },
   list(map) { return [...this.c[map].values()]; },
   nameOf(map, id, fb = '—') { const x = this.c[map].get(id); return x ? x.name : fb; },
@@ -602,7 +605,7 @@ Data.tickets = {
       if (status === 'resolved' && !String(text).trim()) throw new AppError('اكتب ملخص الحل قبل إغلاق البلاغ كمحلول');
       if (status === 'resolved') t.resolvedAt = now();
       if (status === 'closed') { t.closedAt = now(); if (!t.resolvedAt) t.resolvedAt = now(); }
-      if (OPEN.includes(status) && !OPEN.includes(from)) { t.resolvedAt = 0; t.closedAt = 0; t.rating = 0; }
+      if (OPEN.includes(status) && !OPEN.includes(from)) { t.resolvedAt = 0; t.closedAt = 0; t.rating = 0; t.ratingTags = []; t.ratingComment = ''; t.resolveMethod = ''; }
       if ((status === 'in_progress' || status === 'waiting') && !t.assigneeId) t.assigneeId = Auth.user.id;
       t.status = status; return { type: 'status', from, to: status, text: String(text).trim() };
     }, n);
@@ -914,6 +917,18 @@ const ICONS = {
   tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/><circle cx="12" cy="12" r="6.5"/>'
 };
+Object.assign(ICONS, {
+  poll: '<path d="M9 3.5h6v3H9z"/><path d="M15 5h2.2A1.8 1.8 0 0 1 19 6.8v12.4a1.8 1.8 0 0 1-1.8 1.8H6.8A1.8 1.8 0 0 1 5 19.2V6.8A1.8 1.8 0 0 1 6.8 5H9"/><path d="M8.5 11.6l1.5 1.5 2.8-3M8.5 16.5h7"/>',
+  smile: '<circle cx="12" cy="12" r="9"/><path d="M8.4 14.2a4.6 4.6 0 0 0 7.2 0"/><path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.6"/>',
+  frown: '<circle cx="12" cy="12" r="9"/><path d="M8.4 16.2a4.6 4.6 0 0 1 7.2 0"/><path d="M9 9.6h.01M15 9.6h.01" stroke-width="2.6"/>',
+  message: '<path d="M5 4.8h14a1.6 1.6 0 0 1 1.6 1.6v9a1.6 1.6 0 0 1-1.6 1.6h-8.4L6 20.6V17H5a1.6 1.6 0 0 1-1.6-1.6v-9A1.6 1.6 0 0 1 5 4.8z"/><path d="M8 9.4h8M8 12.6h5"/>',
+  sparkle: '<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z"/><path d="M18.6 15.6l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7z"/>',
+  list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.6 6.5h.01M4.6 12h.01M4.6 17.5h.01" stroke-width="2.6"/>',
+  scale: '<path d="M4 19.5h16"/><path d="M6.5 19.5v-4M10.5 19.5v-7M14.5 19.5v-10M18.5 19.5v-13"/>',
+  toggle: '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="3"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1"/>',
+  thumb: '<path d="M7.5 20.5H5a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 5 10.5h2.5m0 10v-10l3.6-6.6a2.3 2.3 0 0 1 2.3 2.3v3.5h4.8a1.9 1.9 0 0 1 1.9 2.2l-1.2 6.9a1.9 1.9 0 0 1-1.9 1.6z"/>'
+});
 const SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
 <radialGradient id="iso-shadow"><stop offset="0" stop-color="#020814" stop-opacity=".42"/><stop offset="1" stop-color="#020814" stop-opacity="0"/></radialGradient>
 <linearGradient id="iso-screen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d4f86"/><stop offset="1" stop-color="#0b1f38"/></linearGradient>
@@ -1616,11 +1631,11 @@ const Shell = {
   nav() { return this.navAll().map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm) && !Nav.hidden(i.path)) })).filter((g) => g.items.length); },
   navAll() {
     return [
-      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
+      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/surveys', label: 'الاستبيانات', icon: 'poll', perm: '', badge: 'surveys' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
-      { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }] },
+      { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
-      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/nav-visibility', label: 'إظهار الأقسام', icon: 'eye', perm: 'nav.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/nav-visibility', label: 'إظهار الأقسام', icon: 'eye', perm: 'nav.manage' }, { path: '/surveys/manage', label: 'إدارة الاستبيانات', icon: 'poll', perm: 'surveys.manage' }, { path: '/ratings', label: 'مركز التقييم', icon: 'star', perm: 'ratings.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
     ];
   },
   mount() {
@@ -2205,7 +2220,7 @@ Pages.newTicket = async (ctx) => {
       if ((st.persons || []).length) extra.persons = st.persons;
       if ((st.codes || []).length) extra.codes = st.codes;
       const t = await Data.tickets.create({ ...st, categoryId: st.cat, extra }, files);
-      view.innerHTML = String(html`${head}<section class="panel"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:24px">تم إرسال بلاغك بنجاح</h2><p class="muted">احتفظ برقم البلاغ للمتابعة، وسيصلك إشعار عند استلامه.</p><span class="stamp">${t.number}</span><div class="row" style="justify-content:center;margin-top:10px"><a class="btn btn-primary" href="#/tickets/${t.id}">${UI.icon('eye')} متابعة البلاغ</a>${eformOn(t.categoryId) ? html`<button type="button" class="btn btn-soft" data-eformview="${t.id}">${UI.icon('paper')} عرض الاستمارة وطباعتها</button>` : ''}<a class="btn" href="#/tickets/new">${UI.icon('plus')} بلاغ آخر</a><a class="btn btn-ghost" href="#/dashboard">${UI.icon('grid')} الرئيسية</a></div></div></section>`);
+      view.innerHTML = String(html`${head}<section class="panel"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:24px">تم إرسال بلاغك بنجاح</h2><p class="muted">احتفظ برقم البلاغ للمتابعة، وسيصلك إشعار عند استلامه.</p><span class="stamp">${t.number}</span>${Ratings.submitWidget(t)}<div class="row" style="justify-content:center;margin-top:10px"><a class="btn btn-primary" href="#/tickets/${t.id}">${UI.icon('eye')} متابعة البلاغ</a>${eformOn(t.categoryId) ? html`<button type="button" class="btn btn-soft" data-eformview="${t.id}">${UI.icon('paper')} عرض الاستمارة وطباعتها</button>` : ''}<a class="btn" href="#/tickets/new">${UI.icon('plus')} بلاغ آخر</a><a class="btn btn-ghost" href="#/dashboard">${UI.icon('grid')} الرئيسية</a></div></div></section>`);
       const r = $('.burst', view).getBoundingClientRect(); UI.confetti(r.left + r.width / 2, r.top + r.height / 2);
     } catch (ex) { UI.error(ex); UI.busy(btn, false); }
   });
@@ -2223,7 +2238,7 @@ const EVENT_VIEW = {
   status: (e) => ['refresh', (STATUS[e.to] || {}).tone || 'slate', e.userId ? html`<b>${Data.userName(e.userId)}</b> غيّر الحالة إلى ${UI.status(e.to)}` : html`<b>النظام</b> غيّر الحالة إلى ${UI.status(e.to)}`],
   comment: (e) => ['send', e.internal ? 'amber' : 'teal', html`<b>${Data.userName(e.userId)}</b> ${e.internal ? html`أضاف ${UI.chip('amber', 'ملاحظة داخلية', 'lock')}` : 'كتب رداً'}`],
   priority: (e) => ['alert', (PRIORITY[e.to] || {}).tone || 'amber', html`<b>${Data.userName(e.userId)}</b> غيّر الأولوية إلى ${UI.priority(e.to)}`],
-  rating: (e) => ['star', 'brass', html`<b>${Data.userName(e.userId)}</b> قيّم الخدمة ${UI.stars(e.stars)}`],
+  rating: (e) => ['star', 'brass', html`<b>${Data.userName(e.userId)}</b> قيّم الخدمة ${UI.stars(e.stars)}${(e.tags || []).length ? html`<span class="rt-evtags">${e.tags.map((g) => html`<i>${g}</i>`)}</span>` : ''}`],
   attachment: (e) => ['clip', 'sky', html`<b>${Data.userName(e.userId)}</b> أضاف مرفقات`],
   takeover: (e) => ['swap', 'amber', html`<b>${Data.userName(e.to)}</b> استكمل البلاغ بدلاً من <b>${Data.userName(e.from)}</b>`],
   handover: (e) => ['clipboard', 'violet', html`<b>${Data.userName(e.userId)}</b> ${e.text ? 'كتب ملاحظة تسليم' : 'أزال ملاحظة التسليم'}${e.release ? html` ${UI.chip('violet', 'أتاح البلاغ للاستكمال', 'swap')}` : ''}`]
@@ -2255,7 +2270,7 @@ Pages.ticket = async (ctx) => {
     const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
-      ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}
+      ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}${Ratings.ticketBar(t, staff)}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -2264,7 +2279,7 @@ Pages.ticket = async (ctx) => {
         </div>
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
-          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
+          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
           ${staff ? UI.panel({ title: 'الإسناد والأولوية', icon: 'user-plus', body: html`<div class="stack" style="gap:12px"><div class="row" style="flex-wrap:nowrap">${t.assigneeId ? html`${UI.avatar(t.assigneeId, 'av-lg')}<div><b>${Data.userName(t.assigneeId)}</b><div class="t-sub">الفني المسؤول</div></div>` : html`<span class="faint">لم يُسند إلى فني بعد</span>`}</div>${mgr && OPEN.includes(t.status) ? html`${UI.field({ name: 'assign', label: 'إسناد إلى', type: 'select', options: UI.userOpts(['technician', 'support_manager', 'supervisor']) }, t.assigneeId)}${UI.field({ name: 'prio', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([k, p]) => ({ value: k, label: p.label })) }, t.priority)}` : ''}</div>` }) : ''}
           ${staff ? Pages.ticketFlow(t) : ''}
           ${Pages.categoryFormBar(t.categoryId) ? UI.panel({ title: 'استمارة الفئة', icon: 'file', body: Pages.categoryFormBar(t.categoryId) }) : ''}
@@ -2291,11 +2306,12 @@ Pages.ticket = async (ctx) => {
     if (a === 'hoclear') { if (await UI.confirm('إزالة ملاحظة التسليم؟', { ok: 'إزالة' })) run(() => Data.tickets.handover(id, '', false), 'أُزيلت ملاحظة التسليم'); return; }
     if (a === 'start') return run(() => Data.tickets.setStatus(id, 'in_progress'), 'بدأ العمل على البلاغ');
     if (a === 'wait') { const r = await textModal('تعليق البلاغ', 'pause', 'سبب التعليق (يظهر للمستفيد)', false, 'تعليق'); if (r) run(() => Data.tickets.setStatus(id, 'waiting', r.text), 'تم تعليق البلاغ'); return; }
-    if (a === 'resolve') { const r = await textModal('تسجيل الحل', 'check', 'ملخص الحل الذي تم تنفيذه', true, 'تأكيد الحل', 'ok', templates); if (r) { await run(() => Data.tickets.setStatus(id, 'resolved', r.text), 'تم تسجيل الحل وإشعار المستفيد'); UI.sound('success'); } return; }
+    if (a === 'resolve') { const r = await Pages.resolveModal(t, templates); if (r) { await run(async () => { await Data.tickets.setStatus(id, 'resolved', r.text); if (r.method) await Data.tickets.mutate(id, (x) => { x.resolveMethod = r.method; return []; }); }, r.kept ? 'تم تسجيل الحل وحُفظ كرد جاهز' : 'تم تسجيل الحل وإشعار المستفيد'); UI.sound('success'); } return; }
     if (a === 'close') return run(() => Data.tickets.setStatus(id, 'closed'), 'تم إغلاق البلاغ');
     if (a === 'reopen' || a === 'notfixed') { const r = await textModal(a === 'notfixed' ? 'المشكلة لم تُحل' : 'إعادة فتح البلاغ', 'undo', 'ما الذي ما زال لا يعمل؟', a === 'notfixed', 'إعادة الفتح', 'danger'); if (r) run(() => Data.tickets.setStatus(id, t.assigneeId ? 'in_progress' : 'new', r.text), 'أُعيد فتح البلاغ'); return; }
     if (a === 'cancel') { if (await UI.confirm('هل تريد إلغاء هذا البلاغ؟ يمكن للفنيين إعادة فتحه لاحقاً.', { ok: 'إلغاء البلاغ', danger: true })) run(() => Data.tickets.setStatus(id, 'cancelled'), 'تم إلغاء البلاغ'); return; }
     if (a === 'rate') return Pages.rateModal(id);
+    if (a === 'confirmfix') return run(() => Data.tickets.confirmFix(id), 'شكراً لتأكيدك، أُغلق البلاغ');
     if (a === 'send') { const box = $('#cmt', view), internal = $('#internal', view); if (!box.value.trim()) { box.focus(); return; } UI.busy(el, true); try { await Data.tickets.comment(id, box.value, !!(internal && internal.checked)); UI.toast('تم إرسال الرد'); } catch (ex) { UI.error(ex); UI.busy(el, false); } return; }
     if (a === 'attach') { const fl = (await UI.pickFiles({ accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt' })).filter((f) => f.size <= 10 * 1048576).slice(0, 5); if (fl.length) run(() => Data.tickets.addAttachments(id, fl), 'تمت إضافة المرفقات'); return; }
     if (a === 'parts') { const mv = await Pages.moveModal({ type: 'issue', ref: t.number }); if (mv) { const it = await DB.get('items', mv.itemId); run(() => Data.tickets.comment(id, `تم صرف ${mv.qty} ${it ? it.unit : ''} من «${it ? it.name : ''}» لهذا البلاغ.`, true)); } return; }
@@ -2809,7 +2825,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -3005,6 +3021,7 @@ const PERM_GROUPS = [
   { title: 'البلاغات', icon: 'ticket', items: [['tickets.create', 'تقديم البلاغات', 'فتح بلاغ أو طلب خدمة'], ['tickets.view', 'متابعة البلاغات', 'عرض البلاغات المسموح بها'], ['tickets.all', 'عرض كل البلاغات', 'بلاغات جميع الأقسام والمواقع'], ['tickets.work', 'استلام البلاغات وحلها', 'الاستلام والرد وتحديث الحالة'], ['chat.answer', 'الرد على الاستفسارات', 'استقبال استفسارات الموظفين والرد عليها'], ['users.password', 'إصدار كلمات المرور', 'إصدار أو تغيير كلمة مرور الحسابات الأدنى'], ['forms.manage', 'إدارة النماذج والاستمارات', 'إضافة الاستمارات وتعديلها وحذفها'], ['backup.manage', 'النسخ الاحتياطي والبيانات', 'أخذ النسخ والاسترداد وجدولة النسخ التلقائي'], ['announce.manage', 'التعاميم وحالة الخدمات', 'نشر الإعلانات وتحديث حالة الخدمات'], ['worklog', 'تسجيل أعمال القسم', 'تسجيل الأعمال اليومية والزيارات والورش'], ['worklog.all', 'الاطلاع على أعمال القسم كاملة', 'عرض أعمال جميع الفنيين والإداريين وتقاريرها'], ['works', 'متابعة الأعمال الداخلية والخارجية', 'المجلدات والمواضيع والمرفقات ومتابعتها'], ['tickets.manage', 'إدارة البلاغات', 'الإسناد لفني آخر وتغيير الأولوية والإلغاء']] },
   { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة']] },
   { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['forms.hide', 'إخفاء المستندات', 'إخفاء النماذج والاستمارات عن الموظفين وإظهارها'], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه']] },
+  { title: 'الاستبيانات والتقييم', icon: 'poll', items: [['surveys.manage', 'إدارة الاستبيانات', 'إنشاء الاستبيانات والاختبارات ونشرها ومتابعة نتائجها'], ['ratings.manage', 'إدارة تقييم البلاغات', 'تفعيل التقييم وإعداده ومتابعة رضا المستفيدين'], ['replies.manage', 'الردود الجاهزة العامة', 'إضافة الردود والحلول الجاهزة لكل الفنيين وتعديلها']] },
   { title: 'التقارير والإدارة', icon: 'chart', items: [['reports', 'التقارير والتحليلات', ''], ['activity', 'سجل النشاط', ''], ['users.manage', 'إدارة المستخدمين', 'إضافة الحسابات وتعديلها'], ['org.manage', 'تعديل الهيكل التنظيمي', 'إضافة الإدارات والأقسام ورسمها'], ['sync.manage', 'المزامنة مع الخادم', 'ربط النظام بخادم XAMPP ومتابعة حالته'], ['settings', 'الإعدادات والبيانات', 'القوائم والنسخ الاحتياطي'], ['nav.manage', 'إظهار وإخفاء أقسام القائمة', 'تحديد ما يظهر للموظفين والفنيين والإداريين من صفحات']] }
 ];
 const PERM_KEYS = new Set(PERM_GROUPS.flatMap((g) => g.items.map((i) => i[0])));
@@ -4435,6 +4452,9 @@ const Sync = {
     if (set.has('users')) Bus.emit('users', { remote: true, synced: true });
     if (set.has('notifications')) Bus.emit('notifications', { remote: true });
     if (set.has('kb')) Bus.emit('data:kb', { remote: true });
+    if (['surveys', 'surveyMarks', 'surveyResponses'].some((x) => set.has(x))) Bus.emit('surveys', { remote: true });
+    if (set.has('replies')) Bus.emit('replies', { remote: true });
+    if (set.has('meta')) Data.refresh('settings').catch(() => {});
   },
 
   /* الدخول عبر الخادم */
@@ -9243,6 +9263,1154 @@ Pages.navVisibility = async (ctx) => {
   });
 };
 Router.add('/nav-visibility', 'nav.manage', Pages.navVisibility, 'إظهار أقسام القائمة');
+
+/* ══════════════ الردود الجاهزة للحل · تقييم البلاغات · الاستبيانات ══════════════ */
+
+/* ── أدوات مشتركة ── */
+const dtInput = (ts) => { if (!ts) return ''; const d = new Date(ts); return `${dateInput(ts)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fromDt = (s) => { if (!s) return 0; const t = new Date(s).getTime(); return Number.isNaN(t) ? 0 : t; };
+const qCount = (n) => (n === 1 ? 'سؤال واحد' : n === 2 ? 'سؤالان' : arUnit(n, 'سؤال', 'سؤالان', 'أسئلة', 'سؤالاً'));
+const leftText = (ts) => {
+  const d = ts - now(); if (d <= 0) return 'انتهت المدة';
+  if (d < HOUR) return `ينتهي خلال ${arUnit(Math.max(1, Math.round(d / MIN)), 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}`;
+  if (d < DAY) return `ينتهي خلال ${arUnit(Math.round(d / HOUR), 'ساعة', 'ساعتين', 'ساعات', 'ساعة')}`;
+  return `ينتهي خلال ${arUnit(Math.ceil(d / DAY), 'يوم', 'يومين', 'أيام', 'يوماً')}`;
+};
+const svShuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const x = b[i]; b[i] = b[j]; b[j] = x; } return b; };
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) { /* تجاهل */ } };
+const ssGet = (k) => { try { return new Set(JSON.parse(sessionStorage.getItem(k) || '[]')); } catch (_) { return new Set(); } };
+const ssAdd = (k, v) => { const s = ssGet(k); s.add(v); try { sessionStorage.setItem(k, JSON.stringify([...s])); } catch (_) { /* تجاهل */ } };
+
+/* ══════════ 1) الردود الجاهزة عند تسجيل الحل ══════════ */
+const RESOLVE_REPLIES = [
+  ['إعادة تشغيل وتحديث', 'تمت معالجة المشكلة بإعادة تشغيل الجهاز وتثبيت التحديثات المتأخرة، والجهاز يعمل الآن بشكل طبيعي.', 'hardware'],
+  ['تنظيف الجهاز وتبريده', 'تم تنظيف الجهاز من الداخل وإزالة الغبار واستبدال المعجون الحراري، فانخفضت حرارته وتحسّن أداؤه.', 'hardware'],
+  ['استبدال قطعة تالفة', 'تم استبدال القطعة التالفة بقطعة جديدة من المخزن، وتمت تجربة الجهاز بنجاح.', 'hardware'],
+  ['استبدال لوحة المفاتيح أو الماوس', 'تم استبدال لوحة المفاتيح/الماوس بأخرى جديدة والتأكد من عملها.', 'hardware'],
+  ['إعادة تثبيت النظام', 'تمت إعادة تثبيت نظام التشغيل والتعريفات والبرامج الأساسية مع الحفاظ على ملفاتك.', 'hardware'],
+  ['إحكام توصيل الشاشة', 'كان كابل الشاشة غير مثبت جيداً، فتم إحكامه واستبداله، والشاشة تعمل الآن.', 'hardware'],
+  ['إزالة الورق العالق', 'تمت إزالة الورق العالق وتنظيف بكرات السحب، والطابعة تطبع بشكل طبيعي.', 'printer'],
+  ['تعريف الطابعة', 'تم تعريف الطابعة على جهازك وطباعة صفحة اختبار بنجاح.', 'printer'],
+  ['تنظيف رأس الطباعة', 'تم تنظيف رأس الطباعة ومعايرتها، واختفت الخطوط والبهتان من المطبوعات.', 'printer'],
+  ['ربط الطابعة بالشبكة', 'تمت إعادة ربط الطابعة بالشبكة وتثبيت عنوانها، وأصبحت متاحة لكل أجهزة القسم.', 'printer'],
+  ['استبدال كابل الشبكة', 'تم استبدال كابل الشبكة التالف والتأكد من الاتصال بالشبكة والإنترنت.', 'network'],
+  ['إعادة ضبط منفذ الشبكة', 'تمت إعادة ضبط منفذ الشبكة في المبدّل، والاتصال مستقر الآن.', 'network'],
+  ['إعداد الشبكة اللاسلكية', 'تم إعداد الاتصال بالشبكة اللاسلكية على جهازك وحفظ بياناتها.', 'network'],
+  ['تركيب نقطة شبكة', 'تم تركيب نقطة الشبكة الجديدة واختبارها بنجاح.', 'network'],
+  ['تثبيت برنامج', 'تم تثبيت البرنامج المطلوب وتفعيل ترخيصه وإنشاء اختصار له على سطح المكتب.', 'software'],
+  ['تحديث البرنامج', 'تم تحديث البرنامج إلى آخر إصدار، وتعمل الآن جميع خصائصه بشكل سليم.', 'software'],
+  ['إصلاح ملفات النظام', 'تم فحص ملفات النظام وإصلاح التالف منها، واختفت رسالة الخطأ.', 'software'],
+  ['إزالة برامج ضارة', 'تم فحص الجهاز وإزالة البرامج الضارة وتحديث برنامج الحماية.', 'software'],
+  ['إعادة تعيين كلمة مرور البريد', 'تمت إعادة تعيين كلمة مرور البريد وإبلاغك بها بشكل سري، ويُرجى تغييرها عند أول دخول.', 'email'],
+  ['إضافة البريد على الجوال', 'تم إعداد البريد الرسمي على جوالك والتأكد من الإرسال والاستقبال.', 'email'],
+  ['تفريغ مساحة البريد', 'تمت أرشفة الرسائل القديمة وتفريغ مساحة صندوق البريد، والبريد يستقبل الرسائل الآن.', 'email'],
+  ['إصدار البطاقة', 'تم إصدار البطاقة وبرمجتها وتسليمها، وتعمل على البوابات المصرح بها.', 'card'],
+  ['إعادة برمجة البطاقة', 'تمت إعادة برمجة البطاقة وتحديث صلاحياتها، وهي تعمل الآن.', 'card'],
+  ['تفعيل الرمز', 'تم إصدار الرمز وتفعيله والتأكد من عمله.', 'path_code'],
+  ['صرف الحبر وتركيبه', 'تم صرف الحبر المطلوب وتركيبه وطباعة صفحة اختبار.', 'ink'],
+  ['إعداد المسح إلى البريد', 'تم إعداد المسح الضوئي إلى بريدك الإلكتروني وتجربته بنجاح.', 'scanner'],
+  ['تعريف الماسح الضوئي', 'تم تحديث تعريف الماسح الضوئي وتجربة المسح بنجاح.', 'scanner'],
+  ['إنشاء مجلد ومنح صلاحيات', 'تم إنشاء المجلد المطلوب ومنح الصلاحيات للأسماء الواردة في الطلب.', 'service_request'],
+  ['تنفيذ الطلب', 'تم تنفيذ طلبك بالكامل، ويمكنك البدء باستخدام الخدمة الآن.', 'service_request'],
+  ['حل عن بُعد', 'تم حل المشكلة عن بُعد دون الحاجة لزيارة مكتبك، يُرجى التأكد من عمل كل شيء.', ''],
+  ['إرشاد المستخدم', 'تم شرح طريقة الاستخدام الصحيحة وحل المشكلة معك مباشرة.', ''],
+  ['حل مؤقت ومتابعة', 'تم تطبيق حل مؤقت يضمن استمرار عملك، وسنتابع الحل النهائي ونبلغك به.', ''],
+  ['مشكلة عامة عولجت من المصدر', 'كانت المشكلة عامة على الشبكة/الخدمة وتمت معالجتها من المصدر، والخدمة تعمل الآن للجميع.', ''],
+  ['تم الحل — أكّد وقيّم', 'تمت معالجة البلاغ {رقم البلاغ}، يُرجى التأكد من عمل كل شيء وتقييم الخدمة. شكراً لتعاونك {الاسم}.', '']
+];
+const RESOLVE_METHODS = [['remote', 'عن بُعد', 'monitor'], ['visit', 'زيارة المكتب', 'pin'], ['part', 'استبدال قطعة', 'tools'], ['reset', 'إعادة ضبط أو تثبيت', 'refresh'], ['guide', 'إرشاد المستخدم', 'user'], ['other', 'أخرى', 'info']];
+const RESOLVE_LABEL = Object.fromEntries(RESOLVE_METHODS.map(([k, l]) => [k, l]));
+const RP_KINDS = [{ value: 'resolve', label: 'تسجيل الحل' }, { value: 'ticket', label: 'الردود على البلاغات' }, { value: 'chat', label: 'الاستفسارات' }, { value: '', label: 'عام (كل الأماكن)' }, { value: 'work', label: 'سجل الأعمال' }];
+const RP_KIND_LABEL = { resolve: 'تسجيل الحل', ticket: 'البلاغات', chat: 'الاستفسارات', work: 'سجل الأعمال', wtype: 'أنواع الأعمال', '': 'عام' };
+
+/* عدد مرات استخدام كل رد يُحفظ لكل مستخدم على جهازه، فلا يُعدَّل الرد العام عند كل استخدام */
+const rpUseKey = () => `sq_rp_use:${(Auth.user || {}).id || ''}`;
+Data.replies.uses = () => lsGet(rpUseKey(), {});
+Data.replies.use = async (id) => { const m = Data.replies.uses(); m[id] = (m[id] || 0) + 1; lsSet(rpUseKey(), m); };
+Data.replies.canShare = () => !!Auth.user && (canUser(Auth.user, 'replies.manage') || canUser(Auth.user, 'users.manage'));
+{
+  let seeded = '';
+  /* الردود الافتراضية بمعرّفات ثابتة: يضيفها المسؤول للخادم، ويضيفها غيره لجهازه فقط حتى تصله نسخة الخادم */
+  Data.replies.ensure = async () => {
+    const me = Auth.user ? Auth.user.id : ''; if (seeded === me) return; seeded = me;
+    const local = Sync.on && Sync.raw && !Data.replies.canShare();
+    const put = (rows) => (local ? Promise.all(rows.map((r) => Sync.raw.put('replies', r))) : DB.bulkPut('replies', rows));
+    const t = now();
+    if (!(await DB.count('replies'))) await put(DEFAULT_REPLIES.map(([title, text, kind], i) => ({ id: `rp_def_${pad(i + 1)}`, title, text, kind, scope: 'all', userId: '', useCount: 0, order: i, createdAt: t, updatedAt: t })));
+    const flag = `sq_rp_seed2:${me}`;
+    if (lsGet(flag, 0) || (await DB.get('meta', 'seed:replies2'))) { lsSet(flag, t); return; }
+    const miss = [];
+    for (let i = 0; i < RESOLVE_REPLIES.length; i++) {
+      const id = `rp_rs_${pad(i + 1)}`; if (await DB.get('replies', id)) continue;
+      const [title, text, cat] = RESOLVE_REPLIES[i];
+      miss.push({ id, title, text, kind: 'resolve', cat, scope: 'all', userId: '', useCount: 0, order: 100 + i, createdAt: t, updatedAt: t });
+    }
+    if (miss.length) await put(miss);
+    if (!local) await DB.put('meta', { key: 'seed:replies2', value: t });
+    lsSet(flag, t);
+  };
+}
+Data.replies.list = async (kind = '') => {
+  await Data.replies.ensure();
+  const u = Data.replies.uses(), me = Auth.user.id;
+  return (await DB.getAll('replies'))
+    .filter((r) => (r.scope === 'all' || r.userId === me) && (!kind || !r.kind || r.kind === kind))
+    .sort((a, b) => (u[b.id] || 0) - (u[a.id] || 0) || (a.order || 0) - (b.order || 0));
+};
+Data.replies.save = async (rec) => {
+  const t = now(), cur = rec.id ? (await DB.get('replies', rec.id)) || {} : {};
+  if (cur.scope === 'all' && !Data.replies.canShare()) throw new AppError('الردود العامة يعدّلها المسؤول عن الردود الجاهزة فقط');
+  if (cur.id && cur.scope !== 'all' && cur.userId !== Auth.user.id) throw new AppError('لا يمكنك تعديل رد غيرك');
+  const share = rec.scope === 'all' && Data.replies.canShare();
+  const out = { ...cur, id: cur.id || uid('rp'), title: String(rec.title || '').trim(), text: String(rec.text || '').trim(), kind: rec.kind || '', cat: rec.cat || '', scope: share ? 'all' : 'me', userId: share ? '' : Auth.user.id, by: Auth.user.id, order: cur.order || 99, createdAt: cur.createdAt || t, updatedAt: t };
+  if (!out.text) throw new AppError('اكتب نص الرد');
+  if (!out.title) out.title = out.text.split(/[.،\n]/)[0].slice(0, 40);
+  await DB.put('replies', out); Bus.emit('replies', {});
+  return out;
+};
+Data.replies.remove = async (id) => {
+  const r = await DB.get('replies', id); if (!r) return;
+  if (r.scope === 'all' && !Data.replies.canShare()) throw new AppError('الردود العامة يحذفها المسؤول عن الردود الجاهزة فقط');
+  if (r.scope !== 'all' && r.userId !== Auth.user.id) throw new AppError('لا يمكنك حذف رد غيرك');
+  await DB.del('replies', id); Bus.emit('replies', {});
+};
+Pages.replyModal = (rec = {}) => UI.modal({
+  title: rec.id ? 'تعديل رد جاهز' : 'حفظ رد جاهز', icon: 'message', size: 'lg',
+  body: html`${UI.fields([
+    { name: 'title', label: 'عنوان مختصر', placeholder: 'مثال: تنظيف رأس الطباعة', wide: true },
+    { name: 'text', label: 'نص الرد', type: 'textarea', rows: 5, required: true, wide: true, hint: 'متغيرات تُستبدل تلقائياً: {الاسم} {رقم البلاغ} {الفئة} {اسم الفني}' },
+    { name: 'kind', label: 'يظهر في', type: 'select', placeholder: false, options: RP_KINDS },
+    { name: 'cat', label: 'فئة البلاغ (يُقترح فيها أولاً)', type: 'select', placeholder: 'كل الفئات', options: UI.opts('categories') }
+  ], { kind: 'resolve', ...rec })}
+  ${Data.replies.canShare() ? html`<div class="field mt"><label>من يستخدم هذا الرد؟</label><div class="seg"><label><input type="radio" name="scope" value="me"${rec.scope !== 'all' ? raw(' checked') : ''}><span>${UI.icon('user')} أنا فقط</span></label><label><input type="radio" name="scope" value="all"${rec.scope === 'all' ? raw(' checked') : ''}><span>${UI.icon('users')} كل الفنيين</span></label></div></div>` : ''}`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); const saved = await Data.replies.save({ ...rec, ...v }); UI.toast('حُفظ الرد الجاهز'); return saved; } }]
+});
+
+/* نافذة تسجيل الحل: حلول جاهزة مقترحة لفئة البلاغ، وبحث، وطريقة الحل، والاحتفاظ بالحل كرد جاهز */
+Pages.resolveModal = async (t, templates = []) => {
+  const cat = Data.nameOf('categories', t.categoryId, ''), ctx = { number: t.number, name: Data.userName(t.requesterId), category: cat };
+  const all = [...(await Data.replies.list('resolve')), ...templates.filter((x) => x && x.body).map((x) => ({ id: `tpl:${x.id}`, title: x.name, text: x.body, scope: 'all', cat: '' }))];
+  const st = { tab: 'cat', q: '' };
+  const rows = () => {
+    let list = all;
+    if (st.tab === 'cat') list = list.filter((r) => !r.cat || r.cat === t.categoryId).sort((a, b) => (b.cat === t.categoryId) - (a.cat === t.categoryId));
+    else if (st.tab === 'mine') list = list.filter((r) => r.scope !== 'all');
+    const q = normalizeAr(st.q); if (q) list = list.filter((r) => normalizeAr(`${r.title} ${r.text}`).includes(q));
+    return list;
+  };
+  const listHTML = () => { const list = rows(); return list.length ? html`${list.slice(0, 60).map((r) => html`<button type="button" class="rs-item${r.cat && r.cat === t.categoryId ? ' fit' : ''}" data-rs="${r.id}"><b>${r.title}</b><span>${fillVars(r.text, ctx)}</span><i>${r.cat && r.cat === t.categoryId ? html`${UI.icon('sparkle')} مقترح لهذه الفئة` : ''}${r.scope !== 'all' ? html`${UI.icon('user')} خاص بك` : ''}</i></button>`)}` : html`<div class="empty-mini">${UI.icon('info')} ${st.tab === 'mine' ? 'لم تحفظ ردوداً بعد. اكتب الحل وفعّل «احتفظ بهذا الحل» ليظهر هنا.' : 'لا توجد حلول مطابقة.'}</div>`; };
+  return UI.modal({
+    title: 'تسجيل الحل', icon: 'check', size: 'lg',
+    body: html`<div class="rs-ticket"><span class="chip tone-sky ltr">${t.number}</span><b class="ellipsis">${t.title}</b>${cat ? UI.chip('slate', cat, 'tag') : ''}</div>
+      <div class="rs-box"><div class="rs-tools"><div class="search-box">${UI.icon('search')}<input id="rsq" type="search" placeholder="ابحث في الحلول الجاهزة" aria-label="بحث"></div>
+        <div class="seg rs-seg" role="tablist"><label><input type="radio" name="rstab" value="cat" checked><span>${UI.icon('sparkle')} المقترحة</span></label><label><input type="radio" name="rstab" value="all"><span>${UI.icon('list')} الكل</span></label><label><input type="radio" name="rstab" value="mine"><span>${UI.icon('user')} ردودي</span></label></div></div>
+        <div class="rs-list" data-rslist>${listHTML()}</div></div>
+      <div class="field mt"><label for="rsText">ملخص الحل <small class="faint">— يظهر للمستفيد</small><em aria-hidden="true">*</em></label><textarea id="rsText" name="text" rows="4" placeholder="اختر حلاً جاهزاً من الأعلى ثم عدّله، أو اكتب ما تم تنفيذه"></textarea><small class="hint"><span data-rscount>0</span> حرفاً</small></div>
+      <div class="field mt"><label>طريقة الحل <small class="faint">— اختياري، تظهر في التقارير</small></label><div class="chip-pick rs-methods">${RESOLVE_METHODS.map(([k, l, ic]) => html`<label><input type="radio" name="method" value="${k}"><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
+      <div class="rs-keep"><label class="switch"><input type="checkbox" name="keep"><i></i><span>احتفظ بهذا الحل كرد جاهز لاستخدامه لاحقاً</span></label>
+        <div class="rs-keep-opts" hidden><div class="form-grid"><div class="field"><label>عنوان الرد</label><input name="keepTitle" placeholder="مثال: تنظيف رأس الطباعة"></div>
+        ${Data.replies.canShare() ? html`<div class="field"><label>متاح لـ</label><div class="seg"><label><input type="radio" name="keepScope" value="me" checked><span>${UI.icon('user')} أنا فقط</span></label><label><input type="radio" name="keepScope" value="all"><span>${UI.icon('users')} كل الفنيين</span></label></div></div>` : ''}</div>
+        <label class="chk mt"><input type="checkbox" name="keepCat" checked> يُقترح أولاً في بلاغات فئة «${cat || 'هذه الفئة'}»</label></div></div>`,
+    onMount: (form) => {
+      const box = $('#rsText', form), cnt = $('[data-rscount]', form), list = $('[data-rslist]', form);
+      const count = () => { cnt.textContent = fmtNum(box.value.trim().length); };
+      const redraw = () => { list.innerHTML = String(listHTML()); };
+      box.addEventListener('input', count);
+      $('#rsq', form).addEventListener('input', debounce((e) => { st.q = e.target.value; redraw(); }, 150));
+      form.addEventListener('change', (e) => {
+        if (e.target.name === 'rstab') { st.tab = e.target.value; redraw(); }
+        if (e.target.name === 'keep') { $('.rs-keep-opts', form).hidden = !e.target.checked; if (e.target.checked) { const ti = form.querySelector('[name="keepTitle"]'); if (!ti.value) ti.value = box.value.trim().split(/[.،\n]/)[0].slice(0, 40); ti.focus(); } }
+      });
+      UI.on(form, 'click', '[data-rs]', (e, el) => { const r = all.find((x) => x.id === el.dataset.rs); if (!r) return; const txt = fillVars(r.text, ctx); box.value = box.value.trim() ? `${box.value.trim()}\n${txt}` : txt; count(); el.classList.add('used'); box.focus(); if (!r.id.startsWith('tpl:')) Data.replies.use(r.id); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تأكيد الحل', kind: 'ok', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), text = String(v.text || '').trim();
+      if (!text) { $('#rsText', form).focus(); throw new AppError('اكتب ملخص الحل أو اختر حلاً جاهزاً'); }
+      let kept = false;
+      if (Number(v.keep)) {
+        try {
+          /* النص نفسه محفوظ من قبل: يُحدَّث الرد القائم بدل أن يتكرر */
+          const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim(), dup = (await Data.replies.list()).find((r) => norm(r.text) === norm(text));
+          const editable = dup && (dup.scope === 'all' ? Data.replies.canShare() : dup.userId === Auth.user.id);
+          if (!dup || editable) await Data.replies.save({ ...(dup || {}), title: v.keepTitle || (dup ? dup.title : ''), text, kind: dup ? dup.kind : 'resolve', cat: Number(v.keepCat) ? t.categoryId : dup ? dup.cat || '' : '', scope: (dup && dup.scope === 'all') || v.keepScope === 'all' ? 'all' : 'me' });
+          if (dup) Data.replies.use(dup.id);
+          kept = true;
+        } catch (ex) { UI.error(ex); }
+      }
+      return { text, method: v.method || '', kept };
+    } }]
+  });
+};
+
+/* صفحة الردود الجاهزة: ردود الفني الخاصة، والردود العامة لمن يملك صلاحيتها */
+Pages.repliesAdmin = async (ctx) => {
+  const st = { kind: ctx.query.kind || 'resolve', scope: 'all', q: '' };
+  const draw = async () => {
+    if (!ctx.alive()) return;
+    const share = Data.replies.canShare(), me = Auth.user.id, uses = Data.replies.uses();
+    const rows = (await Data.replies.list('')).filter((r) => r.kind !== 'wtype' && (st.kind === '*' || (r.kind || '') === st.kind) && (st.scope === 'all' || (st.scope === 'mine' ? r.scope !== 'all' : r.scope === 'all')) && (!st.q || normalizeAr(`${r.title} ${r.text}`).includes(normalizeAr(st.q))));
+    const kinds = [['resolve', 'حلول البلاغات', 'check'], ['ticket', 'الردود على البلاغات', 'ticket'], ['chat', 'الاستفسارات', 'bell'], ['', 'عامة', 'list'], ['*', 'الكل', 'grid']];
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الردود الجاهزة', sub: 'حلول وردود تُدرج بنقرة عند الرد على البلاغ أو تسجيل الحل، مع متغيرات تُعبّأ تلقائياً', illu: 'envelope', actions: html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} رد جديد</button>` })}
+      <div class="tabs">${kinds.map(([k, l, ic]) => html`<button class="tab ${st.kind === k ? 'active' : ''}" data-kind="${k}">${UI.icon(ic)}${l}</button>`)}</div>
+      <section class="panel"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input id="rpq" type="search" value="${st.q}" placeholder="ابحث في الردود" aria-label="بحث"></div>
+        <div class="seg"><label><input type="radio" name="rpscope" value="all"${st.scope === 'all' ? raw(' checked') : ''}><span>الكل</span></label><label><input type="radio" name="rpscope" value="shared"${st.scope === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} العامة</span></label><label><input type="radio" name="rpscope" value="mine"${st.scope === 'mine' ? raw(' checked') : ''}><span>${UI.icon('user')} ردودي</span></label></div></div>
+      <div class="panel-body">${rows.length ? html`<div class="rp-grid stagger">${rows.map((r) => { const own = r.scope !== 'all' && r.userId === me, can = own || (r.scope === 'all' && share); return html`<article class="rp-card${r.scope === 'all' ? '' : ' own'}"><div class="rp-top"><b>${r.title}</b>${r.scope === 'all' ? UI.chip('slate', 'عام', 'users') : UI.chip('sky', 'خاص بك', 'user')}</div><p>${r.text}</p><div class="rp-meta"><span>${UI.icon('tag')} ${RP_KIND_LABEL[r.kind || ''] || 'عام'}</span>${r.cat ? html`<span>${UI.icon('layers')} ${Data.nameOf('categories', r.cat, '')}</span>` : ''}${uses[r.id] ? html`<span>${UI.icon('refresh')} استخدمته ${fmtNum(uses[r.id])} مرة</span>` : ''}<span class="grow"></span>${can ? html`<button class="icon-btn" data-edit="${r.id}" title="تعديل" aria-label="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-del="${r.id}" title="حذف" aria-label="حذف">${UI.icon('trash')}</button>` : html`<button class="icon-btn" data-copy="${r.id}" title="نسخ إلى ردودي للتعديل" aria-label="نسخ">${UI.icon('copy')}</button>`}</div></article>`; })}</div>` : UI.empty({ illu: 'envelope', title: 'لا توجد ردود هنا', text: 'أضف رداً جديداً، أو احفظ الحل عند تسجيله بتفعيل «احتفظ بهذا الحل».' })}
+      <p class="hint mt">${share ? 'لديك صلاحية الردود العامة: ما تحفظه «لكل الفنيين» يظهر لهم جميعاً.' : 'ردودك الخاصة لا يراها غيرك. الردود العامة يضيفها المسؤول عن الردود الجاهزة.'} المتغيرات: {الاسم} {رقم البلاغ} {الفئة} {اسم الفني}.</p></div></section>`);
+  };
+  UI.on(ctx.view, 'click', '[data-kind]', (e, el) => { st.kind = el.dataset.kind; draw(); });
+  ctx.view.addEventListener('change', (e) => { if (e.target.name === 'rpscope') { st.scope = e.target.value; draw(); } });
+  ctx.view.addEventListener('input', debounce((e) => { if (e.target.id === 'rpq') { st.q = e.target.value; draw().then(() => { const i = $('#rpq', ctx.view); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); } }, 250));
+  UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.replyModal({ kind: st.kind === '*' ? 'resolve' : st.kind })) draw(); });
+  UI.on(ctx.view, 'click', '[data-edit]', async (e, el) => { const r = await DB.get('replies', el.dataset.edit); if (r && (await Pages.replyModal(r))) draw(); });
+  UI.on(ctx.view, 'click', '[data-copy]', async (e, el) => { const r = await DB.get('replies', el.dataset.copy); if (r && (await Pages.replyModal({ title: r.title, text: r.text, kind: r.kind, cat: r.cat }))) draw(); });
+  UI.on(ctx.view, 'click', '[data-del]', async (e, el) => { if (!(await UI.confirm('حذف هذا الرد الجاهز؟', { danger: true, ok: 'حذف' }))) return; try { await Data.replies.remove(el.dataset.del); UI.toast('حُذف الرد'); draw(); } catch (ex) { UI.error(ex); } });
+  ctx.onCleanup(Bus.on('replies', debounce(draw, 300)));
+  await draw();
+};
+
+/* ══════════ 3) تقييم البلاغات ══════════ */
+const RATING_DEFAULTS = {
+  on: 1, prompt: 'popup', required: 0, comment: 'low', low: 2, alertLow: 1, closeOnRate: 1, submit: 0,
+  good: ['سرعة الاستجابة', 'حل المشكلة من أول مرة', 'تعامل راقٍ واحترافي', 'شرح واضح للحل', 'الالتزام بالموعد'],
+  bad: ['تأخر الحل', 'المشكلة لم تُحل بالكامل', 'صعوبة التواصل', 'لم يُشرح الحل', 'تكرار الزيارة']
+};
+const RATE_FACES = [null, ['غير راضٍ', 'red', 'frown'], ['دون المتوقع', 'amber', 'frown'], ['مقبول', 'sky', 'smile'], ['جيد جداً', 'teal', 'smile'], ['ممتاز', 'brass', 'sparkle']];
+const Ratings = {
+  cfg() { const c = { ...RATING_DEFAULTS, ...(Data.c.ratingCfg || {}) }; ['good', 'bad'].forEach((k) => { if (!Array.isArray(c[k])) c[k] = RATING_DEFAULTS[k]; }); return c; },
+  can: () => !!Auth.user && canUser(Auth.user, 'ratings.manage'),
+  async save(patch) {
+    if (!Ratings.can()) throw new AppError('لا تملك صلاحية إعداد التقييم');
+    const v = { ...Ratings.cfg(), ...patch };
+    await DB.put('meta', { key: 'ratingcfg', value: v }); Data.c.ratingCfg = v;
+    await Data.log('update', 'settings', 'ratingcfg', 'تحديث إعدادات تقييم البلاغات'); Bus.emit('ratingcfg', {});
+  },
+  rateable: (t, u = Auth.user) => !!u && !!t && t.requesterId === u.id && !t.rating && (t.status === 'resolved' || (t.status === 'closed' && !!t.resolvedAt && now() - (t.closedAt || 0) < 14 * DAY)),
+  async pending(u = Auth.user) {
+    if (!u || !Ratings.cfg().on) return [];
+    return (await DB.getAll('tickets', 'requester_createdAt', KR([u.id, 0], [u.id, Infinity]))).filter((t) => t.status === 'resolved' && !t.rating).sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0));
+  },
+  skip: (id) => ssAdd('sq_rt_skip', id),
+  async maybePrompt(ticketId = '') {
+    const c = Ratings.cfg(); if (!c.on || c.prompt !== 'popup' || !Auth.user || Ratings.open || document.querySelector('dialog[open]')) return false;
+    const skip = ssGet('sq_rt_skip'), list = (await Ratings.pending()).filter((t) => !skip.has(t.id) && (!ticketId || t.id === ticketId));
+    if (!list.length) return false;
+    Ratings.open = true; try { await Pages.ratingSheet(list[0], { auto: true }); } finally { Ratings.open = false; }
+    return true;
+  },
+  async notFixed(t) {
+    const r = await UI.modal({ title: 'المشكلة لم تُحل', icon: 'undo', body: html`<p class="muted" style="margin:0 0 10px;line-height:1.8">سيُعاد فتح البلاغ ويُبلَّغ الفني فوراً.</p>${UI.field({ name: 'text', label: 'ما الذي ما زال لا يعمل؟', type: 'textarea', rows: 4, required: true })}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إعادة فتح البلاغ', kind: 'danger', icon: 'undo', submit: true, handler: (form) => { const v = form.querySelector('textarea').value.trim(); if (!v) throw new AppError('اكتب ما الذي ما زال لا يعمل'); return { text: v }; } }] });
+    if (!r) return;
+    try { await Data.tickets.setStatus(t.id, t.assigneeId ? 'in_progress' : 'new', r.text); UI.toast('أُعيد فتح البلاغ وأُبلغ الفني'); } catch (ex) { UI.error(ex); }
+  },
+  /* شريط أعلى صفحة البلاغ: تأكيد الحل وتقييمه للمستفيد، وعرض التقييم للجميع بعده */
+  ticketBar(t, staff) {
+    const c = Ratings.cfg(), u = Auth.user, mine = !!u && t.requesterId === u.id;
+    if (mine && t.status === 'resolved') return html`<div class="rt-bar tone-teal"><span class="rt-bar-ic">${UI.icon('check')}</span><div class="grow"><b>عالج الفني بلاغك${t.resolvedAt ? ` ${timeAgo(t.resolvedAt)}` : ''} — هل حُلّت مشكلتك؟</b><small>${c.on ? 'أكّد الحل بتقييم الخدمة، أو أعد فتح البلاغ إن كانت المشكلة ما زالت قائمة.' : 'أكّد الحل ليُغلق البلاغ، أو أعد فتحه إن كانت المشكلة ما زالت قائمة.'}${t.resolveMethod ? html` <span class="chip tone-slate">${UI.icon('tools')}${RESOLVE_LABEL[t.resolveMethod] || ''}</span>` : ''}</small></div><div class="rt-bar-acts">${c.on ? html`<button class="btn btn-primary" data-act="rate">${UI.icon('star')} نعم، قيّم الخدمة</button>` : html`<button class="btn btn-ok" data-act="confirmfix">${UI.icon('check')} نعم، تم الحل</button>`}<button class="btn btn-ghost" data-act="notfixed">${UI.icon('undo')} لم تُحل</button></div></div>`;
+    if (t.rating && (mine || staff)) { const f = RATE_FACES[t.rating] || RATE_FACES[3]; return html`<div class="rt-bar rated tone-${f[1]}"><span class="rt-bar-ic">${UI.icon(f[2])}</span><div class="grow"><b>${mine ? 'شكراً لتقييمك' : `تقييم ${Data.userName(t.requesterId)}`} ${UI.stars(t.rating)} <span class="rt-face-l">${f[0]}</span></b>${(t.ratingTags || []).length || t.ratingComment ? html`<small>${(t.ratingTags || []).length ? html`<span class="rt-evtags">${t.ratingTags.map((g) => html`<i>${g}</i>`)}</span>` : ''}${t.ratingComment ? html` «${t.ratingComment}»` : ''}</small>` : ''}</div></div>`; }
+    if (mine && c.on && Ratings.rateable(t)) return html`<div class="rt-bar tone-amber"><span class="rt-bar-ic">${UI.icon('star')}</span><div class="grow"><b>لم تقيّم الخدمة بعد</b><small>تقييمك يساعدنا على تحسين خدمات الدعم الفني.</small></div><div class="rt-bar-acts"><button class="btn btn-soft" data-act="rate">${UI.icon('star')} قيّم الآن</button></div></div>`;
+    return '';
+  },
+  submitWidget(t) { const c = Ratings.cfg(); if (!c.on || !c.submit) return ''; return html`<div class="rt-submit" data-subrate-box="${t.id}"><span>كيف كانت تجربة تقديم البلاغ؟</span><div class="star-input sm">${[1, 2, 3, 4, 5].map((n) => html`<button type="button" data-subrate="${n}" aria-label="${n} من 5">${UI.icon('star')}</button>`)}</div></div>`; }
+};
+Data.tickets.rateFull = function (id, stars, tags = [], comment = '') {
+  const c = Ratings.cfg(), n = (t) => [t.assigneeId]; n.title = `تقييم ${stars}/5`;
+  return this.mutate(id, (t) => {
+    if (t.requesterId !== Auth.user.id) throw new AppError('التقييم متاح لمقدم البلاغ فقط');
+    t.rating = clamp(Math.round(stars), 1, 5); t.ratingTags = (tags || []).slice(0, 10); t.ratingComment = String(comment || '').trim(); t.ratedAt = now();
+    if (c.closeOnRate && t.status === 'resolved') { t.status = 'closed'; t.closedAt = now(); }
+    return { type: 'rating', stars: t.rating, text: t.ratingComment, tags: t.ratingTags };
+  }, n).then(async (t) => {
+    if (c.alertLow && t.rating <= c.low) {
+      const ids = Data.list('users').filter((u) => u.active && u.id !== t.assigneeId && (canUser(u, 'ratings.manage') || canUser(u, 'tickets.manage'))).map((u) => u.id);
+      if (ids.length) await Data.notify(ids, { title: `تقييم منخفض (${t.rating}/5) على البلاغ ${t.number}`, body: t.ratingComment || (t.ratingTags || []).join('، ') || t.title, link: `/tickets/${t.id}`, kind: 'ticket' });
+    }
+    return t;
+  });
+};
+Data.tickets.rate = function (id, stars, comment) { return this.rateFull(id, stars, [], comment); };
+Data.tickets.confirmFix = function (id) {
+  const n = (t) => [t.assigneeId]; n.title = 'أكّد المستفيد الحل';
+  return this.mutate(id, (t) => { if (t.requesterId !== Auth.user.id) throw new AppError('التأكيد متاح لمقدم البلاغ فقط'); if (t.status !== 'resolved') return []; t.status = 'closed'; t.closedAt = now(); return { type: 'status', from: 'resolved', to: 'closed', text: 'أكّد المستفيد أن المشكلة حُلّت' }; }, n);
+};
+Pages.rateModal = async (id) => { const t = await Data.tickets.get(id); if (t) return Pages.ratingSheet(t); };
+
+/* نافذة التقييم: نجوم كبيرة، ووصف للتقييم، ووسوم سريعة، وملاحظة، وخيار «لم تُحل» */
+Pages.ratingSheet = async (t, { auto = false } = {}) => {
+  const c = Ratings.cfg(), tech = t.assigneeId ? Data.c.users.get(t.assigneeId) : null;
+  if (!c.on) { UI.toast('تقييم البلاغات موقوف حالياً', 'info'); return null; }
+  let val = 0;
+  const r = await UI.modal({
+    title: 'قيّم الخدمة', icon: 'star',
+    body: html`<div class="rt-sheet">
+      <div class="rt-who">${tech ? UI.avatar(tech, 'av-lg') : html`<span class="rt-ic">${UI.icon('shield')}</span>`}<div class="grow"><small>${tech ? 'الفني الذي عالج بلاغك' : 'فريق الدعم الفني'}</small><b>${tech ? tech.name : Data.c.settings.systemName}</b></div><span class="chip tone-sky ltr">${t.number}</span></div>
+      <div class="rt-title">${UI.icon('ticket')}<span class="ellipsis">${t.title}</span></div>
+      <p class="rt-q">ما مدى رضاك عن الخدمة التي حصلت عليها؟</p>
+      <div class="star-input rt-stars" role="radiogroup" aria-label="التقييم">${[1, 2, 3, 4, 5].map((n) => html`<button type="button" data-v="${n}" role="radio" aria-checked="false" aria-label="${RATE_FACES[n][0]}">${UI.icon('star')}</button>`)}</div>
+      <div class="rt-face" data-face><span class="faint small">اضغط على النجوم للتقييم</span></div>
+      <div class="rt-tags" data-tags hidden></div>
+      ${c.comment !== 'off' ? html`<div class="field rt-comment" data-cbox hidden><label for="rtc">ملاحظاتك <small class="faint" data-creq>(اختياري)</small></label><textarea id="rtc" rows="3" placeholder="شاركنا ما يساعدنا على التحسين"></textarea></div>` : ''}
+      <button type="button" class="rt-notfixed" data-notfixed>${UI.icon('undo')} المشكلة لم تُحل؟ أعد فتح البلاغ</button></div>`,
+    onMount: (form, finish) => {
+      const btns = $$('.rt-stars button', form), face = $('[data-face]', form), tags = $('[data-tags]', form), cbox = $('[data-cbox]', form);
+      const paint = (n) => btns.forEach((b) => b.classList.toggle('on', Number(b.dataset.v) <= n));
+      const setVal = (n) => {
+        val = n; form.dataset.val = n; paint(n); btns.forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.v) === n)));
+        const [lbl, tone, ic] = RATE_FACES[n]; face.innerHTML = String(html`<span class="rt-badge tone-${tone}">${UI.icon(ic)} ${lbl}</span>`);
+        const list = n >= 4 ? c.good : c.bad, keep = new Set($$('input:checked', tags).map((x) => x.value));
+        tags.hidden = !list.length; tags.innerHTML = String(html`<small>${n >= 4 ? 'ما الذي أعجبك؟' : 'ما الذي يمكن تحسينه؟'}</small><div class="chip-pick">${list.map((x) => html`<label><input type="checkbox" value="${x}"${keep.has(x) ? raw(' checked') : ''}><span>${x}</span></label>`)}</div>`);
+        if (cbox) { cbox.hidden = false; const req = c.comment === 'required' || (c.comment === 'low' && n <= c.low); $('[data-creq]', form).textContent = req ? '(مطلوبة)' : '(اختياري)'; form.dataset.needc = req ? '1' : ''; }
+      };
+      btns.forEach((b) => { b.onmouseenter = () => paint(Number(b.dataset.v)); b.onclick = () => setVal(Number(b.dataset.v)); });
+      $('.rt-stars', form).onmouseleave = () => paint(val);
+      $('.rt-stars', form).addEventListener('keydown', (e) => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); setVal(clamp((val || 0) + (e.key === 'ArrowLeft' ? 1 : -1), 1, 5)); btns[val - 1].focus(); });
+      $('[data-notfixed]', form).onclick = () => { finish('notfixed'); };
+    },
+    actions: [{ label: auto ? 'لاحقاً' : 'إلغاء', kind: 'ghost', value: null }, { label: 'إرسال التقييم', kind: 'primary', icon: 'send', submit: true, handler: async (form) => {
+      const v = Number(form.dataset.val || 0); if (!v) throw new AppError('اختر عدد النجوم أولاً');
+      const box = form.querySelector('#rtc'), comment = box ? box.value.trim() : '';
+      if (form.dataset.needc && !comment) { box.focus(); throw new AppError('نرجو كتابة ملاحظة قصيرة توضح سبب التقييم'); }
+      await Data.tickets.rateFull(t.id, v, $$('[data-tags] input:checked', form).map((x) => x.value), comment);
+      if (v >= 4) UI.confetti();
+      UI.toast('شكراً لتقييمك! رأيك يساعدنا على تحسين الخدمة'); return 'done';
+    } }]
+  });
+  if (r === 'notfixed') await Ratings.notFixed(t);
+  else if (r == null && auto) Ratings.skip(t.id);
+  return r;
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-subrate]'); if (!b) return;
+  const box = b.closest('[data-subrate-box]'); if (!box) return;
+  const n = Number(b.dataset.subrate), id = box.dataset.subrateBox;
+  try { await Data.tickets.mutate(id, (t) => { if (t.requesterId === Auth.user.id) t.submitRating = n; return []; }); box.innerHTML = String(html`<span class="rt-thanks">${UI.stars(n)} شكراً لك!</span>`); } catch (ex) { UI.error(ex); }
+});
+
+/* مركز التقييم: المؤشرات، والتوزيع، والفنيون، والتقييمات المنخفضة، والإعدادات */
+Pages.ratingsCenter = async (ctx) => {
+  const st = { days: 30 };
+  const draw = async () => {
+    if (!ctx.alive()) return;
+    const c = Ratings.cfg(), from = st.days ? now() - st.days * DAY : 0, all = await DB.getAll('tickets');
+    const resolved = all.filter((t) => (t.resolvedAt || 0) >= from), rated = all.filter((t) => t.rating && (t.ratedAt || t.closedAt || t.resolvedAt || 0) >= from);
+    const avg = rated.length ? rated.reduce((s, t) => s + t.rating, 0) / rated.length : 0, csat = rated.length ? (rated.filter((t) => t.rating >= 4).length / rated.length) * 100 : 0;
+    const rate = resolved.length ? Math.min(100, (rated.filter((t) => (t.resolvedAt || 0) >= from).length / resolved.length) * 100) : 0;
+    const subs = all.filter((t) => t.submitRating && t.createdAt >= from), subAvg = subs.length ? subs.reduce((s, t) => s + t.submitRating, 0) / subs.length : 0;
+    const tagN = new Map(); rated.forEach((t) => (t.ratingTags || []).forEach((g) => tagN.set(g, (tagN.get(g) || 0) + 1)));
+    const tagBars = (list, tone) => list.map((g) => ({ label: g, value: tagN.get(g) || 0, tone })).filter((x) => x.value).sort((a, b) => b.value - a.value);
+    const byTech = new Map();
+    rated.forEach((t) => { if (!t.assigneeId) return; const x = byTech.get(t.assigneeId) || { id: t.assigneeId, n: 0, sum: 0, good: 0, last: null }; x.n++; x.sum += t.rating; if (t.rating >= 4) x.good++; if (!x.last || (t.ratedAt || 0) > (x.last.ratedAt || 0)) x.last = t; byTech.set(t.assigneeId, x); });
+    const techs = [...byTech.values()].sort((a, b) => b.sum / b.n - a.sum / a.n || b.n - a.n);
+    const recent = rated.slice().sort((a, b) => (b.ratedAt || 0) - (a.ratedAt || 0));
+    const low = recent.filter((t) => t.rating <= c.low).slice(0, 12), notes = recent.filter((t) => t.ratingComment || (t.ratingTags || []).length).slice(0, 15);
+    const tone = (n) => (RATE_FACES[n] || RATE_FACES[3])[1];
+    const item = (t) => html`<a class="rt-item" href="#/tickets/${t.id}">${UI.avatar(t.requesterId, 'av-sm')}<div class="grow"><div class="row" style="gap:8px;flex-wrap:wrap"><b>${Data.userName(t.requesterId)}</b>${UI.stars(t.rating)}<span class="faint small">${timeAgo(t.ratedAt || t.closedAt)}</span></div><small>${t.number} — ${t.title}${t.assigneeId ? ` · الفني: ${Data.userName(t.assigneeId)}` : ''}</small>${(t.ratingTags || []).length ? html`<div class="rt-evtags">${t.ratingTags.map((g) => html`<i>${g}</i>`)}</div>` : ''}${t.ratingComment ? html`<p>«${t.ratingComment}»</p>` : ''}</div></a>`;
+    const seg = (name, opts, v) => html`<div class="seg">${opts.map(([k, l]) => html`<label><input type="radio" name="${name}" value="${k}"${String(v) === String(k) ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'مركز التقييم', sub: 'رضا المستفيدين عن خدمات الدعم الفني، وإعدادات تقييم البلاغات', illu: 'stamp', actions: seg('rtdays', [[7, '7 أيام'], [30, '30 يوماً'], [90, '90 يوماً'], [365, 'سنة'], [0, 'الكل']], st.days) })}
+      ${!c.on ? html`<div class="banner tone-red">${UI.icon('eye-off')}<div class="grow"><b>تقييم البلاغات موقوف</b><div class="small">لا يُطلب من المستفيدين تقييم الخدمة. فعّله من الإعدادات أسفل الصفحة.</div></div></div>` : ''}
+      <div class="kpis">
+        ${UI.kpi({ label: 'متوسط التقييم', icon: 'star', tone: avg >= 4 ? 'teal' : avg >= 3 ? 'amber' : 'red', value: avg, dec: 1, suffix: ' من 5', foot: rated.length ? UI.stars(Math.round(avg)) : 'لا توجد تقييمات' })}
+        ${UI.kpi({ label: 'نسبة الرضا (4–5 نجوم)', icon: 'smile', tone: csat >= 80 ? 'teal' : csat >= 60 ? 'amber' : 'red', value: csat, suffix: '%' })}
+        ${UI.kpi({ label: 'عدد التقييمات', icon: 'message', tone: 'sky', value: rated.length })}
+        ${UI.kpi({ label: 'نسبة من قيّموا', icon: 'chart', tone: 'violet', value: rate, suffix: '%', foot: `من ${fmtNum(resolved.length)} بلاغ محلول` })}
+        ${c.submit ? UI.kpi({ label: 'تجربة تقديم البلاغ', icon: 'sparkle', tone: 'brass', value: subAvg, dec: 1, suffix: ' من 5', foot: `${fmtNum(subs.length)} تقييم` }) : ''}
+      </div>
+      <div class="grid g-2 mt">
+        ${UI.panel({ title: 'توزيع التقييمات', icon: 'chart', body: rated.length ? UI.chart.hbars([5, 4, 3, 2, 1].map((n) => ({ label: `${n} — ${RATE_FACES[n][0]}`, value: rated.filter((t) => t.rating === n).length, tone: tone(n) }))) : UI.noData('لا توجد تقييمات في هذه الفترة') })}
+        ${UI.panel({ title: 'أكثر ما يذكره المستفيدون', icon: 'message', body: tagN.size ? html`<div class="rt-tagcols"><div><b class="rt-tagh tone-teal">${UI.icon('smile')} نقاط القوة</b>${tagBars(c.good, 'teal').length ? UI.chart.hbars(tagBars(c.good, 'teal')) : UI.noData('—')}</div><div><b class="rt-tagh tone-red">${UI.icon('frown')} فرص التحسين</b>${tagBars(c.bad, 'red').length ? UI.chart.hbars(tagBars(c.bad, 'red')) : UI.noData('—')}</div></div>` : UI.noData('لم تُختر وسوم بعد') })}
+      </div>
+      ${UI.panel({ title: 'تقييم الفنيين', icon: 'users', cls: 'mt', flush: true, body: techs.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الفني</th><th>التقييمات</th><th>المتوسط</th><th>نسبة الرضا</th><th>آخر ملاحظة</th></tr></thead><tbody>${techs.map((x) => html`<tr><td><div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(x.id, 'av-sm')}<b>${Data.userName(x.id)}</b></div></td><td>${fmtNum(x.n)}</td><td class="nowrap">${UI.stars(Math.round(x.sum / x.n))} <span class="small faint">${(x.sum / x.n).toFixed(1)}</span></td><td>${UI.chip(x.good / x.n >= 0.8 ? 'teal' : x.good / x.n >= 0.6 ? 'amber' : 'red', `${Math.round((x.good / x.n) * 100)}%`)}</td><td class="small">${x.last && x.last.ratingComment ? `«${x.last.ratingComment}»` : '—'}</td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد تقييمات للفنيين في هذه الفترة')}</div>` })}
+      <div class="grid g-2 mt">
+        ${UI.panel({ title: 'بحاجة إلى متابعة', icon: 'alert', sub: `تقييمات ${c.low === 1 ? 'بنجمة واحدة' : `من ${fmtNum(c.low)} نجوم فأقل`}`, body: low.length ? html`<div class="rt-feed">${low.map(item)}</div>` : html`<div class="empty-mini">${UI.icon('check')} لا توجد تقييمات منخفضة — عمل رائع!</div>` })}
+        ${UI.panel({ title: 'أحدث الملاحظات', icon: 'message', body: notes.length ? html`<div class="rt-feed">${notes.map(item)}</div>` : html`<div class="empty-mini">${UI.icon('info')} لم يكتب المستفيدون ملاحظات بعد</div>` })}
+      </div>
+      ${UI.panel({ title: 'إعدادات التقييم', icon: 'sliders', cls: 'mt rt-settings', sub: Ratings.can() ? 'تُطبَّق فوراً على كل المستخدمين' : 'لا تملك صلاحية تعديل الإعدادات', body: html`<form id="rtForm" class="stack" style="gap:16px">
+        <div class="rt-set-row">${UI.field({ name: 'on', type: 'switch', text: 'تفعيل تقييم البلاغات' }, c.on)}</div>
+        <div class="form-grid">
+          <div class="field"><label>طريقة طلب التقييم</label>${seg('prompt', [['popup', 'نافذة تلقائية بعد الحل'], ['banner', 'شريط في الصفحة فقط']], c.prompt)}</div>
+          <div class="field"><label>الملاحظة المكتوبة</label>${seg('comment', [['off', 'لا تظهر'], ['optional', 'اختيارية'], ['low', 'إلزامية عند التقييم المنخفض'], ['required', 'إلزامية دائماً']], c.comment)}</div>
+          <div class="field"><label>حد التقييم المنخفض</label><select name="low">${[1, 2, 3].map((n) => html`<option value="${n}"${c.low === n ? raw(' selected') : ''}>${n === 1 ? 'نجمة واحدة' : n === 2 ? 'نجمتان فأقل' : '3 نجوم فأقل'}</option>`)}</select></div>
+          <div class="field"><label>الوسوم الإيجابية <small class="faint">— وسم في كل سطر</small></label><textarea name="good" rows="4">${c.good.join('\n')}</textarea></div>
+          <div class="field"><label>وسوم فرص التحسين <small class="faint">— وسم في كل سطر</small></label><textarea name="bad" rows="4">${c.bad.join('\n')}</textarea></div>
+        </div>
+        <div class="stack" style="gap:10px">
+          ${UI.field({ name: 'required', type: 'switch', text: 'إلزام المستفيد بتقييم بلاغاته المحلولة قبل تقديم بلاغ جديد' }, c.required)}
+          ${UI.field({ name: 'alertLow', type: 'switch', text: 'تنبيه المسؤولين فوراً عند التقييم المنخفض' }, c.alertLow)}
+          ${UI.field({ name: 'closeOnRate', type: 'switch', text: 'إغلاق البلاغ تلقائياً بعد تقييمه' }, c.closeOnRate)}
+          ${UI.field({ name: 'submit', type: 'switch', text: 'سؤال المستفيد عن تجربة تقديم البلاغ (نجوم سريعة بعد الإرسال)' }, c.submit)}
+        </div>
+        ${Ratings.can() ? html`<div class="row"><button type="button" class="btn btn-primary" data-act="rtsave">${UI.icon('check')} حفظ الإعدادات</button></div>` : ''}</form>` })}`);
+    UI.hydrate(ctx.view);
+    if (!Ratings.can()) $$('#rtForm input, #rtForm select, #rtForm textarea', ctx.view).forEach((x) => { x.disabled = true; });
+  };
+  ctx.view.addEventListener('change', (e) => { if (e.target.name === 'rtdays') { st.days = Number(e.target.value); draw(); } });
+  UI.on(ctx.view, 'click', '[data-act="rtsave"]', async (e, btn) => {
+    const v = UI.formValues($('#rtForm', ctx.view)), lines = (s) => String(s || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).slice(0, 12);
+    UI.busy(btn, true);
+    try { await Ratings.save({ on: v.on, prompt: v.prompt || 'popup', comment: v.comment || 'low', low: Number(v.low) || 2, good: lines(v.good), bad: lines(v.bad), required: v.required, alertLow: v.alertLow, closeOnRate: v.closeOnRate, submit: v.submit }); UI.toast('حُفظت إعدادات التقييم'); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+  });
+  ctx.onCleanup(Bus.on('tickets', debounce(draw, 800)));
+  await draw();
+};
+/* إلزام تقييم البلاغات المحلولة قبل تقديم بلاغ جديد (إن فعّله المسؤول) */
+{
+  const newTicketBase = Pages.newTicket;
+  Pages.newTicket = async (ctx) => {
+    const c = Ratings.cfg();
+    if (c.on && c.required && Auth.user) {
+      const list = await Ratings.pending();
+      if (list.length) {
+        ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'بلاغ جديد', illu: 'bell' })}<section class="panel"><div class="panel-body"><div class="rt-gate"><span class="rt-bar-ic tone-amber">${UI.icon('star')}</span><h2>قيّم بلاغاتك المحلولة أولاً</h2><p class="muted">لديك ${arCount(list.length, AR.ticket)} حلّها الفني بانتظار تأكيدك. قيّمها لتتمكن من تقديم بلاغ جديد.</p><div class="list">${list.map((t) => html`<div class="list-row"><span class="chip tone-sky ltr">${t.number}</span><b class="grow ellipsis">${t.title}</b><button class="btn btn-sm btn-primary" data-rategate="${t.id}">${UI.icon('star')} قيّم</button></div>`)}</div></div></div></section>`);
+        UI.on(ctx.view, 'click', '[data-rategate]', async (e, el) => { const t = list.find((x) => x.id === el.dataset.rategate); if (!t) return; await Pages.ratingSheet(t); if (ctx.alive()) Router.resolve(); });
+        return;
+      }
+    }
+    return newTicketBase(ctx);
+  };
+}
+/* ══════════ 2) الاستبيانات ══════════ */
+const LIKERT = ['غير موافق بشدة', 'غير موافق', 'محايد', 'موافق', 'موافق بشدة'];
+const MATRIX_L = ['ضعيف', 'مقبول', 'جيد', 'جيد جداً', 'ممتاز'];
+const SV_TYPES = {
+  single: { label: 'اختيار واحد', icon: 'target', opts: 1 },
+  multi: { label: 'اختيار متعدد', icon: 'list', opts: 1 },
+  dropdown: { label: 'قائمة منسدلة', icon: 'menu', opts: 1 },
+  yesno: { label: 'نعم / لا', icon: 'thumb', fixed: ['نعم', 'لا'] },
+  truefalse: { label: 'صح / خطأ', icon: 'toggle', fixed: ['صح', 'خطأ'] },
+  rating: { label: 'تقييم بالنجوم', icon: 'star' },
+  likert: { label: 'درجة الموافقة', icon: 'smile' },
+  scale: { label: 'مقياس رقمي', icon: 'scale' },
+  nps: { label: 'احتمال التوصية', icon: 'chart' },
+  matrix: { label: 'مصفوفة تقييم', icon: 'grid' },
+  text: { label: 'نص قصير', icon: 'edit' },
+  textarea: { label: 'نص طويل', icon: 'paper' },
+  number: { label: 'رقم', icon: 'hash' },
+  date: { label: 'تاريخ', icon: 'calendar' },
+  section: { label: 'عنوان فاصل', icon: 'info', info: 1 }
+};
+const SV_CHOICE = ['single', 'multi', 'dropdown', 'yesno', 'truefalse'];
+const SV_TONES = ['brass', 'teal', 'sky', 'violet', 'amber', 'pink', 'green', 'red'];
+const SV_ICONS = ['poll', 'smile', 'star', 'shield', 'target', 'monitor', 'printer', 'network', 'book', 'users', 'sparkle', 'bell'];
+const SV_BAR_TONES = ['sky', 'violet', 'teal', 'amber', 'pink', 'brass', 'green', 'slate'];
+const SV_DISPLAY = {
+  section: { label: 'في صفحة الاستبيانات', icon: 'poll', desc: 'يظهر في قائمة الاستبيانات ويشارك من يرغب' },
+  home: { label: 'بطاقة على الرئيسية', icon: 'grid', desc: 'بطاقة بارزة أعلى لوحة القيادة حتى يُجاب' },
+  popup: { label: 'نافذة عند الدخول', icon: 'layers', desc: 'دعوة منبثقة مرة في كل جلسة حتى يُجاب' },
+  block: { label: 'حجب المنصة حتى الإجابة', icon: 'lock', desc: 'لا يتابع المستخدم عمله قبل إكمال الاستبيان' }
+};
+const SV_STATE = { draft: ['مسودة', 'slate', 'edit'], scheduled: ['مجدول', 'violet', 'calendar'], live: ['منشور', 'teal', 'pulse'], hidden: ['مخفي مؤقتاً', 'amber', 'eye-off'], ended: ['انتهت مدته', 'muted', 'clock'], closed: ['مُغلق', 'red', 'lock'] };
+const SV_ROLES = [['department', 'الموظفون'], ['technician', 'الفنيون'], ['support_manager', 'الإداريون'], ['supervisor', 'المشرفون']];
+const SV_BANK = [
+  { t: 'rating', l: 'ما تقييمك العام لخدمات الدعم الفني؟', req: 1 },
+  { t: 'likert', l: 'يستجيب فريق الدعم الفني لطلباتي بسرعة' },
+  { t: 'likert', l: 'يتعامل الفني باحترافية ويشرح الحل بوضوح' },
+  { t: 'yesno', l: 'هل حُلّت مشكلتك من أول زيارة؟' },
+  { t: 'nps', l: 'ما احتمال أن توصي زملاءك بخدمات القسم؟' },
+  { t: 'single', l: 'ما القناة التي تفضّلها للتواصل مع الدعم الفني؟', o: ['المنصة الإلكترونية', 'الهاتف', 'الحضور الشخصي', 'البريد الإلكتروني'] },
+  { t: 'multi', l: 'ما الخدمات التي استخدمتها خلال الفترة الماضية؟', o: ['صيانة الأجهزة', 'الطابعات', 'الشبكة والإنترنت', 'البريد الإلكتروني', 'البرامج والأنظمة', 'البطاقات والصلاحيات'] },
+  { t: 'matrix', l: 'قيّم الخدمات التالية', rows: ['سرعة الإنترنت', 'البريد الإلكتروني', 'الطابعات', 'الأنظمة الإلكترونية'] },
+  { t: 'textarea', l: 'ما اقتراحاتك لتحسين الخدمة؟' }
+];
+const SV_TEMPLATES = [
+  { key: 'blank', name: 'استبيان فارغ', desc: 'ابدأ من الصفر وأضف أسئلتك', icon: 'plus', tone: 'slate', s: { questions: [] } },
+  { key: 'csat', name: 'رضا الموظفين عن الدعم الفني', desc: 'نجوم، ودرجة موافقة، وتوصية، ومصفوفة خدمات، واقتراحات', icon: 'smile', tone: 'teal', s: { title: 'استبيان رضا الموظفين عن خدمات الدعم الفني', desc: 'نسعد بمعرفة رأيك في خدمات قسم تقنية المعلومات، فإجاباتك تساعدنا على تطوير الخدمة.', anonymous: 1, display: 'home', questions: [0, 1, 2, 3, 4, 7, 8].map((i) => SV_BANK[i]) } },
+  { key: 'poll', name: 'استطلاع رأي سريع', desc: 'سؤال واحد تظهر نتيجته للمشاركين', icon: 'chart', tone: 'sky', s: { title: 'استطلاع رأي', showResults: 1, display: 'home', questions: [{ t: 'single', l: 'ما رأيك في ...؟', o: ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث'], req: 1 }] } },
+  { key: 'quiz', name: 'اختبار الوعي بأمن المعلومات', desc: 'صح وخطأ واختيار، مع درجة فورية', icon: 'shield', tone: 'violet', s: { title: 'اختبار الوعي بأمن المعلومات', desc: 'اختبار قصير لقياس الوعي بممارسات أمن المعلومات، وتظهر درجتك فور الانتهاء.', quiz: 1, questions: [
+    { t: 'truefalse', l: 'يجوز مشاركة كلمة المرور مع الزملاء المقرّبين في القسم', ans: 'خطأ', req: 1 },
+    { t: 'truefalse', l: 'الرسائل التي تطلب تحديث بيانات حسابك بشكل عاجل قد تكون رسائل تصيّد', ans: 'صح', req: 1 },
+    { t: 'truefalse', l: 'يُنصح بقفل الجهاز عند مغادرة المكتب حتى لفترة قصيرة', ans: 'صح', req: 1 },
+    { t: 'single', l: 'أي كلمات المرور التالية هي الأقوى؟', o: ['123456', 'Police2026', 'Qx#7m!Lp92@t', 'الاسم وتاريخ الميلاد'], ans: 'Qx#7m!Lp92@t', req: 1 },
+    { t: 'truefalse', l: 'يمكن توصيل ذاكرة USB مجهولة المصدر بجهاز العمل', ans: 'خطأ', req: 1 }] } },
+  { key: 'training', name: 'تقييم دورة أو ورشة', desc: 'المحتوى والمدرب والتنظيم والاقتراحات', icon: 'book', tone: 'brass', s: { title: 'تقييم الدورة التدريبية', questions: [{ t: 'rating', l: 'تقييمك العام للدورة', req: 1 }, { t: 'matrix', l: 'قيّم الجوانب التالية', rows: ['المحتوى', 'المدرب', 'المدة', 'التنظيم والقاعة'] }, { t: 'yesno', l: 'هل ستطبّق ما تعلمته في عملك؟' }, { t: 'textarea', l: 'ما الموضوعات التي تقترح إضافتها؟' }] } },
+  { key: 'needs', name: 'حصر احتياجات الإدارات', desc: 'الأجهزة والبرامج المطلوبة ومبرراتها', icon: 'monitor', tone: 'amber', s: { title: 'حصر الاحتياجات التقنية', desc: 'يساعدنا هذا الحصر على التخطيط لتوفير الأجهزة والبرامج في الوقت المناسب.', questions: [{ t: 'multi', l: 'ما الاحتياجات التقنية لإدارتك؟', o: ['حاسب مكتبي', 'حاسب محمول', 'طابعة', 'ماسح ضوئي', 'شاشة', 'برامج متخصصة'], other: 1, req: 1 }, { t: 'number', l: 'عدد الأجهزة المطلوبة تقريباً', min: 0 }, { t: 'date', l: 'الموعد المفضّل للتوفير' }, { t: 'textarea', l: 'مبررات الطلب', req: 1 }] } }
+];
+const svq = (t, x = {}) => {
+  const q = { id: uid('q'), t, l: '', req: 0, ...JSON.parse(JSON.stringify(x)) }; q.id = q.id || uid('q');
+  if (SV_TYPES[t] && SV_TYPES[t].opts && !Array.isArray(q.o)) q.o = ['الخيار الأول', 'الخيار الثاني'];
+  if (t === 'scale') { if (q.min == null) q.min = 1; if (q.max == null) q.max = 10; }
+  if (t === 'matrix' && !Array.isArray(q.rows)) q.rows = ['البند الأول', 'البند الثاني', 'البند الثالث'];
+  return q;
+};
+
+const Surveys = {
+  _all: null,
+  can: () => !!Auth.user && canUser(Auth.user, 'surveys.manage'),
+  async all() { if (!this._all) this._all = await DB.getAll('surveys'); return this._all; },
+  invalidate() { Surveys._all = null; },
+  get: (id) => DB.get('surveys', id),
+  state(s, t = now()) { if (!s) return 'closed'; if (s.status === 'draft') return 'draft'; if (s.status === 'closed') return 'closed'; if (s.hidden) return 'hidden'; if (s.startAt && t < s.startAt) return 'scheduled'; if (s.endAt && t > s.endAt) return 'ended'; return 'live'; },
+  stateChip(s) { const [l, tone, ic] = SV_STATE[Surveys.state(s)]; return UI.chip(tone, l, ic); },
+  required: (s) => s.display === 'block' || s.mode === 'required',
+  inAudience(s, u) {
+    if (!u || u.role === 'monitor') return false;
+    const a = s.audience || {}, roles = a.roles || [], deps = a.departments || [], users = a.users || [];
+    if (users.includes(u.id)) return true;
+    if (users.length && !roles.length && !deps.length) return false;
+    return (!roles.length || roles.includes(u.role)) && (!deps.length || deps.includes(u.departmentId));
+  },
+  audienceUsers: (s) => Data.list('users').filter((u) => u.active && Surveys.inAudience(s, u)),
+  audText(s) {
+    const a = s.audience || {}, parts = [];
+    if ((a.roles || []).length) parts.push(a.roles.map((r) => (SV_ROLES.find((x) => x[0] === r) || [r, r])[1]).join('، '));
+    if ((a.departments || []).length) parts.push(a.departments.length === 1 ? Data.nameOf('departments', a.departments[0], '') : `${fmtNum(a.departments.length)} إدارات`);
+    if ((a.users || []).length) parts.push(`${fmtNum(a.users.length)} مستخدم محدد`);
+    return parts.length ? parts.join(' · ') : 'جميع المستخدمين';
+  },
+  answerable: (q) => !(SV_TYPES[q.t] && SV_TYPES[q.t].info),
+  mins: (s) => Math.max(1, Math.round(s.questions.filter(Surveys.answerable).length * 0.4)),
+  async myDone(u = Auth.user) { if (!u) return new Set(); return new Set((await DB.getAll('surveyMarks', 'userId', KR(u.id))).map((m) => m.surveyId)); },
+  skipKey: () => `sq_sv_skip:${(Auth.user || {}).id || ''}`,
+  dismissed: () => new Set(lsGet(Surveys.skipKey(), [])),
+  dismiss(id) { const s = Surveys.dismissed(); s.add(id); lsSet(Surveys.skipKey(), [...s]); Bus.emit('surveys', {}); },
+  draftKey: (sid) => `sq_svd:${(Auth.user || {}).id || ''}:${sid}`,
+  async mine() {
+    const u = Auth.user; if (!u || u.role === 'monitor') return [];
+    const done = await Surveys.myDone(u);
+    return (await Surveys.all()).filter((s) => s.status !== 'draft' && Surveys.inAudience(s, u)).map((s) => ({ s, st: Surveys.state(s), done: done.has(s.id) })).filter((x) => x.done || x.st === 'live');
+  },
+  async pending() {
+    const skip = Surveys.dismissed();
+    return (await Surveys.mine()).filter((x) => !x.done && x.st === 'live' && (Surveys.required(x.s) || !skip.has(x.s.id))).map((x) => x.s)
+      .sort((a, b) => Surveys.required(b) - Surveys.required(a) || (a.endAt || Infinity) - (b.endAt || Infinity));
+  },
+  /* استبيان يحجب المنصة: لا يُطبَّق على من يدير الاستبيانات حتى لا يُحجب عن نظامه */
+  async blocking() {
+    const u = Auth.user; if (!u || u.role === 'monitor' || Surveys.can()) return null;
+    if (!(await Surveys.all()).some((s) => s.display === 'block' && s.status === 'live')) return null;
+    return (await Surveys.pending()).find((s) => s.display === 'block') || null;
+  },
+  /* الأسئلة الظاهرة حسب الشروط (الشرط يشير دائماً إلى سؤال سابق) */
+  walk(s, ans) {
+    const vis = new Set(), eff = {};
+    for (const q of s.questions) {
+      const c = q.showIf; let show = true;
+      if (c && c.q) { const v = eff[c.q], want = c.v || []; show = v != null && v !== '' && (!want.length || (Array.isArray(v) ? v.some((x) => want.includes(x)) : want.includes(v))); }
+      if (!show) continue;
+      vis.add(q.id);
+      if (ans[q.id] != null) eff[q.id] = ans[q.id];
+      if (ans[`${q.id}__o`] != null) eff[`${q.id}__o`] = ans[`${q.id}__o`];
+    }
+    return { vis, eff };
+  },
+  empty(q, v) { if (v == null || v === '') return true; if (Array.isArray(v)) return !v.length; if (q.t === 'matrix') return !(q.rows || []).filter(Boolean).every((r) => v[r]); return false; },
+  check(q, v, ans) {
+    if (q.req && Surveys.empty(q, v)) return q.t === 'matrix' ? 'قيّم كل البنود' : 'هذا السؤال مطلوب';
+    if (v == null || v === '') return '';
+    if ((v === '__other' || (Array.isArray(v) && v.includes('__other'))) && !String(ans[`${q.id}__o`] || '').trim()) return 'اكتب الخيار الآخر';
+    if (q.t === 'multi' && Array.isArray(v)) { if (q.min && v.length < q.min) return `اختر ${fmtNum(q.min)} على الأقل`; if (q.max && v.length > q.max) return `اختر ${fmtNum(q.max)} كحد أقصى`; }
+    if (q.t === 'number') { const n = Number(v); if (Number.isNaN(n)) return 'أدخل رقماً صحيحاً'; if (q.min !== '' && q.min != null && n < Number(q.min)) return `أقل قيمة مسموحة ${fmtNum(q.min)}`; if (q.max !== '' && q.max != null && n > Number(q.max)) return `أعلى قيمة مسموحة ${fmtNum(q.max)}`; }
+    if ((q.t === 'text' || q.t === 'textarea') && q.max && String(v).length > q.max) return `الحد الأقصى ${fmtNum(q.max)} حرفاً`;
+    return '';
+  },
+  isQuiz: (q) => SV_CHOICE.includes(q.t) && q.ans != null && q.ans !== '' && !(Array.isArray(q.ans) && !q.ans.length),
+  correct(q, v) { if (q.t === 'multi') { const a = [].concat(q.ans || []).sort(), b = [].concat(v || []).sort(); return a.length === b.length && a.every((x, i) => x === b[i]); } return v === q.ans; },
+  score(s, ans) { const { vis } = Surveys.walk(s, ans); let got = 0, max = 0; s.questions.forEach((q) => { if (!Surveys.isQuiz(q) || !vis.has(q.id)) return; const p = Number(q.pts) || 1; max += p; if (Surveys.correct(q, ans[q.id])) got += p; }); return { got, max }; },
+  read(form, s) {
+    const ans = {}, all = (n) => $$(`[name="${n}"]`, form), other = (id) => { const el = form.querySelector(`[data-other="${id}"]`); return el ? el.value.trim() : ''; };
+    for (const q of s.questions) {
+      const n = `q_${q.id}`;
+      if (['single', 'yesno', 'truefalse'].includes(q.t)) { const el = all(n).find((x) => x.checked); if (el) { ans[q.id] = el.value; if (el.value === '__other') ans[`${q.id}__o`] = other(q.id); } }
+      else if (q.t === 'dropdown') { const el = all(n)[0]; if (el && el.value) { ans[q.id] = el.value; if (el.value === '__other') ans[`${q.id}__o`] = other(q.id); } }
+      else if (q.t === 'multi') { const v = all(n).filter((x) => x.checked).map((x) => x.value); if (v.length) { ans[q.id] = v; if (v.includes('__other')) ans[`${q.id}__o`] = other(q.id); } }
+      else if (['rating', 'scale', 'nps', 'likert'].includes(q.t)) { const el = all(n).find((x) => x.checked); if (el) ans[q.id] = Number(el.value); }
+      else if (q.t === 'matrix') { const m = {}; (q.rows || []).filter(Boolean).forEach((r, i) => { const el = all(`${n}_${i}`).find((x) => x.checked); if (el) m[r] = Number(el.value); }); if (Object.keys(m).length) ans[q.id] = m; }
+      else if (q.t === 'number') { const el = all(n)[0]; if (el && el.value !== '') ans[q.id] = Number(el.value); }
+      else if (['text', 'textarea', 'date'].includes(q.t)) { const el = all(n)[0]; if (el && el.value.trim()) ans[q.id] = el.value.trim(); }
+    }
+    return ans;
+  },
+  /* عرض سؤال واحد كما يراه المشارك */
+  qHTML(q, ans, num, { vis = null } = {}) {
+    const T = SV_TYPES[q.t] || SV_TYPES.text, n = `q_${q.id}`, v = ans[q.id], rnd = Math.random().toString(36).slice(2, 6), hide = vis && !vis.has(q.id) ? raw(' hidden') : '';
+    if (T.info) return html`<div class="sv-sec" data-q="${q.id}"${hide}><h2>${q.l || 'عنوان القسم'}</h2>${q.d ? html`<p>${q.d}</p>` : ''}</div>`;
+    const opts = T.fixed || (q.o || []).filter(Boolean), other = q.other && ['single', 'multi', 'dropdown'].includes(q.t);
+    const otherIn = html`<input class="sv-other-in" data-other="${q.id}" value="${ans[`${q.id}__o`] || ''}" placeholder="حدّد…" aria-label="خيار آخر">`;
+    const chk = (o) => (q.t === 'multi' ? [].concat(v || []).includes(o) : v === o) ? raw(' checked') : '';
+    let body;
+    if (q.t === 'single' || q.t === 'multi') {
+      const multi = q.t === 'multi', list = q.shuffle ? svShuffle(opts) : opts, typ = multi ? 'checkbox' : 'radio';
+      body = html`<div class="sv-opts${list.length > 4 ? ' grid2' : ''}">${list.map((o) => html`<label class="sv-opt"><input type="${typ}" name="${n}" value="${o}"${chk(o)}><span class="sv-mark${multi ? ' sq' : ''}"></span><b>${o}</b></label>`)}${other ? html`<label class="sv-opt other"><input type="${typ}" name="${n}" value="__other"${chk('__other')}><span class="sv-mark${multi ? ' sq' : ''}"></span><b>أخرى:</b>${otherIn}</label>` : ''}</div>${multi && (q.min || q.max) ? html`<small class="hint">${q.min && q.max ? `اختر من ${fmtNum(q.min)} إلى ${fmtNum(q.max)}` : q.min ? `اختر ${fmtNum(q.min)} على الأقل` : `اختر ${fmtNum(q.max)} كحد أقصى`}</small>` : ''}`;
+    } else if (q.t === 'dropdown') {
+      body = html`<select name="${n}" class="sv-select"><option value="">اختر…</option>${opts.map((o) => html`<option value="${o}"${v === o ? raw(' selected') : ''}>${o}</option>`)}${other ? html`<option value="__other"${v === '__other' ? raw(' selected') : ''}>أخرى…</option>` : ''}</select>${other ? html`<div class="sv-other-row"${v === '__other' ? '' : raw(' hidden')}>${otherIn}</div>` : ''}`;
+    } else if (q.t === 'yesno' || q.t === 'truefalse') {
+      body = html`<div class="sv-bin">${opts.map((o, k) => html`<label class="sv-binopt ${k ? 'no' : 'yes'}"><input type="radio" name="${n}" value="${o}"${v === o ? raw(' checked') : ''}><span>${UI.icon(k ? 'x' : 'check')}${o}</span></label>`)}</div>`;
+    } else if (q.t === 'rating') {
+      body = html`<div class="sv-starsw"><div class="sv-stars" role="radiogroup" aria-label="${q.l}">${[5, 4, 3, 2, 1].map((k) => html`<input type="radio" id="${n}_${k}_${rnd}" name="${n}" value="${k}"${v === k ? raw(' checked') : ''}><label for="${n}_${k}_${rnd}" title="${RATE_FACES[k][0]}">${UI.icon('star')}</label>`)}</div><em class="sv-stars-l">${v ? RATE_FACES[v][0] : ''}</em></div>`;
+    } else if (q.t === 'scale' || q.t === 'nps') {
+      const lo = q.t === 'nps' ? 0 : Number(q.min != null ? q.min : 1), hi = q.t === 'nps' ? 10 : Number(q.max || 10), nums = [];
+      for (let k = lo; k <= hi; k++) nums.push(k);
+      body = html`<div class="sv-scale${q.t === 'nps' ? ' nps' : ''}" style="--n:${nums.length}">${nums.map((k) => html`<label class="${q.t === 'nps' ? (k <= 6 ? 'det' : k <= 8 ? 'pas' : 'pro') : ''}"><input type="radio" name="${n}" value="${k}"${v === k ? raw(' checked') : ''}><span>${fmtNum(k)}</span></label>`)}</div><div class="sv-ends"><span>${q.lo || (q.t === 'nps' ? 'غير محتمل إطلاقاً' : 'الأدنى')}</span><span>${q.hi || (q.t === 'nps' ? 'محتمل جداً' : 'الأعلى')}</span></div>`;
+    } else if (q.t === 'likert') {
+      body = html`<div class="sv-likert">${LIKERT.map((o, k) => html`<label class="lk${k + 1}"><input type="radio" name="${n}" value="${k + 1}"${v === k + 1 ? raw(' checked') : ''}><span>${o}</span></label>`)}</div>`;
+    } else if (q.t === 'matrix') {
+      body = html`<div class="sv-matrix">${(q.rows || []).filter(Boolean).map((r, ri) => html`<div class="sv-mrow"><b>${r}</b><div class="sv-mcells">${[1, 2, 3, 4, 5].map((k) => html`<label title="${MATRIX_L[k - 1]}"><input type="radio" name="${n}_${ri}" value="${k}"${v && v[r] === k ? raw(' checked') : ''}><span>${fmtNum(k)}</span></label>`)}</div></div>`)}<div class="sv-ends"><span>١ = ${MATRIX_L[0]}</span><span>٥ = ${MATRIX_L[4]}</span></div></div>`;
+    } else if (q.t === 'textarea') {
+      body = html`<textarea name="${n}" rows="4" maxlength="${q.max || 2000}" placeholder="${q.ph || 'اكتب إجابتك هنا'}">${v || ''}</textarea>`;
+    } else if (q.t === 'number') {
+      body = html`<input type="number" name="${n}" class="sv-num" dir="ltr" value="${v != null ? v : ''}"${q.min !== '' && q.min != null ? raw(` min="${Number(q.min)}"`) : ''}${q.max !== '' && q.max != null ? raw(` max="${Number(q.max)}"`) : ''} placeholder="${q.ph || ''}">`;
+    } else if (q.t === 'date') {
+      body = html`<input type="date" name="${n}" class="sv-date" dir="ltr" lang="en-GB" value="${v || ''}">`;
+    } else {
+      body = html`<input name="${n}" value="${v || ''}" maxlength="${q.max || 300}" placeholder="${q.ph || 'اكتب إجابتك هنا'}">`;
+    }
+    return html`<div class="sv-q" data-q="${q.id}"${hide}><div class="sv-q-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><h3>${q.l || 'سؤال بلا عنوان'}${q.req ? html`<em title="إجابة مطلوبة">*</em>` : ''}</h3>${q.d ? html`<p>${q.d}</p>` : ''}</div></div><div class="sv-q-body">${body}</div><div class="sv-q-err" role="alert" hidden></div></div>`;
+  },
+  formHTML(s, ans = {}) { const { vis } = Surveys.walk(s, ans); let k = 0; return html`${s.questions.map((q) => Surveys.qHTML(q, ans, Surveys.answerable(q) ? ++k : 0, { vis }))}`; },
+  heroHTML(s, { compact = false } = {}) {
+    const n = s.questions.filter(Surveys.answerable).length;
+    return html`<section class="sv-hero${compact ? ' compact' : ''}"><span class="sv-hero-ic">${UI.icon(s.icon || 'poll')}</span><div class="grow"><span class="sv-kicker">${s.quiz ? 'اختبار' : 'استبيان'}${Surveys.required(s) ? ' · مطلوب' : ''}</span><h1>${s.title || 'استبيان بلا عنوان'}</h1>${s.desc ? html`<p>${s.desc}</p>` : ''}<div class="sv-meta"><span>${UI.icon('poll')} ${qCount(n)}</span><span>${UI.icon('clock')} نحو ${arUnit(Surveys.mins(s), 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}</span>${s.anonymous ? html`<span>${UI.icon('shield')} مجهول الهوية</span>` : ''}${s.endAt && s.endAt > now() ? html`<span class="warn">${UI.icon('calendar')} ${leftText(s.endAt)}</span>` : ''}</div></div></section>`;
+  },
+  /* ربط النموذج: الشروط، والنجوم، و«أخرى»، والتقدم */
+  bind(root, s, { onChange } = {}) {
+    const upd = () => {
+      const ans = Surveys.read(root, s), { vis } = Surveys.walk(s, ans);
+      s.questions.forEach((q) => { const el = root.querySelector(`[data-q="${q.id}"]`); if (el) el.hidden = !vis.has(q.id); });
+      $$('.sv-starsw', root).forEach((w) => { const c = w.querySelector('input:checked'), l = w.querySelector('.sv-stars-l'); if (l) l.textContent = c ? RATE_FACES[Number(c.value)][0] : ''; });
+      $$('select.sv-select', root).forEach((sel) => { const row = sel.parentElement.querySelector('.sv-other-row'); if (row) row.hidden = sel.value !== '__other'; });
+      if (onChange) onChange(ans, vis);
+    };
+    root.addEventListener('change', upd);
+    root.addEventListener('input', debounce(upd, 250));
+    root.addEventListener('focusin', (e) => { const o = e.target.closest('.sv-opt.other'); if (!o || !e.target.matches('.sv-other-in')) return; const inp = o.querySelector('input[type=radio],input[type=checkbox]'); if (inp && !inp.checked) { inp.checked = true; upd(); } });
+    upd();
+    return upd;
+  },
+  showErrors(root, s, ans, only = null) {
+    const { vis, eff } = Surveys.walk(s, ans); let first = null;
+    s.questions.forEach((q) => {
+      const el = root.querySelector(`.sv-q[data-q="${q.id}"]`); if (!el) return;
+      const msg = vis.has(q.id) && Surveys.answerable(q) && (!only || only.includes(q.id)) ? Surveys.check(q, eff[q.id], eff) : '';
+      const box = el.querySelector('.sv-q-err'); box.textContent = msg; box.hidden = !msg; el.classList.toggle('has-err', !!msg);
+      if (msg && !first) first = el;
+    });
+    if (first) { first.scrollIntoView({ block: 'center', behavior: 'smooth' }); const f = first.querySelector('input,select,textarea'); if (f) setTimeout(() => f.focus({ preventScroll: true }), 300); }
+    return !first;
+  },
+  progress(s, ans) { const { vis, eff } = Surveys.walk(s, ans), qs = s.questions.filter((q) => Surveys.answerable(q) && vis.has(q.id)); return qs.length ? qs.filter((q) => !Surveys.empty(q, eff[q.id])).length / qs.length : 0; },
+  async submit(s, ans, { started = now(), editing = false } = {}) {
+    const u = Auth.user, t = now(), { vis, eff } = Surveys.walk(s, ans), clean = {};
+    s.questions.forEach((q) => { if (!Surveys.answerable(q) || !vis.has(q.id)) return; if (eff[q.id] != null) clean[q.id] = eff[q.id]; if (eff[`${q.id}__o`]) clean[`${q.id}__o`] = eff[`${q.id}__o`]; });
+    const score = s.quiz ? Surveys.score(s, clean) : null;
+    const id = s.anonymous ? `${s.id}:x${Math.random().toString(36).slice(2, 10)}${t.toString(36)}` : `${s.id}:${u.id}`;
+    const rec = { id, surveyId: s.id, userId: s.anonymous ? '' : u.id, answers: clean, at: t, updatedAt: t, secs: Math.max(1, Math.round((t - started) / 1000)) };
+    if (!s.anonymous) { rec.departmentId = u.departmentId || ''; rec.role = u.role; }
+    if (score) { rec.score = score.got; rec.max = score.max; }
+    await DB.run(['surveyResponses', 'surveyMarks'], async (T) => {
+      if (editing) { const old = await T.get('surveyResponses', id); if (old) { rec.at = old.at; rec._rev = old._rev; } }
+      await T.put('surveyResponses', rec);
+      if (!editing) await T.put('surveyMarks', { id: `${s.id}:${u.id}`, surveyId: s.id, userId: u.id, at: t, _rev: -1 });
+    });
+    try { localStorage.removeItem(Surveys.draftKey(s.id)); } catch (_) { /* تجاهل */ }
+    Bus.emit('surveys', {});
+    return { rec, score };
+  },
+  /* ── الإدارة ── */
+  blank() { const t = now(); return { id: uid('sv'), title: '', desc: '', tone: 'brass', icon: 'poll', questions: [], status: 'draft', hidden: 0, startAt: 0, endAt: 0, mode: 'optional', display: 'section', audience: { roles: [], departments: [], users: [] }, anonymous: 0, allowEdit: 0, showResults: 0, onePerPage: 0, quiz: 0, maxResponses: 0, thanks: 'شكراً لمشاركتك، نقدّر وقتك ورأيك.', notify: 1, createdBy: Auth.user.id, createdAt: t, updatedAt: t }; },
+  async create(key) {
+    const tpl = SV_TEMPLATES.find((x) => x.key === key) || SV_TEMPLATES[0], src = JSON.parse(JSON.stringify(tpl.s));
+    const s = { ...Surveys.blank(), ...src, tone: tpl.tone === 'slate' ? 'brass' : tpl.tone, icon: tpl.icon === 'plus' ? 'poll' : tpl.icon };
+    s.questions = (src.questions || []).map((q) => svq(q.t, { ...q, id: '' }));
+    if (!s.title) s.title = 'استبيان جديد';
+    return Surveys.save(s, true);
+  },
+  async save(s, quiet = false) {
+    if (!Surveys.can()) throw new AppError('لا تملك صلاحية إدارة الاستبيانات');
+    const cur = s.id ? await DB.get('surveys', s.id).catch(() => null) : null;
+    const rec = { ...s, title: String(s.title || '').trim(), updatedAt: now() };
+    /* نسخة المحرر لا تعرف رقم النسخة الذي أسنده الخادم بعد آخر حفظ، فيُؤخذ من الجهاز ما دام المحتوى لم يتغير من جهاز آخر */
+    if (cur && cur.updatedAt === s.updatedAt) rec._rev = cur._rev;
+    if (!rec.title) throw new AppError('اكتب عنوان الاستبيان');
+    if (rec.display === 'block') rec.mode = 'required';
+    if (rec.anonymous) rec.allowEdit = 0;
+    await DB.put('surveys', rec); Surveys.invalidate();
+    if (!quiet) await Data.log('update', 'surveys', rec.id, `حفظ استبيان: ${rec.title}`);
+    Bus.emit('surveys', {});
+    return rec;
+  },
+  problems(s) {
+    const out = [];
+    if (!String(s.title || '').trim()) out.push('اكتب عنوان الاستبيان');
+    if (!s.questions.filter(Surveys.answerable).length) out.push('أضف سؤالاً واحداً على الأقل');
+    s.questions.forEach((q, i) => {
+      const T = SV_TYPES[q.t], name = `«${q.l || `السؤال ${fmtNum(i + 1)}`}»`;
+      if (!T.info && !String(q.l || '').trim()) out.push(`السؤال ${fmtNum(i + 1)} بلا نص`);
+      if (T.opts && (q.o || []).filter(Boolean).length < 2) out.push(`السؤال ${name} يحتاج خيارين على الأقل`);
+      if (q.t === 'matrix' && !(q.rows || []).filter(Boolean).length) out.push(`أضف بنود المصفوفة في ${name}`);
+    });
+    if (s.startAt && s.endAt && s.endAt <= s.startAt) out.push('موعد الانتهاء يجب أن يكون بعد موعد البدء');
+    if (s.endAt && s.endAt < now()) out.push('موعد الانتهاء في الماضي، عدّله أو احذفه');
+    if (s.quiz && !s.questions.some(Surveys.isQuiz)) out.push('وضع الاختبار مفعّل لكن لم تُحدَّد أي إجابة صحيحة');
+    return out;
+  },
+  async publish(s, notify) {
+    const p = Surveys.problems(s); if (p.length) throw new AppError(p[0]);
+    const rec = await Surveys.save({ ...s, status: 'live', hidden: 0, publishedAt: s.publishedAt || now() }, true);
+    await Data.log('create', 'surveys', rec.id, `نشر استبيان: ${rec.title}`);
+    if (notify) { const ids = Surveys.audienceUsers(rec).map((u) => u.id); if (ids.length) await Data.notify(ids, { title: `${rec.quiz ? 'اختبار' : 'استبيان'} جديد: ${rec.title}`, body: Surveys.required(rec) ? 'مشاركتك مطلوبة، ولن تستغرق أكثر من دقائق' : 'شاركنا رأيك، لن يستغرق أكثر من دقائق', link: `/survey/${rec.id}`, kind: 'info' }); }
+    return rec;
+  },
+  async patch(id, patch, msg) { const s = await Surveys.get(id); if (!s) return null; const rec = await Surveys.save({ ...s, ...patch }, true); await Data.log('update', 'surveys', id, `${msg}: ${s.title}`); return rec; },
+  async duplicate(id) {
+    const s = await Surveys.get(id); if (!s) return null;
+    const c = JSON.parse(JSON.stringify(s)), map = {}; delete c._rev;
+    c.questions = c.questions.map((q) => { const nid = uid('q'); map[q.id] = nid; return { ...q, id: nid }; });
+    c.questions.forEach((q) => { if (q.showIf && q.showIf.q) q.showIf.q = map[q.showIf.q] || ''; });
+    return Surveys.save({ ...c, id: uid('sv'), title: `${s.title} (نسخة)`, status: 'draft', hidden: 0, publishedAt: 0, createdBy: Auth.user.id, createdAt: now() }, true);
+  },
+  async remove(id) {
+    const s = await Surveys.get(id); if (!s) return;
+    const resp = await Surveys.responses(id), marks = await Surveys.marks(id);
+    await DB.run(['surveys', 'surveyResponses', 'surveyMarks'], async (T) => { for (const r of resp) await T.del('surveyResponses', r.id); for (const m of marks) await T.del('surveyMarks', m.id); await T.del('surveys', id); });
+    Surveys.invalidate(); await Data.log('delete', 'surveys', id, `حذف استبيان: ${s.title}`); Bus.emit('surveys', {});
+  },
+  responses: (sid) => DB.getAll('surveyResponses', 'surveyId', KR(sid)),
+  marks: (sid) => DB.getAll('surveyMarks', 'surveyId', KR(sid)),
+  aggregate(s, rows) {
+    const out = { n: rows.length, q: {} };
+    for (const q of s.questions) {
+      if (!Surveys.answerable(q)) continue;
+      const a = { n: 0, c: {}, sum: 0, num: 0, texts: [], rows: {} };
+      for (const r of rows) {
+        const ans = r.answers || {}, v = ans[q.id]; if (v == null || v === '') continue; a.n++;
+        if (q.t === 'matrix') { Object.entries(v).forEach(([row, k]) => { const x = a.rows[row] || (a.rows[row] = { n: 0, sum: 0 }); x.n++; x.sum += Number(k) || 0; }); continue; }
+        if (['text', 'textarea', 'date'].includes(q.t)) { a.texts.push({ v: String(v), at: r.at, uid: r.userId }); continue; }
+        for (const x of [].concat(v)) { a.c[x] = (a.c[x] || 0) + 1; if (typeof x === 'number') { a.sum += x; a.num++; } }
+        if (ans[`${q.id}__o`]) a.texts.push({ v: String(ans[`${q.id}__o`]), at: r.at, uid: r.userId });
+      }
+      out.q[q.id] = a;
+    }
+    return out;
+  },
+  /* مراجعة الاختبار: كل سؤال بإجابة المشارك والإجابة الصحيحة وشرحها */
+  reviewHTML(s, ans) {
+    const { vis } = Surveys.walk(s, ans), qs = s.questions.filter((q) => Surveys.isQuiz(q) && vis.has(q.id)); if (!qs.length) return '';
+    const ok = qs.filter((q) => Surveys.correct(q, ans[q.id])).length;
+    return html`<section class="panel sv-review"><h2 class="sv-h">${UI.icon('target')} مراجعة إجاباتك <span class="chip tone-teal">${fmtNum(ok)} صحيحة</span>${qs.length - ok ? html`<span class="chip tone-red">${fmtNum(qs.length - ok)} خاطئة</span>` : ''}</h2>
+      <ol class="sv-rv">${qs.map((q) => { const v = ans[q.id], good = Surveys.correct(q, v); return html`<li class="${good ? 'ok' : 'bad'}"><span class="sv-rv-ic">${UI.icon(good ? 'check' : 'x')}</span><div class="sv-rv-b"><b>${q.l}</b><div class="sv-rv-a"><span>إجابتك</span><em>${Surveys.fmtAnswer(q, v, ans) || 'بلا إجابة'}</em></div>${good ? '' : html`<div class="sv-rv-a good"><span>الصحيحة</span><em>${[].concat(q.ans).join('، ')}</em></div>`}${q.why ? html`<p class="sv-rv-why">${UI.icon('info')}<span>${q.why}</span></p>` : ''}</div></li>`; })}</ol></section>`;
+  },
+  fmtAnswer(q, v, ans = {}) {
+    if (v == null || v === '') return '';
+    if (q.t === 'likert') return LIKERT[v - 1] || String(v);
+    if (q.t === 'rating') return `${v} / 5`;
+    if (q.t === 'matrix') return Object.entries(v).map(([r, k]) => `${r}: ${k}`).join('، ');
+    const one = (x) => (x === '__other' ? `أخرى: ${ans[`${q.id}__o`] || ''}` : String(x));
+    return Array.isArray(v) ? v.map(one).join('، ') : one(v);
+  },
+  /* بطاقة نتيجة سؤال: أعمدة النِّسب، ومتوسط النجوم، وصافي التوصية، والمصفوفة، والإجابات النصية */
+  resultCard(s, q, a, num, { pub = false } = {}) {
+    const T = SV_TYPES[q.t] || SV_TYPES.text, n = (a && a.n) || 0;
+    const quiz = s.quiz && Surveys.isQuiz(q), okN = quiz && n ? (q.t === 'multi' ? null : a.c[q.ans] || 0) : null;
+    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label} · ${n ? `${fmtNum(n)} إجابة` : 'لا توجد إجابات'}</small></div>${okN != null ? UI.chip(okN / n >= 0.7 ? 'teal' : okN / n >= 0.4 ? 'amber' : 'red', `${Math.round((okN / n) * 100)}% أجابوا صحيحاً`, 'check') : ''}</div>`;
+    if (!n) return html`<div class="svr-q">${head}<div class="empty-mini">${UI.icon('info')} لم يُجب أحد على هذا السؤال بعد</div></div>`;
+    const bars = (list, total) => html`<ul class="svr-bars">${list.map(([k, l, tone, ok]) => { const c = a.c[k] || 0, p = total ? (c / total) * 100 : 0; return html`<li class="tone-${ok ? 'teal' : tone}${ok ? ' ok' : ''}"><span class="svr-l" title="${l}">${ok ? UI.icon('check') : ''}${l}</span><span class="svr-t"><i style="width:${p.toFixed(1)}%"></i></span><b>${fmtNum(Math.round(p))}%</b><small>${fmtNum(c)}</small></li>`; })}</ul>`;
+    let body = '';
+    if (SV_CHOICE.includes(q.t)) {
+      const opts = (T.fixed || (q.o || []).filter(Boolean)).map((o, j) => [o, o, T.fixed ? (j ? 'red' : 'teal') : SV_BAR_TONES[j % SV_BAR_TONES.length], quiz && (q.t === 'multi' ? [].concat(q.ans || []).includes(o) : q.ans === o)]);
+      if (q.other) opts.push(['__other', 'أخرى', 'slate', false]);
+      body = bars(opts, n);
+    } else if (q.t === 'likert') {
+      const avg = a.num ? a.sum / a.num : 0;
+      body = html`<div class="svr-avg sm"><b>${avg.toFixed(1)}</b><div><small>متوسط الموافقة من 5</small><span>${LIKERT[Math.max(0, Math.round(avg) - 1)] || ''}</span></div></div>${bars(LIKERT.map((l, k) => [k + 1, l, ['red', 'amber', 'slate', 'teal', 'green'][k]]).reverse(), n)}`;
+    } else if (q.t === 'rating') {
+      const avg = a.num ? a.sum / a.num : 0;
+      body = html`<div class="svr-avg"><b>${avg.toFixed(1)}</b><div>${UI.stars(Math.round(avg))}<small>من 5 — ${fmtNum(a.num)} تقييم</small></div></div>${bars([5, 4, 3, 2, 1].map((k) => [k, `${k} ${RATE_FACES[k][0]}`, RATE_FACES[k][1]]), n)}`;
+    } else if (q.t === 'nps') {
+      let pro = 0, pas = 0, det = 0; Object.entries(a.c).forEach(([k, c]) => { const x = Number(k); if (x >= 9) pro += c; else if (x >= 7) pas += c; else det += c; });
+      const tot = pro + pas + det || 1, nps = Math.round(((pro - det) / tot) * 100), pc = (x) => `${Math.round((x / tot) * 100)}%`;
+      body = html`<div class="svr-nps"><div class="svr-nps-score tone-${nps >= 30 ? 'teal' : nps >= 0 ? 'amber' : 'red'}"><b class="ltr">${nps > 0 ? '+' : ''}${fmtNum(nps)}</b><small>صافي نقاط التوصية (NPS)</small></div><div class="svr-stack"><i class="pro" style="width:${pc(pro)}"></i><i class="pas" style="width:${pc(pas)}"></i><i class="det" style="width:${pc(det)}"></i></div><div class="svr-legend"><span class="pro">مروّجون (9–10) ${pc(pro)}</span><span class="pas">محايدون (7–8) ${pc(pas)}</span><span class="det">منتقدون (0–6) ${pc(det)}</span></div></div>`;
+    } else if (q.t === 'scale') {
+      const lo = Number(q.min != null ? q.min : 1), hi = Number(q.max || 10), avg = a.num ? a.sum / a.num : 0, data = [];
+      for (let k = lo; k <= hi; k++) data.push({ label: fmtNum(k), value: a.c[k] || 0, tone: 'violet' });
+      body = html`<div class="svr-avg sm"><b>${avg.toFixed(1)}</b><div><small>المتوسط على مقياس ${fmtNum(lo)}–${fmtNum(hi)}</small></div></div>${UI.chart.bars(data, { height: 140 })}`;
+    } else if (q.t === 'number') {
+      const vals = Object.entries(a.c).flatMap(([k, c]) => Array(c).fill(Number(k))).filter((x) => !Number.isNaN(x));
+      const sum = vals.reduce((x, y) => x + y, 0), f = (x) => (vals.length ? fmtNum(Math.round(x * 10) / 10) : '—');
+      body = html`<div class="svr-stats"><div><small>الأقل</small><b>${f(Math.min(...vals))}</b></div><div><small>المتوسط</small><b>${f(sum / vals.length)}</b></div><div><small>الأعلى</small><b>${f(Math.max(...vals))}</b></div><div><small>المجموع</small><b>${f(sum)}</b></div></div>`;
+    } else if (q.t === 'matrix') {
+      body = html`<div class="svr-matrix">${(q.rows || []).filter(Boolean).map((r) => { const x = a.rows[r] || { n: 0, sum: 0 }, avg = x.n ? x.sum / x.n : 0; return html`<div class="svr-mrow tone-${avg >= 4 ? 'teal' : avg >= 3 ? 'amber' : 'red'}"><span>${r}</span><span class="svr-t"><i style="width:${((avg / 5) * 100).toFixed(1)}%"></i></span><b>${x.n ? avg.toFixed(1) : '—'}</b>${UI.stars(Math.round(avg))}</div>`; })}</div>`;
+    }
+    if (!pub && a.texts && a.texts.length) {
+      const list = a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0));
+      body = html`${body}${body ? html`<b class="svr-sub">${q.t === 'textarea' || q.t === 'text' ? '' : 'إجابات «أخرى»'}</b>` : ''}<div class="svr-texts">${list.slice(0, 25).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${timeAgo(x.at)}</small></blockquote>`)}</div>${list.length > 25 ? html`<button type="button" class="btn btn-ghost btn-sm mt" data-alltexts="${q.id}">${UI.icon('list')} عرض كل الإجابات (${fmtNum(list.length)})</button>` : ''}`;
+    }
+    if (pub && ['text', 'textarea', 'date'].includes(q.t)) return '';
+    return html`<div class="svr-q">${head}${body}</div>`;
+  }
+};
+Bus.on('surveys', () => Surveys.invalidate());
+/* ── صفحات الاستبيانات للمشارك ── */
+Surveys.card = ({ s, done }) => {
+  const draft = !done && !!lsGet(Surveys.draftKey(s.id), null), n = s.questions.filter(Surveys.answerable).length;
+  return html`<a class="sv-card tone-${s.tone || 'brass'}${done ? ' done' : ''}" href="#/survey/${s.id}"><span class="sv-card-ic">${UI.icon(s.icon || 'poll')}</span><div class="grow"><div class="sv-card-top"><b>${s.title}</b>${done ? UI.chip('teal', 'تمت المشاركة', 'check') : Surveys.required(s) ? UI.chip('red', 'مطلوب', 'alert') : ''}${s.quiz ? UI.chip('violet', 'اختبار', 'target') : ''}</div>${s.desc ? html`<p class="ellipsis-2">${s.desc}</p>` : ''}<div class="sv-card-meta"><span>${UI.icon('poll')} ${qCount(n)}</span><span>${UI.icon('clock')} نحو ${arUnit(Surveys.mins(s), 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}</span>${s.anonymous ? html`<span>${UI.icon('shield')} مجهول الهوية</span>` : ''}${!done && s.endAt ? html`<span class="warn">${UI.icon('calendar')} ${leftText(s.endAt)}</span>` : ''}${draft ? html`<span class="draft">${UI.icon('edit')} لديك إجابات محفوظة</span>` : ''}</div></div><span class="sv-card-go">${done ? (s.showResults ? 'النتائج' : 'عرض') : draft ? 'متابعة' : 'ابدأ'} ${UI.icon('chevron-left')}</span></a>`;
+};
+Pages.surveys = async (ctx) => {
+  const draw = async () => {
+    if (!ctx.alive()) return;
+    const mine = await Surveys.mine(), pend = mine.filter((x) => !x.done).sort((a, b) => Surveys.required(b.s) - Surveys.required(a.s)), done = mine.filter((x) => x.done);
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الاستبيانات', sub: 'رأيك يصنع الفرق — شاركنا لنطوّر خدماتنا', illu: 'report', actions: Surveys.can() ? html`<a class="btn btn-soft" href="#/surveys/manage">${UI.icon('sliders')} إدارة الاستبيانات</a>` : '' })}
+      ${pend.length ? html`<h2 class="sv-h">${UI.icon('poll')} بانتظار مشاركتك <span class="chip tone-amber">${fmtNum(pend.length)}</span></h2><div class="sv-grid stagger">${pend.map(Surveys.card)}</div>` : UI.empty({ illu: 'report', title: 'لا توجد استبيانات بانتظارك', text: 'سنُعلمك عند نشر استبيان جديد يخصك.' })}
+      ${done.length ? html`<h2 class="sv-h mt">${UI.icon('check')} شاركت فيها</h2><div class="sv-grid">${done.map(Surveys.card)}</div>` : ''}`);
+  };
+  ctx.onCleanup(Bus.on('surveys', debounce(draw, 300)));
+  await draw();
+};
+
+/* صفحة الإجابة: داخل النظام، أو بملء الشاشة عندما يحجب الاستبيان المنصة */
+Pages.surveyAnswer = async (ctx, gate = false) => {
+  const view = ctx.view, u = Auth.user, s = await Surveys.get(ctx.params.id);
+  const wrap = (inner) => (gate ? html`<div class="sv-gate"><header class="sv-gatebar"><img src="${ASSETS.logo}" alt=""><div class="grow"><b>${Data.c.settings.systemName}</b><small>${UI.icon('lock')} يلزم إكمال هذا الاستبيان لمتابعة استخدام النظام</small></div><button type="button" class="btn btn-ghost btn-sm" data-svlogout>${UI.icon('logout')} خروج</button></header><div class="sv-page">${inner}</div></div>` : html`<div class="sv-page">${inner}</div>`);
+  const stop = (illu, title, text, action = html`<a class="btn btn-primary" href="#/surveys">${UI.icon('poll')} الاستبيانات</a>`) => { view.innerHTML = String(wrap(UI.empty({ illu, title, text, action }))); };
+  UI.on(view, 'click', '[data-svlogout]', async () => { await Auth.logout(); Router.go('/login'); });
+  if (!s || (s.status === 'draft' && !Surveys.can())) return stop('report', 'الاستبيان غير متاح', 'ربما حُذف أو لم يُنشر بعد.');
+  if (!Surveys.inAudience(s, u) && !Surveys.can()) return stop('key', 'هذا الاستبيان غير موجّه لحسابك', 'يظهر لك كل استبيان يخصك في صفحة الاستبيانات.');
+  const state = Surveys.state(s), mark = await DB.get('surveyMarks', `${s.id}:${u.id}`); let mine = s.anonymous ? null : await DB.get('surveyResponses', `${s.id}:${u.id}`);
+  const editing = !!(mark && mine && s.allowEdit && !s.anonymous && state === 'live' && ctx.query.edit === '1');
+  const doneView = async (score, sent = false, answers = null) => {
+    let res = '';
+    if (s.showResults) {
+      try {
+        /* تُرسل الإجابة أولاً، فالخادم لا يعرض النتائج إلا لمن سُجّلت مشاركته */
+        if (sent && Sync.on) await Sync.waitIdle(6000);
+        const agg = Sync.on && Sync.token ? await Sync.call('svstats', { query: `&id=${encodeURIComponent(s.id)}` }) : Surveys.aggregate(s, await Surveys.responses(s.id));
+        let k = 0; res = html`<h2 class="sv-h mt">${UI.icon('chart')} نتائج المشاركين حتى الآن <span class="chip tone-sky">${fmtNum(agg.n)} مشاركة</span></h2><div class="svr-grid${s.questions.filter(Surveys.answerable).length === 1 ? ' one' : ''}">${s.questions.filter(Surveys.answerable).map((q) => Surveys.resultCard(s, q, agg.q[q.id], ++k, { pub: true }))}</div>`;
+      } catch (_) { res = html`<p class="hint mt">تتوفر النتائج عند الاتصال بالخادم.</p>`; }
+    }
+    const sc = score || (mine && mine.max ? { got: mine.score, max: mine.max } : null), myAns = answers || (mine && mine.answers) || null;
+    if (s.quiz && s.reveal !== 0 && myAns) res = html`${Surveys.reviewHTML(s, myAns)}${res}`;
+    view.innerHTML = String(wrap(html`${Surveys.heroHTML(s, { compact: true })}<section class="panel sv-done"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:23px">${sent ? 'تم إرسال إجاباتك' : 'شاركت في هذا الاستبيان'}</h2><p class="muted">${s.thanks || 'شكراً لمشاركتك.'}</p>${sc ? html`<div class="sv-score tone-${sc.got / (sc.max || 1) >= 0.7 ? 'teal' : sc.got / (sc.max || 1) >= 0.4 ? 'amber' : 'red'}"><small>درجتك</small><b class="ltr">${fmtNum(sc.got)} / ${fmtNum(sc.max)}</b><small>${Math.round((sc.got / (sc.max || 1)) * 100)}%</small></div>` : ''}${mark && !sent ? html`<span class="faint small">${UI.icon('calendar')} ${fmtDateTime(mark.at)}</span>` : ''}<div class="row" style="justify-content:center;gap:8px;margin-top:8px">${gate ? html`<button type="button" class="btn btn-primary" data-svcontinue>${UI.icon('chevron-left')} متابعة إلى النظام</button>` : html`<a class="btn btn-primary" href="#/dashboard">${UI.icon('grid')} الرئيسية</a><a class="btn" href="#/surveys">${UI.icon('poll')} الاستبيانات</a>`}${!gate && s.allowEdit && !s.anonymous && state === 'live' && mine ? html`<a class="btn btn-ghost" href="#/survey/${s.id}?edit=1">${UI.icon('edit')} تعديل إجاباتي</a>` : ''}</div></div></section>${res}`));
+    UI.hydrate(view);
+    const cont = $('[data-svcontinue]', view); if (cont) cont.onclick = () => Router.replace('/dashboard');
+    if (sent) { const b = $('.burst', view); if (b) { const r = b.getBoundingClientRect(); UI.confetti(r.left + r.width / 2, r.top + r.height / 2); } }
+  };
+  if (mark && !editing) return doneView(null, false);
+  if (state !== 'live') return stop(state === 'scheduled' ? 'calendar' : 'report', state === 'scheduled' ? 'لم يبدأ الاستبيان بعد' : 'انتهى هذا الاستبيان', state === 'scheduled' ? `يبدأ ${fmtDateTime(s.startAt)}` : 'شكراً لاهتمامك، لم يعد الاستبيان يستقبل مشاركات.');
+  let ans = editing ? { ...(mine.answers || {}) } : lsGet(Surveys.draftKey(s.id), {}) || {};
+  const started = now(), paged = !!s.onePerPage;
+  const pages = []; let buf = [];
+  s.questions.forEach((q) => { if (!Surveys.answerable(q)) { buf.push(q.id); return; } pages.push([...buf, q.id]); buf = []; });
+  if (buf.length) { if (pages.length) pages[pages.length - 1].push(...buf); else pages.push(buf); }
+  let page = 0;
+  view.innerHTML = String(wrap(html`${Surveys.heroHTML(s)}${s.anonymous ? html`<div class="sv-anon">${UI.icon('shield')}<span>استبيان مجهول الهوية: لا يُحفظ اسمك مع إجاباتك، ويُسجَّل فقط أنك شاركت.</span></div>` : ''}${editing ? html`<div class="banner tone-sky">${UI.icon('edit')}<div class="grow">تعدّل إجاباتك السابقة، ويُحفظ التعديل بدلها.</div></div>` : ''}
+    <div class="sv-prog"><span data-progt>0%</span><div class="progress"><i data-progbar style="width:0%"></i></div>${paged ? html`<span class="faint small" data-pagen></span>` : ''}</div>
+    <form class="sv-form" novalidate data-svform>${Surveys.formHTML(s, ans)}</form>
+    <div class="sv-foot">${paged ? html`<button type="button" class="btn" data-svprev>${UI.icon('chevron-right')} السابق</button>` : ''}${!Surveys.required(s) && !gate && !editing ? html`<button type="button" class="btn btn-ghost" data-svskip>لا أرغب في المشاركة</button>` : ''}<span class="grow"></span>${paged ? html`<button type="button" class="btn btn-primary" data-svnext>التالي ${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="btn btn-primary btn-lg" data-svsubmit>${UI.icon('send')} ${editing ? 'حفظ التعديل' : s.quiz ? 'إنهاء الاختبار' : 'إرسال الإجابات'}</button></div>`));
+  const form = $('[data-svform]', view), bar = $('[data-progbar]', view), pt = $('[data-progt]', view), prev = $('[data-svprev]', view), next = $('[data-svnext]', view), send = $('[data-svsubmit]', view);
+  const visPages = (vis) => pages.map((p, i) => ({ i, ids: p })).filter((p) => p.ids.some((id) => vis.has(id)));
+  const showPage = (vis) => {
+    if (!paged) return;
+    const vp = visPages(vis); if (!vp.length) return;
+    let k = vp.findIndex((p) => p.i === page); if (k < 0) { k = Math.max(0, vp.findIndex((p) => p.i > page)); page = vp[k].i; }
+    $$('[data-q]', form).forEach((el) => el.classList.toggle('off', !pages[page].includes(el.dataset.q)));
+    prev.disabled = k === 0; next.hidden = k === vp.length - 1; send.hidden = k !== vp.length - 1;
+    const pn = $('[data-pagen]', view); if (pn) pn.textContent = `${fmtNum(k + 1)} من ${fmtNum(vp.length)}`;
+  };
+  const saveDraft = debounce((a) => { if (!editing) lsSet(Surveys.draftKey(s.id), a); }, 500);
+  Surveys.bind(form, s, { onChange: (a, vis) => { ans = a; const p = Math.round(Surveys.progress(s, a) * 100); bar.style.width = `${p}%`; pt.textContent = `${fmtNum(p)}%`; saveDraft(a); showPage(vis); $$('.sv-q.has-err', form).forEach((el) => { const q = s.questions.find((x) => x.id === el.dataset.q); if (q && !Surveys.check(q, Surveys.walk(s, a).eff[q.id], a)) { el.classList.remove('has-err'); el.querySelector('.sv-q-err').hidden = true; } }); } });
+  if (paged) {
+    next.onclick = () => { const { vis } = Surveys.walk(s, ans); if (!Surveys.showErrors(form, s, ans, pages[page])) return; const vp = visPages(vis), k = vp.findIndex((p) => p.i === page); if (k < vp.length - 1) { page = vp[k + 1].i; showPage(vis); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
+    prev.onclick = () => { const { vis } = Surveys.walk(s, ans), vp = visPages(vis), k = vp.findIndex((p) => p.i === page); if (k > 0) { page = vp[k - 1].i; showPage(vis); } };
+  }
+  const skip = $('[data-svskip]', view); if (skip) skip.onclick = async () => { if (!(await UI.confirm('لن يظهر لك هذا الاستبيان في الرئيسية مرة أخرى، ويبقى متاحاً في صفحة الاستبيانات إن غيّرت رأيك.', { title: 'عدم المشاركة', ok: 'تأكيد' }))) return; Surveys.dismiss(s.id); Router.go('/surveys'); };
+  send.onclick = async () => {
+    ans = Surveys.read(form, s);
+    if (!Surveys.showErrors(form, s, ans)) { if (paged) { const bad = $('.sv-q.has-err', form); if (bad) { page = pages.findIndex((p) => p.includes(bad.dataset.q)); showPage(Surveys.walk(s, ans).vis); } } UI.toast('أكمل الأسئلة المطلوبة المشار إليها', 'warn'); return; }
+    UI.busy(send, true);
+    try { const r = await Surveys.submit(s, ans, { started, editing }); UI.sound('success'); if (!s.anonymous) mine = r.rec; await doneView(r.score, true, r.rec.answers); } catch (ex) { UI.error(ex); UI.busy(send, false); }
+  };
+};
+
+/* ── إدارة الاستبيانات ── */
+Pages.svNewModal = () => UI.modal({
+  title: 'استبيان جديد', icon: 'poll', size: 'lg',
+  body: html`<p class="muted" style="margin:0">ابدأ من قالب جاهز وعدّله كما تشاء، أو من صفحة فارغة.</p><div class="sv-tpls">${SV_TEMPLATES.map((t, i) => html`<label class="sv-tpl tone-${t.tone}"><input type="radio" name="tpl" value="${t.key}"${i === 1 ? raw(' checked') : ''}><span><span class="sv-tpl-ic">${UI.icon(t.icon)}</span><b>${t.name}</b><small>${t.desc}</small><i>${t.s.questions.length ? qCount(t.s.questions.length) : 'بلا أسئلة'}${t.s.quiz ? ' · بدرجة' : ''}${t.s.anonymous ? ' · مجهول الهوية' : ''}</i></span></label>`)}</div>`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إنشاء وتعديل', kind: 'primary', icon: 'plus', submit: true, handler: async (form) => Surveys.create(UI.formValues(form).tpl || 'blank') }]
+});
+Pages.surveysManage = async (ctx) => {
+  const st = { f: ctx.query.f || 'all' };
+  const draw = async () => {
+    if (!ctx.alive()) return;
+    const list = (await Surveys.all()).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)), cnt = new Map();
+    (await DB.getAll('surveyMarks')).forEach((m) => cnt.set(m.surveyId, (cnt.get(m.surveyId) || 0) + 1));
+    const rows = list.map((s) => { const aud = Surveys.audienceUsers(s).length, n = cnt.get(s.id) || 0; return { s, st: Surveys.state(s), n, aud, rate: aud ? Math.min(100, (n / aud) * 100) : 0 }; });
+    const live = rows.filter((x) => x.st === 'live'), shown = rows.filter((x) => st.f === 'all' || (st.f === 'live' ? x.st === 'live' : st.f === 'draft' ? x.st === 'draft' : st.f === 'scheduled' ? x.st === 'scheduled' : ['ended', 'closed', 'hidden'].includes(x.st)));
+    const tabs = [['all', 'الكل', 'grid'], ['live', 'منشورة', 'pulse'], ['scheduled', 'مجدولة', 'calendar'], ['draft', 'مسودات', 'edit'], ['done', 'منتهية ومخفية', 'archive']];
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إدارة الاستبيانات', sub: 'أنشئ الاستبيانات والاختبارات، وحدّد جمهورها وطريقة ظهورها ومدتها، وتابع نتائجها لحظياً', illu: 'report', actions: html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استبيان جديد</button>` })}
+      <div class="kpis">${UI.kpi({ label: 'منشورة الآن', icon: 'pulse', tone: 'teal', value: live.length })}${UI.kpi({ label: 'مسودات', icon: 'edit', tone: 'slate', value: rows.filter((x) => x.st === 'draft').length })}${UI.kpi({ label: 'إجمالي المشاركات', icon: 'users', tone: 'sky', value: rows.reduce((a, x) => a + x.n, 0) })}${UI.kpi({ label: 'متوسط نسبة المشاركة', icon: 'chart', tone: 'violet', value: live.length ? live.reduce((a, x) => a + x.rate, 0) / live.length : 0, suffix: '%' })}</div>
+      <div class="tabs mt">${tabs.map(([k, l, ic]) => html`<button class="tab ${st.f === k ? 'active' : ''}" data-f="${k}">${UI.icon(ic)}${l}</button>`)}</div>
+      ${shown.length ? html`<div class="svm-grid stagger">${shown.map(({ s, st: state, n, aud, rate }) => html`<article class="svm-card tone-${s.tone || 'brass'}" data-id="${s.id}">
+        <div class="svm-top"><span class="sv-card-ic">${UI.icon(s.icon || 'poll')}</span><div class="grow"><h3>${s.title}</h3><p class="ellipsis-2">${s.desc || 'بلا وصف'}</p></div>${Surveys.stateChip(s)}</div>
+        <div class="svm-chips"><span>${UI.icon('poll')} ${qCount(s.questions.filter(Surveys.answerable).length)}</span><span>${UI.icon(SV_DISPLAY[s.display || 'section'].icon)} ${SV_DISPLAY[s.display || 'section'].label}</span>${Surveys.required(s) ? html`<span class="req">${UI.icon('alert')} إلزامي</span>` : ''}<span>${UI.icon('users')} ${Surveys.audText(s)}</span>${s.anonymous ? html`<span>${UI.icon('shield')} مجهول الهوية</span>` : ''}${s.quiz ? html`<span>${UI.icon('target')} اختبار</span>` : ''}${s.startAt ? html`<span>${UI.icon('calendar')} يبدأ ${fmtDate(s.startAt)}</span>` : ''}${s.endAt ? html`<span>${UI.icon('clock')} ${s.endAt > now() ? leftText(s.endAt) : `انتهى ${fmtDate(s.endAt)}`}</span>` : ''}</div>
+        <div class="svm-stats"><div class="svm-ring" style="--p:${Math.round(rate)}"><b>${fmtNum(Math.round(rate))}%</b></div><div class="grow"><b>${fmtNum(n)} مشاركة</b><small>من ${fmtNum(aud)} مستهدف${s.maxResponses ? ` · الحد ${fmtNum(s.maxResponses)}` : ''}</small><div class="progress"><i style="width:${rate.toFixed(1)}%"></i></div></div></div>
+        <div class="svm-acts"><a class="btn btn-soft btn-sm" href="#/surveys/${s.id}/edit">${UI.icon('edit')} تعديل</a><a class="btn btn-sm" href="#/surveys/${s.id}/results">${UI.icon('chart')} النتائج</a>${state === 'draft' ? html`<button class="btn btn-ok btn-sm" data-svpub>${UI.icon('send')} نشر</button>` : ['closed', 'ended'].includes(state) ? html`<button class="btn btn-sm" data-svopen>${UI.icon('refresh')} إعادة فتح</button>` : html`<button class="btn btn-ghost btn-sm" data-svclose>${UI.icon('lock')} إغلاق</button>`}<span class="grow"></span>${state !== 'draft' ? html`<button class="icon-btn" data-svhide title="${s.hidden ? 'إظهار' : 'إخفاء مؤقت'}" aria-label="إخفاء أو إظهار">${UI.icon(s.hidden ? 'eye' : 'eye-off')}</button>` : ''}<button class="icon-btn" data-svdup title="نسخ الاستبيان" aria-label="نسخ">${UI.icon('copy')}</button><button class="icon-btn" data-svlink title="نسخ رابط المشاركة" aria-label="الرابط">${UI.icon('external')}</button><button class="icon-btn danger" data-svdel title="حذف" aria-label="حذف">${UI.icon('trash')}</button></div></article>`)}</div>` : UI.empty({ illu: 'report', title: st.f === 'all' ? 'لا توجد استبيانات بعد' : 'لا توجد استبيانات هنا', text: 'أنشئ استبياناً من قالب جاهز خلال دقيقة.', action: html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} استبيان جديد</button>` })}`);
+    UI.hydrate(ctx.view);
+  };
+  const sid = (el) => el.closest('[data-id]').dataset.id;
+  UI.on(ctx.view, 'click', '[data-f]', (e, el) => { st.f = el.dataset.f; draw(); });
+  UI.on(ctx.view, 'click', '[data-act="new"]', async () => { const s = await Pages.svNewModal(); if (s) Router.go(`/surveys/${s.id}/edit`); });
+  UI.on(ctx.view, 'click', '[data-svpub]', async (e, el) => { const s = await Surveys.get(sid(el)); if (s && (await Pages.svPublishModal(s))) draw(); });
+  UI.on(ctx.view, 'click', '[data-svclose]', async (e, el) => { if (!(await UI.confirm('إغلاق الاستبيان يوقف استقبال المشاركات، وتبقى النتائج محفوظة. هل تريد المتابعة؟', { ok: 'إغلاق', danger: true }))) return; await Surveys.patch(sid(el), { status: 'closed' }, 'إغلاق استبيان'); UI.toast('أُغلق الاستبيان'); });
+  UI.on(ctx.view, 'click', '[data-svopen]', async (e, el) => { const s = await Surveys.get(sid(el)); if (!s) return; const patch = { status: 'live' }; if (s.endAt && s.endAt < now()) patch.endAt = 0; await Surveys.patch(s.id, patch, 'إعادة فتح استبيان'); UI.toast(patch.endAt === 0 ? 'أُعيد فتح الاستبيان وأُزيل موعد الانتهاء' : 'أُعيد فتح الاستبيان'); });
+  UI.on(ctx.view, 'click', '[data-svhide]', async (e, el) => { const s = await Surveys.get(sid(el)); if (!s) return; await Surveys.patch(s.id, { hidden: s.hidden ? 0 : 1 }, s.hidden ? 'إظهار استبيان' : 'إخفاء استبيان'); UI.toast(s.hidden ? 'أصبح الاستبيان ظاهراً' : 'أُخفي الاستبيان مؤقتاً عن الجميع'); });
+  UI.on(ctx.view, 'click', '[data-svdup]', async (e, el) => { const c = await Surveys.duplicate(sid(el)); if (c) { UI.toast('أُنشئت نسخة كمسودة'); Router.go(`/surveys/${c.id}/edit`); } });
+  UI.on(ctx.view, 'click', '[data-svlink]', (e, el) => { copyText(`${location.href.split('#')[0]}#/survey/${sid(el)}`); UI.toast('نُسخ رابط المشاركة'); });
+  UI.on(ctx.view, 'click', '[data-svdel]', async (e, el) => { const s = await Surveys.get(sid(el)); if (!s) return; const n = (await Surveys.marks(s.id)).length; if (!(await UI.confirm(`حذف «${s.title}»${n ? ` مع ${fmtNum(n)} مشاركة` : ''}؟ لا يمكن التراجع.`, { danger: true, ok: 'حذف نهائياً' }))) return; await Surveys.remove(s.id); UI.toast('حُذف الاستبيان'); });
+  ctx.onCleanup(Bus.on('surveys', debounce(draw, 300)));
+  await draw();
+};
+Pages.svPublishModal = (s) => {
+  const p = Surveys.problems(s), aud = Surveys.audienceUsers(s).length, D = SV_DISPLAY[s.display || 'section'];
+  if (p.length) return UI.modal({ title: 'لا يمكن النشر بعد', icon: 'alert', body: html`<ul class="sv-problems">${p.map((x) => html`<li>${UI.icon('alert')} ${x}</li>`)}</ul>`, actions: [{ label: 'حسناً', kind: 'primary', value: null }] });
+  return UI.modal({
+    title: 'نشر الاستبيان', icon: 'send',
+    body: html`<div class="sv-pubsum"><div>${UI.icon('users')}<span>المستهدفون</span><b>${fmtNum(aud)} مستخدم</b><small>${Surveys.audText(s)}</small></div><div>${UI.icon(D.icon)}<span>طريقة الظهور</span><b>${D.label}</b><small>${Surveys.required(s) ? 'المشاركة إلزامية' : 'المشاركة اختيارية'}</small></div><div>${UI.icon('calendar')}<span>المدة</span><b>${s.startAt ? `من ${fmtDateTime(s.startAt)}` : 'يبدأ فوراً'}</b><small>${s.endAt ? `حتى ${fmtDateTime(s.endAt)}` : 'بلا موعد انتهاء'}</small></div></div>
+      ${s.display === 'block' ? html`<div class="banner tone-red mt">${UI.icon('lock')}<div class="grow"><b>سيُحجب النظام عن المستهدفين حتى يُكملوا الاستبيان</b><div class="small">يُستثنى من الحجب من يملك صلاحية إدارة الاستبيانات.</div></div></div>` : ''}
+      <div class="mt">${UI.field({ name: 'notify', type: 'switch', text: `إرسال إشعار للمستهدفين (${fmtNum(aud)})` }, s.notify !== 0)}</div>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نشر الآن', kind: 'ok', icon: 'send', submit: true, handler: async (form) => { const v = UI.formValues(form); const r = await Surveys.publish({ ...s, notify: v.notify }, !!v.notify); UI.toast(s.startAt && s.startAt > now() ? 'جُدول الاستبيان وسيظهر في موعده' : 'نُشر الاستبيان'); UI.confetti(); return r; } }]
+  });
+};
+
+/* محرر الاستبيان: يمين للتعديل ويسار للمعاينة المباشرة كما يراه المشارك */
+Pages.surveyEditor = async (ctx) => {
+  const id = ctx.params.id, orig = await Surveys.get(id);
+  if (!orig) { ctx.view.innerHTML = String(UI.empty({ illu: 'report', title: 'الاستبيان غير موجود', text: 'ربما حُذف.', action: html`<a class="btn btn-primary" href="#/surveys/manage">إدارة الاستبيانات</a>` })); return; }
+  const s = JSON.parse(JSON.stringify(orig)); s.audience = s.audience || { roles: [], departments: [], users: [] };
+  ['roles', 'departments', 'users'].forEach((k) => { s.audience[k] = s.audience[k] || []; });
+  const responses = (await Surveys.marks(id)).length, open = new Set(s.questions.length <= 2 ? s.questions.map((q) => q.id) : []);
+  let dirty = false, pvAns = {}, userQ = '';
+  const mark = () => { dirty = true; const b = $('#svDirty', ctx.view); if (b) b.hidden = false; pvLater(); };
+  const qIndex = (el) => Number(el.closest('[data-qi]').dataset.qi), Q = (el) => s.questions[qIndex(el)];
+  const parentsOf = (i) => s.questions.slice(0, i).filter((p) => SV_CHOICE.includes(p.t));
+  const optsOf = (q) => (SV_TYPES[q.t].fixed || (q.o || []).filter(Boolean));
+  const qSummary = (q) => { const T = SV_TYPES[q.t], bits = [T.label]; if (T.opts) bits.push((q.o || []).filter(Boolean).slice(0, 4).join('، ') + ((q.o || []).length > 4 ? '…' : '')); if (q.t === 'matrix') bits.push(`${fmtNum((q.rows || []).filter(Boolean).length)} بنود`); if (q.showIf && q.showIf.q) { const p = s.questions.find((x) => x.id === q.showIf.q); bits.push(`يظهر عند «${(q.showIf.v || []).join(' أو ') || 'أي إجابة'}» في «${p ? p.l : '؟'}»`); } if (s.quiz && Surveys.isQuiz(q)) bits.push(`الصحيح: ${[].concat(q.ans).join('، ')}`); return bits.filter(Boolean).join(' · '); };
+  const qCard = (q, i) => {
+    const T = SV_TYPES[q.t], isOpen = open.has(q.id), parents = parentsOf(i), cond = q.showIf && q.showIf.q ? q.showIf.q : '', quizable = s.quiz && SV_CHOICE.includes(q.t);
+    return html`<div class="fb-card sv-qcard${isOpen ? ' open' : ''}${q.req ? ' req' : ''}${T.info ? ' info' : ''}" data-qi="${i}">
+      <div class="fb-head"><span class="fb-num">${T.info ? UI.icon('info') : fmtNum(s.questions.slice(0, i + 1).filter(Surveys.answerable).length)}</span><span class="fb-type" title="${T.label}">${UI.icon(T.icon)}</span>
+        <input class="fb-label" data-qp="l" value="${q.l || ''}" placeholder="${T.info ? 'عنوان القسم' : 'اكتب السؤال'}" aria-label="نص السؤال">
+        ${T.info ? '' : html`<label class="fb-req" title="إجابة إلزامية"><input type="checkbox" data-qp="req"${q.req ? raw(' checked') : ''}><span>إلزامي</span></label>`}
+        <div class="fb-tools"><button type="button" class="icon-btn" data-qmove="-1" title="تقديم"${i ? '' : raw(' disabled')}>▲</button><button type="button" class="icon-btn" data-qmove="1" title="تأخير"${i < s.questions.length - 1 ? '' : raw(' disabled')}>▼</button><button type="button" class="icon-btn" data-qdup title="تكرار">${UI.icon('copy')}</button><button type="button" class="icon-btn danger" data-qdel title="حذف">${UI.icon('trash')}</button><button type="button" class="icon-btn" data-qopen title="الإعدادات">${UI.icon(isOpen ? 'x' : 'sliders')}</button></div></div>
+      ${!isOpen ? html`<div class="fb-sum">${qSummary(q)}</div>` : html`<div class="fb-body"><div class="form-grid">
+        <div class="field"><label>نوع السؤال</label><select data-qp="t">${Object.entries(SV_TYPES).map(([k, x]) => html`<option value="${k}"${q.t === k ? raw(' selected') : ''}>${x.label}</option>`)}</select></div>
+        <div class="field"><label>${T.info ? 'نص توضيحي' : 'توضيح تحت السؤال'}</label><input data-qp="d" value="${q.d || ''}" placeholder="اختياري"></div>
+        ${q.t === 'scale' ? html`<div class="field"><label>من</label><select data-qp="min">${[0, 1].map((k) => html`<option value="${k}"${Number(q.min) === k ? raw(' selected') : ''}>${k}</option>`)}</select></div><div class="field"><label>إلى</label><select data-qp="max">${[5, 7, 10].map((k) => html`<option value="${k}"${Number(q.max) === k ? raw(' selected') : ''}>${k}</option>`)}</select></div>` : ''}
+        ${q.t === 'scale' || q.t === 'nps' ? html`<div class="field"><label>وصف الطرف الأدنى</label><input data-qp="lo" value="${q.lo || ''}" placeholder="${q.t === 'nps' ? 'غير محتمل إطلاقاً' : 'الأدنى'}"></div><div class="field"><label>وصف الطرف الأعلى</label><input data-qp="hi" value="${q.hi || ''}" placeholder="${q.t === 'nps' ? 'محتمل جداً' : 'الأعلى'}"></div>` : ''}
+        ${q.t === 'multi' ? html`<div class="field"><label>أقل عدد اختيارات</label><input type="number" min="0" data-qp="min" value="${q.min || ''}" placeholder="بلا حد"></div><div class="field"><label>أكثر عدد اختيارات</label><input type="number" min="0" data-qp="max" value="${q.max || ''}" placeholder="بلا حد"></div>` : ''}
+        ${q.t === 'number' ? html`<div class="field"><label>أقل قيمة</label><input type="number" data-qp="min" value="${q.min != null ? q.min : ''}"></div><div class="field"><label>أعلى قيمة</label><input type="number" data-qp="max" value="${q.max != null ? q.max : ''}"></div>` : ''}
+        ${['text', 'textarea'].includes(q.t) ? html`<div class="field"><label>نص إرشادي داخل الخانة</label><input data-qp="ph" value="${q.ph || ''}" placeholder="اكتب إجابتك هنا"></div><div class="field"><label>الحد الأقصى للأحرف</label><input type="number" min="0" data-qp="max" value="${q.max || ''}" placeholder="${q.t === 'text' ? '300' : '2000'}"></div>` : ''}
+      </div>
+      ${T.opts ? html`<div class="field mt"><label>الخيارات${quizable ? html` <small class="faint">— حدّد الإجابة الصحيحة</small>` : ''}</label><div class="sv-oprows">${(q.o || []).map((o, k) => html`<div class="sv-oprow"><span class="sv-opdot">${fmtNum(k + 1)}</span><input data-op="${k}" value="${o}" placeholder="الخيار ${fmtNum(k + 1)}" aria-label="الخيار ${fmtNum(k + 1)}">${quizable ? html`<label class="sv-ans" title="إجابة صحيحة"><input type="${q.t === 'multi' ? 'checkbox' : 'radio'}" name="ans_${q.id}" data-opans="${k}"${(q.t === 'multi' ? [].concat(q.ans || []).includes(o) : q.ans === o) && o ? raw(' checked') : ''}><span>${UI.icon('check')} صحيحة</span></label>` : ''}<button type="button" class="icon-btn danger" data-opdel="${k}" title="حذف الخيار">${UI.icon('x')}</button></div>`)}</div>
+        <div class="fb-add"><button type="button" class="btn btn-soft btn-sm" data-opadd>${UI.icon('plus')} خيار</button><button type="button" class="btn btn-ghost btn-sm" data-oppaste>${UI.icon('list')} لصق عدة خيارات</button><label class="chk"><input type="checkbox" data-qp="other"${q.other ? raw(' checked') : ''}> إضافة «أخرى» مع خانة كتابة</label>${q.t !== 'dropdown' ? html`<label class="chk"><input type="checkbox" data-qp="shuffle"${q.shuffle ? raw(' checked') : ''}> ترتيب عشوائي للخيارات</label>` : ''}</div></div>` : ''}
+      ${quizable && SV_TYPES[q.t].fixed ? html`<div class="field mt"><label>الإجابة الصحيحة</label><div class="seg">${SV_TYPES[q.t].fixed.map((o) => html`<label><input type="radio" name="ans_${q.id}" data-fixans="${o}"${q.ans === o ? raw(' checked') : ''}><span>${o}</span></label>`)}</div></div>` : ''}
+      ${quizable ? html`<div class="sv-quizrow mt"><div class="field"><label>الدرجة</label><input type="number" min="1" data-qp="pts" value="${q.pts || 1}"></div><div class="field"><label>شرح الإجابة الصحيحة <small class="faint">— يراه المشارك عند مراجعة إجاباته</small></label><input data-qp="why" value="${q.why || ''}" placeholder="اختياري: لماذا هذه هي الإجابة الصحيحة؟"></div></div>` : ''}
+      ${q.t === 'matrix' ? html`<div class="field mt"><label>بنود المصفوفة <small class="faint">— بند في كل سطر، ويقيّمه المشارك من 1 إلى 5</small></label><textarea data-qp="rows" rows="${Math.min(8, Math.max(3, (q.rows || []).length + 1))}">${(q.rows || []).join('\n')}</textarea></div>` : ''}
+      ${T.info ? '' : html`<div class="field mt"><label>متى يظهر هذا السؤال؟</label><div class="fb-cond"><select data-cond><option value="">دائماً</option>${parents.map((p) => html`<option value="${p.id}"${cond === p.id ? raw(' selected') : ''}>عند الإجابة على «${p.l || 'سؤال بلا عنوان'}» بـ...</option>`)}</select>${cond ? html`<div class="chip-pick">${optsOf(s.questions.find((x) => x.id === cond) || { t: 'single', o: [] }).map((o) => html`<label><input type="checkbox" data-condval="${o}"${(q.showIf.v || []).includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div>` : ''}</div>${!parents.length ? html`<small class="hint">لإظهار السؤال بشرط، أضف قبله سؤال اختيار أو نعم/لا.</small>` : ''}</div>`}
+      </div>`}</div>`;
+  };
+  const qsHTML = () => html`${s.questions.length ? s.questions.map(qCard) : html`<div class="empty-mini">${UI.icon('info')} لا توجد أسئلة بعد. اختر نوع السؤال من الأسفل أو أضف سؤالاً جاهزاً.</div>`}
+    <div class="sv-addh">إضافة سؤال</div><div class="sv-typebar">${Object.entries(SV_TYPES).map(([k, x]) => html`<button type="button" data-qadd="${k}">${UI.icon(x.icon)}<span>${x.label}</span></button>`)}</div>
+    <div class="fb-add"><b>أسئلة جاهزة:</b>${SV_BANK.map((b, i) => html`<button type="button" class="qchip" data-qbank="${i}">+ ${b.l}</button>`)}</div>`;
+  const users = () => s.audience.users.map((uid2) => Data.c.users.get(uid2)).filter(Boolean);
+  const audHTML = () => {
+    const deps = Data.list('departments'), n = Surveys.audienceUsers(s).length, q = normalizeAr(userQ);
+    const found = q ? Data.list('users').filter((x) => x.active && !s.audience.users.includes(x.id) && normalizeAr(`${x.name} ${x.username || ''} ${x.militaryNo || ''}`).includes(q)).slice(0, 8) : [];
+    return html`<div class="sv-aud"><div class="sv-aud-count">${UI.icon('users')}<span>المستهدفون الآن: <b>${fmtNum(n)}</b> مستخدم — ${Surveys.audText(s)}</span></div>
+      <div class="field"><label>أنواع الحسابات <small class="faint">— بلا تحديد = الجميع</small></label><div class="chip-pick">${SV_ROLES.map(([r, l]) => html`<label><input type="checkbox" data-audrole="${r}"${s.audience.roles.includes(r) ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+      ${deps.length ? html`<div class="field"><label>الإدارات <small class="faint">— بلا تحديد = كل الإدارات</small></label><div class="chip-pick sv-deps">${deps.map((d) => html`<label><input type="checkbox" data-auddep="${d.id}"${s.audience.departments.includes(d.id) ? raw(' checked') : ''}><span>${d.name}</span></label>`)}</div></div>` : ''}
+      <div class="field"><label>أشخاص محددون <small class="faint">— يُضافون إلى الجمهور، أو وحدهم إن لم تُحدد أنواع ولا إدارات</small></label><div class="search-box">${UI.icon('search')}<input id="svUserQ" value="${userQ}" placeholder="ابحث بالاسم أو الرقم العسكري" autocomplete="off"></div>${found.length ? html`<div class="sv-userres">${found.map((x) => html`<button type="button" data-audadd="${x.id}">${UI.avatar(x, 'av-sm')}<span class="grow">${x.name}</span><small class="faint">${Data.nameOf('departments', x.departmentId, '')}</small>${UI.icon('plus')}</button>`)}</div>` : ''}${users().length ? html`<div class="sv-users">${users().map((x) => html`<span>${x.name}<button type="button" class="icon-btn" data-auddel="${x.id}" aria-label="إزالة">${UI.icon('x')}</button></span>`)}</div>` : ''}</div></div>`;
+  };
+  const sw = (name, text, v, hint = '', dis = false) => html`<div class="sv-sw">${raw(String(UI.field({ name, type: 'switch', text }, v)).replace('<input', dis ? '<input disabled' : '<input'))}${hint ? html`<small class="hint">${hint}</small>` : ''}</div>`;
+  const preview = () => {
+    const box = $('#svPreview', ctx.view); if (!box) return;
+    const f = $('[data-svform]', box); if (f) pvAns = Surveys.read(f, s);
+    box.innerHTML = String(html`${Surveys.heroHTML(s, { compact: true })}<form class="sv-form" data-svform novalidate>${Surveys.formHTML(s, pvAns)}</form><div class="sv-foot"><span class="grow"></span><button type="button" class="btn btn-primary btn-sm" disabled>${UI.icon('send')} ${s.quiz ? 'إنهاء الاختبار' : 'إرسال الإجابات'}</button></div>`);
+    box.className = `sv-preview tone-${s.tone || 'brass'}`;
+    Surveys.bind($('[data-svform]', box), s, { onChange: (a) => { pvAns = a; } });
+  };
+  const pvLater = debounce(preview, 300);
+  let audLater = () => {};
+  const redrawQs = () => { $('#svQs', ctx.view).innerHTML = String(qsHTML()); pvLater(); };
+  const redrawAud = () => { const b = $('#svAud', ctx.view); b.innerHTML = String(audHTML()); const i = $('#svUserQ', b); if (i && userQ) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } };
+  audLater = debounce(() => redrawAud(), 200);
+  const state = Surveys.state(s);
+  ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title || 'استبيان جديد', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${responses ? UI.chip('sky', `${fmtNum(responses)} مشاركة`, 'users') : ''}</span>`, actions: html`<span class="chip tone-amber" id="svDirty" hidden>${UI.icon('edit')} تغييرات غير محفوظة</span><a class="btn" href="#/surveys/${id}/results">${UI.icon('chart')} النتائج</a><button class="btn${state === 'draft' ? '' : ' btn-primary'}" data-act="save">${UI.icon('check')} حفظ</button>${state === 'draft' ? html`<button class="btn btn-ok" data-act="publish">${UI.icon('send')} حفظ ونشر</button>` : ''}` })}
+    ${responses && state !== 'draft' ? html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow"><b>هذا الاستبيان فيه ${fmtNum(responses)} مشاركة</b><div class="small">تعديل الأسئلة أو خياراتها بعد بدء المشاركة قد يجعل مقارنة النتائج غير دقيقة. الأفضل إضافة أسئلة جديدة بدل تغيير القائمة.</div></div></div>` : ''}
+    <div class="grid g-main ce-grid sv-editor"><div class="ce-main">
+      ${UI.panel({ title: 'الأساسيات', icon: 'edit', body: html`<div class="form-grid">
+        <div class="field wide"><label>عنوان الاستبيان<em>*</em></label><input data-s="title" value="${s.title}" placeholder="مثال: استبيان رضا الموظفين"></div>
+        <div class="field wide"><label>وصف يظهر للمشارك</label><textarea data-s="desc" rows="2" placeholder="لماذا نطلب رأيه؟ وكيف ستُستخدم الإجابات؟">${s.desc || ''}</textarea></div>
+        <div class="field"><label>اللون</label><div class="sv-swatches">${SV_TONES.map((t) => html`<label class="tone-${t}" title="${t}"><input type="radio" name="svTone" value="${t}"${s.tone === t ? raw(' checked') : ''}><span></span></label>`)}</div></div>
+        <div class="field"><label>الأيقونة</label><div class="sv-icons">${SV_ICONS.map((k) => html`<label><input type="radio" name="svIcon" value="${k}"${s.icon === k ? raw(' checked') : ''}><span>${UI.icon(k)}</span></label>`)}</div></div>
+        <div class="field wide"><label>رسالة الشكر بعد الإرسال</label><input data-s="thanks" value="${s.thanks || ''}" placeholder="شكراً لمشاركتك"></div></div>` })}
+      ${UI.panel({ title: 'الأسئلة', icon: 'list', sub: 'رتّبها، واجعل ما تشاء إلزامياً، وأضف شروط الظهور والإجابات الصحيحة', body: html`<div id="svQs">${qsHTML()}</div>` })}
+      ${UI.panel({ title: 'طريقة الظهور والإلزام', icon: 'layers', body: html`<div class="sv-modes">${Object.entries(SV_DISPLAY).map(([k, x]) => html`<label class="sv-mode ${k}"><input type="radio" name="svDisplay" value="${k}"${(s.display || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(x.icon)}<span><b>${x.label}</b><small>${x.desc}</small></span></span></label>`)}</div>
+        <div class="field mt"><label>المشاركة</label><div class="seg" id="svModeSeg"><label><input type="radio" name="svMode" value="optional"${s.mode !== 'required' && s.display !== 'block' ? raw(' checked') : ''}${s.display === 'block' ? raw(' disabled') : ''}><span>${UI.icon('smile')} اختيارية</span></label><label><input type="radio" name="svMode" value="required"${s.mode === 'required' || s.display === 'block' ? raw(' checked') : ''}><span>${UI.icon('alert')} إلزامية</span></label></div><small class="hint">الإلزامي لا يمكن تخطيه، ويبقى ظاهراً في الرئيسية حتى يُجاب. «حجب المنصة» إلزامي دائماً.</small></div>` })}
+      ${UI.panel({ title: 'الجمهور المستهدف', icon: 'users', body: html`<div id="svAud">${audHTML()}</div>` })}
+      ${UI.panel({ title: 'المدة والخيارات', icon: 'calendar', body: html`<div class="form-grid">
+        <div class="field"><label>يبدأ في <small class="faint">— فارغ = فور النشر</small></label><input type="datetime-local" data-sdt="startAt" value="${dtInput(s.startAt)}" dir="ltr" lang="en-GB"></div>
+        <div class="field"><label>ينتهي في <small class="faint">— فارغ = بلا انتهاء</small></label><input type="datetime-local" data-sdt="endAt" value="${dtInput(s.endAt)}" dir="ltr" lang="en-GB"></div>
+        <div class="field"><label>إغلاق تلقائي بعد عدد من المشاركات</label><input type="number" min="0" data-s="maxResponses" value="${s.maxResponses || ''}" placeholder="بلا حد"></div></div>
+        <div class="sv-sws mt">${sw('svAnon', 'مجهول الهوية', s.anonymous, 'لا يُحفظ اسم المشارك مع إجاباته، ويُسجَّل فقط أنه شارك.')}${sw('svEdit', 'السماح بتعديل الإجابة بعد الإرسال', s.allowEdit, 'متاح ما دام الاستبيان مفتوحاً، وغير متاح مع مجهول الهوية.', !!s.anonymous)}${sw('svResults', 'إظهار النتائج للمشارك بعد إجابته', s.showResults, 'نِسب الخيارات فقط، دون الإجابات النصية.')}${sw('svPaged', 'سؤال واحد في كل صفحة', s.onePerPage, 'مناسب للاستبيانات الطويلة والاختبارات.')}${sw('svQuiz', 'وضع الاختبار (إجابات صحيحة ودرجة)', s.quiz, 'حدّد الإجابة الصحيحة في أسئلة الاختيار، وتظهر الدرجة للمشارك فور الانتهاء.')}${sw('svReveal', 'مراجعة الإجابات بعد الاختبار', s.reveal !== 0, 'يرى المشارك إجاباته الصحيحة والخاطئة مع شرح كل سؤال. أوقفه إن أردت إعادة الاختبار لاحقاً.')}${sw('svNotify', 'إشعار المستهدفين عند النشر', s.notify !== 0)}</div>` })}
+      <div class="ce-danger"><a class="btn btn-ghost" href="#/surveys/manage">${UI.icon('chevron-right')} رجوع</a>${state !== 'draft' ? html`<button class="btn btn-ghost" data-act="link">${UI.icon('external')} نسخ رابط المشاركة</button>` : ''}</div>
+    </div><aside class="ce-side">${UI.panel({ title: 'المعاينة المباشرة', icon: 'eye', sub: 'كما يراها المشارك — جرّب الإجابة لاختبار الشروط', body: html`<div id="svPreview" class="sv-preview"></div>` })}</aside></div>`);
+  UI.hydrate(ctx.view); preview();
+  const view = ctx.view;
+  view.addEventListener('input', (e) => {
+    const t = e.target; if (t.closest('#svPreview')) return;
+    if (t.id === 'svUserQ') { userQ = t.value; audLater(); return; }
+    if (t.dataset.s) { s[t.dataset.s] = t.dataset.s === 'maxResponses' ? Number(t.value) || 0 : t.value; mark(); return; }
+    if (t.dataset.op != null) { Q(t).o[Number(t.dataset.op)] = t.value; mark(); return; }
+    if (t.dataset.qp && t.type !== 'checkbox' && t.tagName !== 'SELECT') { const q = Q(t), k = t.dataset.qp; q[k] = k === 'rows' ? t.value.split(/\r?\n/) : ['min', 'max', 'pts'].includes(k) ? (t.value === '' ? '' : Number(t.value)) : t.value; mark(); }
+  });
+  view.addEventListener('change', (e) => {
+    const t = e.target; if (t.closest('#svPreview')) return;
+    if (t.name === 'svTone') { s.tone = t.value; mark(); return; }
+    if (t.name === 'svIcon') { s.icon = t.value; mark(); return; }
+    if (t.name === 'svDisplay') { s.display = t.value; const seg = $('#svModeSeg', view); $$('input', seg).forEach((x) => { if (x.value === 'optional') x.disabled = t.value === 'block'; if (t.value === 'block' && x.value === 'required') x.checked = true; }); if (t.value === 'block') s.mode = 'required'; mark(); return; }
+    if (t.name === 'svMode') { s.mode = t.value; mark(); return; }
+    const flags = { svAnon: 'anonymous', svEdit: 'allowEdit', svResults: 'showResults', svPaged: 'onePerPage', svQuiz: 'quiz', svReveal: 'reveal', svNotify: 'notify' };
+    if (flags[t.name]) { s[flags[t.name]] = t.checked ? 1 : 0; if (t.name === 'svAnon') { const ed = view.querySelector('[name="svEdit"]'); ed.disabled = t.checked; if (t.checked) { ed.checked = false; s.allowEdit = 0; } } if (t.name === 'svQuiz') redrawQs(); mark(); return; }
+    if (t.dataset.sdt) { s[t.dataset.sdt] = fromDt(t.value); mark(); return; }
+    if (t.dataset.audrole) { const set = new Set(s.audience.roles); if (t.checked) set.add(t.dataset.audrole); else set.delete(t.dataset.audrole); s.audience.roles = [...set]; mark(); redrawAud(); return; }
+    if (t.dataset.auddep) { const set = new Set(s.audience.departments); if (t.checked) set.add(t.dataset.auddep); else set.delete(t.dataset.auddep); s.audience.departments = [...set]; mark(); redrawAud(); return; }
+    if (!t.closest('[data-qi]')) return;
+    const q = Q(t);
+    if (t.dataset.qp === 'req' || t.dataset.qp === 'other' || t.dataset.qp === 'shuffle') { q[t.dataset.qp] = t.checked ? 1 : 0; if (t.dataset.qp === 'req') t.closest('.fb-card').classList.toggle('req', t.checked); mark(); return; }
+    if (t.dataset.qp === 't') { const nq = svq(t.value, { ...q, t: t.value }); if (!SV_TYPES[t.value].opts) delete nq.o; if (t.value !== 'matrix') delete nq.rows; if (!SV_CHOICE.includes(t.value)) delete nq.ans; if (t.value !== 'scale') { delete nq.min; delete nq.max; } s.questions[qIndex(t)] = nq; s.questions.forEach((x) => { if (x.showIf && x.showIf.q === q.id && !SV_CHOICE.includes(t.value)) delete x.showIf; }); mark(); redrawQs(); return; }
+    if (t.dataset.qp === 'min' || t.dataset.qp === 'max') { q[t.dataset.qp] = t.value === '' ? '' : Number(t.value); mark(); return; }
+    if (t.dataset.op != null) { s.questions.forEach((x) => { if (x.showIf && x.showIf.q === q.id) x.showIf.v = (x.showIf.v || []).filter((v) => (q.o || []).includes(v)); }); redrawQs(); return; }
+    if (t.dataset.opans != null) { const o = (q.o || [])[Number(t.dataset.opans)]; if (q.t === 'multi') { const set = new Set([].concat(q.ans || [])); if (t.checked) set.add(o); else set.delete(o); q.ans = [...set]; } else q.ans = o; mark(); return; }
+    if (t.dataset.fixans != null) { q.ans = t.dataset.fixans; mark(); return; }
+    if (t.matches('[data-cond]')) { if (t.value) q.showIf = { q: t.value, v: [] }; else delete q.showIf; mark(); redrawQs(); return; }
+    if (t.matches('[data-condval]')) { const set = new Set((q.showIf && q.showIf.v) || []); if (t.checked) set.add(t.dataset.condval); else set.delete(t.dataset.condval); q.showIf.v = [...set]; mark(); }
+  });
+  UI.on(view, 'click', '[data-qopen]', (e, el) => { const q = Q(el); if (open.has(q.id)) open.delete(q.id); else open.add(q.id); redrawQs(); });
+  UI.on(view, 'click', '[data-qmove]', (e, el) => { const i = qIndex(el), j = i + Number(el.dataset.qmove); if (j < 0 || j >= s.questions.length) return; const a = s.questions[i]; s.questions[i] = s.questions[j]; s.questions[j] = a; s.questions.forEach((x, k) => { if (x.showIf && s.questions.findIndex((y) => y.id === x.showIf.q) >= k) delete x.showIf; }); mark(); redrawQs(); });
+  UI.on(view, 'click', '[data-qdup]', (e, el) => { const i = qIndex(el), c = JSON.parse(JSON.stringify(s.questions[i])); c.id = uid('q'); c.l = c.l ? `${c.l} (2)` : ''; s.questions.splice(i + 1, 0, c); open.add(c.id); mark(); redrawQs(); });
+  UI.on(view, 'click', '[data-qdel]', async (e, el) => { const i = qIndex(el), q = s.questions[i]; if (!(await UI.confirm(`حذف «${q.l || 'سؤال بلا عنوان'}»؟`, { danger: true, ok: 'حذف' }))) return; s.questions.splice(i, 1); s.questions.forEach((x) => { if (x.showIf && x.showIf.q === q.id) delete x.showIf; }); mark(); redrawQs(); });
+  UI.on(view, 'click', '[data-qadd]', (e, el) => { const q = svq(el.dataset.qadd); if (q.t === 'section') q.l = 'قسم جديد'; s.questions.push(q); open.add(q.id); mark(); redrawQs(); const inp = $(`[data-qi="${s.questions.length - 1}"] .fb-label`, view); if (inp) { inp.focus(); inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } });
+  UI.on(view, 'click', '[data-qbank]', (e, el) => { const b = SV_BANK[Number(el.dataset.qbank)], q = svq(b.t, { ...b, id: '' }); s.questions.push(q); mark(); redrawQs(); UI.toast(`أُضيف سؤال «${q.l}»`); });
+  UI.on(view, 'click', '[data-opadd]', (e, el) => { const q = Q(el); q.o = [...(q.o || []), '']; mark(); redrawQs(); const all = $$(`[data-qi="${qIndex(el)}"] [data-op]`, view); if (all.length) all[all.length - 1].focus(); });
+  UI.on(view, 'click', '[data-opdel]', (e, el) => { const q = Q(el), o = q.o[Number(el.dataset.opdel)]; q.o.splice(Number(el.dataset.opdel), 1); if (q.ans === o) delete q.ans; if (Array.isArray(q.ans)) q.ans = q.ans.filter((x) => x !== o); s.questions.forEach((x) => { if (x.showIf && x.showIf.q === q.id) x.showIf.v = (x.showIf.v || []).filter((v) => v !== o); }); mark(); redrawQs(); });
+  UI.on(view, 'click', '[data-oppaste]', async (e, el) => { const q = Q(el); const r = await UI.modal({ title: 'لصق عدة خيارات', icon: 'list', body: UI.field({ name: 'lines', label: 'خيار في كل سطر', type: 'textarea', rows: 8 }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة', kind: 'primary', submit: true, handler: (f) => f.querySelector('textarea').value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean) }] }); if (r && r.length) { q.o = [...(q.o || []).filter(Boolean), ...r.filter((x) => !(q.o || []).includes(x))]; mark(); redrawQs(); } });
+  UI.on(view, 'click', '[data-audadd]', (e, el) => { if (!s.audience.users.includes(el.dataset.audadd)) s.audience.users.push(el.dataset.audadd); userQ = ''; mark(); redrawAud(); });
+  UI.on(view, 'click', '[data-auddel]', (e, el) => { s.audience.users = s.audience.users.filter((x) => x !== el.dataset.auddel); mark(); redrawAud(); });
+  const save = async (btn) => {
+    /* عُدّل الاستبيان من جهاز آخر بعد فتح المحرر: لا يُكتب فوقه إلا بموافقة صريحة */
+    const cur = await Surveys.get(id);
+    if (cur && cur.updatedAt !== s.updatedAt) { if (!(await UI.confirm('عُدّل هذا الاستبيان من جهاز آخر بعد فتحك له. هل تحفظ نسختك فوق تلك التعديلات؟', { title: 'تعديل متزامن', ok: 'احفظ نسختي' }))) return false; s.updatedAt = cur.updatedAt; s._rev = cur._rev; }
+    UI.busy(btn, true); try { const r = await Surveys.save(s); Object.assign(s, r); dirty = false; $('#svDirty', view).hidden = true; UI.toast('حُفظ الاستبيان'); return true; } catch (ex) { UI.error(ex); return false; } finally { UI.busy(btn, false); } };
+  UI.on(view, 'click', '[data-act="save"]', (e, btn) => save(btn));
+  UI.on(view, 'click', '[data-act="publish"]', async (e, btn) => { if (!(await save(btn))) return; if (await Pages.svPublishModal(s)) Router.go('/surveys/manage'); });
+  UI.on(view, 'click', '[data-act="link"]', () => { copyText(`${location.href.split('#')[0]}#/survey/${id}`); UI.toast('نُسخ رابط المشاركة'); });
+  ctx.onCleanup(() => { if (dirty) UI.toast('خرجت دون حفظ تعديلات الاستبيان', 'warn', 6000); });
+};
+
+/* نتائج الاستبيان: المؤشرات، وملخص كل سؤال، والإجابات الفردية، وغير المشاركين، والتصدير */
+Pages.surveyResults = async (ctx) => {
+  const id = ctx.params.id;
+  if (!(await Surveys.get(id))) { ctx.view.innerHTML = String(UI.empty({ illu: 'report', title: 'الاستبيان غير موجود', text: 'ربما حُذف.' })); return; }
+  const st = { tab: ctx.query.tab || 'summary', dep: '', role: '' };
+  let s, rows = [], aud = [], marks = [];
+  const draw = async () => {
+    if (!ctx.alive()) return;
+    s = await Surveys.get(id); if (!s) return;
+    const all = await Surveys.responses(id); marks = await Surveys.marks(id); aud = Surveys.audienceUsers(s);
+    rows = all.filter((r) => (!st.dep || r.departmentId === st.dep) && (!st.role || r.role === st.role));
+    const agg = Surveys.aggregate(s, rows), rate = aud.length ? Math.min(100, (marks.length / aud.length) * 100) : 0;
+    const secs = rows.length ? rows.reduce((x, r) => x + (r.secs || 0), 0) / rows.length : 0, last = Math.max(0, ...marks.map((m) => m.at || 0));
+    const quizAvg = s.quiz && rows.length ? (rows.reduce((x, r) => x + (r.max ? r.score / r.max : 0), 0) / rows.length) * 100 : null;
+    const done = new Set(marks.map((m) => m.userId)), missing = aud.filter((u) => !done.has(u.id));
+    const tabs = [['summary', 'الملخص', 'chart'], ...(s.anonymous ? [] : [['people', `الإجابات الفردية (${fmtNum(all.length)})`, 'users']]), ['missing', `لم يشاركوا (${fmtNum(missing.length)})`, 'clock']];
+    let k = 0;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title, illu: 'report', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${s.anonymous ? UI.chip('violet', 'مجهول الهوية', 'shield') : ''}${s.quiz ? UI.chip('sky', 'اختبار', 'target') : ''}${UI.chip('slate', Surveys.audText(s), 'users')}</span>`, actions: html`<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button><button class="btn" data-act="print">${UI.icon('print')} طباعة</button><a class="btn btn-soft" href="#/surveys/${id}/edit">${UI.icon('edit')} تعديل</a>` })}
+      <div class="kpis">${UI.kpi({ label: 'المشاركات', icon: 'users', tone: 'sky', value: marks.length, foot: `من ${fmtNum(aud.length)} مستهدف` })}${UI.kpi({ label: 'نسبة المشاركة', icon: 'chart', tone: rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red', value: rate, suffix: '%' })}${UI.kpi({ label: 'متوسط مدة الإجابة', icon: 'clock', tone: 'violet', ...(secs && secs < 60 ? { value: Math.round(secs), suffix: ' ث' } : { value: secs / 60, dec: 1, suffix: ' د' }) })}${quizAvg != null ? UI.kpi({ label: 'متوسط الدرجة', icon: 'target', tone: quizAvg >= 70 ? 'teal' : 'amber', value: quizAvg, suffix: '%' }) : html`<div class="kpi tone-brass"><div class="kpi-label"><span class="k-ic">${UI.icon('calendar')}</span>آخر مشاركة</div><b class="kpi-num" style="font-size:20px">${last ? timeAgo(last) : '—'}</b></div>`}</div>
+      <div class="row mt" style="gap:10px;flex-wrap:wrap;align-items:center"><div class="tabs" style="margin:0">${tabs.map(([t, l, ic]) => html`<button class="tab ${st.tab === t ? 'active' : ''}" data-tab="${t}">${UI.icon(ic)}${l}</button>`)}</div>${!s.anonymous ? html`<span class="grow"></span><select id="svrDep" class="input" style="width:auto;height:38px" aria-label="الإدارة"><option value="">كل الإدارات</option>${UI.opts('departments').map((o) => html`<option value="${o.value}"${st.dep === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><select id="svrRole" class="input" style="width:auto;height:38px" aria-label="نوع الحساب"><option value="">كل الحسابات</option>${SV_ROLES.map(([r, l]) => html`<option value="${r}"${st.role === r ? raw(' selected') : ''}>${l}</option>`)}</select>` : ''}</div>
+      <div class="mt">${st.tab === 'summary' ? (rows.length ? html`<div class="svr-grid">${s.questions.filter(Surveys.answerable).map((q) => Surveys.resultCard(s, q, agg.q[q.id], ++k))}</div>` : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: st.dep || st.role ? 'لا توجد مشاركات تطابق التصفية.' : 'ستظهر النتائج هنا لحظة وصول أول مشاركة.' }))
+        : st.tab === 'people' ? UI.panel({ flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>المشارك</th><th>الإدارة</th><th>الوقت</th><th>المدة</th>${s.quiz ? html`<th>الدرجة</th>` : ''}<th></th></tr></thead><tbody>${rows.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map((r) => html`<tr><td><div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(r.userId, 'av-sm')}<b>${Data.userName(r.userId)}</b></div></td><td>${Data.nameOf('departments', r.departmentId, '—')}</td><td class="nowrap faint">${fmtDateTime(r.at)}</td><td>${r.secs > 0 && r.secs < 60 ? `${fmtNum(r.secs)} ث` : fmtDuration((r.secs || 0) * 1000)}</td>${s.quiz ? html`<td>${r.max ? UI.chip(r.score / r.max >= 0.7 ? 'teal' : 'amber', `${fmtNum(r.score)} / ${fmtNum(r.max)}`) : '—'}</td>` : ''}<td><button class="btn btn-ghost btn-sm" data-resp="${r.id}">${UI.icon('eye')} الإجابات</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد مشاركات')}</div>` })
+        : UI.panel({ title: 'لم يشاركوا بعد', icon: 'clock', tools: missing.length && Surveys.state(s) === 'live' ? html`<button class="btn btn-soft btn-sm" data-act="remind">${UI.icon('bell')} تذكير الجميع (${fmtNum(missing.length)})</button>` : '', body: missing.length ? html`<div class="list">${missing.slice(0, 200).map((u) => html`<div class="list-row">${UI.avatar(u, 'av-sm')}<b class="grow">${u.name}</b><span class="faint small">${Data.nameOf('departments', u.departmentId, '')} · ${ROLES[u.role] || ''}</span></div>`)}</div>${missing.length > 200 ? html`<p class="hint mt">وغيرهم ${fmtNum(missing.length - 200)}…</p>` : ''}` : html`<div class="empty-mini">${UI.icon('check')} شارك كل المستهدفين — رائع!</div>` })}</div>`);
+    UI.hydrate(ctx.view);
+  };
+  UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; draw(); });
+  ctx.view.addEventListener('change', (e) => { if (e.target.id === 'svrDep') { st.dep = e.target.value; draw(); } if (e.target.id === 'svrRole') { st.role = e.target.value; draw(); } });
+  UI.on(ctx.view, 'click', '[data-alltexts]', (e, el) => { const q = s.questions.find((x) => x.id === el.dataset.alltexts); const a = Surveys.aggregate(s, rows).q[q.id]; UI.modal({ title: q.l, icon: 'message', size: 'lg', body: html`<div class="svr-texts" style="max-height:none">${a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0)).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${fmtDateTime(x.at)}</small></blockquote>`)}</div>` }); });
+  UI.on(ctx.view, 'click', '[data-resp]', (e, el) => { const r = rows.find((x) => x.id === el.dataset.resp); if (!r) return; UI.modal({ title: Data.userName(r.userId), icon: 'user', size: 'lg', body: html`<dl class="kv svr-one">${s.questions.filter(Surveys.answerable).map((q) => html`<dt>${q.l}</dt><dd>${Surveys.fmtAnswer(q, (r.answers || {})[q.id], r.answers || {}) || html`<span class="faint">—</span>`}${s.quiz && Surveys.isQuiz(q) ? (Surveys.correct(q, (r.answers || {})[q.id]) ? UI.chip('teal', 'صحيحة', 'check') : UI.chip('red', 'خاطئة', 'x')) : ''}</dd>`)}</dl>` }); });
+  UI.on(ctx.view, 'click', '[data-act="remind"]', async (e, btn) => { const done = new Set(marks.map((m) => m.userId)), ids = aud.filter((u) => !done.has(u.id)).map((u) => u.id); if (!ids.length || !(await UI.confirm(`إرسال تذكير إلى ${fmtNum(ids.length)} مستخدم لم يشاركوا بعد؟`, { ok: 'إرسال' }))) return; UI.busy(btn, true); try { await Data.notify(ids, { title: `تذكير: ${s.title}`, body: s.endAt ? `${leftText(s.endAt)} — نرجو مشاركتك` : 'لم تشارك بعد، نرجو مشاركتك', link: `/survey/${s.id}`, kind: 'info' }); UI.toast('أُرسل التذكير'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); } });
+  UI.on(ctx.view, 'click', '[data-act="csv"]', () => {
+    const qs = s.questions.filter(Surveys.answerable), cols = [{ label: 'التاريخ', value: (r) => fmtDateTime(r.at) }, ...(s.anonymous ? [] : [{ label: 'الاسم', value: (r) => Data.userName(r.userId) }, { label: 'الإدارة', value: (r) => Data.nameOf('departments', r.departmentId, '') }, { label: 'نوع الحساب', value: (r) => ROLES[r.role] || '' }]), { label: 'المدة (ثانية)', key: 'secs' }, ...(s.quiz ? [{ label: 'الدرجة', value: (r) => (r.max ? `${r.score}/${r.max}` : '') }] : []), ...qs.map((q) => ({ label: q.l, value: (r) => Surveys.fmtAnswer(q, (r.answers || {})[q.id], r.answers || {}) }))];
+    downloadBlob(new Blob([toCSV(rows, cols)], { type: 'text/csv;charset=utf-8' }), `${s.title}-${dateInput(now())}.csv`);
+  });
+  UI.on(ctx.view, 'click', '[data-act="print"]', () => {
+    const agg = Surveys.aggregate(s, rows); let k = 0;
+    UI.print(html`<h2>${s.title}</h2><p>المشاركات: ${fmtNum(marks.length)} من ${fmtNum(aud.length)} — ${fmtDateTime(now())}</p>${s.questions.filter(Surveys.answerable).map((q) => { const a = agg.q[q.id] || { n: 0, c: {}, texts: [], rows: {} }; k++; const opts = SV_CHOICE.includes(q.t) ? (SV_TYPES[q.t].fixed || (q.o || []).filter(Boolean)) : q.t === 'likert' ? LIKERT.map((l, i) => i + 1) : q.t === 'rating' ? [5, 4, 3, 2, 1] : []; return html`<h3>${fmtNum(k)}. ${q.l} <small>(${fmtNum(a.n)} إجابة)</small></h3>${opts.length ? html`<table><tr><th>الخيار</th><th>العدد</th><th>النسبة</th></tr>${opts.map((o) => html`<tr><td>${q.t === 'likert' ? LIKERT[o - 1] : q.t === 'rating' ? `${o} نجوم` : o}</td><td>${fmtNum(a.c[o] || 0)}</td><td>${a.n ? `${Math.round(((a.c[o] || 0) / a.n) * 100)}%` : '—'}</td></tr>`)}</table>` : q.t === 'matrix' ? html`<table><tr><th>البند</th><th>المتوسط من 5</th></tr>${(q.rows || []).filter(Boolean).map((r) => { const x = a.rows[r] || { n: 0, sum: 0 }; return html`<tr><td>${r}</td><td>${x.n ? (x.sum / x.n).toFixed(1) : '—'}</td></tr>`; })}</table>` : a.texts.length ? html`<ul>${a.texts.slice(0, 50).map((x) => html`<li>${x.v}</li>`)}</ul>` : a.num ? html`<p>المتوسط: ${(a.sum / a.num).toFixed(1)}</p>` : html`<p>—</p>`}`; })}`, `نتائج ${s.title}`);
+  });
+  ctx.onCleanup(Bus.on('surveys', debounce(draw, 500)));
+  await draw();
+};
+
+/* ── الربط بالنظام: البطاقات في الرئيسية، والدعوة المنبثقة، والحجب، وشارات القائمة ── */
+Surveys.homeCards = async () => {
+  const list = (await Surveys.pending()).filter((s) => s.display !== 'section' || Surveys.required(s)).slice(0, 2);
+  if (!list.length) return '';
+  return html`<div class="sv-homes">${list.map((s) => html`<div class="sv-home tone-${s.tone || 'brass'}"><span class="sv-home-ic">${UI.icon(s.icon || 'poll')}</span><div class="grow"><span class="sv-kicker">${s.quiz ? 'اختبار' : 'استبيان'}${Surveys.required(s) ? ' · مطلوب' : ''}</span><b>${s.title}</b><small>${qCount(s.questions.filter(Surveys.answerable).length)} · نحو ${arUnit(Surveys.mins(s), 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}${s.endAt ? ` · ${leftText(s.endAt)}` : ''}</small></div><a class="btn btn-primary" href="#/survey/${s.id}">${UI.icon('poll')} ${lsGet(Surveys.draftKey(s.id), null) ? 'متابعة' : 'ابدأ الآن'}</a>${Surveys.required(s) ? '' : html`<button type="button" class="icon-btn" data-svdismiss="${s.id}" title="إخفاء من الرئيسية" aria-label="إخفاء">${UI.icon('x')}</button>`}</div>`)}</div>`;
+};
+Surveys.maybeInvite = async () => {
+  if (document.querySelector('dialog[open]')) return false;
+  const seen = ssGet('sq_sv_inv'), s = (await Surveys.pending()).find((x) => x.display !== 'block' && (x.display === 'popup' || Surveys.required(x)) && !seen.has(x.id));
+  if (!s) return false;
+  ssAdd('sq_sv_inv', s.id);
+  const r = await UI.modal({ title: s.quiz ? 'اختبار قصير بانتظارك' : 'استبيان قصير بانتظارك', icon: 'poll', size: 'sm', body: html`<div class="sv-invite tone-${s.tone || 'brass'}"><span class="sv-hero-ic">${UI.icon(s.icon || 'poll')}</span><h3>${s.title}</h3>${s.desc ? html`<p>${s.desc}</p>` : ''}<div class="sv-meta"><span>${UI.icon('poll')} ${qCount(s.questions.filter(Surveys.answerable).length)}</span><span>${UI.icon('clock')} نحو ${arUnit(Surveys.mins(s), 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}</span>${Surveys.required(s) ? html`<span class="warn">${UI.icon('alert')} مطلوب</span>` : ''}</div></div>`, actions: [...(Surveys.required(s) ? [] : [{ label: 'لا أرغب', kind: 'ghost', value: 'no' }]), { label: 'لاحقاً', kind: 'ghost', value: null }, { label: 'ابدأ الآن', kind: 'primary', icon: 'chevron-left', submit: true, value: 'go' }] });
+  if (r === 'go') Router.go(`/survey/${s.id}`); else if (r === 'no') Surveys.dismiss(s.id);
+  return true;
+};
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-svdismiss]'); if (!b) return; Surveys.dismiss(b.dataset.svdismiss); const card = b.closest('.sv-home'); if (card) card.remove(); UI.toast('أُخفي من الرئيسية، ويبقى في صفحة الاستبيانات'); });
+{
+  const annBase = Pages.announceBar;
+  Pages.announceBar = async () => { const a = await annBase(); let sv = ''; try { sv = await Surveys.homeCards(); } catch (e) { console.warn('survey cards', e); } return html`${a}${sv}`; };
+}
+/* بعد كل تنقل: دعوة التقييم أو الاستبيان في الوقت المناسب، دون أن تتزاحم النوافذ */
+const Engage = {
+  seq: 0, busy: false,
+  async afterRoute(path) {
+    if (!Auth.user || Auth.user.role === 'monitor') return;
+    /* آخر تنقل هو الذي يُعتد به: التنقل السريع بين الصفحات لا يُسقط الدعوة */
+    const my = ++Engage.seq;
+    await new Promise((r) => setTimeout(r, 900));
+    if (my !== Engage.seq || Engage.busy || decodeURIComponent((location.hash.slice(1) || '/').split('?')[0]) !== path) return;
+    Engage.busy = true;
+    try {
+      if (path === '/dashboard') { if (!(await Ratings.maybePrompt())) await Surveys.maybeInvite(); }
+      else { const m = path.match(/^\/tickets\/([^/]+)$/); if (m && m[1] !== 'new') await Ratings.maybePrompt(m[1]); }
+    } catch (e) { console.warn('engage', e); } finally { Engage.busy = false; }
+  }
+};
+{
+  const resolveBase = Router.resolve.bind(Router);
+  Router.resolve = async function () {
+    const u = Auth.user, path = decodeURIComponent((location.hash.slice(1) || '/').split('?')[0]);
+    if (u && u.role !== 'monitor' && !(u.mustChangePassword && !isSysAccount(u)) && !['/', '/login', '/setup', '/welcome'].includes(path)) {
+      try { const g = await Surveys.blocking(); if (g && path !== `/gate/${g.id}`) return Router.replace(`/gate/${g.id}`); } catch (e) { console.warn('survey gate', e); }
+    }
+    await resolveBase();
+    Engage.afterRoute(path);
+  };
+}
+{
+  const badgesBase = Shell.refreshBadges.bind(Shell);
+  Shell.refreshBadges = async function () {
+    await badgesBase();
+    try { const b = $('[data-badge="surveys"]'); if (b) { const n = (await Surveys.pending()).length; b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); } } catch (_) { /* تجاهل */ }
+  };
+  Bus.on('surveys', debounce(() => { if (Shell.mounted) Shell.refreshBadges(); }, 400));
+  Bus.on('surveys', debounce(async () => { if (!Auth.user || !Shell.mounted) return; const g = await Surveys.blocking(); const cur = decodeURIComponent((location.hash.slice(1) || '/').split('?')[0]); if (g && cur !== `/gate/${g.id}`) Router.replace(`/gate/${g.id}`); }, 800));
+}
+Router.add('/surveys', null, Pages.surveys, 'الاستبيانات');
+Router.add('/surveys/manage', 'surveys.manage', Pages.surveysManage, 'إدارة الاستبيانات');
+Router.add('/surveys/:id/edit', 'surveys.manage', Pages.surveyEditor, 'تحرير استبيان');
+Router.add('/surveys/:id/results', 'surveys.manage', Pages.surveyResults, 'نتائج الاستبيان');
+Router.add('/survey/:id', null, (ctx) => Pages.surveyAnswer(ctx, false), 'استبيان');
+Router.add('/gate/:id', null, (ctx) => Pages.surveyAnswer(ctx, true), 'استبيان مطلوب', true);
+Router.add('/ratings', 'ratings.manage', Pages.ratingsCenter, 'مركز التقييم');
+Router.add('/replies', 'tickets.work', Pages.repliesAdmin, 'الردود الجاهزة');
 
 boot();
 })();
