@@ -1,0 +1,5 @@
+# config.php يحوي كلمة مرور قاعدة البيانات: لا يُفتح من المتصفح
+<Files "config.php">
+  Require all denied
+</Files>
+Options -Indexes
