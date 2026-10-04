@@ -457,7 +457,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
       if ($key === 'xmcfg') return can_any($user, ['settings', 'extmaint.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
-      if ($key === 'vtpl') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
+      if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
       if ($key === 'seed:replies2') return can_any($user, ['replies.manage', 'users.manage']) ? $new : null;
       if (strpos($key, 'lock:') === 0) return null;

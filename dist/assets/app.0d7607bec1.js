@@ -2836,7 +2836,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -11063,123 +11063,12 @@ Pages.vtdSample = (k, n) => {
   const pledge = k === 'return' ? 'يُقر الطرفان بتسليم واستلام ما هو مذكور أعلاه بالحالة الموضحة.' : 'أقر أنا المستلم الموقع أدناه باستلام ما هو مذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه وعدم التصرف فيه إلا بعلم الجهة المختصة.';
   return { kindKey: k, kind, number: k.startsWith('xm') ? 'EXM-2026-00007' : 'VCH-2026-00042', barcode: k.startsWith('xm') ? 'EXM-2026-00007' : 'VCH-2026-00042', at: now(), facts, lines, oldLines: k === 'replace' ? lines.slice(0, 1) : [], note: 'تُسلَّم الأجهزة بحالة سليمة مع ملحقاتها الأصلية.', pledge, parties, returnHolder: ['loan', 'receipt'].includes(k) ? rp : null };
 };
-const VTD_SECTIONS = [
-  ['header', 'الترويسة والشعار', 'photo', [
-    ['header.layout', 'ترتيب الترويسة', 'cards', [['classic', 'الشعار يميناً'], ['center', 'الشعار في الوسط'], ['split', 'نصوص على الجانبين'], ['none', 'بلا ترويسة']]],
-    ['header.logo', 'الشعار الرئيسي', 'image'], ['header.logo2', 'شعار ثانٍ (اختياري)', 'image'],
-    ['header.logoSize', 'حجم الشعار', 'range', [36, 120, 2, 'px']],
-    ['header.right', 'نصوص الجهة اليمنى (سطر لكل جهة: الدولة، المؤسسة، الإدارة…)', 'textarea'],
-    ['header.left', 'نصوص الجهة اليسرى', 'textarea'],
-    ['header.rule', 'الخط أسفل الترويسة', 'select', [['single', 'خط مفرد'], ['double', 'خط مزدوج'], ['accent', 'شريط ملوّن'], ['none', 'بلا خط']]]]],
-  ['title', 'العنوان والباركود', 'tag', [
-    ['title.text', 'عنوان الاستمارة (فارغ = الاسم المعتمد)', 'text', null, true],
-    ['title.style', 'شكل العنوان', 'cards', [['band', 'صندوق مع الباركود'], ['center', 'في الوسط'], ['underline', 'مسطّر']]],
-    ['title.kicker', 'إظهار نوع العملية فوق العنوان', 'switch'], ['title.date', 'إظهار التاريخ والوقت', 'switch'],
-    ['barcode.show', 'إظهار الباركود برقم السند', 'switch'], ['barcode.label', 'كتابة اسم الاستمارة فوق الباركود', 'switch']]],
-  ['font', 'الخطوط والألوان', 'edit', [
-    ['font.family', 'الخط', 'font'], ['font.size', 'حجم خط المحتوى', 'range', [10, 16, 0.5, 'px']], ['font.title', 'حجم العنوان', 'range', [16, 34, 1, 'px']], ['font.head', 'حجم نصوص الترويسة', 'range', [11, 22, 0.5, 'px']],
-    ['color.accent', 'اللون الرئيسي', 'color', VT_ACCENTS], ['color.soft', 'خلفية رؤوس الجداول', 'color'], ['color.line', 'لون الخطوط والحدود', 'color'], ['color.ink', 'لون النص', 'color']]],
-  ['table', 'جدول الأصناف', 'list', [
-    ['table.no', 'عمود الرقم (م)', 'switch'], ['table.name', 'عمود الصنف', 'switch'], ['table.brand', 'عمود الماركة والموديل', 'switch'], ['table.serials', 'عمود الأرقام التسلسلية', 'switch'], ['table.info', 'عمود البيان (عند وجوده)', 'switch'], ['table.qty', 'عمود الكمية', 'switch'], ['table.unit', 'عمود الوحدة', 'switch'], ['table.total', 'سطر الإجمالي', 'switch'], ['table.zebra', 'تظليل الأسطر بالتناوب', 'switch'],
-    ['table.minRows', 'أقل عدد أسطر (تُكمَّل بأسطر فارغة، ويزيد الجدول تلقائياً بزيادة الأصناف)', 'range', [0, 15, 1, '']],
-    ['table.lName', 'تسمية عمود الصنف', 'text'], ['table.lBrand', 'تسمية عمود الماركة', 'text'], ['table.lSerials', 'تسمية عمود الأرقام', 'text'], ['table.lQty', 'تسمية عمود الكمية', 'text'], ['table.lUnit', 'تسمية عمود الوحدة', 'text']]],
-  ['texts', 'البيانات والملاحظات والتعهد', 'paper', [
-    ['facts.show', 'بطاقات البيانات (الإدارة، المرجع…)', 'switch'], ['notes.show', 'خانة الملاحظات أسفل الجدول', 'switch'], ['notes.label', 'عنوان خانة الملاحظات', 'text'],
-    ['pledge.show', 'نص التعهد', 'switch'], ['pledge.text', 'نص التعهد (فارغ = النص المعتمد للاستمارة)', 'textarea', null, true], ['returnBox.show', 'خانة «يُعبَّأ عند الإرجاع» في سندات الإعارة', 'switch']]],
-  ['sigs', 'التواقيع', 'user', [
-    ['sigs.layout', 'شكل التواقيع', 'cards', [['rows', 'صفوف عرضية'], ['boxes', 'بطاقات متجاورة']]],
-    ['sigs.no', 'الرقم العسكري', 'switch'], ['sigs.rank', 'الرتبة', 'switch'], ['sigs.name', 'الاسم', 'switch'], ['sigs.sign', 'التوقيع', 'switch'], ['sigs.date', 'عمود التاريخ', 'switch'], ['sigs.subs', 'إظهار جهة كل طرف تحت الصفة', 'switch'],
-    ['sigs.recv', 'تسمية المستلم', 'text'], ['sigs.deliv', 'تسمية المُسلِّم', 'text'], ['sigs.approver', 'سطر اعتماد المسؤول (توقيع فقط)', 'switch'], ['sigs.appr', 'تسمية المسؤول', 'text'],
-    ['sigs.extra', 'تواقيع إضافية (سطر لكل صفة، توقيع فقط) مثل: مدير الإدارة', 'textarea']]],
-  ['page', 'الإطار والصفحة', 'layers', [
-    ['page.frame', 'إطار الصفحة', 'cards', [['none', 'بلا إطار'], ['thin', 'رفيع'], ['double', 'مزدوج'], ['thick', 'عريض'], ['ornate', 'زخرفي']]],
-    ['page.size', 'مقاس الورق', 'select', [['A4', 'A4'], ['A5', 'A5']]], ['page.margin', 'الهوامش', 'range', [0, 25, 1, 'مم']]]],
-  ['footer', 'التذييل والعلامة المائية', 'archive', [
-    ['footer.show', 'إظهار التذييل', 'switch'], ['footer.text', 'نص التذييل', 'text'], ['footer.number', 'رقم السند في التذييل', 'switch'],
-    ['mark.text', 'علامة مائية نصية (مثل: سري، نسخة)', 'text'], ['mark.logo', 'الشعار علامةً مائية', 'switch'], ['mark.opacity', 'شفافية العلامة المائية', 'range', [2, 20, 1, '%']]]]
-];
-Pages.voucherDesigner = async (ctx) => {
-  const st = { kind: '', n: 3, open: 'header', w: JSON.parse(JSON.stringify(VTPL.data() || {})), dirty: false };
-  st.w.base = st.w.base || {}; st.w.kinds = st.w.kinds || {};
-  const target = () => (st.kind ? (st.w.kinds[st.kind] = st.w.kinds[st.kind] || {}) : st.w.base);
-  const effK = () => st.kind || 'issue';
-  const ovr = (path) => !!st.kind && VTPL.get(st.w.kinds[st.kind] || {}, path) !== undefined;
-  const control = ([path, label, type, opt, kindOnly]) => {
-    if (kindOnly && !st.kind) return '';
-    const v = VTPL.get(VTPL.eff(effK(), st.w), path), mark = ovr(path) ? html`<button type="button" class="vtd-ovr" data-reset="${path}" title="مخصص لهذه الاستمارة — انقر للعودة إلى الإعداد العام">${UI.icon('undo')}</button>` : '';
-    if (type === 'switch') return html`<div class="vtd-f sw${ovr(path) ? ' o' : ''}"><label class="switch"><input type="checkbox" data-k="${path}"${v ? raw(' checked') : ''}><i></i><span>${label}</span></label>${mark}</div>`;
-    if (type === 'cards') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><div class="vtd-cards">${opt.map(([val, l]) => html`<label><input type="radio" name="${path}" data-k="${path}" value="${val}"${String(v) === val ? raw(' checked') : ''}><span><i class="vtd-mini vtd-mini-${path.replace('.', '-')}-${val}"></i>${l}</span></label>`)}</div></div>`;
-    if (type === 'select') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><select data-k="${path}">${opt.map(([val, l]) => html`<option value="${val}"${String(v) === val ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
-    if (type === 'font') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><div class="vtd-fonts">${VT_FONTS.map(([f, l]) => html`<label><input type="radio" name="${path}" data-k="${path}" value="${f}"${v === f ? raw(' checked') : ''}><span style="font-family:'${f}',Tahoma"><b>أبجد هوز</b><small>${l}</small></span></label>`)}</div></div>`;
-    if (type === 'range') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark} <b class="vtd-rv">${v}${opt[3] ? ` ${opt[3]}` : ''}</b></label><input type="range" data-k="${path}" min="${opt[0]}" max="${opt[1]}" step="${opt[2]}" value="${v}"></div>`;
-    if (type === 'color') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><div class="row" style="gap:6px;flex-wrap:wrap"><input type="color" data-k="${path}" value="${v}">${(opt || []).map(([c, l]) => html`<button type="button" class="vtd-sw${v === c ? ' on' : ''}" data-color="${path}|${c}" title="${l}" style="--c:${c}"></button>`)}</div></div>`;
-    if (type === 'image') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><div class="vtd-img">${v ? html`<img src="${v}" alt="">` : path === 'header.logo' ? html`<img src="${ASSETS.logo}" alt="" class="def">` : html`<span class="faint small">لا يوجد</span>`}<button type="button" class="btn btn-sm btn-soft" data-img="${path}">${UI.icon('upload')} رفع صورة</button>${v ? html`<button type="button" class="btn btn-sm btn-ghost" data-imgclr="${path}">${UI.icon('x')} ${path === 'header.logo' ? 'شعار النظام' : 'إزالة'}</button>` : ''}</div></div>`;
-    if (type === 'textarea') return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><textarea data-k="${path}" rows="3">${v || ''}</textarea>${path.startsWith('header.') ? html`<small class="hint">متغيرات: {org} اسم المؤسسة، {system} اسم القسم، {number} رقم السند، {date} التاريخ، {title} العنوان</small>` : ''}</div>`;
-    return html`<div class="vtd-f${ovr(path) ? ' o' : ''}"><label>${label}${mark}</label><input data-k="${path}" value="${v == null ? '' : v}"${path === 'title.text' ? raw(` placeholder="${(VOUCHER_KIND[st.kind] || {}).title || ''}"`) : ''}></div>`;
-  };
-  const side = () => html`
-    <div class="vtd-kinds"><button type="button" class="vtd-k${!st.kind ? ' on' : ''}" data-kind="">${UI.icon('layers')} الإعداد العام لكل الاستمارات</button>${VT_KINDS.map(([k, l]) => html`<button type="button" class="vtd-k${st.kind === k ? ' on' : ''}" data-kind="${k}">${l}${Object.keys(st.w.kinds[k] || {}).length ? html`<i class="vtd-dot" title="بها تعديلات خاصة"></i>` : ''}</button>`)}</div>
-    ${st.kind ? html`<div class="banner tone-sky vtd-note">${UI.icon('info')}<div class="grow small">تعديلاتك هنا تخص <b>${(VT_KINDS.find((x) => x[0] === st.kind) || [])[1]}</b> فقط، وما لم تغيّره يتبع الإعداد العام. الحقول المخصصة عليها ${UI.icon('undo')}.</div>${Object.keys(st.w.kinds[st.kind] || {}).length ? html`<button type="button" class="btn btn-sm btn-ghost" data-act="resetkind">إلغاء التخصيص</button>` : ''}</div>` : ''}
-    ${VTD_SECTIONS.map(([id, title, icon, ctrls]) => html`<details class="vtd-sec" data-sec="${id}"${st.open === id ? raw(' open') : ''}><summary>${UI.icon(icon)} ${title}</summary><div class="vtd-body">${ctrls.map(control)}</div></details>`)}`;
-  const preview = () => { const T = VTPL.eff(effK(), st.w); return VD.render(Pages.vtdSample(effK(), st.n), T); };
-  const fit = () => { const wrap = $('.vtd-stage', ctx.view), paper = $('.vtd-paper', ctx.view); if (!wrap || !paper) return; const T = VTPL.eff(effK(), st.w), mm = T.page.size === 'A5' ? 148 : 210, px = mm * 3.7795; paper.style.width = `${px}px`; paper.style.padding = `${(Number(T.page.margin) || 10) * 3.7795}px`; const sc = Math.min(1, (wrap.clientWidth - 24) / px); paper.style.transform = `scale(${sc})`; wrap.style.height = `${paper.offsetHeight * sc + 24}px`; };
-  const drawPreview = () => { const p = $('.vtd-paper', ctx.view); if (!p) return; p.innerHTML = String(html`<div class="print-doc bare">${preview()}</div>`); requestAnimationFrame(fit); };
-  const drawSide = () => { const s = $('.vtd-side', ctx.view); if (s) { const top = s.scrollTop; s.innerHTML = String(side()); s.scrollTop = top; } };
-  const mark = (d) => { st.dirty = d; const b = $('[data-act="save"]', ctx.view); if (b) b.classList.toggle('pulse', d); const t = $('[data-dirty]', ctx.view); if (t) t.textContent = d ? 'تعديلات غير محفوظة' : 'محفوظ'; };
-  const draw = () => {
-    const ro = !VTPL.can();
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'تصميم الاستمارات الرسمية', sub: 'الشعار والترويسة والخطوط والإطارات والتواقيع لسندات الصرف والإعارة والنقل والاستبدال — تُطبَّق فوراً على كل المعاملات', illu: 'stamp', actions: html`<span class="faint small" data-dirty>${VTPL.data().updatedAt ? `آخر حفظ ${timeAgo(VTPL.data().updatedAt)}` : 'التصميم المعتمد الافتراضي'}</span><button class="btn btn-ghost" data-act="test">${UI.icon('print')} طباعة تجريبية</button><button class="btn btn-ghost" data-act="io">${UI.icon('download')} تصدير / استيراد</button><button class="btn btn-ghost" data-act="defaults">${UI.icon('refresh')} الافتراضي</button>${ro ? '' : html`<button class="btn btn-primary" data-act="save">${UI.icon('check')} حفظ واعتماد</button>`}` })}
-      <div class="vtd"><aside class="vtd-side">${side()}</aside>
-        <main class="vtd-main"><div class="vtd-tools"><span class="faint small">${UI.icon('eye')} معاينة حية — عدد الأصناف:</span><div class="seg">${[1, 3, 6, 10].map((n) => html`<label><input type="radio" name="vtdn" value="${n}"${st.n === n ? raw(' checked') : ''}><span>${fmtNum(n)}</span></label>`)}</div><span class="faint small">الجدول يمتد تلقائياً بعدد الأصناف</span></div>
-          <div class="vtd-stage"><div class="vtd-paper"></div></div></main></div>`);
-    drawPreview();
-  };
-  const setVal = (path, val) => { VTPL.set(target(), path, val); mark(true); drawPreview(); };
-  const live = debounce(drawPreview, 120);
-  ctx.view.addEventListener('input', (e) => {
-    const el = e.target.closest('[data-k]'); if (!el) return;
-    const path = el.dataset.k; let v = el.type === 'checkbox' ? (el.checked ? 1 : 0) : el.type === 'range' ? Number(el.value) : el.value;
-    VTPL.set(target(), path, v); mark(true);
-    if (el.type === 'range') { const rv = el.parentNode.querySelector('.vtd-rv'); if (rv) rv.textContent = `${v}${rv.textContent.replace(/^[\d.]+/, '')}`; }
-    live();
-    if (st.kind && !el.closest('.vtd-f').classList.contains('o') && el.type !== 'text' && el.tagName !== 'TEXTAREA' && el.type !== 'range') drawSide();
-  });
-  ctx.view.addEventListener('change', (e) => { const el = e.target; if (el.name === 'vtdn') { st.n = Number(el.value); drawPreview(); return; } if (el.closest && el.closest('[data-k]') && st.kind && (el.type === 'text' || el.tagName === 'TEXTAREA' || el.type === 'range')) drawSide(); });
-  ctx.view.addEventListener('toggle', (e) => { const d = e.target; if (d.matches && d.matches('details.vtd-sec') && d.open) { st.open = d.dataset.sec; $$('details.vtd-sec', ctx.view).forEach((x) => { if (x !== d) x.open = false; }); } }, true);
-  UI.on(ctx.view, 'click', '[data-kind]', (e, el) => { st.kind = el.dataset.kind; drawSide(); drawPreview(); });
-  UI.on(ctx.view, 'click', '[data-reset]', (e, el) => { e.preventDefault(); if (!st.kind) return; VTPL.unset(st.w.kinds[st.kind] || {}, el.dataset.reset); mark(true); drawSide(); drawPreview(); });
-  UI.on(ctx.view, 'click', '[data-color]', (e, el) => { const [path, c] = el.dataset.color.split('|'); setVal(path, c); drawSide(); });
-  UI.on(ctx.view, 'click', '[data-imgclr]', (e, el) => { setVal(el.dataset.imgclr, ''); drawSide(); });
-  UI.on(ctx.view, 'click', '[data-img]', async (e, el) => {
-    const [f] = await UI.pickFiles({ accept: 'image/png,image/jpeg,image/webp,image/svg+xml', multiple: false }); if (!f) return;
-    try {
-      const src = await blobToDataURL(f);
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new AppError('تعذر قراءة الصورة')); i.src = src; });
-      const sc = Math.min(1, 520 / Math.max(img.width || 520, img.height || 520)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round((img.width || 520) * sc)); c.height = Math.max(1, Math.round((img.height || 520) * sc));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      const out = c.toDataURL('image/png'); if (out.length > 320000) throw new AppError('الصورة كبيرة جداً (الحد 300 كيلوبايت تقريباً)، استخدم صورة أصغر أو بخلفية بسيطة');
-      setVal(el.dataset.img, out); drawSide();
-    } catch (err) { UI.error(err); }
-  });
-  UI.on(ctx.view, 'click', '[data-act="resetkind"]', () => { delete st.w.kinds[st.kind]; mark(true); drawSide(); drawPreview(); });
-  UI.on(ctx.view, 'click', '[data-act="save"]', async (e, el) => { UI.busy(el, true); try { await VTPL.save(st.w); mark(false); UI.toast('اعتُمد التصميم — ستُطبع كل السندات به من الآن'); UI.sound('success'); } catch (err) { UI.error(err); } finally { UI.busy(el, false); } });
-  UI.on(ctx.view, 'click', '[data-act="test"]', () => { const T = VTPL.eff(effK(), st.w), d = Pages.vtdSample(effK(), st.n); UI.print(VD.render(d, T), 'طباعة تجريبية', { bare: true, page: T.page, font: T.font.family }); });
-  UI.on(ctx.view, 'click', '[data-act="defaults"]', async () => { if (!(await UI.confirm(st.kind ? 'إلغاء تخصيص هذه الاستمارة؟' : 'إعادة كل الاستمارات إلى التصميم المعتمد الافتراضي؟ (لا يُحفظ حتى تضغط «حفظ واعتماد»)', { ok: 'إعادة', danger: true }))) return; if (st.kind) delete st.w.kinds[st.kind]; else st.w = { base: {}, kinds: {} }; mark(true); drawSide(); drawPreview(); });
-  UI.on(ctx.view, 'click', '[data-act="io"]', async () => {
-    const r = await UI.modal({ title: 'تصدير التصميم أو استيراده', icon: 'download', size: 'sm', body: html`<p class="muted small">صدّر التصميم ملفاً لحفظه نسخة احتياطية أو لنقله إلى نظام آخر، أو استورد ملفاً سابقاً.</p>`, actions: [{ label: 'إغلاق', kind: 'ghost' }, { label: 'استيراد ملف', kind: 'soft', icon: 'upload', value: 'in' }, { label: 'تصدير', kind: 'primary', icon: 'download', value: 'out' }] });
-    if (r === 'out') downloadBlob(new Blob([JSON.stringify({ type: 'sq-vtpl', v: 1, data: st.w }, null, 1)], { type: 'application/json' }), `تصميم-الاستمارات-${dateInput(now())}.json`);
-    if (r === 'in') { const [f] = await UI.pickFiles({ accept: '.json,application/json', multiple: false }); if (!f) return; try { const j = JSON.parse(await f.text()); if (!j || j.type !== 'sq-vtpl' || !VTPL.isObj(j.data)) throw new AppError('الملف ليس تصميم استمارات صالحاً'); st.w = { base: j.data.base || {}, kinds: j.data.kinds || {} }; mark(true); drawSide(); drawPreview(); UI.toast('استُورد التصميم — راجعه ثم اضغط «حفظ واعتماد»'); } catch (err) { UI.error(err instanceof AppError ? err : new AppError('تعذر قراءة الملف')); } }
-  });
-  const onR = debounce(fit, 120); window.addEventListener('resize', onR); ctx.onCleanup(() => window.removeEventListener('resize', onR));
-  draw();
-};
-Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تصميم الاستمارات الرسمية');
 /* ══════════ إعدادات الخصائص العامة (تُحمَّل مع الإعدادات وتتزامن مع الأجهزة) ══════════
    xmcfg: اسم قسم الصيانة الخارجية وجهاتها، formfill: التعبئة الفورية، vtpl: تصميم السندات */
 const XCFG = {
   async load() {
     const get = async (k) => { try { const r = await DB.get('meta', k); return (r && r.value) || {}; } catch (_) { return {}; } };
-    Data.c.xmCfg = await get('xmcfg'); Data.c.formFill = await get('formfill'); Data.c.vtpl = await get('vtpl'); Data.c.vaultCfg = await get('vaultcfg');
+    Data.c.xmCfg = await get('xmcfg'); Data.c.formFill = await get('formfill'); Data.c.vtpl = await get('vtpl'); Data.c.vaultCfg = await get('vaultcfg'); Data.c.vlay = await get('vlay');
     Nav.paths = null;
   },
   async save(key, cKey, value, label) { await DB.put('meta', { key, value }); Data.c[cKey] = value; await Data.log('update', 'settings', key, label); Bus.emit('xcfg', { key }); }
@@ -12187,6 +12076,737 @@ Router.add('/features', 'settings|ratings.manage|formfill.manage|forms.manage|ex
 /* المهام الدورية للأقسام الجديدة (بعد الدخول وبهدوء) */
 Bus.on('session', () => setTimeout(() => { XM.overdueJob().catch(() => {}); VAULT.remindJob().catch(() => {}); }, 8000));
 setTimeout(function tick() { if (Auth.user) { XM.overdueJob().catch(() => {}); VAULT.remindJob().catch(() => {}); } setTimeout(tick, 3 * HOUR); }, 45000);
+
+/* ══════════ محرر الاستمارات الحر (شبيه بالوورد) ══════════
+   القالب = صفحة + أقسام متتالية. القسم الحر يحوي عناصر تُسحب وتُحجَّم بحرية (نص، صورة، جدول، خط، إطار، باركود)،
+   والأقسام الديناميكية (البيانات، جدول الأصناف، الملاحظات، التواقيع، خانة الإرجاع) تمتد بحسب المعاملة فتدفع ما بعدها.
+   يمكن إنشاء عدة قوالب وتعيين قالب لكل نوع من الاستمارات. الحقول تُكتب بين قوسين مثل [رقم السند]. */
+const MMPX = 3.7795;
+const VL_PAPER = { A4: [210, 297], A5: [148, 210], Letter: [216, 279] };
+const VL_BAND_TYPES = { free: ['قسم حر', 'layers'], facts: ['بطاقات البيانات', 'grid'], items: ['جدول الأصناف', 'list'], notes: ['الملاحظات', 'edit'], sigs: ['التواقيع', 'user'], ret: ['خانة الإرجاع (الإعارة)', 'refresh'] };
+const VL_EL_TYPES = { text: ['مربع نص', 'edit'], image: ['صورة / شعار', 'photo'], table: ['جدول', 'list'], line: ['خط', 'arrowDown'], rect: ['إطار / مستطيل', 'layers'], barcode: ['باركود', 'scan'] };
+const VL_FIELDS = [
+  ['عنوان السند', (d) => d.title], ['نوع العملية', (d) => d.kind.label], ['رقم السند', (d) => d.number], ['التاريخ', (d) => fmtDate(d.at)], ['الوقت', (d) => { const t = new Date(d.at); return `${pad(t.getHours())}:${pad(t.getMinutes())}`; }], ['التاريخ والوقت', (d) => fmtDateTime(d.at)],
+  ['اسم المؤسسة', () => Data.c.settings.orgName], ['اسم القسم', () => Data.c.settings.systemName], ['نص التعهد', (d) => d.pledge || ''], ['الملاحظات', (d) => d.note || '—'],
+  ['المستلم', (d) => VL.party(d, 'recv').name], ['الرقم العسكري للمستلم', (d) => VL.party(d, 'recv').no], ['رتبة المستلم', (d) => VL.party(d, 'recv').rank], ['جهة المستلم', (d) => VL.party(d, 'recv').sub],
+  ['المسلم', (d) => VL.party(d, 'deliv').name], ['الرقم العسكري للمسلم', (d) => VL.party(d, 'deliv').no], ['رتبة المسلم', (d) => VL.party(d, 'deliv').rank], ['جهة المسلم', (d) => VL.party(d, 'deliv').sub],
+  ['عدد الأصناف', (d) => fmtNum((d.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0))], ['اسم المستخدم الحالي', () => (Auth.user || {}).name || '']
+];
+const VL_ITEM_COLS = [['no', 'م', 6], ['name', 'الصنف', 26], ['brand', 'الماركة والموديل', 20], ['serials', 'الأرقام التسلسلية', 22], ['info', 'البيان', 18], ['qty', 'الكمية', 8], ['unit', 'الوحدة', 8], ['sku', 'رقم الصنف', 12]];
+const VL_SIG_COLS = [['no', 'الرقم العسكري'], ['rank', 'الرتبة'], ['name', 'الاسم'], ['sign', 'التوقيع'], ['date', 'التاريخ']];
+const VL = {
+  data: () => Data.c.vlay || {},
+  can: () => !!Auth.user && canUser(Auth.user, 'vouchers.design'),
+  tplFor(k) { const L = VL.data(), id = ((L.use || {})[k]) || L.def || ''; return id ? (L.tpls || []).find((t) => t.id === id) || null : null; },
+  party: (d, role) => (d.parties || []).find((p) => p.role === role) || {},
+  dims(p) { const [w, h] = VL_PAPER[p.size] || VL_PAPER.A4; return p.orient === 'landscape' ? { W: h, H: w } : { W: w, H: h }; },
+  cw(L) { const p = L.page, { W } = VL.dims(p); return W - (p.ml + p.mr) - 2 * (p.pad || 0); },
+  fields(d) { const F = {}; VL_FIELDS.forEach(([k, fn]) => { try { F[k] = fn(d) == null ? '' : String(fn(d)); } catch (_) { F[k] = ''; } }); (d.facts || []).forEach(([l, v]) => { if (!(l in F)) F[l] = v == null || v === '' ? '—' : String(v); }); return F; },
+  /* استبدال الحقول [..] بقيمها؛ في وضع التحرير تظهر الحقول كشارات */
+  tx(text, F, mode) {
+    return esc(text || '').replace(/\[([^\]\n]{1,40})\]/g, (m, k) => { const key = k.trim(); if (!(key in F)) return m; return mode === 'raw' ? `<span class="vl-tok">[${key}]</span>` : esc(F[key]); }).replace(/\n/g, '<br>');
+  },
+  box(s = {}) {
+    const o = [];
+    if (s.bg) o.push(`background:${s.bg}`);
+    if (Number(s.bw) > 0) o.push(`border:${s.bw}mm ${s.bs || 'solid'} ${s.bc || '#000'}`);
+    if (Number(s.radius)) o.push(`border-radius:${s.radius}mm`);
+    if (Number(s.padding)) o.push(`padding:${s.padding}mm`);
+    if (s.opacity != null && s.opacity !== '' && Number(s.opacity) < 100) o.push(`opacity:${Number(s.opacity) / 100}`);
+    if (Number(s.rot)) o.push(`transform:rotate(${s.rot}deg)`);
+    if (s.shadow) o.push('box-shadow:0 1mm 2.5mm rgba(0,0,0,.18)');
+    return o.join(';');
+  },
+  font(s = {}, base = {}) {
+    const o = [];
+    if (s.font) o.push(`font-family:'${String(s.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif`);
+    if (s.size) o.push(`font-size:${s.size}pt`);
+    if (s.color) o.push(`color:${s.color}`);
+    if (s.bold) o.push('font-weight:700');
+    if (s.italic) o.push('font-style:italic');
+    if (s.underline) o.push('text-decoration:underline');
+    if (s.align) o.push(`text-align:${s.align}`);
+    if (s.lh) o.push(`line-height:${s.lh}`);
+    if (s.ls) o.push(`letter-spacing:${s.ls}pt`);
+    return o.join(';');
+  },
+  vis: (o, k) => !o.kinds || !o.kinds.length || o.kinds.includes(k),
+  /* ── العناصر ── */
+  el(e, d, F, opt) {
+    const s = e.s || {}, edit = opt.edit, mode = edit && !opt.data ? 'raw' : '';
+    const pos = `left:${e.x}mm;top:${e.y}mm;width:${e.w}mm;${e.t === 'table' ? `min-height:${e.h}mm` : `height:${e.h}mm`};z-index:${(e.z || 1) + 1}`;
+    let inner = '';
+    if (e.t === 'text') inner = `<div class="vl-tx" dir="${s.dir || 'rtl'}" style="${VL.font(s)};justify-content:${{ top: 'flex-start', middle: 'center', bottom: 'flex-end' }[s.valign || 'top']}"><div class="vl-txi">${VL.tx(e.text, F, mode)}</div></div>`;
+    else if (e.t === 'image') inner = `<img class="vl-img" src="${esc(e.src && e.src !== 'logo' ? e.src : ASSETS.logo)}" alt="" style="object-fit:${e.fit || 'contain'}">`;
+    else if (e.t === 'line') inner = `<div class="vl-ln ${e.dir === 'v' ? 'v' : 'h'}" style="border-${e.dir === 'v' ? 'right' : 'top'}:${e.lw || 0.4}mm ${e.ls || 'solid'} ${e.lc || '#000'}"></div>`;
+    else if (e.t === 'barcode') { const v = VL.tx(e.value || '[رقم السند]', F, '').replace(/<br>/g, ' '); const txt = String(v).replace(/&[a-z#0-9]+;/gi, ''); inner = `<div class="vl-bc">${String(UI.barcode(txt, { height: 40, w: 1.3 }))}${e.showText !== 0 ? `<b style="${VL.font(s)}">${esc(txt)}</b>` : ''}</div>`; }
+    else if (e.t === 'table') {
+      const T = e.tbl || { rows: [['']] }, cols = (T.rows[0] || []).length, cw = T.colW && T.colW.length === cols ? T.colW : Array(cols).fill(100 / Math.max(1, cols));
+      const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`;
+      inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup><tbody>${T.rows.map((r, i) => `<tr style="${T.rowH ? `height:${T.rowH}mm` : ''}">${r.map((c, j) => { const head = (T.head && i === 0) || (T.headCol && j === 0); const tag = head ? 'th' : 'td'; return `<${tag} data-cell="${i},${j}" style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && i % 2 === 0 ? 'background:rgba(0,0,0,.035)' : ''};text-align:${(T.al || [])[j] || s.align || 'right'}">${VL.tx(c, F, mode)}</${tag}>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+    const sel = edit && opt.sel === e.id;
+    const hidden = !VL.vis(e, d.kindKey);
+    return `<div class="vl-el vl-e-${e.t}${sel ? ' sel' : ''}${e.lock ? ' lock' : ''}${hidden ? ' vl-hid' : ''}"${edit ? ` data-el="${e.id}"` : ''} style="${pos};${e.t === 'line' || e.t === 'image' || e.t === 'barcode' ? '' : VL.box(s)}${e.t === 'image' || e.t === 'barcode' ? VL.box({ ...s, padding: s.padding }) : ''}">${inner}${sel && !e.lock ? ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].filter((h) => (e.t === 'table' ? ['e', 'w'].includes(h) : e.t === 'line' ? (e.dir === 'v' ? ['n', 's'] : ['e', 'w']).includes(h) : true)).map((h) => `<i class="vl-hd vl-hd-${h}" data-h="${h}"></i>`).join('') : ''}</div>`;
+  },
+  /* ── الأقسام الديناميكية ── */
+  facts(b, d) {
+    const c = b.cfg || {}, rows = d.facts || []; if (!rows.length) return '';
+    const n = Math.min(Number(c.cols) || 4, rows.length);
+    if (c.style === 'table') return `<table class="vl-ftbl" style="border-color:${c.bc || '#c9c2b1'}"><tbody>${Array.from({ length: Math.ceil(rows.length / 2) }, (_, i) => `<tr>${rows.slice(i * 2, i * 2 + 2).map(([l, v]) => `<th style="background:${c.lbg || '#f6f2e8'};color:${c.lc || '#444'};border-color:${c.bc || '#c9c2b1'}">${esc(l)}</th><td style="border-color:${c.bc || '#c9c2b1'}">${esc(v || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    if (c.style === 'line') return `<div class="vl-fline">${rows.map(([l, v]) => `<span><em style="color:${c.lc || '#555'}">${esc(l)}:</em> <b>${esc(v || '—')}</b></span>`).join('')}</div>`;
+    return `<div class="vl-fcards" style="grid-template-columns:repeat(${n},minmax(0,1fr));border-color:${c.bc || '#c9c2b1'};border-radius:${c.radius != null ? c.radius : 2.5}mm;background:${c.bg || '#fff'}">${rows.map(([l, v]) => `<div style="border-color:${c.bc || '#c9c2b1'}"><span style="color:${c.lc || '#555'}">${esc(l)}</span><b>${esc(v || '—')}</b></div>`).join('')}</div>`;
+  },
+  itemsTable(b, lines, opt = {}) {
+    const c = b.cfg || {}, cols = (c.cols || VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 }))).filter((x) => x.on && (x.k !== 'info' || lines.some((l) => l.info)));
+    const tw = cols.reduce((s, x) => s + (Number(x.w) || 10), 0), bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3;
+    const td = (k, l, i) => ({ no: fmtNum(i + 1), name: `<b>${esc(l.name)}</b>${c.skuUnder !== 0 && l.sku && !cols.some((x) => x.k === 'sku') ? `<div class="vl-sku">${esc(l.sku)}</div>` : ''}`, brand: esc([l.brand, l.model].filter(Boolean).join(' ') || '—'), serials: `<span class="ltr vl-sn">${esc((l.serials || []).length ? l.serials.join('، ') : '—')}</span>`, info: esc(l.info || ''), qty: fmtNum(l.qty), unit: esc(l.unit || 'قطعة'), sku: `<span class="ltr">${esc(l.sku || '')}</span>` })[k];
+    const center = new Set(['no', 'qty', 'unit']), padN = Math.max(0, (Number(c.minRows) || 0) - lines.length), total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0), qi = cols.findIndex((x) => x.k === 'qty');
+    const cell = (k, inner, i, tag = 'td') => `<${tag} style="border:${bw}mm solid ${bc};${center.has(k) ? 'text-align:center;' : ''}${c.zebra && i % 2 ? 'background:rgba(0,0,0,.035);' : ''}${c.rowH ? `height:${c.rowH}mm;` : ''}">${inner}</${tag}>`;
+    return `<table class="vl-items" style="font-size:${c.fs || 10}pt"><colgroup>${cols.map((x) => `<col style="width:${((Number(x.w) || 10) / tw) * 100}%">`).join('')}</colgroup>
+      <thead><tr>${cols.map((x) => `<th style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};color:${c.hc || '#111'};${center.has(x.k) ? 'text-align:center;' : ''}">${esc(x.l)}</th>`).join('')}</tr></thead>
+      <tbody>${lines.map((l, i) => `<tr>${cols.map((x) => cell(x.k, td(x.k, l, i), i)).join('')}</tr>`).join('')}${Array.from({ length: padN }, (_, j) => `<tr>${cols.map((x) => cell(x.k, x.k === 'no' ? fmtNum(lines.length + j + 1) : '&nbsp;', lines.length + j)).join('')}</tr>`).join('')}</tbody>
+      ${c.total !== 0 && qi >= 0 && !opt.noTotal ? `<tfoot><tr>${qi ? `<td colspan="${qi}" style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};font-weight:700">الإجمالي</td>` : ''}<td style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};font-weight:700;text-align:center">${fmtNum(total)}</td>${cols.slice(qi + 1).map(() => `<td style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'}"></td>`).join('')}</tr></tfoot>` : ''}</table>`;
+  },
+  items(b, d) {
+    const c = b.cfg || {};
+    if ((d.oldLines || []).length) return `<h4 class="vl-sub" style="color:${c.hc2 || 'inherit'}">${UI.icon('upload')} الجهاز المسلَّم (الجديد)</h4>${VL.itemsTable(b, d.lines || [])}<h4 class="vl-sub">${UI.icon('download')} الجهاز المستبدَل (القديم)</h4>${VL.itemsTable(b, d.oldLines, { noTotal: 1 })}`;
+    return VL.itemsTable(b, d.lines || []);
+  },
+  notes(b, d) { const c = b.cfg || {}; return `<div class="vl-notes" style="border:${c.bw != null ? c.bw : 0.3}mm ${c.bs || 'solid'} ${c.bc || '#c9c2b1'};border-radius:${c.radius != null ? c.radius : 2}mm;min-height:${c.minH || 9}mm;background:${c.bg || '#fff'}"><span style="color:${c.lc || '#8a6a22'}">${esc(c.label || 'ملاحظات')}</span><p>${esc(d.note || '—').replace(/\n/g, '<br>')}</p></div>`; },
+  sigsTable(b, parties) {
+    const c = b.cfg || {}, cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on), bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3, rh = c.rowH || 11;
+    const T = { recv: c.recv || 'المستلم', deliv: c.deliv || 'المُسلِّم', appr: c.appr || 'اعتماد المسؤول' };
+    const extra = String(c.extra || '').split('\n').map((x) => x.trim()).filter(Boolean).map((t) => ({ title: t, signOnly: true }));
+    const list = parties.filter((p) => !p.signOnly || c.approver !== 0).map((p) => ({ ...p, title: p.role ? T[p.role] || p.title : p.title })).concat(extra);
+    const bd = `border:${bw}mm solid ${bc}`, hatch = 'background:repeating-linear-gradient(-45deg,#fff 0 1.6mm,#efebe1 1.6mm 1.9mm)';
+    if (c.layout === 'boxes') return `<div class="vl-sboxes" style="grid-template-columns:repeat(${Math.min(4, list.length)},minmax(0,1fr))">${list.map((p) => `<div class="vl-sbox" style="${bd};border-radius:${c.radius != null ? c.radius : 2}mm"><div class="vl-sbh" style="border-bottom:0.4mm solid ${c.hc || '#8a6a22'}"><b>${esc(p.title)}</b>${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}</div>${cols.filter((x) => !p.signOnly || x.k === 'sign').map((x) => `<div class="vl-sbr${x.k === 'sign' ? ' sg' : ''}"><span>${esc(x.l)}</span><em class="${x.k === 'no' ? 'ltr' : ''}">${x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || '')}</em></div>`).join('')}</div>`).join('')}</div>`;
+    const si = cols.findIndex((x) => x.k === 'sign');
+    return `<table class="vl-sigs" style="font-size:${c.fs || 10}pt"><thead><tr><th style="${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};width:${c.roleW || 26}mm">${esc(c.roleL || 'الصفة')}</th>${cols.map((x) => `<th style="${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};${x.k === 'sign' ? `width:${c.signW || 30}%` : ''}">${esc(x.l)}</th>`).join('')}</tr></thead><tbody>${list.map((p) => (p.signOnly
+      ? `<tr style="height:${rh}mm"><th style="${bd};background:${c.rbg || '#faf8f3'};text-align:right">${esc(p.title)}</th>${si > 0 ? `<td colspan="${si}" style="${bd};${hatch}"></td>` : ''}${si >= 0 ? `<td style="${bd}"></td>` : ''}${si >= 0 && si < cols.length - 1 ? `<td colspan="${cols.length - si - 1}" style="${bd};${hatch}"></td>` : si < 0 ? `<td colspan="${cols.length}" style="${bd};${hatch}"></td>` : ''}</tr>`
+      : `<tr style="height:${rh}mm"><th style="${bd};background:${c.rbg || '#faf8f3'};text-align:right">${esc(p.title)}${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}</th>${cols.map((x) => `<td style="${bd};${x.k === 'no' ? 'text-align:center' : ''}" class="${x.k === 'no' ? 'ltr' : ''}">${x.k === 'name' ? `<b>${esc(p.name || '')}</b>` : x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || '')}</td>`).join('')}</tr>`)).join('')}</tbody></table>`;
+  },
+  ret(b, d) {
+    if (!d.returnHolder) return '';
+    const c = b.cfg || {};
+    return `<div class="vl-ret" style="border:0.4mm dashed ${c.bc || '#c9c2b1'};border-radius:${c.radius != null ? c.radius : 3}mm"><div class="vl-reth" style="color:${c.hc || '#8a6a22'}">${esc(c.title || 'يُعبَّأ عند الإرجاع')}</div><div class="vl-retg"><div><span>تاريخ الإرجاع الفعلي</span><em></em></div><div><span>حالة الصنف عند الإرجاع</span><em></em></div></div>${VL.sigsTable(b, [{ role: 'x', title: c.t1 || 'المُعيد', ...d.returnHolder }, { role: 'y', title: c.t2 || 'مستلم الإرجاع' }, { role: 'appr', title: 'اعتماد المسؤول', signOnly: true }])}</div>`;
+  },
+  band(b, d, F, opt) {
+    const edit = opt.edit, hid = !VL.vis(b, d.kindKey);
+    if (!edit && hid) return '';
+    let inner = '';
+    if (b.type === 'free') inner = (b.els || []).filter((e) => edit || VL.vis(e, d.kindKey)).sort((a, z) => (a.z || 0) - (z.z || 0)).map((e) => VL.el(e, d, F, opt)).join('');
+    else if (b.type === 'facts') inner = VL.facts(b, d);
+    else if (b.type === 'items') inner = VL.items(b, d);
+    else if (b.type === 'notes') inner = VL.notes(b, d);
+    else if (b.type === 'sigs') inner = VL.sigsTable(b, d.parties || []);
+    else if (b.type === 'ret') inner = VL.ret(b, d) || (edit ? `<div class="vl-empty">${esc('تظهر هذه الخانة في سندات الإعارة وتسليم العهدة فقط')}</div>` : '');
+    if (!edit && !inner) return '';
+    const sel = edit && opt.selBand === b.id;
+    const st = `margin-top:${b.mt != null ? b.mt : 3}mm;${b.type === 'free' ? `height:${b.h}mm;` : ''}${b.bg ? `background:${b.bg};` : ''}${b.type !== 'free' && b.pad ? `padding:${b.pad}mm;` : ''}`;
+    const [tl, ti] = VL_BAND_TYPES[b.type] || VL_BAND_TYPES.free;
+    return `<section class="vl-band vl-b-${b.type}${sel ? ' sel' : ''}${hid ? ' vl-hid' : ''}"${edit ? ` data-band="${b.id}"` : ''} style="${st}">${inner}${edit ? `<div class="vl-btag">${String(UI.icon(ti))}<span>${esc(b.name || tl)}</span>${hid ? '<em>مخفي في هذا النوع</em>' : ''}</div>${b.type === 'free' ? '<i class="vl-bh" data-bh></i>' : ''}<div class="vl-guides"></div>` : ''}</section>`;
+  },
+  /* المستند كاملاً. opt: { edit, data, sel, selBand, print } */
+  doc(L, d, opt = {}) {
+    const p = L.page, { W, H } = VL.dims(p), F = VL.fields(d), f = p.font || {};
+    const frame = p.frame && p.frame.style && p.frame.style !== 'none' ? `<div class="vl-frame vl-fr-${p.frame.style}" style="--fc:${p.frame.color || '#000'};--fw:${p.frame.w || 0.6}mm;border-radius:${p.frame.radius || 0}mm"></div>` : '';
+    const wm = p.wm && (p.wm.text || p.wm.img) ? `<div class="vl-wm" style="opacity:${(Number(p.wm.opacity) || 7) / 100}"><div style="transform:rotate(${p.wm.angle != null ? p.wm.angle : -30}deg)">${p.wm.img ? `<img src="${esc(p.wm.img === 'logo' ? ASSETS.logo : p.wm.img)}" alt="" style="width:${p.wm.size || 90}mm">` : ''}${p.wm.text ? `<span style="font-size:${p.wm.fs || 64}pt;color:${p.wm.color || '#000'}">${esc(p.wm.text)}</span>` : ''}</div></div>` : '';
+    const body = (L.bands || []).map((b) => VL.band(b, d, F, opt)).join('');
+    const base = `${VL.font({ font: f.family || 'IBM Plex Sans Arabic', size: f.size || 10.5, color: f.color || '#111' })}`;
+    /* في الطباعة: الإطار ثابت فيتكرر في كل صفحة، ومسافة المحتوى عنه أعلى وأسفل كل صفحة عبر رأس وتذييل جدول يتكرران */
+    if (opt.print) { const pd = Number(p.pad) || 0, sp = `<tr><td style="height:${pd}mm"></td></tr>`; return { css: `@page{size:${W}mm ${H}mm;margin:${p.mt}mm ${p.mr}mm ${p.mb}mm ${p.ml}mm}${p.bg && p.bg !== '#ffffff' ? `html,body{background:${p.bg}!important}` : ''}`, html: `<div class="vl-print" style="${base}">${frame}${wm}<table class="vl-pt">${pd ? `<thead>${sp}</thead><tfoot>${sp}</tfoot>` : ''}<tbody><tr><td><div class="vl-doc" style="padding:0 ${pd}mm">${body}</div></td></tr></tbody></table></div>` }; }
+    return `<div class="vl-page" style="width:${W}mm;min-height:${H}mm;padding:${p.mt}mm ${p.mr}mm ${p.mb}mm ${p.ml}mm;background:${p.bg || '#fff'};${base}"><div class="vl-pin" style="min-height:${H - p.mt - p.mb}mm">${frame}${wm}<div class="vl-doc" style="padding:${p.pad || 0}mm">${body}</div></div>${opt.edit ? `<div class="vl-pbreak" style="top:${H}mm"><span>نهاية الصفحة الأولى</span></div>` : ''}</div>`;
+  },
+  print(tpl, d) {
+    const out = VL.doc(tpl.layout, d, { print: true });
+    UI.print(raw(out.html), `${d.title} ${d.number}`, { bare: true, css: out.css, font: (tpl.layout.page.font || {}).family });
+  }
+};
+
+/* ── القوالب الجاهزة (نقطة بداية قابلة للتعديل الكامل) ── */
+const VLS = {
+  id: () => uid('ve'),
+  page: (o = {}) => ({ size: 'A4', orient: 'portrait', mt: 10, mb: 10, ml: 12, mr: 12, pad: 0, bg: '#ffffff', font: { family: 'IBM Plex Sans Arabic', size: 10.5, color: '#111111' }, frame: { style: 'none', color: '#000000', w: 0.6, radius: 0 }, wm: { text: '', img: '', opacity: 7, angle: -30, fs: 64 }, ...o }),
+  t: (x, y, w, h, text, s = {}) => ({ id: VLS.id(), t: 'text', x, y, w, h, text, s: { align: 'right', ...s } }),
+  img: (x, y, w, h, src = 'logo') => ({ id: VLS.id(), t: 'image', x, y, w, h, src, fit: 'contain', s: {} }),
+  ln: (x, y, w, lw = 0.4, lc = '#111', ls = 'solid') => ({ id: VLS.id(), t: 'line', dir: 'h', x, y, w, h: 2, lw, lc, ls }),
+  rc: (x, y, w, h, s) => ({ id: VLS.id(), t: 'rect', x, y, w, h, s }),
+  bc: (x, y, w, h) => ({ id: VLS.id(), t: 'barcode', x, y, w, h, value: '[رقم السند]', showText: 1, s: { size: 10, bold: 1, align: 'center' } }),
+  band: (type, o = {}) => ({ id: VLS.id(), type, mt: 3, kinds: [], ...(type === 'free' ? { h: 20, els: [] } : { cfg: {} }), ...o }),
+  dyn(acc, soft, line) {
+    return [
+      VLS.band('facts', { cfg: { style: 'cards', cols: 4, bc: line, lc: '#555' } }),
+      VLS.band('items', { cfg: { cols: VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 })), hbg: soft, hc: '#111', bc: line, bw: 0.3, fs: 10, total: 1, minRows: 0 } }),
+      VLS.band('notes', { mt: 0, cfg: { label: 'ملاحظات', lc: acc, bc: line, minH: 9 } })
+    ];
+  },
+  sigs: (acc, soft, line) => VLS.band('sigs', { cfg: { layout: 'rows', cols: VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 })), hbg: soft, bc: line, rowH: 11, approver: 1, subs: 1, hc: acc } }),
+  ret: (acc, line) => VLS.band('ret', { mt: 4, cfg: { bc: line, hc: acc, cols: VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 })), hbg: '#f7f5ef', rowH: 10, approver: 1 } }),
+  classic() {
+    const acc = '#8a6a22', soft = '#f6f2e8', line = '#c9c2b1', W = 186;
+    return { page: VLS.page(), bands: [
+      VLS.band('free', { name: 'الترويسة', mt: 0, h: 27, els: [VLS.img(W - 24, 1, 22, 22), VLS.t(W - 112, 4, 86, 8, '[اسم المؤسسة]', { size: 13, bold: 1 }), VLS.t(W - 112, 12, 86, 7, '[اسم القسم]', { size: 11 }), VLS.t(0, 4, 70, 15, 'الرقم: [رقم السند]\nالتاريخ: [التاريخ]', { size: 10, align: 'left', bold: 1 }), VLS.ln(0, 25, W, 0.4)] }),
+      VLS.band('free', { name: 'العنوان', h: 24, els: [VLS.rc(0, 0, W, 24, { bg: '#fbf9f4', bw: 0.4, bc: acc, radius: 3 }), VLS.rc(W - 1.6, 0, 1.6, 24, { bg: acc }), VLS.t(66, 2.5, W - 72, 5, '[نوع العملية]', { size: 9, bold: 1, color: acc }), VLS.t(66, 7.5, W - 72, 9, '[عنوان السند]', { size: 18, bold: 1 }), VLS.t(66, 17, W - 72, 5, '[التاريخ والوقت]', { size: 9, color: '#444' }), VLS.ln(62, 2, 0.1, 0.3, line, 'dashed'), VLS.bc(3, 3, 56, 18)].map((e) => (e.t === 'line' && e.x === 62 ? { ...e, dir: 'v', w: 2, h: 20 } : e)) }),
+      ...VLS.dyn(acc, soft, line),
+      VLS.band('free', { name: 'التعهد', h: 11, els: [VLS.t(0, 0, W, 11, '[نص التعهد]', { size: 9.5, bg: soft, radius: 2, padding: 2, valign: 'middle' })] }),
+      VLS.sigs(acc, soft, line), VLS.ret(acc, line),
+      VLS.band('free', { name: 'التذييل', h: 7, mt: 4, els: [VLS.ln(0, 0, W, 0.3, line), VLS.t(40, 1.5, W - 40, 5, 'صدر إلكترونياً من [اسم القسم] — [اسم المؤسسة]', { size: 8, color: '#666' }), VLS.t(0, 1.5, 40, 5, '[رقم السند]', { size: 8, color: '#666', align: 'left' })] })
+    ] };
+  },
+  gov() {
+    const acc = '#1f3a68', soft = '#eef2f8', line = '#b9c3d3', W = 186;
+    return { page: VLS.page({ font: { family: 'Amiri', size: 11.5, color: '#111111' }, frame: { style: 'double', color: '#1f3a68', w: 1.2, radius: 0 }, pad: 4 }), bands: [
+      VLS.band('free', { name: 'الترويسة', mt: 0, h: 30, els: [VLS.t(W - 74, 1, 70, 22, 'سلطنة عُمان\nشرطة عُمان السلطانية\n[اسم المؤسسة]', { size: 11.5, bold: 1, align: 'center', lh: 1.45 }), VLS.img((W - 24) / 2 - 3, 0, 24, 24), VLS.t(0, 1, 66, 22, '[اسم القسم]\nالرقم: [رقم السند]\nالتاريخ: [التاريخ]', { size: 11, align: 'center', lh: 1.45 }), { ...VLS.ln(0, 26, W - 8, 1.2, acc, 'double') }] }),
+      VLS.band('free', { name: 'العنوان', h: 20, els: [VLS.t(48, 2, W - 104, 11, '[عنوان السند]', { size: 20, bold: 1, align: 'center', color: acc }), VLS.ln(70, 14, W - 148, 0.6, acc), VLS.bc(0, 1, 44, 16)] }),
+      ...VLS.dyn(acc, soft, line).map((b) => (b.type === 'facts' ? { ...b, cfg: { ...b.cfg, style: 'table', lbg: soft } } : b)),
+      VLS.band('free', { name: 'التعهد', h: 10, els: [VLS.t(0, 0, W - 8, 10, '[نص التعهد]', { size: 10.5, valign: 'middle' })] }),
+      VLS.sigs(acc, soft, line), VLS.ret(acc, line),
+      VLS.band('free', { name: 'التذييل', h: 6, mt: 4, els: [VLS.t(0, 0, W - 8, 6, '[اسم المؤسسة] — [اسم القسم] — [رقم السند]', { size: 8.5, align: 'center', color: '#555' })] })
+    ] };
+  },
+  modern() {
+    const acc = '#0f4c5c', soft = '#e8f1f3', line = '#bcd3d8', W = 186;
+    return { page: VLS.page({ font: { family: 'Cairo', size: 10, color: '#14202a' } }), bands: [
+      VLS.band('free', { name: 'الشريط العلوي', mt: 0, h: 30, els: [VLS.rc(0, 0, W, 30, { bg: acc, radius: 4 }), VLS.rc(W - 30, 4, 22, 22, { bg: '#ffffff', radius: 11 }), VLS.img(W - 28, 6, 18, 18), VLS.t(66, 4, W - 100, 6, '[اسم المؤسسة] — [اسم القسم]', { size: 9, color: '#d6eef2' }), VLS.t(66, 10, W - 100, 11, '[عنوان السند]', { size: 19, bold: 1, color: '#ffffff' }), VLS.t(66, 21, W - 100, 6, '[التاريخ والوقت]', { size: 9, color: '#d6eef2' }), VLS.rc(4, 4, 58, 22, { bg: '#ffffff', radius: 2.5 }), VLS.bc(6, 5, 54, 20)] }),
+      ...VLS.dyn(acc, soft, line).map((b) => (b.type === 'items' ? { ...b, cfg: { ...b.cfg, hbg: acc, hc: '#ffffff', zebra: 1 } } : b)),
+      VLS.band('free', { name: 'التعهد', h: 11, els: [VLS.t(0, 0, W, 11, '[نص التعهد]', { size: 9.5, bg: soft, radius: 2, padding: 2, valign: 'middle', bw: 0, bc: line })] }),
+      { ...VLS.sigs(acc, soft, line), cfg: { ...VLS.sigs(acc, soft, line).cfg, layout: 'boxes' } }, VLS.ret(acc, line),
+      VLS.band('free', { name: 'التذييل', h: 6, mt: 4, els: [VLS.rc(0, 0, W, 6, { bg: soft, radius: 1.5 }), VLS.t(2, 0.5, W - 4, 5, 'صدر إلكترونياً من [اسم القسم] — [رقم السند]', { size: 8, color: '#466', align: 'center', valign: 'middle' })] })
+    ] };
+  },
+  plain() {
+    const acc = '#000000', soft = '#f2f2f2', line = '#555555', W = 186;
+    return { page: VLS.page({ font: { family: 'Noto Naskh Arabic', size: 11, color: '#000000' }, frame: { style: 'solid', color: '#000000', w: 0.5, radius: 0 }, pad: 4 }), bands: [
+      VLS.band('free', { name: 'الترويسة', mt: 0, h: 34, els: [VLS.img((W - 8) / 2 - 9, 0, 18, 18), VLS.t(20, 19, W - 48, 6, '[اسم المؤسسة] — [اسم القسم]', { size: 11, bold: 1, align: 'center' }), VLS.t(20, 25, W - 48, 8, '[عنوان السند] رقم [رقم السند]', { size: 15, bold: 1, align: 'center', underline: 1 })] }),
+      ...VLS.dyn(acc, soft, line).map((b) => (b.type === 'facts' ? { ...b, cfg: { ...b.cfg, style: 'line' } } : b)),
+      VLS.band('free', { name: 'التعهد', h: 9, els: [VLS.t(0, 0, W - 8, 9, '[نص التعهد]', { size: 10, valign: 'middle' })] }),
+      VLS.sigs(acc, soft, line), VLS.ret(acc, line)
+    ] };
+  },
+  blank() { return { page: VLS.page(), bands: [VLS.band('free', { name: 'قسم حر', mt: 0, h: 40, els: [VLS.t(40, 10, 106, 12, '[عنوان السند]', { size: 18, bold: 1, align: 'center' })] }), VLS.band('items', { cfg: { cols: VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 })) } }), VLS.sigs('#111', '#f2f2f2', '#888')] }; }
+};
+const VL_STARTERS = [['classic', 'الرسمي الكلاسيكي', 'ترويسة بالشعار، عنوان مع الباركود، ألوان ذهبية'], ['gov', 'حكومي بترويسة ثلاثية', 'سلطنة عمان والشعار في الوسط، خط أميري، إطار مزدوج'], ['modern', 'حديث بشريط ملوّن', 'شريط علوي ملوّن وتواقيع بطاقات وخط القاهرة'], ['plain', 'مبسّط أبيض وأسود', 'مناسب للطابعات الأحادية، إطار رفيع'], ['blank', 'صفحة شبه فارغة', 'ابدأ تصميمك من الصفر']];
+const vlFix = (L) => { L.page = { ...VLS.page(), ...(L.page || {}) }; L.bands = (L.bands || []).map((b) => ({ kinds: [], mt: 3, ...b, ...(b.type === 'free' ? { els: b.els || [] } : { cfg: b.cfg || {} }) })); return L; };
+/* ربط الطباعة: إن كان للاستمارة قالب معيّن يُطبع به، وإلا بالتصميم المعتمد السابق */
+{
+  const p0 = VD.print;
+  VD.print = (d) => {
+    const tpl = VL.tplFor(d.kindKey);
+    if (!tpl) return p0(d);
+    const T = VTPL.eff(d.kindKey), title = String(T.title.text || '').trim() || d.kind.title;
+    VL.print({ ...tpl, layout: vlFix(JSON.parse(JSON.stringify(tpl.layout))) }, { ...d, title, pledge: String(T.pledge.text || '').trim() || d.pledge || '' });
+  };
+}
+{
+  const p1 = UI.print;
+  UI.print = (content, title, opts) => {
+    if (!opts || !opts.css) return p1(content, title, opts);
+    const root = $('#print-root');
+    root.innerHTML = String(html`<style>${raw(opts.css)}</style><div class="print-doc bare">${content}</div>`);
+    document.body.classList.add('printing');
+    const tok = (UI._printTok = (UI._printTok || 0) + 1);
+    const fams = [...new Set([opts.font, ...$$('[style*="font-family"]', root).map((e) => (e.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim())].filter(Boolean))];
+    const ready = document.fonts && document.fonts.load ? Promise.race([Promise.all(fams.flatMap((f) => [document.fonts.load(`400 16px "${f}"`), document.fonts.load(`700 16px "${f}"`)])), new Promise((r) => setTimeout(r, 1800))]).catch(() => {}) : Promise.resolve();
+    const imgs = $$('img', root).filter((i) => !i.complete).map((i) => new Promise((r) => { i.onload = r; i.onerror = r; setTimeout(r, 1500); }));
+    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; window.print(); setTimeout(() => { if (tok !== UI._printTok) return; document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80));
+  };
+}
+/* ── واجهة المحرر ── */
+const VLE_COLORS = ['#000000', '#111111', '#444444', '#888888', '#ffffff', '#8a6a22', '#1f3a68', '#0f4c5c', '#1d5c3f', '#7a1f2b', '#b45309', '#1d4ed8', '#f6f2e8', '#eef2f8', '#e8f1f3', '#fff7e6'];
+const vleKindTitle = (k) => (VOUCHER_KIND[k] || {}).title || k;
+Pages.vleSample = (k, n) => { const d = Pages.vtdSample(k, n), T = VTPL.eff(k); d.title = String(T.title.text || '').trim() || d.kind.title; d.pledge = String(T.pledge.text || '').trim() || d.pledge || ''; return d; };
+Pages.vleImage = async (maxPx = 900) => {
+  const [f] = await UI.pickFiles({ accept: 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif', multiple: false }); if (!f) return null;
+  const src = await blobToDataURL(f);
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new AppError('تعذر قراءة الصورة')); i.src = src; });
+  const w0 = img.naturalWidth || 600, h0 = img.naturalHeight || 600, sc = Math.min(1, maxPx / Math.max(w0, h0)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w0 * sc)); c.height = Math.max(1, Math.round(h0 * sc));
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+  let out = c.toDataURL('image/png'); if (out.length > 360000) { const g2 = document.createElement('canvas'); g2.width = c.width; g2.height = c.height; const x = g2.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(c, 0, 0); out = g2.toDataURL('image/jpeg', 0.85); }
+  if (out.length > 420000) throw new AppError('الصورة كبيرة جداً، استخدم صورة أصغر (حتى 300 كيلوبايت تقريباً)');
+  return { src: out, ar: c.height / c.width };
+};
+Pages.voucherDesigner = async (ctx) => {
+  const lib = JSON.parse(JSON.stringify(VL.data() || {}));
+  lib.tpls = (lib.tpls || []).map((t) => ({ ...t, layout: vlFix(t.layout || {}) })); lib.use = lib.use || {}; lib.def = lib.def || '';
+  if (!lib.tpls.length) lib.tpls.push({ id: uid('vt'), name: 'الرسمي الكلاسيكي', layout: VLS.classic(), createdAt: now() });
+  const st = { id: lib.tpls[0].id, sel: null, kind: 'issue', n: 3, data: false, zoom: 0, grid: true, dirty: false, undo: [], redo: [], editing: null, cell: null, histAt: 0, openSec: {} };
+  const ro = !VL.can();
+  const tpl = () => lib.tpls.find((t) => t.id === st.id) || lib.tpls[0];
+  const L = () => tpl().layout;
+  const band = (id) => L().bands.find((b) => b.id === id);
+  const selB = () => (st.sel ? band(st.sel.b) : null);
+  const selE = () => { const b = selB(); return b && st.sel.e ? (b.els || []).find((e) => e.id === st.sel.e) : null; };
+  const sample = () => Pages.vleSample(st.kind, st.n);
+  const $v = (s) => ctx.view.querySelector(s);
+  /* ── السجل: تراجع وإعادة ── */
+  const hist = (force) => { const t = now(); if (!force && t - st.histAt < 500) { st.histAt = t; return; } st.histAt = t; st.undo.push(JSON.stringify({ id: st.id, L: L() })); if (st.undo.length > 80) st.undo.shift(); st.redo = []; dirty(true); };
+  const restore = (snap) => { const s = JSON.parse(snap), t = lib.tpls.find((x) => x.id === s.id); if (t) { t.layout = s.L; st.id = s.id; } st.sel = null; st.editing = null; drawAll(); };
+  const undo = () => { const s = st.undo.pop(); if (!s) return; st.redo.push(JSON.stringify({ id: st.id, L: L() })); restore(s); dirty(true); };
+  const redo = () => { const s = st.redo.pop(); if (!s) return; st.undo.push(JSON.stringify({ id: st.id, L: L() })); restore(s); dirty(true); };
+  const dirty = (d) => { st.dirty = d; const b = $v('[data-act="save"]'); if (b) b.classList.toggle('pulse', d); const t = $v('[data-dirty]'); if (t) t.textContent = d ? 'تعديلات غير محفوظة' : 'محفوظ'; };
+  /* ── الرسم ── */
+  const drawCanvas = () => {
+    const z = $v('.vle-zoom'); if (!z) return;
+    if (st._drawing) { setTimeout(drawCanvas, 0); return; }
+    st._drawing = true; try { drawCanvas0(z); } finally { st._drawing = false; }
+  };
+  const drawCanvas0 = (z) => {
+    const sb = st.sel ? st.sel.b : '', se = st.sel ? st.sel.e : '';
+    z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '' });
+    if (se) { const b = z.querySelector(`[data-band="${sb}"]`); if (b) b.classList.add('has-sel'); }
+    z.classList.toggle('grid', st.grid);
+    fit();
+  };
+  const fit = () => {
+    const z = $v('.vle-zoom'), stage = $v('.vle-stage'); if (!z || !stage) return;
+    const { W } = VL.dims(L().page), pw = W * MMPX;
+    if (!st.zoom) st.zoom = Math.max(0.4, Math.min(1.3, (stage.clientWidth - 48) / pw));
+    z.style.transform = `scale(${st.zoom})`; z.style.width = `${pw}px`;
+    const pg = z.firstElementChild; stage.querySelector('.vle-sizer').style.height = `${(pg ? pg.offsetHeight : 1000) * st.zoom + 60}px`;
+    stage.querySelector('.vle-sizer').style.width = `${pw * st.zoom + 48}px`;
+    const zv = $v('[data-zv]'); if (zv) zv.textContent = `${Math.round(st.zoom * 100)}%`;
+  };
+  const rafDraw = (() => { let q = 0; return () => { if (q) return; q = requestAnimationFrame(() => { q = 0; drawCanvas(); }); }; })();
+  const drawAll = () => { drawRibbon(); drawCanvas(); drawInsp(); drawTop(); };
+  /* ── شريط القوالب ── */
+  const drawTop = () => {
+    const box = $v('.vle-top'); if (!box) return;
+    const uses = VT_KINDS.filter(([k]) => (lib.use[k] || lib.def) === st.id).map(([, l]) => l);
+    box.innerHTML = String(html`<div class="vle-tsel">${UI.icon('file')}<select data-tpl>${lib.tpls.map((t) => html`<option value="${t.id}"${t.id === st.id ? raw(' selected') : ''}>${t.name}</option>`)}</select>
+      ${ro ? '' : html`<button type="button" class="btn btn-sm btn-ghost" data-top="new" title="قالب جديد">${UI.icon('plus')} جديد</button><button type="button" class="btn btn-sm btn-ghost" data-top="dup" title="نسخ القالب">${UI.icon('copy')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="ren" title="إعادة تسمية">${UI.icon('edit')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="del" title="حذف القالب">${UI.icon('trash')}</button>`}</div>
+      <div class="vle-uses">${uses.length ? html`${UI.icon('check')} مستخدم في: ${uses.join('، ')}` : html`<span class="faint">${UI.icon('info')} غير معيّن لأي استمارة بعد</span>`}</div>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-sm btn-soft" data-top="assign">${UI.icon('layers')} تعيين القوالب للاستمارات</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-top="test">${UI.icon('print')} طباعة تجريبية</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-top="io">${UI.icon('download')} تصدير / استيراد</button>
+      <span class="faint small" data-dirty>${st.dirty ? 'تعديلات غير محفوظة' : 'محفوظ'}</span>
+      ${ro ? '' : html`<button type="button" class="btn btn-primary" data-act="save">${UI.icon('check')} حفظ</button>`}`);
+  };
+  /* ── الشريط (Ribbon) ── */
+  const drawRibbon = () => {
+    const box = $v('.vle-ribbon'); if (!box) return;
+    const e = selE(), s = (e && e.s) || {}, txt = e && ['text', 'table', 'barcode'].includes(e.t), boxy = e && ['text', 'rect', 'table', 'image', 'barcode'].includes(e.t);
+    const tb = (act, icon, label, on = false, dis = false, extra = '') => html`<button type="button" class="vle-b${on ? ' on' : ''}" data-rb="${act}"${dis ? raw(' disabled') : ''} title="${label}">${icon}${extra}</button>`;
+    box.innerHTML = String(html`
+      <div class="vle-g"><span class="vle-gl">إدراج</span><div class="vle-gb">
+        ${tb('ins:text', UI.icon('edit'), 'مربع نص', false, false, raw('<span>نص</span>'))}${tb('ins:image', UI.icon('photo'), 'صورة أو شعار', false, false, raw('<span>صورة</span>'))}${tb('menu:table', UI.icon('list'), 'جدول', false, false, raw('<span>جدول ▾</span>'))}${tb('ins:line', raw('<i class="vle-ic-line"></i>'), 'خط')}${tb('ins:rect', raw('<i class="vle-ic-rect"></i>'), 'إطار أو مستطيل')}${tb('ins:barcode', UI.icon('scan'), 'باركود')}${tb('menu:field', raw('<b class="vle-ic-f">[ ]</b>'), 'إدراج حقل تلقائي', false, false, raw('<span>حقل ▾</span>'))}${tb('menu:band', UI.icon('plus'), 'إضافة قسم', false, false, raw('<span>قسم ▾</span>'))}</div></div>
+      <div class="vle-g"><span class="vle-gl">الخط</span><div class="vle-gb">
+        <select data-rs="font" ${txt ? '' : raw('disabled')} title="نوع الخط" class="vle-font"><option value="">خط الصفحة</option>${VT_FONTS.map(([f, l]) => html`<option value="${f}"${s.font === f ? raw(' selected') : ''} style="font-family:'${f}'">${l}</option>`)}</select>
+        <select data-rs="size" ${txt ? '' : raw('disabled')} title="حجم الخط" class="vle-size"><option value="">—</option>${[7, 8, 8.5, 9, 9.5, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48].map((n) => html`<option value="${n}"${Number(s.size) === n ? raw(' selected') : ''}>${n}</option>`)}</select>
+        ${tb('st:bold', raw('<b>B</b>'), 'عريض (Ctrl+B)', !!s.bold, !txt)}${tb('st:italic', raw('<i style="font-family:serif">I</i>'), 'مائل (Ctrl+I)', !!s.italic, !txt)}${tb('st:underline', raw('<u>U</u>'), 'تسطير (Ctrl+U)', !!s.underline, !txt)}
+        <label class="vle-col" title="لون الخط"><span style="border-bottom:3px solid ${s.color || '#111'}">A</span><input type="color" data-rs="color" value="${s.color || '#111111'}"${txt ? '' : raw(' disabled')}></label>
+      </div></div>
+      <div class="vle-g"><span class="vle-gl">الفقرة</span><div class="vle-gb">
+        ${tb('al:right', raw('<i class="vle-al r"></i>'), 'محاذاة لليمين', (s.align || 'right') === 'right' && txt, !txt)}${tb('al:center', raw('<i class="vle-al c"></i>'), 'توسيط', s.align === 'center', !txt)}${tb('al:left', raw('<i class="vle-al l"></i>'), 'محاذاة لليسار', s.align === 'left', !txt)}${tb('al:justify', raw('<i class="vle-al j"></i>'), 'ضبط', s.align === 'justify', !txt)}
+        ${tb('va:top', raw('<i class="vle-va t"></i>'), 'أعلى المربع', (s.valign || 'top') === 'top' && e && e.t === 'text', !(e && e.t === 'text'))}${tb('va:middle', raw('<i class="vle-va m"></i>'), 'وسط المربع', s.valign === 'middle', !(e && e.t === 'text'))}${tb('va:bottom', raw('<i class="vle-va b"></i>'), 'أسفل المربع', s.valign === 'bottom', !(e && e.t === 'text'))}
+      </div></div>
+      <div class="vle-g"><span class="vle-gl">التعبئة والحدود</span><div class="vle-gb">
+        <label class="vle-col" title="لون التعبئة"><i class="vle-fill" style="background:${s.bg || 'transparent'}"></i><input type="color" data-rs="bg" value="${s.bg || '#ffffff'}"${boxy ? '' : raw(' disabled')}></label>
+        ${tb('st:nofill', raw('<i class="vle-nofill"></i>'), 'بلا تعبئة', false, !boxy)}
+        <label class="vle-col" title="لون الحد"><i class="vle-bd" style="border-color:${s.bc || '#000'}"></i><input type="color" data-rs="bc" value="${s.bc || '#000000'}"${boxy ? '' : raw(' disabled')}></label>
+        <select data-rs="bw" ${boxy ? '' : raw('disabled')} title="سمك الحد"><option value="0">بلا حد</option>${[0.2, 0.3, 0.5, 0.8, 1, 1.5, 2].map((n) => html`<option value="${n}"${Number(s.bw) === n ? raw(' selected') : ''}>${n} مم</option>`)}</select>
+        <select data-rs="bs" ${boxy ? '' : raw('disabled')} title="نمط الحد">${[['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']].map(([v, l]) => html`<option value="${v}"${(s.bs || 'solid') === v ? raw(' selected') : ''}>${l}</option>`)}</select>
+      </div></div>
+      <div class="vle-g"><span class="vle-gl">ترتيب</span><div class="vle-gb">
+        ${tb('ar:front', raw('<i class="vle-ic-front"></i>'), 'إحضار للأمام', false, !e)}${tb('ar:back', raw('<i class="vle-ic-back"></i>'), 'إرسال للخلف', false, !e)}${tb('menu:align', raw('<i class="vle-al c"></i>'), 'محاذاة داخل القسم', false, !e, raw('<span>▾</span>'))}${tb('ar:dup', UI.icon('copy'), 'تكرار (Ctrl+D)', false, !e)}${tb('ar:lock', UI.icon('lock'), e && e.lock ? 'فك القفل' : 'قفل الموضع', !!(e && e.lock), !e)}${tb('ar:del', UI.icon('trash'), 'حذف (Delete)', false, !e)}
+      </div></div>
+      <div class="vle-g"><span class="vle-gl">عرض</span><div class="vle-gb">
+        ${tb('vw:undo', UI.icon('undo'), 'تراجع (Ctrl+Z)', false, !st.undo.length)}${tb('vw:redo', raw('<i class="vle-redo">↷</i>'), 'إعادة (Ctrl+Y)', false, !st.redo.length)}
+        ${tb('vw:zout', raw('<b>−</b>'), 'تصغير')}<span class="vle-zv" data-zv>${Math.round((st.zoom || 1) * 100)}%</span>${tb('vw:zin', raw('<b>+</b>'), 'تكبير')}
+        ${tb('vw:grid', UI.icon('grid'), 'الشبكة والالتقاط', st.grid)}${tb('vw:data', UI.icon('eye'), st.data ? 'إظهار أسماء الحقول' : 'معاينة بالبيانات', st.data)}
+        <select data-kind title="معاينة كنوع">${VT_KINDS.map(([k, l]) => html`<option value="${k}"${st.kind === k ? raw(' selected') : ''}>${l}</option>`)}</select>
+        <select data-n title="عدد الأصناف في المعاينة">${[1, 3, 6, 10].map((n) => html`<option value="${n}"${st.n === n ? raw(' selected') : ''}>${n} أصناف</option>`)}</select>
+      </div></div>`);
+  };
+  /* ── لوحة الخصائص ── */
+  const fld = (path, label, type = 'text', opt = null, val) => {
+    const v = val !== undefined ? val : getP(path);
+    if (type === 'color') return html`<div class="vle-f"><label>${label}</label><div class="vle-cl"><input type="color" data-k="${path}" value="${v || '#ffffff'}">${VLE_COLORS.slice(0, 10).map((c) => html`<button type="button" class="vle-sw" data-setc="${path}|${c}" style="--c:${c}" title="${c}"></button>`)}${type === 'color' && opt === 'clear' ? html`<button type="button" class="vle-sw clr" data-setc="${path}|" title="بلا لون"></button>` : ''}</div></div>`;
+    if (type === 'select') return html`<div class="vle-f"><label>${label}</label><select data-k="${path}">${opt.map(([a, b]) => html`<option value="${a}"${String(v) === String(a) ? raw(' selected') : ''}>${b}</option>`)}</select></div>`;
+    if (type === 'check') return html`<label class="vle-chk"><input type="checkbox" data-k="${path}" data-t="b"${v ? raw(' checked') : ''}><span>${label}</span></label>`;
+    if (type === 'num') return html`<div class="vle-f sm"><label>${label}</label><input type="number" data-k="${path}" data-t="n" value="${v == null ? '' : v}" step="${opt || 0.5}"></div>`;
+    if (type === 'area') return html`<div class="vle-f"><label>${label}</label><textarea data-k="${path}" rows="3">${v || ''}</textarea></div>`;
+    if (type === 'font') return html`<div class="vle-f"><label>${label}</label><select data-k="${path}"><option value="">—</option>${VT_FONTS.map(([f, l]) => html`<option value="${f}"${v === f ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
+    return html`<div class="vle-f"><label>${label}</label><input data-k="${path}" value="${v == null ? '' : v}"></div>`;
+  };
+  const sec = (id, title, icon, body, open = false) => html`<details class="vle-sec" data-sec="${id}"${st.openSec[id] != null ? (st.openSec[id] ? raw(' open') : '') : open ? raw(' open') : ''}><summary>${UI.icon(icon)} ${title}</summary><div class="vle-sb">${body}</div></details>`;
+  const kindsBox = (prefix, o) => html`<div class="vle-kinds"><label class="vle-chk"><input type="checkbox" data-allk="${prefix}"${!o.kinds || !o.kinds.length ? raw(' checked') : ''}><span>كل الاستمارات</span></label>${VT_KINDS.map(([k, l]) => html`<label class="vle-chk sm"><input type="checkbox" data-kd="${prefix}|${k}"${o.kinds && o.kinds.includes(k) ? raw(' checked') : ''}${!o.kinds || !o.kinds.length ? raw(' disabled') : ''}><span>${l}</span></label>`)}</div>`;
+  const colsEditor = (prefix, cols, withW) => html`<div class="vle-cols">${cols.map((c, i) => html`<div class="vle-colr"><input type="checkbox" data-k="${prefix}.${i}.on" data-t="b"${c.on ? raw(' checked') : ''} title="إظهار"><input data-k="${prefix}.${i}.l" value="${c.l}">${withW ? html`<input type="number" data-k="${prefix}.${i}.w" data-t="n" value="${c.w}" min="2" max="80" title="العرض النسبي" class="w">` : ''}<button type="button" class="icon-btn" data-colmv="${prefix}|${i}|-1" title="تقديم">↑</button><button type="button" class="icon-btn" data-colmv="${prefix}|${i}|1" title="تأخير">↓</button></div>`)}</div>`;
+  const drawInsp = () => {
+    const box = $v('.vle-insp'); if (!box) return;
+    const b = selB(), e = selE(), P = L().page;
+    let body;
+    if (e) {
+      const T = VL_EL_TYPES[e.t];
+      body = html`<div class="vle-ih">${UI.icon(T[1])}<b>${T[0]}</b><span class="grow"></span><button type="button" class="icon-btn" data-rb="ar:dup" title="تكرار">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-rb="ar:del" title="حذف">${UI.icon('trash')}</button></div>
+        ${e.t === 'text' ? sec('etext', 'النص', 'edit', html`<div class="vle-f"><label>المحتوى <small class="faint">(أو انقر مرتين على المربع للكتابة مباشرة)</small></label><textarea data-k="E.text" rows="4" dir="rtl">${e.text || ''}</textarea></div><div class="vle-fields">${VL_FIELDS.slice(0, 12).map(([k]) => html`<button type="button" class="vle-tokb" data-tok="${k}">[${k}]</button>`)}<button type="button" class="vle-tokb more" data-rb="menu:field">المزيد ▾</button></div>${fld('E.s.dir', 'اتجاه الكتابة', 'select', [['rtl', 'من اليمين (عربي)'], ['ltr', 'من اليسار (إنجليزي/أرقام)']])}${fld('E.s.lh', 'تباعد الأسطر', 'select', [['', 'افتراضي'], ['1.1', '1.1'], ['1.3', '1.3'], ['1.5', '1.5'], ['1.8', '1.8'], ['2.2', '2.2']])}${fld('E.s.ls', 'تباعد الأحرف', 'num', 0.2)}`, true) : ''}
+        ${e.t === 'image' ? sec('eimg', 'الصورة', 'photo', html`<div class="vle-imgp"><img src="${e.src && e.src !== 'logo' ? e.src : ASSETS.logo}" alt=""></div><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-soft" data-img="E">${UI.icon('upload')} استبدال الصورة</button><button type="button" class="btn btn-sm btn-ghost" data-logo="E">${UI.icon('refresh')} شعار النظام</button><button type="button" class="btn btn-sm btn-ghost" data-ratio>${UI.icon('scale')} النسبة الأصلية</button></div>${fld('E.fit', 'ملاءمة الصورة', 'select', [['contain', 'احتواء كامل'], ['cover', 'تعبئة المربع'], ['fill', 'تمديد']])}`, true) : ''}
+        ${e.t === 'line' ? sec('eline', 'الخط', 'list', html`${fld('E.dir', 'الاتجاه', 'select', [['h', 'أفقي'], ['v', 'عمودي']])}${fld('E.lw', 'السمك (مم)', 'num', 0.1)}${fld('E.ls', 'النمط', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}${fld('E.lc', 'اللون', 'color')}`, true) : ''}
+        ${e.t === 'barcode' ? sec('ebc', 'الباركود', 'scan', html`${fld('E.value', 'القيمة المرمّزة', 'select', [['[رقم السند]', 'رقم السند'], ['[التاريخ]', 'التاريخ']])}${fld('E.showText', 'كتابة القيمة تحت الباركود', 'check')}`, true) : ''}
+        ${e.t === 'table' ? sec('etbl', 'الجدول', 'list', html`<p class="faint small">انقر مرتين على أي خلية للكتابة فيها، وTab للانتقال للخلية التالية.${st.cell ? html` الخلية المحددة: صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)}` : ''}</p>
+          <div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="rowA">+ صف أعلى</button><button type="button" class="btn btn-sm btn-soft" data-tb="rowB">+ صف أسفل</button><button type="button" class="btn btn-sm btn-soft" data-tb="colR">+ عمود يمين</button><button type="button" class="btn btn-sm btn-soft" data-tb="colL">+ عمود يسار</button><button type="button" class="btn btn-sm btn-ghost" data-tb="rowD">− حذف الصف</button><button type="button" class="btn btn-sm btn-ghost" data-tb="colD">− حذف العمود</button><button type="button" class="btn btn-sm btn-ghost" data-tb="eq">توزيع الأعمدة بالتساوي</button></div>
+          ${fld('E.tbl.head', 'الصف الأول عناوين', 'check')}${fld('E.tbl.headCol', 'العمود الأول عناوين', 'check')}${fld('E.tbl.zebra', 'تظليل الأسطر بالتناوب', 'check')}
+          ${fld('E.tbl.hbg', 'خلفية العناوين', 'color')}${fld('E.tbl.hc', 'لون نص العناوين', 'color')}${fld('E.tbl.bc', 'لون الحدود', 'color')}
+          <div class="vle-row">${fld('E.tbl.bw', 'سمك الحد', 'num', 0.1)}${fld('E.tbl.pad', 'هامش الخلية', 'num', 0.2)}${fld('E.tbl.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>
+          ${fld('E.tbl.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}
+          <div class="vle-f"><label>عرض الأعمدة (%) ومحاذاتها</label><div class="vle-cw">${(e.tbl.rows[0] || []).map((_, j) => html`<div><input type="number" data-cw="${j}" value="${Math.round((e.tbl.colW || [])[j] || 100 / e.tbl.rows[0].length)}" min="3" max="95"><select data-cal="${j}">${[['', '—'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']].map(([a, l2]) => html`<option value="${a}"${((e.tbl.al || [])[j] || '') === a ? raw(' selected') : ''}>${l2}</option>`)}</select></div>`)}</div></div>`, true) : ''}
+        ${['text', 'table', 'barcode'].includes(e.t) ? sec('efont', 'الخط والتنسيق', 'edit', html`${fld('E.s.font', 'نوع الخط', 'font')}<div class="vle-row">${fld('E.s.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('E.s.color', 'لون النص', 'color')}<div class="vle-row">${fld('E.s.bold', 'عريض', 'check')}${fld('E.s.italic', 'مائل', 'check')}${fld('E.s.underline', 'تسطير', 'check')}</div>${fld('E.s.align', 'المحاذاة', 'select', [['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار'], ['justify', 'ضبط']])}${e.t === 'text' ? fld('E.s.valign', 'المحاذاة العمودية', 'select', [['top', 'أعلى'], ['middle', 'وسط'], ['bottom', 'أسفل']]) : ''}`) : ''}
+        ${e.t !== 'line' ? sec('ebox', 'التعبئة والحدود والتأثيرات', 'layers', html`${fld('E.s.bg', 'لون التعبئة', 'color', 'clear')}<div class="vle-row">${fld('E.s.bw', 'سمك الحد', 'num', 0.1)}${fld('E.s.radius', 'تدوير الزوايا', 'num', 0.5)}${fld('E.s.padding', 'الهامش الداخلي', 'num', 0.5)}</div>${fld('E.s.bc', 'لون الحد', 'color')}${fld('E.s.bs', 'نمط الحد', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}<div class="vle-row">${fld('E.s.opacity', 'الشفافية %', 'num', 5)}${fld('E.s.rot', 'الدوران °', 'num', 1)}</div>${fld('E.s.shadow', 'ظل خفيف', 'check')}`, e.t === 'rect') : ''}
+        ${sec('epos', 'الموضع والحجم', 'grid', html`<div class="vle-row">${fld('E.x', 'من اليسار (مم)', 'num', 0.5)}${fld('E.y', 'من الأعلى (مم)', 'num', 0.5)}</div><div class="vle-row">${fld('E.w', 'العرض (مم)', 'num', 0.5)}${e.t !== 'table' ? fld('E.h', 'الارتفاع (مم)', 'num', 0.5) : ''}</div>${fld('E.lock', 'قفل الموضع', 'check')}<div class="vle-f"><label>نقل إلى قسم آخر</label><select data-moveto><option value="">—</option>${L().bands.filter((x) => x.type === 'free' && x.id !== b.id).map((x) => html`<option value="${x.id}">${x.name || 'قسم حر'}</option>`)}</select></div>`)}
+        ${sec('ekinds', 'يظهر في', 'eye', kindsBox('E', e))}`;
+    } else if (b) {
+      const [tl, ti] = VL_BAND_TYPES[b.type];
+      const cfgBody = b.type === 'free' ? html`${fld('B.h', 'ارتفاع القسم (مم)', 'num', 1)}${fld('B.bg', 'خلفية القسم', 'color', 'clear')}<div class="vle-tbtn">${Object.entries(VL_EL_TYPES).map(([k, [l, ic]]) => html`<button type="button" class="btn btn-sm btn-soft" data-rb="ins:${k}">${UI.icon(ic)} ${l}</button>`)}</div><div class="vle-layers">${(b.els || []).slice().sort((x, y) => (y.z || 0) - (x.z || 0)).map((x) => html`<button type="button" class="vle-layer" data-pick="${x.id}">${UI.icon(VL_EL_TYPES[x.t][1])}<span>${x.t === 'text' ? String(x.text || '').slice(0, 26) || 'نص' : VL_EL_TYPES[x.t][0]}</span>${x.lock ? UI.icon('lock') : ''}</button>`)}</div>`
+        : b.type === 'facts' ? html`${fld('B.cfg.style', 'الشكل', 'select', [['cards', 'بطاقات'], ['table', 'جدول'], ['line', 'سطر واحد']])}${fld('B.cfg.cols', 'عدد الأعمدة', 'num', 1)}${fld('B.cfg.bg', 'الخلفية', 'color')}${fld('B.cfg.lbg', 'خلفية العناوين (الجدول)', 'color')}${fld('B.cfg.lc', 'لون العناوين', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.radius', 'تدوير الزوايا', 'num', 0.5)}<p class="faint small">تتغير البيانات حسب نوع الاستمارة تلقائياً (الإدارة، القسم، المرجع، موعد الإرجاع…).</p>`
+          : b.type === 'items' ? html`<p class="faint small">يمتد الجدول تلقائياً بعدد الأصناف ويدفع ما بعده للأسفل. في الاستبدال يظهر جدول الجهاز القديم تحته.</p>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 }))), true)}${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.hc', 'لون نص العناوين', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}<div class="vle-row">${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>${fld('B.cfg.minRows', 'أقل عدد أسطر (تكمَّل بأسطر فارغة)', 'num', 1)}${fld('B.cfg.total', 'سطر الإجمالي', 'check', null, b.cfg.total !== 0)}${fld('B.cfg.zebra', 'تظليل الأسطر بالتناوب', 'check')}`
+            : b.type === 'notes' ? html`${fld('B.cfg.label', 'عنوان الخانة')}${fld('B.cfg.minH', 'أقل ارتفاع (مم)', 'num', 1)}${fld('B.cfg.lc', 'لون العنوان', 'color')}${fld('B.cfg.bg', 'الخلفية', 'color')}${fld('B.cfg.bc', 'لون الحد', 'color')}<div class="vle-row">${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}${fld('B.cfg.radius', 'التدوير', 'num', 0.5)}</div>`
+              : html`${b.type === 'ret' ? html`${fld('B.cfg.title', 'عنوان الخانة', 'text', null, b.cfg.title || 'يُعبَّأ عند الإرجاع')}${fld('B.cfg.t1', 'تسمية المُعيد', 'text', null, b.cfg.t1 || 'المُعيد')}${fld('B.cfg.t2', 'تسمية مستلم الإرجاع', 'text', null, b.cfg.t2 || 'مستلم الإرجاع')}` : html`${fld('B.cfg.layout', 'الشكل', 'select', [['rows', 'صفوف عرضية'], ['boxes', 'بطاقات متجاورة']])}${fld('B.cfg.recv', 'تسمية المستلم', 'text', null, b.cfg.recv || 'المستلم')}${fld('B.cfg.deliv', 'تسمية المُسلِّم', 'text', null, b.cfg.deliv || 'المُسلِّم')}${fld('B.cfg.appr', 'تسمية المسؤول', 'text', null, b.cfg.appr || 'اعتماد المسؤول')}${fld('B.cfg.approver', 'سطر اعتماد المسؤول (توقيع فقط)', 'check', null, b.cfg.approver !== 0)}${fld('B.cfg.subs', 'إظهار جهة كل طرف', 'check', null, b.cfg.subs !== 0)}${fld('B.cfg.extra', 'تواقيع إضافية (سطر لكل صفة)', 'area')}`}
+                <label class="vle-sl">الأعمدة</label>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))), false)}${fld('B.cfg.roleL', 'عنوان عمود الصفة', 'text', null, b.cfg.roleL || 'الصفة')}<div class="vle-row">${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}</div>${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.rbg', 'خلفية عمود الصفة', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.hc', 'لون التمييز', 'color')}`;
+      body = html`<div class="vle-ih">${UI.icon(ti)}<b>${tl}</b><span class="grow"></span><button type="button" class="icon-btn" data-bmv="-1" title="نقل للأعلى">↑</button><button type="button" class="icon-btn" data-bmv="1" title="نقل للأسفل">↓</button><button type="button" class="icon-btn" data-bdup title="تكرار القسم">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-bdel title="حذف القسم">${UI.icon('trash')}</button></div>
+        ${sec('bmain', 'إعدادات القسم', 'sliders', html`${fld('B.name', 'اسم القسم (للتنظيم)', 'text', null, b.name || tl)}${fld('B.mt', 'المسافة قبل القسم (مم)', 'num', 0.5)}${cfgBody}`, true)}
+        ${sec('bkinds', 'يظهر في', 'eye', kindsBox('B', b))}`;
+    } else {
+      body = html`<div class="vle-ih">${UI.icon('file')}<b>الصفحة</b></div>
+        ${sec('pg', 'الورق والهوامش', 'file', html`${fld('P.size', 'مقاس الورق', 'select', [['A4', 'A4'], ['A5', 'A5'], ['Letter', 'Letter']])}${fld('P.orient', 'الاتجاه', 'select', [['portrait', 'عمودي'], ['landscape', 'أفقي']])}<div class="vle-row">${fld('P.mt', 'أعلى', 'num', 1)}${fld('P.mb', 'أسفل', 'num', 1)}${fld('P.mr', 'يمين', 'num', 1)}${fld('P.ml', 'يسار', 'num', 1)}</div>${fld('P.pad', 'مسافة المحتوى عن الإطار (مم)', 'num', 0.5)}${fld('P.bg', 'لون خلفية الصفحة', 'color')}`, true)}
+        ${sec('pfont', 'الخط الأساسي', 'edit', html`${fld('P.font.family', 'الخط', 'font')}<div class="vle-row">${fld('P.font.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('P.font.color', 'اللون', 'color')}`, true)}
+        ${sec('pframe', 'إطار الصفحة', 'layers', html`${fld('P.frame.style', 'النمط', 'select', [['none', 'بلا إطار'], ['solid', 'متصل'], ['double', 'مزدوج'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['thick-thin', 'عريض ورفيع'], ['ornate', 'زخرفي بزوايا']])}${fld('P.frame.color', 'لون الإطار', 'color')}<div class="vle-row">${fld('P.frame.w', 'السمك (مم)', 'num', 0.1)}${fld('P.frame.radius', 'تدوير الزوايا', 'num', 0.5)}</div>`, true)}
+        ${sec('pwm', 'العلامة المائية', 'eye', html`${fld('P.wm.text', 'نص العلامة (مثل: نسخة، سري)')}${fld('P.wm.color', 'لون النص', 'color')}<div class="vle-row">${fld('P.wm.fs', 'حجم النص', 'num', 2)}${fld('P.wm.opacity', 'الشفافية %', 'num', 1)}${fld('P.wm.angle', 'الزاوية', 'num', 5)}</div><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-soft" data-wm="logo">${UI.icon('photo')} الشعار علامةً</button><button type="button" class="btn btn-sm btn-soft" data-wm="up">${UI.icon('upload')} صورة</button>${P.wm && P.wm.img ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="x">${UI.icon('x')} إزالة الصورة</button>` : ''}</div>${fld('P.wm.size', 'عرض الصورة (مم)', 'num', 5)}`)}`;
+    }
+    const bandsList = html`${sec('bands', 'أقسام الصفحة (اسحب الترتيب بالأسهم)', 'layers', html`<div class="vle-bands">${L().bands.map((x, i) => html`<div class="vle-bandr${st.sel && st.sel.b === x.id ? ' on' : ''}${VL.vis(x, st.kind) ? '' : ' off'}"><button type="button" class="vle-bandn" data-pickb="${x.id}">${UI.icon(VL_BAND_TYPES[x.type][1])}<span>${x.name || VL_BAND_TYPES[x.type][0]}</span></button><button type="button" class="icon-btn" data-bmv2="${i}|-1" title="أعلى">↑</button><button type="button" class="icon-btn" data-bmv2="${i}|1" title="أسفل">↓</button></div>`)}</div><button type="button" class="btn btn-sm btn-soft" data-rb="menu:band">${UI.icon('plus')} إضافة قسم</button>`, !st.sel)}`;
+    box.innerHTML = String(html`${body}${bandsList}${ro ? html`<p class="faint small">${UI.icon('lock')} للعرض فقط — لا تملك صلاحية تصميم الاستمارات</p>` : ''}`);
+  };
+  /* ── قراءة وكتابة الخصائص بالمسار ── */
+  const root = (k) => (k === 'P' ? L().page : k === 'B' ? selB() : k === 'E' ? selE() : null);
+  const getP = (path) => { const [r, ...ks] = path.split('.'); return ks.reduce((o, k) => (o == null ? undefined : o[k]), root(r)); };
+  const setP = (path, v) => { const [r, ...ks] = path.split('.'); let o = root(r); if (!o) return; ks.slice(0, -1).forEach((k) => { if (o[k] == null || typeof o[k] !== 'object') o[k] = /^\d+$/.test(k) ? [] : {}; o = o[k]; }); o[ks[ks.length - 1]] = v; };
+  /* ── إدراج ── */
+  const freeBand = () => { let b = selB(); if (b && b.type === 'free') return b; b = L().bands.find((x) => x.type === 'free'); if (!b) { b = VLS.band('free', { name: 'قسم حر', h: 30 }); L().bands.unshift(b); } return b; };
+  const insert = (t, extra = {}) => {
+    if (ro) return;
+    hist(true);
+    const b = freeBand(), cw = VL.cw(L()), z = Math.max(0, ...(b.els || []).map((x) => x.z || 0)) + 1;
+    const base = { id: uid('ve'), t, z, s: {} };
+    const el = { text: { ...base, x: cw / 2 - 35, y: 2, w: 70, h: 9, text: 'نص جديد', s: { size: 11, align: 'right' } }, image: { ...base, x: cw / 2 - 12, y: 1, w: 24, h: 24, src: 'logo', fit: 'contain' }, line: { ...base, dir: 'h', x: 0, y: Math.min(b.h - 2, 4), w: cw, h: 2, lw: 0.4, lc: '#111111', ls: 'solid' }, rect: { ...base, x: cw / 2 - 30, y: 1, w: 60, h: Math.min(b.h - 2, 18), s: { bw: 0.5, bc: '#111111', radius: 2 } }, barcode: { ...base, x: 0, y: 1, w: 56, h: 18, value: '[رقم السند]', showText: 1, s: { size: 10, bold: 1, align: 'center' } }, table: { ...base, x: 0, y: 1, w: cw, h: 10, tbl: { rows: [['', '', ''], ['', '', '']], head: 1, hbg: '#f1ede3', bc: '#555555', bw: 0.3, pad: 1.2 }, s: { size: 10 } } }[t];
+    Object.assign(el, extra);
+    b.els = b.els || []; b.els.push(el);
+    if (el.y + (el.h || 0) > b.h) b.h = Math.ceil(el.y + el.h + 2);
+    st.sel = { b: b.id, e: el.id }; drawAll();
+    return el;
+  };
+  const insertBand = (type) => {
+    hist(true);
+    const nb = type === 'free' ? VLS.band('free', { name: 'قسم حر', h: 25 }) : type === 'items' ? VLS.band('items', { cfg: { cols: VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 })) } }) : type === 'sigs' ? VLS.sigs('#8a6a22', '#f6f2e8', '#c9c2b1') : type === 'ret' ? VLS.ret('#8a6a22', '#c9c2b1') : VLS.band(type, { cfg: type === 'facts' ? { style: 'cards', cols: 4 } : {} });
+    const b = selB(), i = b ? L().bands.indexOf(b) + 1 : L().bands.length;
+    L().bands.splice(i, 0, nb); st.sel = { b: nb.id, e: null }; drawAll();
+  };
+  /* ── القوائم المنسدلة ── */
+  const menu = (anchor, items) => {
+    $$('.vle-menu', document).forEach((m) => m.remove());
+    const m = document.createElement('div'); m.className = 'vle-menu'; m.innerHTML = items;
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect(); m.style.top = `${r.bottom + 4 + window.scrollY}px`; m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth))}px`;
+    setTimeout(() => document.addEventListener('pointerdown', function off(ev) { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+    return m;
+  };
+  const tableMenu = (btn) => {
+    const m = menu(btn, `<div class="vle-tgrid">${Array.from({ length: 8 }, (_, r) => Array.from({ length: 8 }, (__, c) => `<i data-tg="${r + 1}x${c + 1}"></i>`).join('')).join('')}</div><div class="vle-tgl">اختر عدد الصفوف والأعمدة</div>`);
+    m.addEventListener('pointerover', (ev) => { const t = ev.target.closest('[data-tg]'); if (!t) return; const [R, C] = t.dataset.tg.split('x').map(Number); $$('[data-tg]', m).forEach((x) => { const [r, c] = x.dataset.tg.split('x').map(Number); x.classList.toggle('on', r <= R && c <= C); }); m.querySelector('.vle-tgl').textContent = `${R} × ${C}`; });
+    m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-tg]'); if (!t) return; const [R, C] = t.dataset.tg.split('x').map(Number); m.remove(); insert('table', { tbl: { rows: Array.from({ length: R }, () => Array(C).fill('')), head: R > 1 ? 1 : 0, hbg: '#f1ede3', bc: '#555555', bw: 0.3, pad: 1.2, colW: Array(C).fill(100 / C) }, h: R * 7 }); });
+  };
+  const fieldMenu = (btn) => {
+    const m = menu(btn, `<div class="vle-mh">إدراج حقل يُملأ تلقائياً</div>${VL_FIELDS.map(([k]) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}<div class="vle-mh">بيانات حسب نوع الاستمارة</div>${['الإدارة المستفيدة', 'الإدارة', 'القسم والمكتب', 'المرجع', 'موعد الإرجاع', 'السبب', 'الجهة', 'أمر العمل لدى الجهة', 'الموعد المتوقع'].map((k) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}`);
+    m.classList.add('cols');
+    m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-fk]'); if (!t) return; m.remove(); insertToken(t.dataset.fk); });
+  };
+  const insertToken = (k) => {
+    const tok = `[${k}]`;
+    const ed = st.editing && $v('.vle-zoom [contenteditable]');
+    if (ed) { ed.focus(); try { document.execCommand('insertText', false, tok); } catch (_) { ed.textContent += tok; } return; }
+    const e = selE();
+    if (e && e.t === 'text') { hist(true); e.text = `${e.text || ''}${e.text ? ' ' : ''}${tok}`; drawCanvas(); drawInsp(); return; }
+    insert('text', { text: tok });
+  };
+  const bandMenu = (btn) => {
+    const m = menu(btn, Object.entries(VL_BAND_TYPES).map(([k, [l]]) => `<button type="button" data-bt="${k}">${esc(l)}</button>`).join(''));
+    m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-bt]'); if (!t) return; m.remove(); insertBand(t.dataset.bt); });
+  };
+  const alignMenu = (btn) => {
+    const m = menu(btn, [['r', 'يمين القسم'], ['c', 'وسط القسم أفقياً'], ['l', 'يسار القسم'], ['t', 'أعلى القسم'], ['m', 'وسط القسم عمودياً'], ['b', 'أسفل القسم'], ['fw', 'بعرض القسم كاملاً']].map(([k, l]) => `<button type="button" data-al="${k}">${l}</button>`).join(''));
+    m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-al]'); if (!t) return; m.remove(); const e = selE(), b = selB(); if (!e) return; hist(true); const cw = VL.cw(L()); ({ r: () => { e.x = cw - e.w; }, c: () => { e.x = (cw - e.w) / 2; }, l: () => { e.x = 0; }, t: () => { e.y = 0; }, m: () => { e.y = (b.h - e.h) / 2; }, b: () => { e.y = b.h - e.h; }, fw: () => { e.x = 0; e.w = cw; } })[t.dataset.al](); drawCanvas(); drawInsp(); });
+  };
+  /* ── أوامر الشريط ── */
+  const ribbon = async (act, btn) => {
+    const e = selE(), b = selB();
+    const [g, k] = act.split(':');
+    if (g === 'ins') { if (k === 'image') { const r = await Pages.vleImage().catch((err) => { UI.error(err); return null; }); if (!r) return; const w = 30; insert('image', { src: r.src, w, h: Math.round(w * r.ar * 10) / 10 }); } else insert(k); return; }
+    if (g === 'menu') { if (k === 'table') tableMenu(btn); else if (k === 'field') fieldMenu(btn); else if (k === 'band') bandMenu(btn); else if (k === 'align') alignMenu(btn); return; }
+    if (g === 'vw') {
+      if (k === 'undo') undo(); else if (k === 'redo') redo();
+      else if (k === 'zin' || k === 'zout') { st.zoom = Math.max(0.3, Math.min(2.5, (st.zoom || 1) + (k === 'zin' ? 0.1 : -0.1))); fit(); }
+      else if (k === 'grid') { st.grid = !st.grid; drawRibbon(); drawCanvas(); }
+      else if (k === 'data') { st.data = !st.data; drawRibbon(); drawCanvas(); }
+      return;
+    }
+    if (!e) return;
+    hist(true);
+    e.s = e.s || {};
+    if (g === 'st') { if (k === 'nofill') e.s.bg = ''; else e.s[k] = e.s[k] ? 0 : 1; }
+    else if (g === 'al') e.s.align = k;
+    else if (g === 'va') e.s.valign = k;
+    else if (g === 'ar') {
+      const els = b.els;
+      if (k === 'front') e.z = Math.max(0, ...els.map((x) => x.z || 0)) + 1;
+      else if (k === 'back') { els.forEach((x) => { x.z = (x.z || 0) + 1; }); e.z = 0; }
+      else if (k === 'dup') { const c = JSON.parse(JSON.stringify(e)); c.id = uid('ve'); c.x += 3; c.y += 3; c.z = Math.max(0, ...els.map((x) => x.z || 0)) + 1; c.lock = 0; els.push(c); st.sel = { b: b.id, e: c.id }; }
+      else if (k === 'lock') e.lock = e.lock ? 0 : 1;
+      else if (k === 'del') { b.els = els.filter((x) => x.id !== e.id); st.sel = { b: b.id, e: null }; }
+    }
+    drawAll();
+  };
+  /* ── السحب والتحجيم والالتقاط ── */
+  const snapX = (b, self, vals) => {
+    const cw = VL.cw(L()), cands = [0, cw / 2, cw]; (b.els || []).forEach((x) => { if (x.id !== self) cands.push(x.x, x.x + x.w / 2, x.x + x.w); });
+    let best = null; vals.forEach((v, i) => cands.forEach((c) => { const d = c - v; if (Math.abs(d) < 1.6 / Math.max(0.6, st.zoom) && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, c, i }; })); return best;
+  };
+  const snapY = (b, self, vals) => {
+    const cands = [0, b.h / 2, b.h]; (b.els || []).forEach((x) => { if (x.id !== self) cands.push(x.y, x.y + x.h / 2, x.y + x.h); });
+    let best = null; vals.forEach((v, i) => cands.forEach((c) => { const d = c - v; if (Math.abs(d) < 1.6 / Math.max(0.6, st.zoom) && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, c, i }; })); return best;
+  };
+  const guides = (bandNode, gx, gy) => { const g = bandNode && bandNode.querySelector('.vl-guides'); if (!g) return; g.innerHTML = `${gx != null ? `<i class="gx" style="left:${gx}mm"></i>` : ''}${gy != null ? `<i class="gy" style="top:${gy}mm"></i>` : ''}`; };
+  const r5 = (v) => (st.grid ? Math.round(v * 2) / 2 : Math.round(v * 10) / 10);
+  const elNode = (id) => $v(`.vle-zoom [data-el="${id}"]`);
+  const place = (e) => { const n = elNode(e.id); if (!n) return; n.style.left = `${e.x}mm`; n.style.top = `${e.y}mm`; n.style.width = `${e.w}mm`; if (e.t !== 'table') n.style.height = `${e.h}mm`; };
+  const dragEl = (ev, e, b, mode) => {
+    const z = st.zoom, px = ev.clientX, py = ev.clientY, o = { x: e.x, y: e.y, w: e.w, h: e.h }, bn = $v(`.vle-zoom [data-band="${b.id}"]`); let moved = false;
+    const mv = (m) => {
+      const dx = (m.clientX - px) / (MMPX * z), dy = (m.clientY - py) / (MMPX * z);
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 0.5) return;
+      if (!moved) { hist(true); moved = true; }
+      if (mode === 'move') {
+        let nx = o.x + dx, ny = o.y + dy, gx = null, gy = null;
+        if (st.grid && !m.altKey) { const sx = snapX(b, e.id, [nx, nx + e.w / 2, nx + e.w]); if (sx) { nx += sx.d; gx = sx.c; } const sy = snapY(b, e.id, [ny, ny + e.h / 2, ny + e.h]); if (sy) { ny += sy.d; gy = sy.c; } }
+        e.x = gx != null ? Math.round(nx * 100) / 100 : r5(nx); e.y = gy != null ? Math.round(ny * 100) / 100 : r5(ny);
+        guides(bn, gx, gy);
+      } else {
+        const h = mode; let { x, y, w, h: hh } = o;
+        if (h.includes('e')) w = o.w + dx; if (h.includes('w')) { w = o.w - dx; x = o.x + dx; }
+        if (h.includes('s')) hh = o.h + dy; if (h.includes('n')) { hh = o.h - dy; y = o.y + dy; }
+        if (m.shiftKey && e.t === 'image' && h.length === 2) { const ar = o.h / o.w; hh = w * ar; if (h.includes('n')) y = o.y + o.h - hh; }
+        e.w = Math.max(2, r5(w)); e.h = Math.max(e.t === 'line' ? 1 : 2, r5(hh)); e.x = r5(x); e.y = r5(y);
+      }
+      place(e);
+    };
+    const up = (u) => {
+      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); guides(bn, null, null);
+      if (!moved) return;
+      if (mode === 'move') {
+        /* نقل العنصر إلى قسم حر آخر عند إفلاته فوقه */
+        const hit = document.elementsFromPoint(u.clientX, u.clientY).map((n) => n.closest && n.closest('[data-band]')).find(Boolean);
+        const tb = hit && band(hit.dataset.band);
+        if (tb && tb.id !== b.id && tb.type === 'free') { const r1 = bn.getBoundingClientRect(), r2 = hit.getBoundingClientRect(); e.y = r5(e.y + (r1.top - r2.top) / (MMPX * z)); b.els = b.els.filter((x) => x.id !== e.id); tb.els.push(e); st.sel = { b: tb.id, e: e.id }; }
+      }
+      drawCanvas(); drawInsp();
+    };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  const dragBand = (ev, b) => {
+    const z = st.zoom, py = ev.clientY, h0 = b.h; let moved = false;
+    const mv = (m) => { const dy = (m.clientY - py) / (MMPX * z); if (!moved) { hist(true); moved = true; } b.h = Math.max(4, r5(h0 + dy)); const n = $v(`.vle-zoom [data-band="${b.id}"]`); if (n) n.style.height = `${b.h}mm`; };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (moved) { drawCanvas(); drawInsp(); } };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  /* ── التحرير المباشر للنص وخلايا الجدول ── */
+  const editText = (e, cellIJ) => {
+    if (ro || e.lock && false) return;
+    const n = elNode(e.id); if (!n) return;
+    let t;
+    if (cellIJ) { t = n.querySelector(`[data-cell="${cellIJ.join(',')}"]`); st.cell = cellIJ; } else t = n.querySelector('.vl-txi');
+    if (!t) return;
+    st.editing = e.id; hist(true);
+    t.textContent = cellIJ ? e.tbl.rows[cellIJ[0]][cellIJ[1]] || '' : e.text || '';
+    try { t.contentEditable = 'plaintext-only'; } catch (_) { t.contentEditable = 'true'; }
+    if (t.contentEditable !== 'plaintext-only') t.contentEditable = 'true';
+    n.classList.add('editing'); t.focus();
+    try { const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (_) { /* تجاهل */ }
+    const done = (next) => {
+      t.removeEventListener('blur', onBlur); t.removeEventListener('keydown', onKey);
+      const v = t.innerText.replace(/\n$/, '');
+      if (cellIJ) e.tbl.rows[cellIJ[0]][cellIJ[1]] = v; else e.text = v;
+      st.editing = null; dirty(true);
+      if (next) { drawCanvas(); drawInsp(); editText(e, next); return; }
+      /* الخروج بالنقر خارج المربع يحدث أثناء إعادة رسم أخرى أحياناً: يُؤجَّل الرسم قليلاً */
+      setTimeout(() => { if (!st.editing) { drawCanvas(); drawInsp(); } }, 0);
+    };
+    const onBlur = () => done();
+    const onKey = (k) => {
+      k.stopPropagation();
+      if (k.key === 'Escape') { k.preventDefault(); t.blur(); }
+      if (k.key === 'Tab' && cellIJ) { k.preventDefault(); const R = e.tbl.rows.length, C = e.tbl.rows[0].length; let [i, j] = cellIJ; j += k.shiftKey ? -1 : 1; if (j >= C) { j = 0; i++; } if (j < 0) { j = C - 1; i--; } t.removeEventListener('blur', onBlur); done(i >= 0 && i < R ? [i, j] : null); }
+    };
+    t.addEventListener('blur', onBlur); t.addEventListener('keydown', onKey);
+  };
+  /* ── عمليات الجدول ── */
+  const tblOp = (op) => {
+    const e = selE(); if (!e || e.t !== 'table') return; hist(true);
+    const T = e.tbl, R = T.rows.length, C = T.rows[0].length, [ci, cj] = st.cell || [R - 1, C - 1];
+    T.colW = T.colW && T.colW.length === C ? T.colW : Array(C).fill(100 / C);
+    if (op === 'rowA' || op === 'rowB') T.rows.splice(op === 'rowA' ? ci : ci + 1, 0, Array(C).fill(''));
+    if (op === 'rowD' && R > 1) { T.rows.splice(ci, 1); st.cell = null; }
+    if (op === 'colR' || op === 'colL') { const at = op === 'colR' ? cj : cj + 1; T.rows.forEach((r) => r.splice(at, 0, '')); T.colW.splice(at, 0, 100 / (C + 1)); if (T.al) T.al.splice(at, 0, ''); }
+    if (op === 'colD' && C > 1) { T.rows.forEach((r) => r.splice(cj, 1)); T.colW.splice(cj, 1); if (T.al) T.al.splice(cj, 1); st.cell = null; }
+    if (op === 'eq' || op.startsWith('col')) { const n = T.rows[0].length; if (op === 'eq') T.colW = Array(n).fill(100 / n); else { const s = T.colW.reduce((a, b) => a + b, 0); T.colW = T.colW.map((w) => (w / s) * 100); } }
+    drawCanvas(); drawInsp();
+  };
+  /* ── إدارة القوالب ── */
+  const saveAll = async () => {
+    const size = JSON.stringify(lib).length;
+    if (size > 2.5e6) throw new AppError('حجم القوالب كبير جداً بسبب الصور. قلّل عدد الصور أو أحجامها.');
+    await XCFG.save('vlay', 'vlay', { ...lib, updatedAt: now(), updatedBy: Auth.user.id }, 'تحديث قوالب الاستمارات الرسمية');
+    dirty(false); UI.toast('حُفظت القوالب واعتُمدت'); UI.sound('success');
+  };
+  const gallery = () => UI.modal({
+    title: 'قالب جديد', icon: 'plus', size: 'xl',
+    body: html`<p class="muted small" style="margin-bottom:10px">اختر نقطة بداية، ثم عدّل كل شيء فيها بحرية: الشعار والنصوص والجداول والإطارات والألوان.</p><div class="vle-gal">${VL_STARTERS.map(([k, n, dsc]) => html`<button type="button" class="vle-gi" data-st="${k}"><div class="vle-thumb"><div class="vle-thumbz">${raw(VL.doc(vlFix(VLS[k]()), Pages.vleSample('issue', 3), {}))}</div></div><b>${n}</b><small>${dsc}</small></button>`)}${lib.tpls.length ? html`<button type="button" class="vle-gi" data-st="copy"><div class="vle-thumb"><div class="vle-thumbz">${raw(VL.doc(L(), Pages.vleSample('issue', 3), {}))}</div></div><b>نسخة من القالب الحالي</b><small>${tpl().name}</small></button>` : ''}</div>`,
+    onMount: (form, finish) => UI.on(form, 'click', '[data-st]', (e2, el) => finish(el.dataset.st)),
+    actions: [{ label: 'إلغاء', kind: 'ghost' }]
+  });
+  const topAct = async (a) => {
+    if (a === 'new') {
+      const k = await gallery(); if (!k) return;
+      const name = k === 'copy' ? `${tpl().name} (نسخة)` : (VL_STARTERS.find((x) => x[0] === k) || [])[1];
+      const t = { id: uid('vt'), name, layout: k === 'copy' ? JSON.parse(JSON.stringify(L())) : vlFix(VLS[k]()), createdAt: now() };
+      lib.tpls.push(t); st.id = t.id; st.sel = null; st.undo = []; st.redo = []; st.zoom = 0; dirty(true); drawAll(); UI.toast('أُنشئ القالب — عدّله ثم احفظ وعيّنه للاستمارات');
+    } else if (a === 'dup') { const t = { id: uid('vt'), name: `${tpl().name} (نسخة)`, layout: JSON.parse(JSON.stringify(L())), createdAt: now() }; lib.tpls.push(t); st.id = t.id; st.sel = null; dirty(true); drawAll(); }
+    else if (a === 'ren') { const v = await UI.modal({ title: 'اسم القالب', icon: 'edit', size: 'sm', body: html`${UI.field({ name: 'n', label: 'الاسم', required: true, wide: true }, tpl().name)}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', submit: true, handler: (f) => UI.formValues(f).n }] }); if (v && v.trim()) { tpl().name = v.trim(); dirty(true); drawTop(); } }
+    else if (a === 'del') { if (lib.tpls.length < 2) { UI.toast('لا يمكن حذف القالب الوحيد', 'warn'); return; } if (!(await UI.confirm(`حذف القالب «${tpl().name}»؟ الاستمارات المعيّنة له ستعود للتصميم الافتراضي.`, { danger: true, ok: 'حذف' }))) return; const id = st.id; lib.tpls = lib.tpls.filter((t) => t.id !== id); Object.keys(lib.use).forEach((k) => { if (lib.use[k] === id) delete lib.use[k]; }); if (lib.def === id) lib.def = ''; st.id = lib.tpls[0].id; st.sel = null; dirty(true); drawAll(); }
+    else if (a === 'assign') {
+      const opts = [['', 'التصميم الافتراضي المدمج'], ...lib.tpls.map((t) => [t.id, t.name])];
+      const v = await UI.modal({ title: 'تعيين القوالب للاستمارات', icon: 'layers', size: 'lg', body: html`<p class="muted small" style="margin-bottom:10px">اختر القالب الذي تُطبع به كل استمارة. «لكل الاستمارات» يسري على كل ما لم تحدد له قالباً خاصاً.</p><div class="vle-asg"><div class="vle-asr main"><b>${UI.icon('layers')} لكل الاستمارات</b><select name="def">${opts.map(([a2, l]) => html`<option value="${a2}"${lib.def === a2 ? raw(' selected') : ''}>${l}</option>`)}</select></div>${VT_KINDS.map(([k, l]) => html`<div class="vle-asr"><span>${l}</span><select name="k_${k}"><option value="">— كما في «لكل الاستمارات» —</option>${lib.tpls.map((t) => html`<option value="${t.id}"${lib.use[k] === t.id ? raw(' selected') : ''}>${t.name}</option>`)}</select></div>`)}</div>`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: (f) => UI.formValues(f) }] });
+      if (v) { lib.def = v.def || ''; VT_KINDS.forEach(([k]) => { if (v[`k_${k}`]) lib.use[k] = v[`k_${k}`]; else delete lib.use[k]; }); dirty(true); drawTop(); UI.toast('عُيّنت القوالب — اضغط «حفظ» لاعتمادها'); }
+    } else if (a === 'test') {
+      const d = Pages.vleSample(st.kind, st.n);
+      VL.print({ ...tpl(), layout: L() }, d);
+    } else if (a === 'io') {
+      const r = await UI.modal({ title: 'تصدير القوالب أو استيرادها', icon: 'download', size: 'sm', body: html`<p class="muted small">صدّر القالب الحالي أو كل القوالب ملفاً لحفظه نسخة احتياطية أو لنقله، أو استورد ملفاً سابقاً.</p>`, actions: [{ label: 'إغلاق', kind: 'ghost' }, { label: 'استيراد', kind: 'soft', icon: 'upload', value: 'in' }, { label: 'تصدير القالب الحالي', kind: 'soft', icon: 'download', value: 'one' }, { label: 'تصدير الكل', kind: 'primary', icon: 'download', value: 'all' }] });
+      if (r === 'one' || r === 'all') downloadBlob(new Blob([JSON.stringify({ type: 'sq-vlay', v: 2, tpls: r === 'one' ? [tpl()] : lib.tpls }, null, 1)], { type: 'application/json' }), `قوالب-الاستمارات-${dateInput(now())}.json`);
+      if (r === 'in') { const [f] = await UI.pickFiles({ accept: '.json,application/json', multiple: false }); if (!f) return; try { const j = JSON.parse(await f.text()); if (!j || j.type !== 'sq-vlay' || !Array.isArray(j.tpls)) throw new AppError('الملف ليس قوالب استمارات صالحة'); j.tpls.forEach((t) => lib.tpls.push({ ...t, id: uid('vt'), layout: vlFix(t.layout || {}) })); st.id = lib.tpls[lib.tpls.length - 1].id; st.sel = null; dirty(true); drawAll(); UI.toast(`استُورد ${fmtNum(j.tpls.length)} قالب — راجعها ثم احفظ`); } catch (err) { UI.error(err instanceof AppError ? err : new AppError('تعذر قراءة الملف')); } }
+    }
+  };
+  /* ── بناء الصفحة ── */
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'تصميم الاستمارات الرسمية', sub: 'محرر حر شبيه بالوورد: مربعات نص بخطوطها وألوانها، صور وشعارات، جداول، خطوط وإطارات تُسحب وتُنسخ وتُعدَّل — والبيانات تُملأ تلقائياً عند الطباعة', illu: 'stamp' })}
+    <div class="vle-wrap"><div class="vle-top"></div><div class="vle-ribbon"></div>
+      <div class="vle"><aside class="vle-insp"></aside><main class="vle-stage"><div class="vle-sizer"><div class="vle-zoom"></div></div></main></div></div>`);
+  drawAll();
+  /* ── الأحداث ── */
+  const view = ctx.view;
+  view.addEventListener('click', async (ev) => {
+    const t = ev.target;
+    const rb = t.closest('[data-rb]'); if (rb && !rb.disabled) { if (ro && !rb.dataset.rb.startsWith('vw:') && rb.dataset.rb !== 'menu:align') return; ribbon(rb.dataset.rb, rb); return; }
+    const tp = t.closest('[data-top]'); if (tp) { if (ro && !['test', 'io'].includes(tp.dataset.top)) return; topAct(tp.dataset.top); return; }
+    if (t.closest('[data-act="save"]')) { try { await saveAll(); drawTop(); } catch (err) { UI.error(err); } return; }
+    const tok = t.closest('[data-tok]'); if (tok) { insertToken(tok.dataset.tok); return; }
+    const sc = t.closest('[data-setc]'); if (sc) { const [p, c] = sc.dataset.setc.split('|'); hist(true); setP(p, c); drawCanvas(); drawInsp(); drawRibbon(); return; }
+    const pk = t.closest('[data-pick]'); if (pk) { st.sel = { b: st.sel.b, e: pk.dataset.pick }; drawAll(); return; }
+    const pb = t.closest('[data-pickb]'); if (pb) { st.sel = { b: pb.dataset.pickb, e: null }; drawAll(); const n = $v(`.vle-zoom [data-band="${pb.dataset.pickb}"]`); if (n) n.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+    const bm = t.closest('[data-bmv]'), bm2 = t.closest('[data-bmv2]');
+    if (bm || bm2) { const bs = L().bands, i = bm ? bs.indexOf(selB()) : Number(bm2.dataset.bmv2.split('|')[0]), d = Number(bm ? bm.dataset.bmv : bm2.dataset.bmv2.split('|')[1]), j = i + d; if (i < 0 || j < 0 || j >= bs.length) return; hist(true); [bs[i], bs[j]] = [bs[j], bs[i]]; drawAll(); return; }
+    if (t.closest('[data-bdup]')) { const b = selB(); hist(true); const c = JSON.parse(JSON.stringify(b)); c.id = uid('ve'); (c.els || []).forEach((x) => { x.id = uid('ve'); }); L().bands.splice(L().bands.indexOf(b) + 1, 0, c); st.sel = { b: c.id, e: null }; drawAll(); return; }
+    if (t.closest('[data-bdel]')) { const b = selB(); if (!(await UI.confirm(`حذف قسم «${b.name || VL_BAND_TYPES[b.type][0]}» من القالب؟`, { danger: true, ok: 'حذف' }))) return; hist(true); L().bands = L().bands.filter((x) => x.id !== b.id); st.sel = null; drawAll(); return; }
+    const cm = t.closest('[data-colmv]'); if (cm) { const [p, i, d] = cm.dataset.colmv.split('|'); const arr = getP(p), a = Number(i), z = a + Number(d); if (!arr || z < 0 || z >= arr.length) return; hist(true); [arr[a], arr[z]] = [arr[z], arr[a]]; drawCanvas(); drawInsp(); return; }
+    const tb = t.closest('[data-tb]'); if (tb) { tblOp(tb.dataset.tb); return; }
+    const im = t.closest('[data-img]'); if (im) { try { const r = await Pages.vleImage(); if (!r) return; hist(true); const e = selE(); e.src = r.src; e.h = Math.round(e.w * r.ar * 10) / 10; drawCanvas(); drawInsp(); } catch (err) { UI.error(err); } return; }
+    if (t.closest('[data-logo]')) { hist(true); selE().src = 'logo'; drawCanvas(); drawInsp(); return; }
+    if (t.closest('[data-ratio]')) { const e = selE(), n = elNode(e.id), img = n && n.querySelector('img'); if (img && img.naturalWidth) { hist(true); e.h = Math.round((e.w * img.naturalHeight / img.naturalWidth) * 10) / 10; drawCanvas(); drawInsp(); } return; }
+    const wm = t.closest('[data-wm]'); if (wm) { const P = L().page; P.wm = P.wm || {}; hist(true); if (wm.dataset.wm === 'logo') P.wm.img = 'logo'; else if (wm.dataset.wm === 'x') P.wm.img = ''; else { try { const r = await Pages.vleImage(); if (r) P.wm.img = r.src; } catch (err) { UI.error(err); } } P.wm.opacity = P.wm.opacity || 7; drawCanvas(); drawInsp(); return; }
+  });
+  view.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.matches('[data-tpl]')) { st.id = t.value; st.sel = null; st.zoom = 0; st.undo = []; st.redo = []; drawAll(); return; }
+    if (t.matches('[data-kind]')) { st.kind = t.value; drawCanvas(); drawInsp(); return; }
+    if (t.matches('[data-n]')) { st.n = Number(t.value); drawCanvas(); return; }
+    if (t.matches('[data-moveto]') && t.value) { const b = selB(), e = selE(), tb = band(t.value); hist(true); b.els = b.els.filter((x) => x.id !== e.id); e.y = 0; tb.els.push(e); st.sel = { b: tb.id, e: e.id }; drawAll(); return; }
+    if (t.matches('[data-allk]') || t.matches('[data-kd]')) {
+      const pre = t.dataset.allk || t.dataset.kd.split('|')[0], o = root(pre); hist(true);
+      if (t.dataset.allk) o.kinds = t.checked ? [] : [st.kind];
+      else { const k = t.dataset.kd.split('|')[1]; o.kinds = (o.kinds || []).filter((x) => x !== k).concat(t.checked ? [k] : []); }
+      drawCanvas(); drawInsp(); return;
+    }
+    if (t.matches('[data-rs]')) { const e = selE(); if (!e) return; hist(true); e.s = e.s || {}; const k = t.dataset.rs; e.s[k] = ['size', 'bw'].includes(k) ? Number(t.value) || '' : t.value; drawCanvas(); drawInsp(); drawRibbon(); return; }
+    if (t.matches('[data-cw]') || t.matches('[data-cal]')) { const e = selE(); hist(true); const C = e.tbl.rows[0].length; if (t.dataset.cw != null) { e.tbl.colW = e.tbl.colW && e.tbl.colW.length === C ? e.tbl.colW : Array(C).fill(100 / C); e.tbl.colW[Number(t.dataset.cw)] = Math.max(3, Number(t.value) || 10); const s = e.tbl.colW.reduce((a, b) => a + b, 0); e.tbl.colW = e.tbl.colW.map((w) => (w / s) * 100); } else { e.tbl.al = e.tbl.al || Array(C).fill(''); e.tbl.al[Number(t.dataset.cal)] = t.value; } drawCanvas(); drawInsp(); }
+  });
+  view.addEventListener('input', (ev) => {
+    const t = ev.target; if (!t.matches('[data-k]')) return;
+    hist();
+    const v = t.dataset.t === 'b' ? (t.checked ? 1 : 0) : t.dataset.t === 'n' ? (t.value === '' ? '' : Number(t.value)) : t.value;
+    setP(t.dataset.k, v);
+    if (t.dataset.k.startsWith('P.size') || t.dataset.k.startsWith('P.orient')) st.zoom = 0;
+    rafDraw();
+    if (t.type === 'checkbox' || t.tagName === 'SELECT') { drawRibbon(); if (t.dataset.k.endsWith('.layout') || t.dataset.k.endsWith('.dir') || t.dataset.k === 'P.frame.style') drawInsp(); }
+  });
+  view.addEventListener('toggle', (ev) => { const d = ev.target; if (d.matches && d.matches('details.vle-sec')) st.openSec[d.dataset.sec] = d.open; }, true);
+  const stage = $v('.vle-stage');
+  stage.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    const t = ev.target;
+    if (t.closest('[contenteditable="true"],[contenteditable="plaintext-only"]')) return;
+    const hd = t.closest('[data-h]'), bh = t.closest('[data-bh]'), en = t.closest('[data-el]'), bn = t.closest('[data-band]');
+    if (ro) { if (en) { st.sel = { b: bn.dataset.band, e: en.dataset.el }; drawAll(); } return; }
+    if (hd) { ev.preventDefault(); const e = selE(); if (e) dragEl(ev, e, selB(), hd.dataset.h); return; }
+    if (bh) { ev.preventDefault(); const b = band(bh.closest('[data-band]').dataset.band); st.sel = { b: b.id, e: null }; drawInsp(); dragBand(ev, b); return; }
+    if (en) {
+      ev.preventDefault();
+      const b = band(bn.dataset.band), e = (b.els || []).find((x) => x.id === en.dataset.el);
+      const cell = t.closest('[data-cell]');
+      if (cell && e.t === 'table') st.cell = cell.dataset.cell.split(',').map(Number);
+      const was = st.sel && st.sel.e === e.id;
+      st.sel = { b: b.id, e: e.id };
+      if (!was) { drawCanvas(); drawInsp(); drawRibbon(); } else if (cell) drawInsp();
+      if (!e.lock) dragEl(ev, e, b, 'move');
+      return;
+    }
+    if (bn) { st.sel = { b: bn.dataset.band, e: null }; drawCanvas(); drawInsp(); drawRibbon(); return; }
+    if (t.closest('.vl-page')) { st.sel = null; drawCanvas(); drawInsp(); drawRibbon(); }
+  });
+  stage.addEventListener('dblclick', (ev) => {
+    if (ro) return;
+    const en = ev.target.closest('[data-el]'); if (!en) return;
+    const b = band(en.closest('[data-band]').dataset.band), e = (b.els || []).find((x) => x.id === en.dataset.el);
+    if (e.t === 'text') editText(e);
+    else if (e.t === 'table') { const c = ev.target.closest('[data-cell]'); if (c) editText(e, c.dataset.cell.split(',').map(Number)); }
+    else if (e.t === 'image') view.querySelector('[data-img]') && view.querySelector('[data-img]').click();
+  });
+  /* ── لوحة المفاتيح ── */
+  const onKey = (ev) => {
+    if (!ctx.alive() || document.querySelector('dialog[open]')) return;
+    const tag = (ev.target.tagName || '').toLowerCase(), typing = ['input', 'textarea', 'select'].includes(tag) || ev.target.isContentEditable;
+    const mod = ev.ctrlKey || ev.metaKey, key = ev.key.toLowerCase();
+    if (mod && key === 's') { ev.preventDefault(); ev.stopPropagation(); if (!ro) saveAll().then(drawTop).catch(UI.error); return; }
+    if (typing || ro) return;
+    const e = selE(), b = selB();
+    if (mod && (key === 'z' || key === 'ي')) { ev.preventDefault(); ev.stopPropagation(); if (ev.shiftKey) redo(); else undo(); return; }
+    if (mod && (key === 'y' || key === 'غ')) { ev.preventDefault(); ev.stopPropagation(); redo(); return; }
+    if (mod && key === 'c' && e) { ev.preventDefault(); st.clip = JSON.stringify(e); try { localStorage.setItem('sq_vle_clip', st.clip); } catch (_) { /* تجاهل */ } UI.toast('نُسخ العنصر', 'ok', 1200); return; }
+    if (mod && key === 'x' && e) { ev.preventDefault(); st.clip = JSON.stringify(e); hist(true); b.els = b.els.filter((x) => x.id !== e.id); st.sel = { b: b.id, e: null }; drawAll(); return; }
+    if (mod && key === 'v') { let c = st.clip; try { c = c || localStorage.getItem('sq_vle_clip'); } catch (_) { /* تجاهل */ } if (!c) return; ev.preventDefault(); hist(true); const tb = freeBand(), el = JSON.parse(c); el.id = uid('ve'); el.x += 3; el.y += 3; el.z = Math.max(0, ...(tb.els || []).map((x) => x.z || 0)) + 1; tb.els.push(el); st.clip = JSON.stringify(el); st.sel = { b: tb.id, e: el.id }; drawAll(); return; }
+    if (mod && key === 'd' && e) { ev.preventDefault(); ev.stopPropagation(); ribbon('ar:dup'); return; }
+    if (mod && ['b', 'i', 'u'].includes(key) && e) { ev.preventDefault(); ribbon(`st:${{ b: 'bold', i: 'italic', u: 'underline' }[key]}`); return; }
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && e) { ev.preventDefault(); ev.stopPropagation(); ribbon('ar:del'); return; }
+    if (ev.key === 'Escape') { st.sel = null; drawAll(); return; }
+    if (ev.key === 'Enter' && e && e.t === 'text') { ev.preventDefault(); editText(e); return; }
+    if (e && !e.lock && ev.key.startsWith('Arrow')) {
+      ev.preventDefault(); ev.stopPropagation(); hist(); const s = ev.shiftKey ? 5 : ev.altKey ? 0.1 : 0.5;
+      if (ev.key === 'ArrowLeft') e.x -= s; if (ev.key === 'ArrowRight') e.x += s; if (ev.key === 'ArrowUp') e.y -= s; if (ev.key === 'ArrowDown') e.y += s;
+      e.x = Math.round(e.x * 10) / 10; e.y = Math.round(e.y * 10) / 10; place(e); clearTimeout(st._ak); st._ak = setTimeout(drawInsp, 250);
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  const leave = (ev) => { if (st.dirty) { ev.preventDefault(); ev.returnValue = ''; } };
+  window.addEventListener('beforeunload', leave);
+  const onR = debounce(() => { st.zoom = st.zoom || 0; fit(); }, 150); window.addEventListener('resize', onR);
+  ctx.onCleanup(() => { document.removeEventListener('keydown', onKey, true); window.removeEventListener('beforeunload', leave); window.removeEventListener('resize', onR); $$('.vle-menu').forEach((m) => m.remove()); if (st.dirty) setTimeout(() => UI.toast('لم تُحفظ تعديلات القوالب الأخيرة', 'warn'), 300); });
+};
+Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تصميم الاستمارات الرسمية');
 
 boot();
 })();
