@@ -4143,9 +4143,9 @@ const Cart = {
 };
 UI.cartBtn = (itemId, cls = 'btn btn-sm btn-soft') => html`<button class="${cls}" data-cart-add="${itemId}" title="أضف إلى السلة">${UI.icon('cart')} للسلة</button>`;
 
-Pages.cartModal = () => {
+Pages.cartModal = (mode = 'issue') => {
   Cart.load();
-  const state = { mode: 'issue' };
+  const state = { mode: mode === 'loan' ? 'loan' : 'issue' };
   const render = async (form) => {
     const box = $('[data-cart-body]', form); if (!box) return;
     const stocks = await Promise.all(Cart.lines.map((l) => DB.get('stock', [l.warehouseId, l.itemId])));
@@ -4169,14 +4169,14 @@ Pages.cartModal = () => {
           ${state.mode === 'loan' ? html`<div class="field"><label>مدة الإعارة بالأيام</label><div class="row"><button type="button" class="qty-btn" data-cday="-1">−</button><input class="qty-in" name="days" type="number" min="0" value="7" style="width:90px"><button type="button" class="qty-btn" data-cday="1">+</button><span class="faint small" data-duetxt></span></div><small class="hint">اكتب 0 للعهدة الدائمة</small></div>` : ''}
           ${UI.field({ name: 'note', label: 'ملاحظات تُطبع في السند', type: 'textarea', rows: 2, wide: true })}
         </div>
-      </div>` : UI.empty({ illu: 'box', title: 'السلة فارغة', text: 'تصفّح المخزن وأضف الأجهزة والأصناف المطلوبة، ثم اصرفها دفعة واحدة بسند واحد.', action: html`<a class="btn btn-primary" href="#/inventory/browse" data-close-modal>${UI.icon('box')} تصفح المخزن</a>` })}`);
+      </div>` : UI.empty({ illu: 'box', title: 'السلة فارغة', text: 'اختر نوع الصنف أو ابحث عنه في الخانة أعلاه، أو امسح رقمه التسلسلي، وأضف ما تشاء من الأجهزة والملحقات ثم اصرفها أو أعرها دفعة واحدة بسند واحد.', action: html`<a class="btn btn-primary" href="#/inventory/browse" data-close-modal>${UI.icon('box')} تصفح المخزن</a>` })}`);
     UI.hydrate(box);
   };
   return UI.modal({
     title: 'سلة الصرف والإعارة', icon: 'cart', size: 'xl',
-    body: html`<div data-cart-body></div>`,
+    body: html`<div data-cartpick></div><div data-cart-body></div>`,
     onMount: async (form, finish) => {
-      await render(form);
+      await render(form); Pages.cartPicker(form, () => render(form));
       UI.on(form, 'click', '[data-close-modal]', () => finish(null));
       UI.on(form, 'change', 'input[name="mode"]', async (e, el) => { state.mode = el.value; await render(form); });
       UI.on(form, 'click', '[data-cart-del]', async (e, el) => { Cart.remove(Number(el.dataset.cartDel)); await render(form); });
@@ -7754,11 +7754,11 @@ Pages.quickScan = async () => {
     body: html`<div class="qs-card">${UI.illu(itemIllu(it))}<div class="grow"><b class="qs-name">${it.name || 'جهاز'}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div>
         <div class="row mt" style="gap:6px;flex-wrap:wrap">${UI.chip(s.tone || 'slate', s.label)}${UI.chip('slate', `S/N: ${a.serial}`, 'tag')}${a.tag ? UI.chip('slate', `أصل: ${a.tag}`, 'tag') : ''}</div></div></div>
       <dl class="kv mt"><dt>${UI.icon('pin')} الموقع الحالي</dt><dd>${where}</dd>${specs.map(([k, v]) => html`<dt>${UI.icon('info')} ${specLabel(it.categoryId, k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}</dd>`)}</dl>
-      ${a.status === 'in_store' ? html`<p class="hint mt">${UI.icon('info')} ستُحدَّد هذه الوحدة تلقائياً في نافذة الصرف، ويمكنك مسح وحدات إضافية من زر «مسح رمز» داخلها لصرفها معاً بسند واحد.</p>` : ''}`,
+      ${a.status === 'in_store' ? html`<p class="hint mt">${UI.icon('info')} يُضاف الجهاز إلى سلة الصرف، وفيها تضيف معه ما تشاء من أصناف أخرى (شاشة، لوحة مفاتيح، ملحقات) بالبحث أو باختيار نوع الصنف أو بالمسح، ثم تصرفها أو تعيرها بسند واحد.</p>` : ''}`,
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...acts]
   });
-  if (res === 'issue') { autoPick(a.id); await Pages.moveModal({ type: 'issue', itemId: a.itemId, warehouseId: a.warehouseId, qty: 1 }); }
-  else if (res === 'loan') { autoPick(a.id); await Pages.loanModal(a.itemId); }
+  /* الصرف والإعارة السريعة عبر السلة: يُضاف الجهاز الممسوح، ويمكن إضافة الشاشة والملحقات معه بسند واحد */
+  if (res === 'issue' || res === 'loan') { Cart.load(); await Cart.addUnit(a); await Pages.cartModal(res); }
   else if (res === 'maint') await Pages.maintSendModal(a.itemId, { departmentId: a.departmentId });
   else if (res === 'device') await Pages.deviceModal(a.itemId, a.departmentId ? { departmentId: a.departmentId } : {});
 };
@@ -10827,6 +10827,54 @@ const PP = {
     if (o.onMount) return o.onMount(form, finish);
   } });
 }
+
+/* ══════════ إضافة عدة أصناف في السلة: نوع الصنف + بحث + مسح رقم تسلسلي ══════════ */
+Cart.addUnit = async (a) => {
+  const it = await DB.get('items', a.itemId); if (!it) return false;
+  if (a.status !== 'in_store') { UI.toast(`الوحدة ${a.serial} ليست في المخزن الآن`, 'warn'); return false; }
+  let l = Cart.lines.find((x) => x.itemId === a.itemId && x.warehouseId === a.warehouseId);
+  if (!l) { l = { itemId: it.id, name: it.name, sku: it.sku, unit: it.unit || 'قطعة', brand: it.brand || '', model: it.model || '', categoryId: it.categoryId, serialized: 1, qty: 0, warehouseId: a.warehouseId, serials: [] }; Cart.lines.push(l); }
+  l.serials = l.serials || [];
+  if (l.serials.some((s) => s.id === a.id)) { UI.toast(`الوحدة ${a.serial} موجودة في السلة`, 'info'); return true; }
+  l.serials.push({ id: a.id, serial: a.serial }); l.qty = Math.max(Number(l.qty) || 0, l.serials.length);
+  Cart.save(); UI.toast(`أُضيف: ${it.name} — ${a.serial}`); return true;
+};
+Pages.cartPicker = (form, rerender) => {
+  const host = form.querySelector('[data-cartpick]'); if (!host) return;
+  const cats = Data.list('itemCategories').map((c) => ({ id: c.id, label: IC.label(c.id) })).sort((a, b) => AR_COLL.compare(a.label, b.label));
+  host.innerHTML = String(html`<div class="cp-bar"><div class="cp-row"><select data-cpcat aria-label="نوع الصنف"><option value="">كل الأنواع</option>${cats.map((c) => html`<option value="${c.id}">${c.label}</option>`)}</select>
+    <div class="cp-search">${UI.icon('search')}<input type="search" data-cpq placeholder="أضف صنفاً: اكتب الاسم أو الماركة أو الموديل أو امسح الرقم التسلسلي" autocomplete="off"></div>
+    <button type="button" class="btn btn-soft" data-cpscan title="مسح بالكاميرا أو القارئ">${UI.icon('scan')} مسح</button></div><div class="cp-results" hidden></div></div>`);
+  const sel = host.querySelector('[data-cpcat]'), q = host.querySelector('[data-cpq]'), box = host.querySelector('.cp-results');
+  let items = null;
+  const load = async () => { if (!items) items = (await DB.getAll('items')).filter((i) => !i.archived); return items; };
+  const draw = async () => {
+    const term = normalizeAr(q.value.trim()), cat = sel.value;
+    if (!term && !cat) { box.hidden = true; box.innerHTML = ''; return; }
+    const sub = cat ? IC.subtree(cat) : null;
+    const rows = (await load()).filter((i) => (!sub || sub.has(i.categoryId)) && (!term || normalizeAr([i.name, i.brand, i.model, i.sku].join(' ')).includes(term))).sort((a, b) => (b.onHand > 0) - (a.onHand > 0) || AR_COLL.compare(String(a.name), String(b.name))).slice(0, 30);
+    box.hidden = false;
+    box.innerHTML = String(rows.length ? html`${rows.map((i) => { const inCart = Cart.lines.filter((l) => l.itemId === i.id).reduce((s, l) => s + Number(l.qty || 0), 0); return html`<div class="cp-item${i.onHand > 0 ? '' : ' off'}">${UI.illu(itemIllu(i), 'mini')}<div class="grow"><b>${i.name}</b><small>${[IC.label(i.categoryId), [i.brand, i.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}</small></div><span class="chip tone-${i.onHand > 0 ? 'teal' : 'red'}"><i class="dot"></i>المتاح ${fmtNum(i.onHand || 0)}</span>${inCart ? html`<span class="chip tone-sky">${UI.icon('cart')} ${fmtNum(inCart)}</span>` : ''}<button type="button" class="btn btn-primary btn-sm" data-cpadd="${i.id}"${i.onHand > 0 ? '' : raw(' disabled')}>${UI.icon('plus')} إضافة</button></div>`; })}` : html`<p class="cp-empty">لا توجد أصناف مطابقة${term ? '، وإن كان رقماً تسلسلياً فاضغط Enter' : ''}</p>`);
+  };
+  const tryCode = async (code) => {
+    const a = code ? await Data.assets.bySerialOrTag(code) : null; if (!a) return false;
+    if (await Cart.addUnit(a)) { q.value = ''; await draw(); await rerender(); }
+    return true;
+  };
+  sel.addEventListener('change', draw);
+  q.addEventListener('input', debounce(draw, 160));
+  q.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter') return; e.preventDefault(); e.stopPropagation();
+    if (await tryCode(q.value.trim())) return;
+    const first = box.querySelector('[data-cpadd]:not([disabled])'); if (first) first.click();
+  });
+  host.addEventListener('click', async (e) => {
+    const add = e.target.closest('[data-cpadd]');
+    if (add) { await Cart.add(add.dataset.cpadd, 1); items = null; await draw(); await rerender(); q.focus(); return; }
+    if (e.target.closest('[data-cpscan]')) { const code = await Pages.scanModal({ title: 'مسح جهاز لإضافته', hint: 'امسح ملصق الجهاز فيُضاف إلى السلة بوحدته المحددة.' }); if (code && !(await tryCode(code))) UI.toast(`لا توجد وحدة مسجلة بالرمز ${code}`, 'warn'); }
+  });
+  setTimeout(() => q.focus(), 60);
+};
 
 boot();
 })();
