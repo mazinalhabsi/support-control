@@ -1409,7 +1409,9 @@ UI.print = (content, title) => {
   const s = Data.c.settings, root = $('#print-root');
   root.innerHTML = String(html`<div class="print-doc"><header class="print-head"><img src="${ASSETS.logo}" alt=""><div><b>${s.orgName}</b><span>${s.systemName}</span></div><div class="print-meta"><b>${title}</b>${fmtDateTime(now())}</div></header>${content}</div>`);
   document.body.classList.add('printing');
-  setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80);
+  /* طباعتان متتاليتان: لا يمسح تنظيف الأولى محتوى الثانية */
+  const tok = (UI._printTok = (UI._printTok || 0) + 1);
+  setTimeout(() => { if (tok !== UI._printTok) return; window.print(); setTimeout(() => { if (tok !== UI._printTok) return; document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80);
 };
 
 /* ── الحركة: عدادات، إمالة ثلاثية الأبعاد، عمق، احتفال، أصوات ── */
@@ -2830,7 +2832,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -10883,5 +10885,74 @@ Pages.cartPicker = (form, rerender) => {
 
 /* رابط داخل نافذة يغلقها قبل الانتقال */
 document.addEventListener('click', (e) => { const l = e.target.closest('[data-close-dev]'); if (!l) return; const d = l.closest('dialog'); const x = d && d.querySelector('[data-x]'); if (x) setTimeout(() => x.click(), 0); });
+/* ══════════ تصميم السندات الموحد: صرف، إعارة، نقل، استبدال، إرجاع ══════════
+   المستلم والمُسلِّم: الاسم والرقم العسكري والتوقيع، والمسؤول: توقيع فقط.
+   الباركود يحمل رقم السند وفوقه نوعه، والملاحظات أسفل جدول البيانات مباشرة */
+if (!VOUCHER_KIND.return) VOUCHER_KIND.return = { title: 'سند إرجاع عهدة', icon: 'download', tone: 'teal', label: 'إرجاع' };
+const VD = {
+  dots: (n = 28) => '.'.repeat(n),
+  party(p) {
+    return html`<div class="vd-party${p.signOnly ? ' sign-only' : ''}"><div class="vd-ph"><b>${p.title}</b>${p.sub ? html`<small>${p.sub}</small>` : ''}</div>
+      ${p.signOnly ? '' : html`<div class="vd-pr"><span>الاسم</span><em>${p.name || ''}</em></div><div class="vd-pr"><span>الرقم العسكري</span><em class="ltr">${p.no || ''}</em></div>`}
+      <div class="vd-pr vd-sig"><span>التوقيع</span><em></em></div>${p.signOnly ? html`<div class="vd-pr"><span>التاريخ</span><em></em></div>` : ''}</div>`;
+  },
+  table(lines) {
+    const total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+    return html`<table class="vd-table"><thead><tr><th style="width:34px">م</th><th>الصنف</th><th>الماركة والموديل</th><th>الأرقام التسلسلية</th><th style="width:64px">الكمية</th><th style="width:64px">الوحدة</th></tr></thead>
+      <tbody>${lines.map((l, i) => html`<tr><td class="c">${fmtNum(i + 1)}</td><td><b>${l.name}</b>${l.sku ? html`<div class="vd-sku ltr">${l.sku}</div>` : ''}</td><td>${[l.brand, l.model].filter(Boolean).join(' ') || '—'}</td><td class="ltr vd-sn">${(l.serials || []).length ? l.serials.join('، ') : '—'}</td><td class="c">${fmtNum(l.qty)}</td><td class="c">${l.unit || 'قطعة'}</td></tr>`)}</tbody>
+      <tfoot><tr><td colspan="4">الإجمالي</td><td class="c">${fmtNum(total)}</td><td class="c">وحدة</td></tr></tfoot></table>`;
+  },
+  doc({ kind, number, at, facts = [], lines = [], oldLines = [], note = '', pledge = '', parties = [], extra = '' }) {
+    return html`<div class="vd">
+      <div class="vd-top"><div class="vd-title"><span class="vd-kicker">${UI.icon(kind.icon || 'file')} ${kind.label}</span><h1>${kind.title}</h1><div class="vd-date">${fmtDateTime(at)}</div></div>
+        <div class="vd-code"><small>${kind.title}</small>${UI.barcode(number, { height: 38, w: 1.25 })}<b class="ltr">${number}</b></div></div>
+      ${facts.length ? html`<div class="vd-facts">${facts.map(([l, v]) => html`<div><span>${l}</span><b>${v || '—'}</b></div>`)}</div>` : ''}
+      ${oldLines.length ? html`<h3 class="vd-h">${UI.icon('upload')} الجهاز المسلَّم (الجديد)</h3>` : ''}
+      ${VD.table(lines)}
+      ${oldLines.length ? html`<h3 class="vd-h">${UI.icon('download')} الجهاز المستبدَل (القديم)</h3>${VD.table(oldLines)}` : ''}
+      <div class="vd-note"><span>${UI.icon('edit')} ملاحظات</span><p>${note || '—'}</p></div>
+      ${pledge ? html`<p class="vd-pledge">${pledge}</p>` : ''}
+      <div class="vd-parties">${parties.map(VD.party)}</div>
+      ${extra}
+      <div class="vd-foot"><span>صدر إلكترونياً من ${Data.c.settings.systemName} — ${Data.c.settings.orgName}</span><span class="ltr">${number}</span></div>
+    </div>`;
+  },
+  returnBox(holderName = '', holderNo = '') {
+    return html`<div class="vd-return"><div class="vd-rh">${UI.icon('refresh')} يُعبَّأ عند الإرجاع</div>
+      <div class="vd-rgrid"><div class="vd-pr"><span>تاريخ الإرجاع الفعلي</span><em></em></div><div class="vd-pr"><span>حالة الصنف عند الإرجاع</span><em></em></div></div>
+      <div class="vd-parties">${[{ title: 'المُعيد', name: holderName, no: holderNo }, { title: 'مستلم الإرجاع' }, { title: 'اعتماد المسؤول', signOnly: true }].map(VD.party)}</div></div>`;
+  }
+};
+Pages.printVoucher = (v) => {
+  const kind = VOUCHER_KIND[v.type] || VOUCHER_KIND.issue, u = v.holderId ? Data.c.users.get(v.holderId) : null, loan = v.type === 'loan';
+  const holderNo = (u && u.militaryNo) || v.holderNo || v.militaryNo || '';
+  const tech = { name: Data.userName(v.userId), no: UI.personNo(v.userId) };
+  const dept = Data.nameOf('departments', v.departmentId, '—'), place = v.unitLabel || (u ? u.office || '' : '');
+  const facts = { issue: [['الإدارة المستفيدة', dept], ['القسم والمكتب', place], ['المرجع', v.ref]],
+    loan: [['الإدارة', dept], ['القسم والمكتب', place], ['موعد الإرجاع', v.dueAt ? fmtDate(v.dueAt) : 'عهدة دائمة'], ['المرجع', v.ref]],
+    transfer: [['من', v.fromLabel], ['إلى', v.toLabel || dept], ['المنفّذ (الفني)', who(v.userId)], ['السبب', v.reason]],
+    replace: [['الإدارة', dept], ['القسم والمكتب', place], ['سبب الاستبدال', v.reason], ['مصير الجهاز القديم', v.oldFate]],
+    return: [['الإدارة المُعيدة', dept], ['المخزن المستلم', v.warehouseLabel], ['حالة الصنف', v.condition], ['سبب الإرجاع', v.reason]] }[v.type] || [['الإدارة', dept], ['المرجع', v.ref]];
+  const parties = v.type === 'return' ? [{ title: 'المُسلِّم', sub: 'من الإدارة', name: v.holder, no: holderNo }, { title: 'المستلم', sub: 'أمين المخزن / الفني', name: tech.name, no: tech.no }, { title: 'اعتماد المسؤول', signOnly: true }]
+    : v.type === 'transfer' ? [{ title: 'المُسلِّم', sub: 'الجهة السابقة', name: v.fromHolder || '' }, { title: 'المستلم', sub: 'الجهة الجديدة', name: v.holder || '', no: holderNo }, { title: 'اعتماد المسؤول', signOnly: true }]
+      : [{ title: 'المستلم', sub: dept !== '—' ? dept : '', name: v.holder, no: holderNo }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', name: tech.name, no: tech.no }, { title: 'اعتماد المسؤول', signOnly: true }];
+  const pledge = v.type === 'return' ? 'يُقر الطرفان بتسليم واستلام ما هو مذكور أعلاه بالحالة الموضحة.'
+    : `أقر أنا المستلم الموقع أدناه باستلام ما هو مذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه${loan ? ' وإعادته في الموعد المحدد' : ' وعدم التصرف فيه إلا بعلم الجهة المختصة'}.`;
+  UI.print(VD.doc({ kind, number: v.number, at: v.at, facts, lines: v.lines || [], oldLines: v.type === 'replace' ? v.oldLines || [] : [], note: v.note, pledge, parties, extra: loan ? VD.returnBox(v.holder, holderNo) : '' }), `${kind.title} ${v.number}`);
+};
+Pages.loanReceipt = async (l) => {
+  let serials = [];
+  try { const rows = await Promise.all((l.assetIds || []).map((x) => DB.get('assets', x))); serials = rows.filter(Boolean).map((a) => a.serial); } catch (_) { /* تجاهل */ }
+  const it = l.itemId ? await DB.get('items', l.itemId) : null, u = l.borrowerId ? Data.c.users.get(l.borrowerId) : null;
+  const name = u ? u.name : l.borrower, no = (u && u.militaryNo) || '';
+  const kind = { title: 'سند تسليم عهدة', label: 'إعارة', icon: 'clipboard' };
+  UI.print(VD.doc({ kind, number: l.number, at: l.issuedAt,
+    facts: [['الإدارة', Data.nameOf('departments', l.departmentId, '—')], ['موعد الإرجاع', l.dueAt ? fmtDate(l.dueAt) : 'عهدة دائمة'], ['المسلِّم (الفني)', who(l.userId)]],
+    lines: [{ name: l.itemName, sku: it ? it.sku : '', brand: it ? it.brand : '', model: it ? it.model : '', serials, qty: l.qty, unit: it ? it.unit : '' }],
+    note: l.note, pledge: 'أقر أنا المستلم الموقع أدناه باستلام الصنف المذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه وإعادته في الموعد المحدد.',
+    parties: [{ title: 'المستلم', sub: Data.nameOf('departments', l.departmentId, ''), name, no }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', name: Data.userName(l.userId), no: UI.personNo(l.userId) }, { title: 'اعتماد المسؤول', signOnly: true }],
+    extra: VD.returnBox(name, no) }), `سند عهدة ${l.number}`);
+};
+
 boot();
 })();
