@@ -10891,10 +10891,13 @@ document.addEventListener('click', (e) => { const l = e.target.closest('[data-cl
 if (!VOUCHER_KIND.return) VOUCHER_KIND.return = { title: 'سند إرجاع عهدة', icon: 'download', tone: 'teal', label: 'إرجاع' };
 const VD = {
   dots: (n = 28) => '.'.repeat(n),
-  party(p) {
-    return html`<div class="vd-party${p.signOnly ? ' sign-only' : ''}"><div class="vd-ph"><b>${p.title}</b>${p.sub ? html`<small>${p.sub}</small>` : ''}</div>
-      ${p.signOnly ? '' : html`<div class="vd-pr"><span>الاسم</span><em>${p.name || ''}</em></div><div class="vd-pr"><span>الرقم العسكري</span><em class="ltr">${p.no || ''}</em></div>`}
-      <div class="vd-pr vd-sig"><span>التوقيع</span><em></em></div></div>`;
+  /* بيانات الشخص من حسابه: الاسم والرقم العسكري والرتبة */
+  person(userId) { const u = userId ? Data.c.users.get(userId) : null; return u ? { name: u.name || '', no: u.militaryNo ? String(u.militaryNo) : '', rank: Data.nameOf('ranks', u.rankId, '') } : {}; },
+  /* التواقيع بشكل عرضي: لكل طرف سطر (الرقم العسكري، الرتبة، الاسم، التوقيع)، والمسؤول توقيع فقط */
+  sigs(parties) {
+    return html`<table class="vd-sigs"><thead><tr><th class="vd-role">الصفة</th><th>الرقم العسكري</th><th>الرتبة</th><th>الاسم</th><th class="vd-sigc">التوقيع</th></tr></thead><tbody>${parties.map((p) => (p.signOnly
+      ? html`<tr class="sign-only"><th class="vd-role">${p.title}</th><td colspan="3" class="vd-na"></td><td class="vd-sigc"></td></tr>`
+      : html`<tr><th class="vd-role">${p.title}${p.sub ? html`<small>${p.sub}</small>` : ''}</th><td class="ltr c">${p.no || ''}</td><td>${p.rank || ''}</td><td><b>${p.name || ''}</b></td><td class="vd-sigc"></td></tr>`))}</tbody></table>`;
   },
   table(lines) {
     const total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
@@ -10912,46 +10915,46 @@ const VD = {
       ${oldLines.length ? html`<h3 class="vd-h">${UI.icon('download')} الجهاز المستبدَل (القديم)</h3>${VD.table(oldLines)}` : ''}
       <div class="vd-note"><span>${UI.icon('edit')} ملاحظات</span><p>${note || '—'}</p></div>
       ${pledge ? html`<p class="vd-pledge">${pledge}</p>` : ''}
-      <div class="vd-parties">${parties.map(VD.party)}</div>
+      ${VD.sigs(parties)}
       ${extra}
       <div class="vd-foot"><span>صدر إلكترونياً من ${Data.c.settings.systemName} — ${Data.c.settings.orgName}</span><span class="ltr">${number}</span></div>
     </div>`;
   },
-  returnBox(holderName = '', holderNo = '') {
+  returnBox(holder = {}) {
     return html`<div class="vd-return"><div class="vd-rh">${UI.icon('refresh')} يُعبَّأ عند الإرجاع</div>
       <div class="vd-rgrid"><div class="vd-pr"><span>تاريخ الإرجاع الفعلي</span><em></em></div><div class="vd-pr"><span>حالة الصنف عند الإرجاع</span><em></em></div></div>
-      <div class="vd-parties">${[{ title: 'المُعيد', name: holderName, no: holderNo }, { title: 'مستلم الإرجاع' }, { title: 'اعتماد المسؤول', signOnly: true }].map(VD.party)}</div></div>`;
+      ${VD.sigs([{ title: 'المُعيد', ...holder }, { title: 'مستلم الإرجاع' }, { title: 'اعتماد المسؤول', signOnly: true }])}</div>`;
   }
 };
 Pages.printVoucher = (v) => {
   const kind = VOUCHER_KIND[v.type] || VOUCHER_KIND.issue, u = v.holderId ? Data.c.users.get(v.holderId) : null, loan = v.type === 'loan';
   const holderNo = (u && u.militaryNo) || v.holderNo || v.militaryNo || '';
-  const tech = { name: Data.userName(v.userId), no: UI.personNo(v.userId) };
+  const tech = VD.person(v.userId), hp = { ...VD.person(v.holderId), name: v.holder || (u ? u.name : ''), no: holderNo };
   const dept = Data.nameOf('departments', v.departmentId, '—'), place = v.unitLabel || (u ? u.office || '' : '');
   const facts = { issue: [['الإدارة المستفيدة', dept], ['القسم والمكتب', place], ['المرجع', v.ref]],
     loan: [['الإدارة', dept], ['القسم والمكتب', place], ['موعد الإرجاع', v.dueAt ? fmtDate(v.dueAt) : 'عهدة دائمة'], ['المرجع', v.ref]],
     transfer: [['من', v.fromLabel], ['إلى', v.toLabel || dept], ['المنفّذ (الفني)', who(v.userId)], ['السبب', v.reason]],
     replace: [['الإدارة', dept], ['القسم والمكتب', place], ['سبب الاستبدال', v.reason], ['مصير الجهاز القديم', v.oldFate]],
     return: [['الإدارة المُعيدة', dept], ['المخزن المستلم', v.warehouseLabel], ['حالة الصنف', v.condition], ['سبب الإرجاع', v.reason]] }[v.type] || [['الإدارة', dept], ['المرجع', v.ref]];
-  const parties = v.type === 'return' ? [{ title: 'المُسلِّم', sub: 'من الإدارة', name: v.holder, no: holderNo }, { title: 'المستلم', sub: 'أمين المخزن / الفني', name: tech.name, no: tech.no }, { title: 'اعتماد المسؤول', signOnly: true }]
-    : v.type === 'transfer' ? [{ title: 'المُسلِّم', sub: 'الجهة السابقة', name: v.fromHolder || '' }, { title: 'المستلم', sub: 'الجهة الجديدة', name: v.holder || '', no: holderNo }, { title: 'اعتماد المسؤول', signOnly: true }]
-      : [{ title: 'المستلم', sub: dept !== '—' ? dept : '', name: v.holder, no: holderNo }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', name: tech.name, no: tech.no }, { title: 'اعتماد المسؤول', signOnly: true }];
+  const parties = v.type === 'return' ? [{ title: 'المستلم', sub: 'أمين المخزن / الفني', ...tech }, { title: 'المُسلِّم', sub: 'من الإدارة', ...hp }, { title: 'اعتماد المسؤول', signOnly: true }]
+    : v.type === 'transfer' ? [{ title: 'المستلم', sub: 'الجهة الجديدة', ...hp }, { title: 'المُسلِّم', sub: 'الجهة السابقة', name: v.fromHolder || '' }, { title: 'اعتماد المسؤول', signOnly: true }]
+      : [{ title: 'المستلم', sub: dept !== '—' ? dept : '', ...hp }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', ...tech }, { title: 'اعتماد المسؤول', signOnly: true }];
   const pledge = v.type === 'return' ? 'يُقر الطرفان بتسليم واستلام ما هو مذكور أعلاه بالحالة الموضحة.'
     : `أقر أنا المستلم الموقع أدناه باستلام ما هو مذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه${loan ? ' وإعادته في الموعد المحدد' : ' وعدم التصرف فيه إلا بعلم الجهة المختصة'}.`;
-  UI.print(VD.doc({ kind, number: v.number, at: v.at, facts, lines: v.lines || [], oldLines: v.type === 'replace' ? v.oldLines || [] : [], note: v.note, pledge, parties, extra: loan ? VD.returnBox(v.holder, holderNo) : '' }), `${kind.title} ${v.number}`);
+  UI.print(VD.doc({ kind, number: v.number, at: v.at, facts, lines: v.lines || [], oldLines: v.type === 'replace' ? v.oldLines || [] : [], note: v.note, pledge, parties, extra: loan ? VD.returnBox(hp) : '' }), `${kind.title} ${v.number}`);
 };
 Pages.loanReceipt = async (l) => {
   let serials = [];
   try { const rows = await Promise.all((l.assetIds || []).map((x) => DB.get('assets', x))); serials = rows.filter(Boolean).map((a) => a.serial); } catch (_) { /* تجاهل */ }
   const it = l.itemId ? await DB.get('items', l.itemId) : null, u = l.borrowerId ? Data.c.users.get(l.borrowerId) : null;
-  const name = u ? u.name : l.borrower, no = (u && u.militaryNo) || '';
+  const bp = { ...VD.person(l.borrowerId), name: u ? u.name : l.borrower };
   const kind = { title: 'سند تسليم عهدة', label: 'إعارة', icon: 'clipboard' };
   UI.print(VD.doc({ kind, number: l.number, at: l.issuedAt,
     facts: [['الإدارة', Data.nameOf('departments', l.departmentId, '—')], ['موعد الإرجاع', l.dueAt ? fmtDate(l.dueAt) : 'عهدة دائمة'], ['المسلِّم (الفني)', who(l.userId)]],
     lines: [{ name: l.itemName, sku: it ? it.sku : '', brand: it ? it.brand : '', model: it ? it.model : '', serials, qty: l.qty, unit: it ? it.unit : '' }],
     note: l.note, pledge: 'أقر أنا المستلم الموقع أدناه باستلام الصنف المذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه وإعادته في الموعد المحدد.',
-    parties: [{ title: 'المستلم', sub: Data.nameOf('departments', l.departmentId, ''), name, no }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', name: Data.userName(l.userId), no: UI.personNo(l.userId) }, { title: 'اعتماد المسؤول', signOnly: true }],
-    extra: VD.returnBox(name, no) }), `سند عهدة ${l.number}`);
+    parties: [{ title: 'المستلم', sub: Data.nameOf('departments', l.departmentId, ''), ...bp }, { title: 'المُسلِّم', sub: 'قسم تقنية المعلومات', ...VD.person(l.userId) }, { title: 'اعتماد المسؤول', signOnly: true }],
+    extra: VD.returnBox(bp) }), `سند عهدة ${l.number}`);
 };
 
 boot();
