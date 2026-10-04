@@ -64,6 +64,32 @@ css = re.sub(r'url\(data:font/woff2;base64,([A-Za-z0-9+/=]+)\)',
              lambda m: f'url({extract_uri("font/woff2", m.group(1), "assets/fonts", "f")[len("assets/"):]})', css)
 css = re.sub(r'url\((["\']?)data:(image/(?:png|webp|jpeg));base64,([A-Za-z0-9+/=]{2000,})\1\)',
              lambda m: f'url({extract_uri(m.group(2), m.group(3))[len("assets/"):]})', css)
+# توافق Chrome الأقدم من 87: خاصية inset وأخواتها المنطقية لا يفهمها، فتُضاف لها بدائل فيزيائية
+# داخل @supports not (inset:0) فلا تتأثر المتصفحات الحديثة. الاتجاه العام للواجهة من اليمين لليسار.
+def inset_fallback(css):
+    def sides(v):
+        p = v.split()
+        if len(p) == 1: p = p * 4
+        elif len(p) == 2: p = [p[0], p[1], p[0], p[1]]
+        elif len(p) == 3: p = [p[0], p[1], p[2], p[1]]
+        return p[:4]
+    out = []
+    for sel, body in re.findall(r'([^{}@;]+)\{([^{}]*)\}', re.sub(r'/\*.*?\*/', '', css, flags=re.S)):
+        sel = sel.strip()
+        if not sel or 'inset' not in body: continue
+        decl = []
+        for prop, val in re.findall(r'(?<![-\w])(inset(?:-inline|-block)?(?:-start|-end)?)\s*:\s*([^;]+)', body):
+            val = val.replace('!important', '').strip(); imp = ' !important' if '!important' in body else ''
+            if prop == 'inset': t, r, b, l = sides(val); decl += [f'top:{t}', f'right:{r}', f'bottom:{b}', f'left:{l}']
+            elif prop == 'inset-inline': p = val.split(); decl += [f'right:{p[0]}', f'left:{p[-1]}']
+            elif prop == 'inset-block': p = val.split(); decl += [f'top:{p[0]}', f'bottom:{p[-1]}']
+            elif prop == 'inset-inline-start': decl.append(f'right:{val}')
+            elif prop == 'inset-inline-end': decl.append(f'left:{val}')
+            elif prop == 'inset-block-start': decl.append(f'top:{val}')
+            elif prop == 'inset-block-end': decl.append(f'bottom:{val}')
+        if decl: out.append(f'{sel}{{{";".join(decl)}}}')
+    return css + ('\n@supports not (inset:0){' + ''.join(out) + '}\n' if out else '')
+css = inset_fallback(css)
 css_rel = write(f'assets/app.{h8(css)}.css', css)
 head = re.sub(r'<style>.*?</style>\s*', '', head, flags=re.S)
 

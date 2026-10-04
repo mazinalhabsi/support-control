@@ -1257,7 +1257,7 @@ const Img3D = (() => {
 const ImgLib = {
   custom: [],
   canManage: () => Auth.can('categories.manage') || Auth.can('settings'),
-  async load() { try { const r = await DB.get('meta', 'imglib'); this.custom = Array.isArray(r && r.value) ? r.value : []; } catch { this.custom = []; } },
+  async load() { try { const r = await DB.get('meta', 'imglib'); this.custom = Array.isArray(r && r.value) ? r.value : []; } catch (_) { this.custom = []; } },
   find(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? this.custom.find((x) => x.id === s.slice(4)) || null : null; },
   valid(ref) { const s = String(ref || ''); return s.startsWith('lib:') ? !!this.find(s) : s.startsWith('i3d:') && Img3D.names.includes(s.slice(4)); },
   label(ref) { const s = String(ref || ''), c = this.find(s); return c ? c.name : Img3D.LABELS[s.slice(4)] || ''; },
@@ -7851,7 +7851,7 @@ Pages.scanDocModal = () => {
         try {
           if ((await rec.handle.queryPermission({ mode: 'read' })) !== 'granted' && (await rec.handle.requestPermission({ mode: 'read' })) !== 'granted') return;
           const files = [];
-          for await (const [name, h] of rec.handle.entries()) if (h.kind === 'file' && SCAN_EXT.test(name)) files.push(await h.getFile());
+          const it = rec.handle.entries(); for (let r = await it.next(); !r.done; r = await it.next()) { const [name, h] = r.value; if (h.kind === 'file' && SCAN_EXT.test(name)) files.push(await h.getFile()); }
           files.sort((a, b) => b.lastModified - a.lastModified);
           const fresh = files.slice(0, 12).filter((f) => !pages.some((p) => p.name === f.name));
           if (!fresh.length) { UI.toast('لا توجد ممسوحات جديدة في المجلد', 'warn'); return; }
@@ -8635,7 +8635,7 @@ Pages.bulkCredsModal = (r) => UI.modal({
     <div class="table-wrap mt"><table class="table"><thead><tr><th>#</th><th>الاسم</th><th>الرتبة</th><th>اسم المستخدم</th><th>كلمة المرور</th></tr></thead><tbody>${r.creds.map((c, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${c.name}</td><td>${c.rank}</td><td class="ltr">${c.username}</td><td class="ltr"><code>${c.pw}</code></td></tr>`)}</tbody></table></div>`,
   actions: [{ label: 'طباعة بطاقات الدخول', kind: 'soft', icon: 'print', handler: () => { UI.print(html`<h2 style="text-align:center">بيانات الدخول إلى نظام قسم تقنية المعلومات</h2><p style="text-align:center">${r.dep}${r.where ? ` — ${r.where}` : ''}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.creds.map((c) => html`<div style="border:1px dashed #888;border-radius:8px;padding:10px 12px;break-inside:avoid"><b>${c.rank ? `${c.rank} / ` : ''}${c.name}</b><div>اسم المستخدم: <b dir="ltr">${c.username}</b></div><div>كلمة المرور: <b dir="ltr">${c.pw}</b></div>${r.mustChange ? html`<small>غيّر كلمة المرور عند أول دخول</small>` : ''}</div>`)}</div>`, 'بيانات الدخول'); return false; } },
     { label: 'تنزيل Excel', kind: 'soft', icon: 'download', handler: () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [30, 16, 16, 18, 16], rows: [['الاسم', 'الرتبة', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور'], ...r.creds.map((c) => [c.name, c.rank, c.militaryNo, c.username, c.pw])] }]), 'حسابات-جديدة.xlsx'); return false; } },
-    { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { try { await navigator.clipboard.writeText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n')); UI.toast('نُسخت البيانات'); } catch { UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); } return false; } },
+    { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { try { await navigator.clipboard.writeText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n')); UI.toast('نُسخت البيانات'); } catch (_) { UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); } return false; } },
     { label: 'تم', kind: 'primary', icon: 'check', value: true }]
 });
 document.addEventListener('click', (e) => { if (e.target.closest('[data-act="bulkadd"]')) { e.preventDefault(); Pages.bulkAddUsers(); } });
