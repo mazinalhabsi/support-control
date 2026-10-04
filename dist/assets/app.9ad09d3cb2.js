@@ -10894,7 +10894,7 @@ const VD = {
   party(p) {
     return html`<div class="vd-party${p.signOnly ? ' sign-only' : ''}"><div class="vd-ph"><b>${p.title}</b>${p.sub ? html`<small>${p.sub}</small>` : ''}</div>
       ${p.signOnly ? '' : html`<div class="vd-pr"><span>الاسم</span><em>${p.name || ''}</em></div><div class="vd-pr"><span>الرقم العسكري</span><em class="ltr">${p.no || ''}</em></div>`}
-      <div class="vd-pr vd-sig"><span>التوقيع</span><em></em></div>${p.signOnly ? html`<div class="vd-pr"><span>التاريخ</span><em></em></div>` : ''}</div>`;
+      <div class="vd-pr vd-sig"><span>التوقيع</span><em></em></div></div>`;
   },
   table(lines) {
     const total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
