@@ -205,7 +205,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault'];
 function sync_scope(array $u): string {
   return (($u['role'] ?? '') === 'department' && empty($u['extraPerms'])) ? 'self' : 'all';
 }
@@ -269,6 +269,15 @@ function visible_rows(array $rows, array $u): array {
     if ($ok) $out[] = $r;
   }
   return $out;
+}
+/** الملاحظات الإدارية: لمن يملك صلاحية الاطلاع فقط، والخاصة لكاتبها وحده */
+function vault_rows(array $rows, array $user): array {
+  $read = can($user, 'vault.read'); $me = (string) ($user['id'] ?? '');
+  return array_values(array_filter($rows, function ($r) use ($read, $me) {
+    if ($r['store'] !== 'vault' || (int) $r['deleted']) return true;
+    $d = is_array($r['_d']) ? $r['_d'] : [];
+    return $read && (($d['visibility'] ?? 'shared') !== 'private' || (string) ($d['createdBy'] ?? '') === $me);
+  }));
 }
 /** المتواجدون الآن. الموظف العادي لا يرى الصفحة التي يتصفحها غيره */
 function presence_list(array $user): array {
@@ -335,7 +344,7 @@ function role_perms(string $role): array {
   switch ($role) {
     case 'department': return ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'];
     case 'technician': return TECH_PERMS;
-    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works']);
+    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage']);
     case 'supervisor': return ['*'];
     case 'monitor': return ['monitor'];
   }
@@ -403,6 +412,15 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'surveys': return can($user, 'surveys.manage') ? $new : null;
+    case 'extmaint': return can($user, 'extmaint.manage') ? $new : null;
+    case 'vault': {
+      if (!can($user, 'vault.manage')) return null;
+      $me = (string) ($user['id'] ?? ''); $tgt = $old ?: $data;
+      /* الملاحظة الخاصة لا يعدّلها ولا يحذفها إلا كاتبها */
+      if ($old && ($old['visibility'] ?? 'shared') === 'private' && (string) ($old['createdBy'] ?? '') !== $me) return null;
+      if (!$deleted && ($data['visibility'] ?? 'shared') === 'private' && (string) ($tgt['createdBy'] ?? '') !== $me) return null;
+      return $new;
+    }
     case 'surveyResponses': {
       if ($deleted) return can($user, 'surveys.manage') ? $new : null;
       $me = (string) ($user['id'] ?? ''); $sid = (string) ($data['surveyId'] ?? ''); $rid = (string) ($data['id'] ?? ''); $uid = (string) ($data['userId'] ?? '');
@@ -437,6 +455,10 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
       if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
+      if ($key === 'xmcfg') return can_any($user, ['settings', 'extmaint.manage']) ? $new : null;
+      if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
+      if ($key === 'vtpl') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
+      if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
       if ($key === 'seed:replies2') return can_any($user, ['replies.manage', 'users.manage']) ? $new : null;
       if (strpos($key, 'lock:') === 0) return null;
       if (strpos($key, 'presence:') === 0) return $key === 'presence:' . ($user['id'] ?? '') ? $new : null;
@@ -562,7 +584,7 @@ case 'pull': {
      بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
   if (!$more) $max = max($max, $head);
   if ($scope === 'self') $rows = visible_rows($rows, $user);
-  else $rows = survey_private_rows($rows, $user);
+  else $rows = vault_rows(survey_private_rows($rows, $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
     if ($row['store'] === 'users' && is_array($data)) $data = strip_user($data);
@@ -781,9 +803,11 @@ case 'wipe': {
     'works' => ['worklog', 'workFolders', 'workItems'],
     'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
     'announcements' => ['announcements'],
+    'extmaint' => ['extmaint'],
+    'vault' => ['vault'],
     'activity' => ['activity'],
   ];
-  $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher']];
+  $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher'], 'extmaint' => ['seq:extmaint']];
   $pick = array_values(array_intersect(array_keys($groups), array_map('strval', (array) ($b['groups'] ?? []))));
   $users = !empty($b['users']);
   if (!$pick && !$users) fail('اختر البيانات المراد حذفها', 400);

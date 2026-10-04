@@ -128,6 +128,17 @@ if os.path.isfile(VENDOR):
     rel = write(f'assets/idb-memory.{h8(raw)}.js', raw)
     head = head.replace("idbMemory:'vendor/idb-memory.js'", f"idbMemory:'{rel}'")
 
+# قارئ PDF للتعبئة الفورية للاستمارات (يُحمَّل فقط عند فتح استمارة للتعبئة)
+for key, name in (('pdfjs', 'pdf.min.js'), ('pdfWorker', 'pdf.worker.min.js')):
+    p = os.path.join(os.path.dirname(SRC), 'vendor', name)
+    if not os.path.isfile(p):
+        sys.exit(f'missing vendor file: {p}')
+    raw = open(p, 'rb').read()
+    rel = write(f'assets/{name[:-3]}.{h8(raw)}.js', raw)
+    if f"{key}:'vendor/{name}'" not in head:
+        sys.exit(f'asset key {key} not found in page head')
+    head = head.replace(f"{key}:'vendor/{name}'", f"{key}:'{rel}'")
+
 write('index.html', head + body)
 
 # 4) إعدادات Apache: ضغط وتخزين مؤقت
