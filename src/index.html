@@ -2297,6 +2297,71 @@ td .rank{display:inline-grid}
   .sv-prog{top:62px}
 }
 @media print{.sv-prog,.sv-foot,.svm-acts{display:none}}
+
+/* ═══════════ كتالوج الطابعات والأحبار ═══════════ */
+.pc-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);gap:14px;padding:14px}
+.pc-col{display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:16px;background:var(--surface-2);overflow:hidden}
+.pc-colh{display:flex;align-items:center;gap:8px;padding:12px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line)}
+.pc-colh .ic{width:18px;height:18px;color:rgb(var(--accent-ink))}
+.pc-colh .btn{margin-inline-start:auto}
+.pc-list{display:flex;flex-direction:column;gap:6px;padding:10px;max-height:62vh;overflow:auto}
+.pc-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;border:1px solid transparent;background:var(--surface-solid);cursor:pointer;transition:border-color .15s,background .15s;min-width:0}
+.pc-row:hover{border-color:var(--line-2)}
+.pc-row.on{border-color:rgb(var(--accent-ink));box-shadow:0 0 0 3px rgba(var(--accent),.14)}
+.pc-row.off{opacity:.6}
+.pc-row b{font-size:14px}
+.pc-row .grow{min-width:0}
+.pc-row .t-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-row .icon-btn{width:30px;height:30px;flex:none}
+.pc-empty{padding:16px;margin:0;text-align:center}
+.pc-icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.pc-icon.lg{width:64px;height:64px;border-radius:16px}
+.pc-icon.sm{width:26px;height:26px;border-radius:8px}
+.pc-icon .ic{width:22px;height:22px;color:rgb(var(--accent-ink))}
+.pc-icon img,.pc-icon .opt-img img{width:100%;height:100%;object-fit:contain}
+.pc-icon .opt-img{display:grid;place-items:center;width:100%;height:100%}
+.pc-ini{font:800 13px var(--f-display);color:rgb(var(--accent-ink));letter-spacing:.02em;direction:ltr}
+.pc-icon.sm .pc-ini{font-size:10.5px}
+.pc-iconrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pc-dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.pc-dot.lg{width:22px;height:22px}
+.pc-colors{display:flex;flex-wrap:wrap;gap:8px}
+.pc-colors label{cursor:pointer}
+.pc-colors input{position:absolute;opacity:0;pointer-events:none}
+.pc-colors span{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);font-size:13px}
+.pc-colors input:checked+span{border-color:rgb(var(--accent-ink));box-shadow:0 0 0 3px rgba(var(--accent),.16);font-weight:700}
+.pc-colors input:focus-visible+span{outline:2px solid rgb(var(--accent-ink));outline-offset:2px}
+.pc-hits{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;padding:14px}
+.pc-hit{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);color:inherit;font:inherit;text-align:start;cursor:pointer}
+.pc-hit:hover{border-color:rgb(var(--accent-ink))}
+.pc-hit .grow{min-width:0}
+/* الماركات داخل نموذج البلاغ: بطاقات بشعار */
+.cat-fields .choice-pick .pc-icon.sm{margin-inline-end:2px}
+/* ═══════════ تنظيف بيانات التجربة ═══════════ */
+.wipe-list{display:grid;gap:8px}
+.wipe-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.wipe-row:has(input:checked){border-color:rgba(var(--red),.45);background:rgba(var(--red),.06)}
+.wipe-row.warn{border-style:dashed}
+.wipe-row input{width:18px;height:18px;accent-color:rgb(var(--red-ink))}
+.wipe-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--surface-solid);border:1px solid var(--line)}
+.wipe-ic .ic{width:17px;height:17px;color:var(--ink-2)}
+.wipe-n{font:800 15px var(--f-display);min-width:42px;text-align:end}
+.wipe-phrase{color:rgb(var(--red-ink));user-select:all}
+/* ═══════════ تصحيح المخزن ═══════════ */
+.fix-units{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:260px;overflow:auto}
+.fix-units label{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-size:13px}
+.fix-units label:has(input:checked){border-color:rgba(var(--red),.5);background:rgba(var(--red),.07)}
+.as-tools{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 10px}
+/* ═══════════ قائمة الاختصارات ═══════════ */
+.sc-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.sc-group{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:12px 14px}
+.sc-group h3{margin:0 0 8px;font-size:14px;color:rgb(var(--accent-ink))}
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:13px}
+.sc-row:first-of-type{border-top:0}
+.sc-keys{display:inline-flex;align-items:center;gap:4px;direction:ltr;flex:none}
+.sc-keys i{font-style:normal;color:var(--ink-3);font-size:11px}
+.sc-keys kbd{font:700 11.5px var(--f-mono,ui-monospace,monospace);padding:3px 7px;border-radius:7px;border:1px solid var(--line-2);border-bottom-width:2px;background:var(--surface-solid);color:var(--ink)}
+@media (max-width:980px){.pc-cols{grid-template-columns:1fr}.pc-list{max-height:none}.sc-groups{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -3688,16 +3753,18 @@ UI.toast = (msg, type = 'ok', ms = 4200) => {
   const el = document.createElement('div'); el.className = `toast tone-${tone}`; el.style.setProperty('--d', `${ms}ms`); el.setAttribute('role', type === 'error' ? 'alert' : 'status');
   el.innerHTML = String(html`${UI.icon(icon)}<span>${msg}</span><button class="toast-x" aria-label="إغلاق">${UI.icon('x')}</button>`);
   const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 350); };
-  el.querySelector('.toast-x').onclick = close; $('#toasts').appendChild(el); setTimeout(close, ms);
+  el.querySelector('.toast-x').onclick = close; UI.toastHost().appendChild(el); setTimeout(close, ms);
   if (type === 'error') UI.sound('error');
 };
+/* النوافذ المنبثقة تُعرض فوق كل شيء في الصفحة، فتنتقل التنبيهات داخل أعلى نافذة مفتوحة لتبقى ظاهرة */
+UI.toastHost = () => { let host = $('#toasts'); if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.className = 'toasts'; host.setAttribute('aria-live', 'polite'); } const d = [...document.querySelectorAll('dialog[open]')].pop(), parent = d || document.body; if (host.parentNode !== parent) parent.appendChild(host); return host; };
 UI.error = (e) => { if (!(e instanceof AppError)) console.error(e); UI.toast(e instanceof AppError ? e.message : 'حدث خطأ غير متوقع. حدّث الصفحة وحاول مرة أخرى.', 'error', 6500); };
 UI.modal = ({ title, icon = '', body, actions = [{ label: 'إغلاق', kind: 'ghost', value: null }], size = '', onMount }) => new Promise((resolve) => {
   const dlg = document.createElement('dialog'); dlg.className = `modal ${size}`;
   dlg.innerHTML = String(html`<form class="modal-card" novalidate><header class="modal-head">${icon ? html`<span class="m-ic">${UI.icon(icon)}</span>` : ''}<h2>${title}</h2><button type="button" class="icon-btn" data-x aria-label="إغلاق">${UI.icon('x')}</button></header><div class="modal-body">${body}</div>${actions.length ? html`<footer class="modal-foot">${actions.map((a, i) => html`<button type="${a.submit ? 'submit' : 'button'}" class="btn ${a.kind ? 'btn-' + a.kind : ''}" data-i="${i}">${a.icon ? UI.icon(a.icon) : ''}${a.label}</button>`)}</footer>` : ''}</form>`);
   document.body.appendChild(dlg);
   const form = dlg.querySelector('form'); let done = false, downOnBackdrop = false;
-  const finish = (v) => { if (done) return; done = true; dlg.close(); dlg.remove(); resolve(v); };
+  const finish = (v) => { if (done) return; done = true; const th = $('#toasts'); if (th && dlg.contains(th)) document.body.appendChild(th); dlg.close(); dlg.remove(); UI.toastHost(); resolve(v); };
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); finish(null); });
   dlg.querySelector('[data-x]').onclick = () => finish(null);
   dlg.addEventListener('mousedown', (e) => { downOnBackdrop = e.target === dlg; });
@@ -3942,7 +4009,7 @@ const Shell = {
   navAll() {
     return [
       { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/surveys', label: 'الاستبيانات', icon: 'poll', perm: '', badge: 'surveys' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
-      { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
+      { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/printers', label: 'الطابعات والأحبار', icon: 'printer', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
       { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/nav-visibility', label: 'إظهار الأقسام', icon: 'eye', perm: 'nav.manage' }, { path: '/surveys/manage', label: 'إدارة الاستبيانات', icon: 'poll', perm: 'surveys.manage' }, { path: '/ratings', label: 'مركز التقييم', icon: 'star', perm: 'ratings.manage' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
@@ -4796,7 +4863,7 @@ Pages.item = async (ctx) => {
     const active = loans.filter((l) => l.status === 'active'), mvOk = Auth.can('inventory.move');
     if (!ctx.alive()) return;
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ crumbs: html`<a href="#/inventory/items">الأصناف</a>${UI.icon('chevron-left')}<span class="ltr">${it.sku}</span>`, title: it.name, illu: itemIllu(it), sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.chip('sky', Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand || it.model ? UI.chip('slate', [it.brand, it.model].filter(Boolean).join(' '), 'box') : ''}${it.serial ? html`<span class="t-num">SN ${it.serial}</span>` : ''}</span>`, actions: html`${mvOk ? html`<button class="btn btn-ok" data-move="receive" data-item="${id}">${UI.icon('download')} استلام</button><button class="btn" data-move="issue" data-item="${id}">${UI.icon('upload')} صرف</button><button class="btn" data-move="transfer" data-item="${id}">${UI.icon('swap')} تحويل</button><button class="btn btn-soft" data-act="lend" data-item="${id}">${UI.icon('clipboard')} عهدة</button>` : ''}${Auth.can('inventory.move') ? UI.cartBtn(id, 'btn') : ''}${Auth.can('inventory.manage') ? html`<button class="btn btn-ghost" data-move="adjust" data-item="${id}">${UI.icon('refresh')} جرد</button><button class="icon-btn" data-act="edit" title="تعديل" aria-label="تعديل">${UI.icon('edit')}</button>` : ''}` })}
+      ${UI.pageHead({ crumbs: html`<a href="#/inventory/items">الأصناف</a>${UI.icon('chevron-left')}<span class="ltr">${it.sku}</span>`, title: it.name, illu: itemIllu(it), sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.chip('sky', Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand || it.model ? UI.chip('slate', [it.brand, it.model].filter(Boolean).join(' '), 'box') : ''}${it.serial ? html`<span class="t-num">SN ${it.serial}</span>` : ''}</span>`, actions: html`${mvOk ? html`<button class="btn btn-ok" data-move="receive" data-item="${id}">${UI.icon('download')} استلام</button><button class="btn" data-move="issue" data-item="${id}">${UI.icon('upload')} صرف</button><button class="btn" data-move="transfer" data-item="${id}">${UI.icon('swap')} تحويل</button><button class="btn btn-soft" data-act="lend" data-item="${id}">${UI.icon('clipboard')} عهدة</button>` : ''}${Auth.can('inventory.move') ? UI.cartBtn(id, 'btn') : ''}${Auth.can('inventory.manage') ? html`<button class="btn btn-ghost" data-move="adjust" data-item="${id}">${UI.icon('refresh')} جرد</button><button class="btn btn-ghost" data-fixstock="${id}" title="إنقاص كمية أو وحدات سُجلت بالخطأ">${UI.icon('undo')} تصحيح خطأ</button><button class="icon-btn" data-act="edit" title="تعديل" aria-label="تعديل">${UI.icon('edit')}</button>` : ''}` })}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'الرصيد عبر الزمن', icon: 'pulse', sub: `آخر ${days} يوماً`, body: UI.chart.area([{ name: 'الرصيد الحالي', tone: 'teal', values: bal }], Stats.dayLabels(from, days), { height: 200, legend: 'last' }) })}
@@ -5044,8 +5111,7 @@ const LOOKUPS = {
   ranks: { title: 'الرتب', icon: 'shield', fields: [] },
   categories: { title: 'فئات البلاغات', icon: 'tag', illu: true, fields: [] },
   itemCategories: { title: 'تصنيفات الأصناف', icon: 'grid', illu: true, fields: [] },
-  warehouses: { title: 'المخازن', icon: 'warehouse', fields: [{ name: 'location', label: 'الموقع' }, { name: 'keeper', label: 'أمين المخزن' }] },
-  printers: { title: 'أنواع الطابعات', icon: 'print', fields: [] }
+  warehouses: { title: 'المخازن', icon: 'warehouse', fields: [{ name: 'location', label: 'الموقع' }, { name: 'keeper', label: 'أمين المخزن' }] }
 };
 Pages.lookupModal = async (store, id) => {
   const L = LOOKUPS[store], rec = id ? Data.c[store].get(id) : { illustration: 'box' };
@@ -5068,6 +5134,7 @@ Pages.settings = async (ctx) => {
         ${UI.panel({ title: 'استعادة نسخة', icon: 'upload', body: html`<p class="muted">استبدل كل البيانات الحالية بمحتوى ملف نسخة احتياطية سابقة.</p><button class="btn btn-danger btn-block mt" data-act="restore">${UI.icon('upload')} استعادة من ملف</button>` })}
         ${UI.panel({ title: 'عهد الإدارات', icon: 'building', body: html`<p class="muted">أعد بناء أرصدة عهد الإدارات من سجل حركات الصرف والإرجاع، إذا كانت لديك حركات قديمة قبل تفعيل تتبع العهد.</p><button class="btn btn-soft btn-block mt" data-act="rebuilddept">${UI.icon('refresh')} إعادة بناء عهد الإدارات</button>` })}
         ${UI.panel({ title: 'بيانات تجريبية', icon: 'layers', body: html`<p class="muted">أضف بلاغات وأصنافاً وحركات تجريبية لاستعراض الرسوم والتقارير.</p><button class="btn btn-soft btn-block mt" data-act="sample">${UI.icon('plus')} إضافة بيانات تجريبية</button><button class="btn btn-ghost btn-block" data-act="unsample" style="margin-top:8px">${UI.icon('trash')} حذف البيانات التجريبية</button>` })}
+        ${Auth.user && Auth.user.role === 'supervisor' ? UI.panel({ title: 'تنظيف بيانات التجربة', icon: 'trash', body: html`<p class="muted">قبل التشغيل الرسمي: احذف البلاغات والمخزون والإشعارات وكل ما أُدخل أثناء التجربة، من الخادم ومن كل الأجهزة، مع الإبقاء على الإعدادات والقوائم والحسابات.</p><button class="btn btn-danger btn-block mt" data-act="wipetrial">${UI.icon('trash')} تنظيف بيانات التجربة</button>` }) : ''}
       </div>
       <div class="grid g-main mt">
         ${UI.panel({ title: 'محتوى قاعدة البيانات', icon: 'database', sub: 'قاعدة بيانات IndexedDB محلية في هذا المتصفح', body: UI.chart.hbars(counts.filter(([k]) => names[k]).sort((a, b) => b[1] - a[1]).map(([k, v], i) => ({ label: names[k], value: v, tone: TONES[i % TONES.length] }))) })}
@@ -5135,7 +5202,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -11384,7 +11451,7 @@ Pages.assetDetail = async (assetId) => {
   return UI.modal({ title: `تفاصيل ${it.name}`, icon: 'info', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 6px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip(S.tone, S.label, S.icon)}${UI.chip('sky', IC.label(it.categoryId) || 'بدون تصنيف', 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}</div></div></div>
       <div class="kpis mt" style="border-radius:14px">${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maint.length ? 'amber' : 'teal', value: maint.length })}${UI.kpi({ label: 'السندات المرتبطة', icon: 'file', tone: 'sky', value: vs.length })}${UI.kpi({ label: 'عمر التسجيل', icon: 'clock', tone: 'violet', value: Math.max(0, Math.floor((now() - (a.addedAt || now())) / DAY)), foot: html`<span class="faint small">يوم</span>` })}</div>
-      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3><dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
+      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
       ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
       ${maint.length ? html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3>${Pages.maintSummary(maint)}${Pages.maintTimeline(maint)}</div>` : html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3><p class="faint small" style="margin:0">لم تدخل هذه الوحدة الصيانة من قبل.</p></div>`}
       ${vs.length ? html`<div class="u-sec mt"><h3>${UI.icon('file')} السندات</h3><div class="list">${vs.slice(0, 20).map((v) => html`<button type="button" class="list-row unit-item" data-vprint="${v.id}"><div class="grow ellipsis"><b>${(VOUCHER_KIND[v.type] || {}).label || 'سند'} ${v.number}</b><div class="t-sub">${fmtDateTime(v.at)} — ${v.holder || Data.nameOf('departments', v.departmentId, '')}</div></div>${UI.icon('print')}</button>`)}</div></div>` : ''}`,
@@ -12721,6 +12788,352 @@ Router.add('/survey/:id', null, (ctx) => Pages.surveyAnswer(ctx, false), 'است
 Router.add('/gate/:id', null, (ctx) => Pages.surveyAnswer(ctx, true), 'استبيان مطلوب', true);
 Router.add('/ratings', 'ratings.manage', Pages.ratingsCenter, 'مركز التقييم');
 Router.add('/replies', 'tickets.work', Pages.repliesAdmin, 'الردود الجاهزة');
+
+/* ══════════ كتالوج الطابعات والأحبار: ماركة ← موديلات ← أحبار متوافقة ══════════ */
+const INK_COLORS_MAP = { black: ['أسود', '#20242c'], cyan: ['سماوي', '#0ea5c6'], magenta: ['أرجواني', '#d0337f'], yellow: ['أصفر', '#e8b10c'], color: ['ثلاثي الألوان', 'conic-gradient(#0ea5c6 0 33%,#d0337f 0 66%,#e8b10c 0)'], other: ['أخرى', '#8a94a6'] };
+const PRINTER_KINDS = { mono: 'أبيض وأسود', color: 'ملوّنة' };
+const PrintCat = {
+  can: () => !!Auth.user && (canUser(Auth.user, 'inventory.manage') || canUser(Auth.user, 'settings')),
+  /* ماركة لم تُنقل بعد إلى الكتالوج تأخذ موديلاتها من القائمة الأصلية */
+  models(b) { if (Array.isArray(b.models)) return b.models; return (PRINTER_MODELS[b.name] || []).map((name) => ({ id: '', name, kind: '', inks: (INK_BY_MODEL[name] || []).map(PrintCat.parseInk) })); },
+  ready: () => Data.list('printers').some((b) => Array.isArray(b.models)),
+  brands: () => Data.list('printers').filter((b) => !b.hidden),
+  inkLabel(k) { const c = INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other; return [k.code, k.color && k.color !== 'other' ? c[0] : '', k.note].filter(Boolean).join(' — '); },
+  parseInk(label) {
+    let s = String(label || ''), color = 'other', note = '';
+    [['أسود', 'black'], ['سماوي', 'cyan'], ['أرجواني', 'magenta'], ['أصفر', 'yellow']].forEach(([w, k]) => { if (s.includes(w)) { color = k; s = s.replace(w, ''); } });
+    if (s.includes('سعة عالية')) { note = 'سعة عالية'; s = s.replace('سعة عالية', ''); }
+    return { id: uid('ink'), code: s.replace(/\s+/g, ' ').trim(), color, note };
+  },
+  tree() { return PrintCat.brands().map((b) => ({ b, models: PrintCat.models(b) })); },
+  /* خيارات خانات البلاغ */
+  opts() {
+    const t = PrintCat.tree(), modelsBy = {}, inksBy = {}, oi = {};
+    t.forEach(({ b, models }) => { modelsBy[b.name] = models.map((m) => m.name); models.forEach((m) => { inksBy[m.name] = (m.inks || []).map(PrintCat.inkLabel); }); oi[b.name] = b.icon || 'ic:printer'; });
+    return { brands: [...t.map((x) => x.b.name), 'أخرى'], modelsBy, inksBy, oi };
+  },
+  findModel(name) { for (const { b, models } of PrintCat.tree()) { const m = models.find((x) => x.name === name); if (m) return { b, m }; } return null; },
+  /* نقل القائمة الأصلية إلى الكتالوج مرة واحدة، بمعرّفات ثابتة حتى لا تتكرر عند تشغيلها من أكثر من جهاز */
+  async seed() {
+    if (!PrintCat.can()) return false;
+    /* بعد اكتمال أول مزامنة فقط، حتى لا تتكرر الماركات على جهاز جديد قبل وصول بيانات الخادم */
+    if (Sync.on && !Sync.lastAt) { PrintCat._seeded = 0; return false; }
+    const flag = await DB.get('meta', 'seed:printcat'); if (flag && flag.value) return false;
+    const all = await DB.getAll('printers'), byName = new Map(all.map((r) => [String(r.name).trim().toLowerCase(), r]));
+    const out = [], t = now(); let order = all.reduce((m, r) => Math.max(m, Number(r.order) || 0), 0);
+    Object.keys(PRINTER_MODELS).filter((n) => n !== 'أخرى').forEach((name) => {
+      const cur = byName.get(name.toLowerCase());
+      const rec = cur ? { ...cur } : { id: `pr_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`, name, order: ++order, createdAt: t };
+      if (!Array.isArray(rec.models)) rec.models = PRINTER_MODELS[name].map((mn, i) => ({ id: `pm_${rec.id}_${i}`, name: mn, kind: (INK_BY_MODEL[mn] || []).length > 1 ? 'color' : 'mono', note: '', inks: (INK_BY_MODEL[mn] || []).map(PrintCat.parseInk) }));
+      rec.updatedAt = t; out.push(rec);
+    });
+    all.filter((r) => !Array.isArray(r.models) && !out.some((x) => x.id === r.id)).forEach((r) => out.push({ ...r, models: [], updatedAt: t }));
+    if (out.length) await DB.bulkPut('printers', out);
+    await DB.put('meta', { key: 'seed:printcat', value: 1 });
+    await Data.refresh('printers'); Bus.emit('data:printers', {});
+    return true;
+  },
+  async save(rec, msg) {
+    if (!PrintCat.can()) throw new AppError('تعديل كتالوج الطابعات لمن يملك إدارة المخزن');
+    const cur = rec.id ? await DB.get('printers', rec.id) : null;
+    const out = { ...(cur || {}), ...rec, id: rec.id || uid('pr'), models: rec.models || (cur && cur.models) || [], updatedAt: now() };
+    if (!String(out.name || '').trim()) throw new AppError('اكتب اسم الماركة');
+    out.name = String(out.name).trim();
+    if (Data.list('printers').some((b) => b.id !== out.id && b.name.trim().toLowerCase() === out.name.toLowerCase())) throw new AppError('توجد ماركة بهذا الاسم');
+    if (!cur) { out.createdAt = now(); if (out.order == null) out.order = Data.list('printers').length + 1; }
+    await DB.put('printers', out); await Data.refresh('printers');
+    if (msg) await Data.log(cur ? 'update' : 'create', 'printers', out.id, `${msg}: ${out.name}`);
+    Bus.emit('data:printers', {});
+    return out;
+  },
+  async remove(id) { if (!PrintCat.can()) throw new AppError('لا تملك الصلاحية'); const b = await DB.get('printers', id); await DB.del('printers', id); await Data.refresh('printers'); if (b) await Data.log('delete', 'printers', id, `حذف ماركة: ${b.name}`); Bus.emit('data:printers', {}); }
+};
+/* خانات بلاغ الطابعة وطلب الحبر تأخذ خياراتها من الكتالوج: الماركة بأيقونات، ثم موديلاتها، ثم أحبارها */
+{
+  const d0 = Forms.def;
+  Forms.def = (catId) => {
+    const defs = d0(catId);
+    if (!['printer', 'ink'].includes(catId) || !PrintCat.ready()) return defs;
+    const o = PrintCat.opts();
+    return defs.map((f) => {
+      if (f.k === 'brand') return { ...f, t: 'choice', o: o.brands, oi: o.oi, oh: [], by: undefined, byo: undefined, dep: undefined };
+      if (f.k === 'model' && f.dep === 'brand') return { ...f, t: 'select', by: o.modelsBy, byo: undefined, oh: [], other: 1, fallback: [] };
+      if (f.k === 'ink' && f.dep === 'model') return { ...f, t: 'select', by: o.inksBy, byo: undefined, oh: [], other: 1 };
+      return f;
+    });
+  };
+}
+
+Pages.printerBrandModal = (b = {}) => {
+  let icon = b.icon || '';
+  const prev = () => (icon ? Forms.optIco({ oi: { x: icon } }, 'x') : UI.icon('printer'));
+  return UI.modal({
+    title: b.id ? `تعديل ${b.name}` : 'ماركة جديدة', icon: 'printer', size: 'sm',
+    body: html`${UI.fields([{ name: 'name', label: 'اسم الماركة', required: true, dir: 'ltr', placeholder: 'HP' }], b)}
+      <div class="field mt"><label>الأيقونة <small class="faint">— تظهر للموظف عند اختيار الماركة</small></label><div class="pc-iconrow"><span class="pc-icon lg" data-pcprev>${prev()}</span><button type="button" class="btn btn-soft btn-sm" data-pcimg>${UI.icon('photo')} اختيار صورة أو شعار</button><button type="button" class="btn btn-ghost btn-sm" data-pcclr>${UI.icon('x')} بلا صورة</button></div></div>
+      <div class="mt">${UI.field({ name: 'hidden', type: 'switch', text: 'إخفاء الماركة من نموذج البلاغ' }, !!b.hidden)}</div>`,
+    onMount: (form) => {
+      const upd = () => { $('[data-pcprev]', form).innerHTML = String(prev()); };
+      UI.on(form, 'click', '[data-pcimg]', async () => { const r = await Pages.imgPickModal(icon.startsWith('ic:') ? '' : icon, b.name || ''); if (r) { icon = r; upd(); } });
+      UI.on(form, 'click', '[data-pcclr]', () => { icon = ''; upd(); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); return PrintCat.save({ ...b, name: v.name, icon, hidden: v.hidden ? 1 : 0 }, b.id ? 'تعديل ماركة طابعة' : 'إضافة ماركة طابعة'); } }]
+  });
+};
+Pages.printerModelModal = (brand, m = {}) => UI.modal({
+  title: m.id ? `تعديل ${m.name}` : `موديل جديد — ${brand.name}`, icon: 'printer', size: 'sm',
+  body: html`${UI.fields([{ name: 'name', label: 'اسم الموديل', required: true, dir: 'ltr', placeholder: 'LaserJet Pro M404' }], m)}
+    <div class="field mt"><label>نوع الطباعة</label><div class="seg">${Object.entries(PRINTER_KINDS).map(([k, l]) => html`<label><input type="radio" name="kind" value="${k}"${(m.kind || 'mono') === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+    ${UI.fields([{ name: 'note', label: 'ملاحظة', placeholder: 'مثال: الطابعة المشتركة في الطابق الثاني', wide: true }], m)}`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+    const v = UI.formValues(form), name = String(v.name || '').trim(); if (!name) throw new AppError('اكتب اسم الموديل');
+    const b = await DB.get('printers', brand.id), models = PrintCat.models(b).map((x) => ({ ...x, id: x.id || uid('pm') }));
+    if (models.some((x) => x.id !== m.id && x.name.toLowerCase() === name.toLowerCase())) throw new AppError('هذا الموديل موجود في الماركة');
+    const rec = { ...(models.find((x) => x.id === m.id) || { id: uid('pm'), inks: [] }), name, kind: v.kind || 'mono', note: String(v.note || '').trim() };
+    const i = models.findIndex((x) => x.id === rec.id); if (i < 0) models.push(rec); else models[i] = rec;
+    await PrintCat.save({ ...b, models }, m.id ? 'تعديل موديل طابعة' : 'إضافة موديل طابعة'); return rec;
+  } }]
+});
+Pages.printerInkModal = (brand, model, k = {}) => {
+  const others = PrintCat.models(brand).filter((x) => x.id && x.id !== model.id);
+  return UI.modal({
+    title: k.id ? `تعديل الحبر ${k.code}` : `حبر جديد — ${model.name}`, icon: 'box', size: 'sm',
+    body: html`${UI.fields([{ name: 'code', label: 'رقم الحبر', required: true, dir: 'ltr', placeholder: 'HP 59A' }], k)}
+      <div class="field mt"><label>اللون</label><div class="pc-colors">${Object.entries(INK_COLORS_MAP).map(([c, [l, bg]]) => html`<label><input type="radio" name="color" value="${c}"${(k.color || 'black') === c ? raw(' checked') : ''}><span><i class="pc-dot" style="background:${bg}"></i>${l}</span></label>`)}</div></div>
+      ${UI.fields([{ name: 'note', label: 'ملاحظة', placeholder: 'مثال: سعة عالية' }], k)}
+      ${!k.id && others.length ? html`<div class="field mt"><label>متوافق أيضاً مع <small class="faint">— اختياري</small></label><div class="chip-pick">${others.map((x) => html`<label><input type="checkbox" name="also" value="${x.id}"><span>${x.name}</span></label>`)}</div></div>` : ''}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), code = String(v.code || '').trim(); if (!code) throw new AppError('اكتب رقم الحبر');
+      const also = $$('[name="also"]:checked', form).map((x) => x.value), b = await DB.get('printers', brand.id);
+      const rec = { id: k.id || uid('ink'), code, color: v.color || 'black', note: String(v.note || '').trim() };
+      const models = PrintCat.models(b).map((x) => {
+        if (x.id === model.id) { const inks = (x.inks || []).slice(), i = inks.findIndex((y) => y.id === rec.id); if (i < 0) { if (inks.some((y) => y.code.toLowerCase() === code.toLowerCase() && y.color === rec.color)) throw new AppError('هذا الحبر مضاف للموديل'); inks.push(rec); } else inks[i] = rec; return { ...x, inks }; }
+        if (also.includes(x.id) && !(x.inks || []).some((y) => y.code.toLowerCase() === code.toLowerCase() && y.color === rec.color)) return { ...x, inks: [...(x.inks || []), { ...rec, id: uid('ink') }] };
+        return x;
+      });
+      await PrintCat.save({ ...b, models }, 'تحديث أحبار طابعة'); return rec;
+    } }]
+  });
+};
+
+Pages.printers = async (ctx) => {
+  await PrintCat.seed().catch((e) => console.warn('printcat seed', e));
+  const st = { b: ctx.query.b || '', m: '', q: '' }, can = PrintCat.can();
+  const draw = () => {
+    const tree = PrintCat.tree(), all = Data.list('printers'), q = normalizeAr(st.q);
+    if (!all.some((b) => b.id === st.b)) st.b = (all[0] || {}).id || '';
+    const cur = all.find((b) => b.id === st.b), models = cur ? PrintCat.models(cur) : [];
+    if (!models.some((m) => m.id === st.m)) st.m = (models[0] || {}).id || '';
+    const model = models.find((m) => m.id === st.m);
+    const nModels = tree.reduce((n, x) => n + x.models.length, 0), inkSet = new Set(); tree.forEach((x) => x.models.forEach((m) => (m.inks || []).forEach((k) => inkSet.add(k.code.toLowerCase()))));
+    const hits = q ? tree.flatMap(({ b, models: ms }) => ms.flatMap((m) => { const inks = (m.inks || []).filter((k) => normalizeAr(k.code).includes(q)); return normalizeAr(m.name).includes(q) || inks.length || normalizeAr(b.name).includes(q) ? [{ b, m, inks }] : []; })) : [];
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الطابعات والأحبار', sub: 'الماركات وموديلاتها والأحبار المتوافقة مع كل موديل — تظهر للموظف عند تقديم بلاغ طابعة أو طلب حبر', illu: 'printer', actions: can ? html`<button class="btn btn-primary" data-pcadd="brand">${UI.icon('plus')} ماركة جديدة</button>` : '' })}
+      <div class="kpis">${UI.kpi({ label: 'الماركات', icon: 'printer', tone: 'brass', value: all.length })}${UI.kpi({ label: 'الموديلات', icon: 'layers', tone: 'sky', value: nModels })}${UI.kpi({ label: 'أنواع الأحبار', icon: 'box', tone: 'violet', value: inkSet.size })}</div>
+      <section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
+      ${q ? html`<div class="pc-hits">${hits.length ? hits.map(({ b, m, inks }) => html`<button type="button" class="pc-hit" data-pcgo="${b.id}" data-pcm="${m.id}"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name} ${m.name}</b><div class="t-sub">${(inks.length ? inks : m.inks || []).map((k) => PrintCat.inkLabel(k)).join('، ') || 'لا توجد أحبار مسجلة'}</div></div>${UI.icon('chevron-left')}</button>`) : UI.noData('لا توجد نتائج مطابقة')}</div>` : html`
+      <div class="pc-cols">
+        <div class="pc-col"><div class="pc-colh">${UI.icon('printer')} الماركات</div><div class="pc-list">${all.map((b) => html`<div class="pc-row${b.id === st.b ? ' on' : ''}${b.hidden ? ' off' : ''}" data-pcb="${b.id}" tabindex="0"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name}</b><div class="t-sub">${fmtNum(PrintCat.models(b).length)} موديل${b.hidden ? ' · مخفية' : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="brand" data-id="${b.id}" title="تعديل">${UI.icon('edit')}</button>` : ''}</div>`)}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('layers')} موديلات ${cur ? cur.name : ''}${can && cur ? html`<button class="btn btn-soft btn-sm" data-pcadd="model">${UI.icon('plus')} موديل</button>` : ''}</div><div class="pc-list">${models.length ? models.map((m) => html`<div class="pc-row${m.id === st.m ? ' on' : ''}" data-pcmodel="${m.id}" tabindex="0"><div class="grow"><b class="ltr">${m.name}</b><div class="t-sub">${PRINTER_KINDS[m.kind] || ''}${m.kind ? ' · ' : ''}${fmtNum((m.inks || []).length)} حبر${m.note ? ` · ${m.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="model" data-id="${m.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="model" data-id="${m.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">لا توجد موديلات لهذه الماركة بعد.</p>`}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} حبر</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
+      </div>`}</section>`);
+    UI.hydrate(ctx.view);
+    const qi = $('#pcq', ctx.view); if (st.q) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
+  };
+  const brand = () => Data.list('printers').find((b) => b.id === st.b);
+  const modelOf = (id) => PrintCat.models(brand() || {}).find((m) => m.id === id);
+  const writeModels = async (fn, msg) => { const b = await DB.get('printers', st.b); await PrintCat.save({ ...b, models: fn(PrintCat.models(b).map((x) => ({ ...x, id: x.id || uid('pm') }))) }, msg); };
+  UI.on(ctx.view, 'input', '#pcq', debounce((e, el) => { st.q = el.value.trim(); draw(); }, 220));
+  UI.on(ctx.view, 'click', '[data-pcb]', (e, el) => { if (e.target.closest('button')) return; st.b = el.dataset.pcb; st.m = ''; draw(); });
+  UI.on(ctx.view, 'click', '[data-pcmodel]', (e, el) => { if (e.target.closest('button')) return; st.m = el.dataset.pcmodel; draw(); });
+  UI.on(ctx.view, 'keydown', '[data-pcb],[data-pcmodel]', (e, el) => { if (e.key === 'Enter') el.click(); });
+  UI.on(ctx.view, 'click', '[data-pcgo]', (e, el) => { st.b = el.dataset.pcgo; st.m = el.dataset.pcm; st.q = ''; draw(); });
+  UI.on(ctx.view, 'click', '[data-pcadd]', async (e, el) => {
+    const k = el.dataset.pcadd;
+    if (k === 'brand') { const r = await Pages.printerBrandModal(); if (r) { st.b = r.id; st.m = ''; UI.toast('أُضيفت الماركة'); } }
+    if (k === 'model') { const r = await Pages.printerModelModal(brand()); if (r) { st.m = r.id; UI.toast('أُضيف الموديل'); } }
+    if (k === 'ink') { if (!modelOf(st.m) || !modelOf(st.m).id) await writeModels((ms) => ms); const r = await Pages.printerInkModal(brand(), modelOf(st.m)); if (r) UI.toast('أُضيف الحبر'); }
+    draw();
+  });
+  UI.on(ctx.view, 'click', '[data-pcedit]', async (e, el) => {
+    const k = el.dataset.pcedit, id = el.dataset.id;
+    if (k === 'brand') { const b = Data.list('printers').find((x) => x.id === id); const r = await Pages.printerBrandModal(b); if (r) UI.toast('حُفظت الماركة'); }
+    if (k === 'model') { if (await Pages.printerModelModal(brand(), modelOf(id))) UI.toast('حُفظ الموديل'); }
+    if (k === 'ink') { const m = modelOf(st.m), ink = ((m || {}).inks || []).find((x) => x.id === id); if (ink && (await Pages.printerInkModal(brand(), m, ink))) UI.toast('حُفظ الحبر'); }
+    draw();
+  });
+  UI.on(ctx.view, 'click', '[data-pcdel]', async (e, el) => {
+    const k = el.dataset.pcdel, id = el.dataset.id;
+    if (k === 'model') { const m = modelOf(id); if (!m || !(await UI.confirm(`حذف الموديل «${m.name}» وأحباره من الكتالوج؟`, { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.filter((x) => x.id !== id), 'حذف موديل طابعة'); }
+    if (k === 'ink') { const m = modelOf(st.m); if (!(await UI.confirm('حذف هذا الحبر من الموديل؟', { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.map((x) => (x.id === m.id ? { ...x, inks: (x.inks || []).filter((y) => y.id !== id) } : x)), 'حذف حبر من موديل'); }
+    UI.toast('حُذف'); draw();
+  });
+  UI.on(ctx.view, 'dblclick', '[data-pcb]', async (e, el) => { if (!can) return; const b = Data.list('printers').find((x) => x.id === el.dataset.pcb); if (b && (await UI.confirm(`حذف الماركة «${b.name}» بكل موديلاتها؟`, { danger: true, ok: 'حذف الماركة' }))) { await PrintCat.remove(b.id); draw(); } });
+  ctx.onCleanup(Bus.on('data:printers', debounce((e) => { if (ctx.alive() && e.detail && e.detail.remote && !document.querySelector('dialog[open]')) Data.refresh('printers').then(draw); }, 300)));
+  draw();
+};
+PrintCat.iconOf = (b) => (b.icon ? Forms.optIco({ oi: { x: b.icon } }, 'x') : html`<b class="pc-ini">${String(b.name || '?').slice(0, 2)}</b>`);
+/* أيقونة الماركة في نموذج البلاغ: شعارها إن وُجد، وإلا الحرفان الأولان */
+{
+  const oi0 = Forms.optIco;
+  Forms.optIco = (f, o) => { if (f && f.oi && f.oi[o] === 'ic:printer' && f.k === 'brand') return html`<span class="pc-icon sm"><b class="pc-ini">${String(o).slice(0, 2)}</b></span>`; return oi0(f, o); };
+}
+
+/* ══════════ تنظيف بيانات التجربة قبل التشغيل الرسمي ══════════ */
+const WIPE_GROUPS = [
+  ['tickets', 'البلاغات ومتابعاتها ومرفقاتها', 'ticket', ['tickets', 'ticketEvents', 'attachments']],
+  ['chats', 'الاستفسارات ورسائلها', 'bell', ['chats', 'chatMsgs']],
+  ['notifications', 'الإشعارات', 'bell', ['notifications']],
+  ['inventory', 'المخزن: الأصناف والأرصدة والحركات والعهد والسندات والصيانة', 'warehouse', ['items', 'stock', 'deptStock', 'unitStock', 'movements', 'loans', 'assets', 'vouchers', 'maintenance']],
+  ['works', 'أعمال القسم وسجل العمل', 'clipboard', ['worklog', 'workFolders', 'workItems']],
+  ['surveys', 'الاستبيانات وإجاباتها', 'poll', ['surveys', 'surveyResponses', 'surveyMarks']],
+  ['announcements', 'الإعلانات والتعاميم', 'bell', ['announcements']],
+  ['activity', 'سجل النشاط', 'clock', ['activity']]
+];
+const WIPE_PHRASE = 'حذف بيانات التجربة';
+Pages.wipeModal = async () => {
+  if (!Auth.user || Auth.user.role !== 'supervisor') return UI.toast('هذه العملية للمشرف فقط', 'warn');
+  const counts = {};
+  for (const [k, , , stores] of WIPE_GROUPS) counts[k] = (await Promise.all(stores.map((s) => DB.count(s).catch(() => 0)))).reduce((a, b) => a + b, 0);
+  const users = (await DB.getAll('users')).filter((u) => u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system).length;
+  const r = await UI.modal({
+    title: 'تنظيف بيانات التجربة', icon: 'trash', size: 'lg',
+    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>تُحذف البيانات المختارة نهائياً من الخادم ومن كل الأجهزة.</b><div class="small">تبقى الإعدادات والإدارات والفئات والقوائم وكتالوج الطابعات وقاعدة المعرفة والنماذج والردود الجاهزة. ويُعاد ترقيم البلاغات والأصناف من البداية.</div></div><a class="btn btn-soft btn-sm" href="#/backup" data-wipebk>${UI.icon('download')} نسخة احتياطية أولاً</a></div>
+      <div class="wipe-list mt">${WIPE_GROUPS.map(([k, label, icon]) => html`<label class="wipe-row"><input type="checkbox" name="g" value="${k}" checked><span class="wipe-ic">${UI.icon(icon)}</span><span class="grow">${label}</span><b class="wipe-n">${fmtNum(counts[k])}</b></label>`)}
+        <label class="wipe-row warn"><input type="checkbox" name="users" value="1"><span class="wipe-ic">${UI.icon('users')}</span><span class="grow">حسابات المستخدمين التجريبية <small class="faint">— يبقى حسابك وحسابات المشرفين</small></span><b class="wipe-n">${fmtNum(users)}</b></label></div>
+      <div class="field mt"><label>للتأكيد اكتب: <b class="wipe-phrase">${WIPE_PHRASE}</b></label><input name="confirm" autocomplete="off" placeholder="${WIPE_PHRASE}"></div>`,
+    onMount: (form, finish) => {
+      const btn = form.querySelector('.modal-foot .btn-danger'), sync = () => { btn.disabled = form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE || !form.querySelector('[name="g"]:checked, [name="users"]:checked'); };
+      form.addEventListener('input', sync); form.addEventListener('change', sync); sync();
+      UI.on(form, 'click', '[data-wipebk]', () => finish(null));
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حذف نهائياً', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => {
+      const groups = $$('[name="g"]:checked', form).map((x) => x.value), wipeUsers = !!form.querySelector('[name="users"]:checked');
+      if (form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE) throw new AppError('اكتب عبارة التأكيد كما هي');
+      return Data.wipeTrial(groups, wipeUsers);
+    } }]
+  });
+  if (r) { UI.toast('حُذفت بيانات التجربة، وسيُعاد تحميل النظام', 'ok', 6000); setTimeout(() => location.reload(), 1600); }
+  return r;
+};
+Data.wipeTrial = async (groups, wipeUsers) => {
+  const stores = WIPE_GROUPS.filter(([k]) => groups.includes(k)).flatMap(([, , , s]) => s);
+  let res = { counts: {} };
+  if (Sync.on) {
+    if (!Sync.token) throw new AppError('لا يوجد اتصال بالخادم، أعد المحاولة بعد عودة الاتصال');
+    Sync.queue = Sync.queue.filter((op) => !stores.includes(op.store) && !(wipeUsers && op.store === 'users')); Sync.saveQueue();
+    res = await Sync.call('wipe', { body: { groups, users: wipeUsers, confirm: WIPE_PHRASE } });
+  }
+  const put = Sync.on ? Sync.raw.put : (s, v) => DB.put(s, v), del = Sync.on ? Sync.raw.del : (s, k) => DB.del(s, k);
+  for (const s of stores) await DB.clear(s);
+  if (wipeUsers) for (const u of await DB.getAll('users')) if (u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system) await del('users', u.id);
+  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'] };
+  for (const g of groups) for (const n of seqs[g] || []) await put('meta', { key: `seq:${n}`, value: 0 });
+  await Data.log('delete', 'system', '', `تنظيف بيانات التجربة: ${groups.map((g) => (WIPE_GROUPS.find((x) => x[0] === g) || [])[1]).join('، ')}${wipeUsers ? '، والحسابات التجريبية' : ''}`);
+  return res;
+};
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-act="wipetrial"]'); if (b) Pages.wipeModal(); });
+
+/* ══════════ تصحيح أخطاء الإدخال في المخزن ══════════ */
+Data.assets.update = async (id, patch) => {
+  if (!Auth.can('inventory.move') && !Auth.can('inventory.manage')) throw new AppError('لا تملك صلاحية تعديل وحدات المخزن');
+  const a = await DB.get('assets', id); if (!a) throw new AppError('الوحدة غير موجودة');
+  const serial = String(patch.serial == null ? a.serial : patch.serial).trim();
+  if (!serial) throw new AppError('اكتب الرقم التسلسلي');
+  const other = (await DB.getAll('assets', 'serial', KR(serial))).find((x) => x.id !== id);
+  if (other) throw new AppError(`الرقم التسلسلي ${serial} مسجل لوحدة أخرى`);
+  const old = a.serial, rec = { ...a, serial, tag: String(patch.tag == null ? a.tag || '' : patch.tag).trim(), host: String(patch.host == null ? a.host || '' : patch.host).trim(), note: String(patch.note == null ? a.note || '' : patch.note).trim(), updatedAt: now() };
+  await DB.put('assets', rec);
+  await Data.log('update', 'assets', id, old !== serial ? `تصحيح رقم تسلسلي: ${old} ← ${serial}` : `تعديل بيانات وحدة: ${serial}`);
+  Bus.emit('inventory', {}); return rec;
+};
+/* حذف وحدات سُجلت بالخطأ: تُحذف من المخزن ويُنقص رصيدها بحركة تصحيح موثقة */
+Data.inv.removeMistakes = async (itemId, warehouseId, assetIds, count, note) => {
+  if (!Auth.can('inventory.manage')) throw new AppError('تصحيح الرصيد لمن يملك إدارة المخزن');
+  const at = now(), me = Auth.user.id; let mv = null;
+  await DB.run(['items', 'stock', 'movements', 'assets'], async (T) => {
+    const item = await T.get('items', itemId); if (!item) throw new AppError('الصنف غير موجود');
+    const st = (await T.get('stock', [warehouseId, itemId])) || { warehouseId, itemId, qty: 0 };
+    const units = []; for (const id of assetIds) { const a = await T.get('assets', id); if (!a || a.itemId !== itemId || a.status !== 'in_store' || a.warehouseId !== warehouseId) throw new AppError('إحدى الوحدات المختارة لم تعد في هذا المخزن'); units.push(a); }
+    const n = assetIds.length || Math.floor(Number(count) || 0);
+    if (!(n > 0)) throw new AppError('حدد ما يجب إنقاصه');
+    if (n > st.qty) throw new AppError(`الرصيد في هذا المخزن ${fmtNum(st.qty)} فقط`);
+    st.qty -= n; item.onHand = (Number(item.onHand) || 0) - n; st.updatedAt = at; item.updatedAt = at;
+    mv = { id: uid('mv'), type: 'adjust', itemId, warehouseId, qty: n, delta: -n, balance: st.qty, at, userId: me, note: `تصحيح خطأ إدخال${note ? `: ${note}` : ''}${units.length ? ` — ${units.map((a) => a.serial).join('، ')}` : ''}`, ref: '', party: '', departmentId: '', fix: 1 };
+    await T.put('stock', st); await T.put('items', item); await T.put('movements', mv);
+    for (const a of units) await T.del('assets', a.id);
+  });
+  await Data.log('move', 'item', itemId, mv.note); Bus.emit('inventory', {}); return mv;
+};
+Pages.assetEditModal = (a) => UI.modal({
+  title: 'تعديل بيانات الوحدة', icon: 'edit', size: 'sm',
+  body: html`${UI.fields([{ name: 'serial', label: 'الرقم التسلسلي', required: true, dir: 'ltr' }, { name: 'tag', label: 'رقم الأصل', dir: 'ltr' }, { name: 'host', label: 'اسم الجهاز على الشبكة', dir: 'ltr' }, { name: 'note', label: 'ملاحظة', wide: true }], a)}`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => Data.assets.update(a.id, UI.formValues(form)) }]
+});
+Pages.fixStockModal = async (itemId) => {
+  const it = await DB.get('items', itemId); if (!it) return null;
+  const stock = (await DB.getAll('stock', 'itemId', KR(itemId))).filter((s) => s.qty > 0), serial = isSerialItem(it);
+  if (!stock.length) { UI.toast('لا يوجد رصيد لهذا الصنف في أي مخزن', 'info'); return null; }
+  const unitsOf = async (wh) => (serial ? Data.assets.available(itemId, wh) : []);
+  let units = await unitsOf(stock[0].warehouseId);
+  const unitsHTML = () => (serial ? (units.length ? html`<div class="field mt"><label>اختر الوحدات التي سُجلت بالخطأ</label><div class="fix-units">${units.map((a) => html`<label><input type="checkbox" name="u" value="${a.id}"><span class="ltr">${a.serial}</span></label>`)}</div><small class="hint">لتصحيح رقم تسلسلي فقط دون حذف الوحدة، افتح الوحدة من صفحة الصنف واختر «تعديل».</small></div>` : html`<p class="faint mt">لا توجد وحدات مسلسلة في هذا المخزن.</p>`) : html`${UI.fields([{ name: 'count', label: 'الكمية الزائدة المراد إنقاصها', type: 'number', min: 1, required: true }])}`);
+  return UI.modal({
+    title: `تصحيح خطأ إدخال — ${it.name}`, icon: 'undo', size: 'lg',
+    body: html`<p class="muted" style="margin-top:0">إذا استلمت كمية أكبر من الحقيقية أو أدخلت وحدة بالخطأ، أنقصها هنا. تُسجَّل حركة «تصحيح» في سجل الحركات حتى يبقى الأثر موثقاً.</p>
+      <div class="field"><label>المخزن</label><select name="wh">${stock.map((s) => html`<option value="${s.warehouseId}">${Data.nameOf('warehouses', s.warehouseId)} — الرصيد ${fmtNum(s.qty)}</option>`)}</select></div>
+      <div data-fixunits>${unitsHTML()}</div>
+      ${UI.fields([{ name: 'note', label: 'سبب التصحيح', placeholder: 'مثال: أُدخلت الكمية مرتين', wide: true }])}`,
+    onMount: (form) => { form.querySelector('[name="wh"]').addEventListener('change', async (e) => { units = await unitsOf(e.target.value); $('[data-fixunits]', form).innerHTML = String(unitsHTML()); }); },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تصحيح الرصيد', kind: 'danger', icon: 'undo', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), ids = $$('[name="u"]:checked', form).map((x) => x.value);
+      if (serial && units.length && !ids.length) throw new AppError('اختر الوحدات المسجلة بالخطأ');
+      const mv = await Data.inv.removeMistakes(itemId, v.wh, ids, v.count, String(v.note || '').trim());
+      UI.toast(`صُحح الرصيد: أُنقص ${fmtNum(mv.qty)} ${it.unit || ''}`); return mv;
+    } }]
+  });
+};
+document.addEventListener('click', async (e) => {
+  const f = e.target.closest('[data-fixstock]'); if (f) { e.preventDefault(); if (await Pages.fixStockModal(f.dataset.fixstock)) Router.resolve(); return; }
+  const ed = e.target.closest('[data-asedit]'); if (ed) { e.preventDefault(); const a = await DB.get('assets', ed.dataset.asedit); if (!a) return; const dlg = ed.closest('dialog'); const r = await Pages.assetEditModal(a); if (r) { UI.toast('حُفظت بيانات الوحدة'); if (dlg) { const x = dlg.querySelector('[data-x]'); if (x) x.click(); } Pages.assetDetail(a.id); } return; }
+  const dl = e.target.closest('[data-asdel]'); if (dl) {
+    e.preventDefault(); const a = await DB.get('assets', dl.dataset.asdel); if (!a) return;
+    if (!(await UI.confirm(`حذف الوحدة ${a.serial} لأنها سُجلت بالخطأ؟ يُنقص رصيد الصنف وحدة واحدة وتُسجَّل حركة تصحيح.`, { danger: true, ok: 'حذف الوحدة' }))) return;
+    try { await Data.inv.removeMistakes(a.itemId, a.warehouseId, [a.id], 1, 'وحدة سُجلت بالخطأ'); UI.toast('حُذفت الوحدة وصُحح الرصيد'); const dlg = dl.closest('dialog'); if (dlg) { const x = dlg.querySelector('[data-x]'); if (x) x.click(); } } catch (ex) { UI.error(ex); }
+  }
+});
+
+/* ══════════ اختصارات لوحة المفاتيح الإضافية ══════════ */
+document.addEventListener('keydown', (e) => {
+  if (!Auth.user || Auth.user.role === 'monitor' || e.defaultPrevented) return;
+  const tag = (e.target.tagName || '').toLowerCase(), typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable, dlg = [...document.querySelectorAll('dialog[open]')].pop();
+  /* Ctrl+S: حفظ النافذة المفتوحة أو نموذج الصفحة */
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 's' || e.key === 'S' || e.key === 'س')) {
+    const b = dlg ? dlg.querySelector('.modal-foot button[type=submit]:not([disabled])') : $('#view [data-act="save"]:not([disabled])') || $('#view form button[type=submit]:not([disabled])');
+    if (b) { e.preventDefault(); b.click(); } return;
+  }
+  /* Ctrl+Enter: تأكيد النافذة حتى من داخل خانة نص متعددة الأسطر */
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && dlg) { const b = dlg.querySelector('.modal-foot button[type=submit]:not([disabled])'); if (b) { e.preventDefault(); b.click(); } return; }
+  if (typing || dlg || e.ctrlKey || e.metaKey || e.altKey || $('.cmdk')) return;
+  /* Backspace: رجوع للصفحة السابقة كما في المتصفحات القديمة */
+  if (e.key === 'Backspace') { e.preventDefault(); Router.back(); return; }
+  if (e.key === 's' || e.key === 'س') { e.preventDefault(); Router.go('/surveys'); return; }
+  if ((e.key === 'p' || e.key === 'ح') && PrintCat.can()) { e.preventDefault(); Router.go('/printers'); return; }
+  if (e.key === 'h' || e.key === 'ا') { e.preventDefault(); Router.go('/notifications'); }
+}, true);
+{
+  Pages.shortcutsModal = () => UI.modal({
+    title: 'اختصارات لوحة المفاتيح', icon: 'keyboard', size: 'lg',
+    body: html`<div class="sc-groups">${[
+      ['التنقل', [['Alt + ←', 'رجوع خطوة'], ['Backspace', 'رجوع خطوة (خارج خانات الكتابة)'], ['Alt + →', 'تقدّم خطوة'], ['D', 'لوحة القيادة'], ['T', 'البلاغات'], ['N', 'بلاغ جديد'], ['Q', 'الاستفسارات'], ['S', 'الاستبيانات'], ['H', 'الإشعارات'], ['I', 'المخزن'], ['P', 'الطابعات والأحبار']]],
+      ['البحث', [['Ctrl + K', 'البحث الشامل وقائمة الأوامر'], ['/', 'البحث في المخزن'], ['C', 'سلة الصرف']]],
+      ['النوافذ والنماذج', [['Ctrl + S', 'حفظ النافذة أو النموذج المفتوح'], ['Ctrl + Enter', 'تأكيد النافذة المفتوحة'], ['Enter', 'تأكيد النافذة (خارج الخانات متعددة الأسطر)'], ['Esc', 'إغلاق النافذة أو البحث'], ['Tab', 'الانتقال بين الخانات'], ['?', 'عرض هذه القائمة']]]
+    ].map(([g, rows]) => html`<div class="sc-group"><h3>${g}</h3>${rows.map(([k, l]) => html`<div class="sc-row"><span>${l}</span><span class="sc-keys">${k.split(' + ').map((x, i) => html`${i ? raw('<i>+</i>') : ''}<kbd>${x}</kbd>`)}</span></div>`)}</div>`)}</div><p class="faint small mt">الاختصارات تعمل بلوحة المفاتيح العربية والإنجليزية.</p>`,
+    actions: [{ label: 'إغلاق', kind: 'primary' }]
+  });
+}
+
+Router.add('/printers', 'inventory.read', Pages.printers, 'الطابعات والأحبار');
+/* نقل الكتالوج تلقائياً عند أول دخول لمن يملك الصلاحية، حتى يظهر في نموذج البلاغ دون فتح الصفحة */
+{ const r0 = Router.resolve; Router.resolve = async function () { await r0.apply(this, arguments); if (!PrintCat._seeded && PrintCat.can()) { PrintCat._seeded = 1; setTimeout(() => PrintCat.seed().catch(() => { PrintCat._seeded = 0; }), 5000); } }; }
 
 boot();
 })();</script>

@@ -2267,3 +2267,68 @@ td .rank{display:inline-grid}
   .sv-prog{top:62px}
 }
 @media print{.sv-prog,.sv-foot,.svm-acts{display:none}}
+
+/* ═══════════ كتالوج الطابعات والأحبار ═══════════ */
+.pc-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);gap:14px;padding:14px}
+.pc-col{display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:16px;background:var(--surface-2);overflow:hidden}
+.pc-colh{display:flex;align-items:center;gap:8px;padding:12px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line)}
+.pc-colh .ic{width:18px;height:18px;color:rgb(var(--accent-ink))}
+.pc-colh .btn{margin-inline-start:auto}
+.pc-list{display:flex;flex-direction:column;gap:6px;padding:10px;max-height:62vh;overflow:auto}
+.pc-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;border:1px solid transparent;background:var(--surface-solid);cursor:pointer;transition:border-color .15s,background .15s;min-width:0}
+.pc-row:hover{border-color:var(--line-2)}
+.pc-row.on{border-color:rgb(var(--accent-ink));box-shadow:0 0 0 3px rgba(var(--accent),.14)}
+.pc-row.off{opacity:.6}
+.pc-row b{font-size:14px}
+.pc-row .grow{min-width:0}
+.pc-row .t-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-row .icon-btn{width:30px;height:30px;flex:none}
+.pc-empty{padding:16px;margin:0;text-align:center}
+.pc-icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.pc-icon.lg{width:64px;height:64px;border-radius:16px}
+.pc-icon.sm{width:26px;height:26px;border-radius:8px}
+.pc-icon .ic{width:22px;height:22px;color:rgb(var(--accent-ink))}
+.pc-icon img,.pc-icon .opt-img img{width:100%;height:100%;object-fit:contain}
+.pc-icon .opt-img{display:grid;place-items:center;width:100%;height:100%}
+.pc-ini{font:800 13px var(--f-display);color:rgb(var(--accent-ink));letter-spacing:.02em;direction:ltr}
+.pc-icon.sm .pc-ini{font-size:10.5px}
+.pc-iconrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pc-dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.pc-dot.lg{width:22px;height:22px}
+.pc-colors{display:flex;flex-wrap:wrap;gap:8px}
+.pc-colors label{cursor:pointer}
+.pc-colors input{position:absolute;opacity:0;pointer-events:none}
+.pc-colors span{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);font-size:13px}
+.pc-colors input:checked+span{border-color:rgb(var(--accent-ink));box-shadow:0 0 0 3px rgba(var(--accent),.16);font-weight:700}
+.pc-colors input:focus-visible+span{outline:2px solid rgb(var(--accent-ink));outline-offset:2px}
+.pc-hits{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;padding:14px}
+.pc-hit{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);color:inherit;font:inherit;text-align:start;cursor:pointer}
+.pc-hit:hover{border-color:rgb(var(--accent-ink))}
+.pc-hit .grow{min-width:0}
+/* الماركات داخل نموذج البلاغ: بطاقات بشعار */
+.cat-fields .choice-pick .pc-icon.sm{margin-inline-end:2px}
+/* ═══════════ تنظيف بيانات التجربة ═══════════ */
+.wipe-list{display:grid;gap:8px}
+.wipe-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.wipe-row:has(input:checked){border-color:rgba(var(--red),.45);background:rgba(var(--red),.06)}
+.wipe-row.warn{border-style:dashed}
+.wipe-row input{width:18px;height:18px;accent-color:rgb(var(--red-ink))}
+.wipe-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--surface-solid);border:1px solid var(--line)}
+.wipe-ic .ic{width:17px;height:17px;color:var(--ink-2)}
+.wipe-n{font:800 15px var(--f-display);min-width:42px;text-align:end}
+.wipe-phrase{color:rgb(var(--red-ink));user-select:all}
+/* ═══════════ تصحيح المخزن ═══════════ */
+.fix-units{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:260px;overflow:auto}
+.fix-units label{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-size:13px}
+.fix-units label:has(input:checked){border-color:rgba(var(--red),.5);background:rgba(var(--red),.07)}
+.as-tools{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 10px}
+/* ═══════════ قائمة الاختصارات ═══════════ */
+.sc-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.sc-group{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:12px 14px}
+.sc-group h3{margin:0 0 8px;font-size:14px;color:rgb(var(--accent-ink))}
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:13px}
+.sc-row:first-of-type{border-top:0}
+.sc-keys{display:inline-flex;align-items:center;gap:4px;direction:ltr;flex:none}
+.sc-keys i{font-style:normal;color:var(--ink-3);font-size:11px}
+.sc-keys kbd{font:700 11.5px var(--f-mono,ui-monospace,monospace);padding:3px 7px;border-radius:7px;border:1px solid var(--line-2);border-bottom-width:2px;background:var(--surface-solid);color:var(--ink)}
+@media (max-width:980px){.pc-cols{grid-template-columns:1fr}.pc-list{max-height:none}.sc-groups{grid-template-columns:1fr}}

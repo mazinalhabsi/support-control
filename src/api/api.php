@@ -765,6 +765,71 @@ case 'file': {
   exit;
 }
 
+/* حذف بيانات التجربة قبل التشغيل الرسمي: للمشرف فقط، ويُطلب كتابة عبارة التأكيد.
+   تُحذف السجلات كعلامات حذف حتى تُزال من كل الأجهزة عند مزامنتها، وتُحذف ملفاتها، ويُعاد ترقيم العدادات */
+case 'wipe': {
+  global $CONFIG;
+  $user = session_user();
+  if (!is_sup($user)) fail('هذه العملية للمشرف فقط', 403);
+  $b = body();
+  if (trim((string) ($b['confirm'] ?? '')) !== 'حذف بيانات التجربة') fail('عبارة التأكيد غير صحيحة', 400);
+  $groups = [
+    'tickets' => ['tickets', 'ticketEvents', 'attachments'],
+    'chats' => ['chats', 'chatMsgs'],
+    'notifications' => ['notifications'],
+    'inventory' => ['items', 'stock', 'deptStock', 'unitStock', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'],
+    'works' => ['worklog', 'workFolders', 'workItems'],
+    'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
+    'announcements' => ['announcements'],
+    'activity' => ['activity'],
+  ];
+  $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher']];
+  $pick = array_values(array_intersect(array_keys($groups), array_map('strval', (array) ($b['groups'] ?? []))));
+  $users = !empty($b['users']);
+  if (!$pick && !$users) fail('اختر البيانات المراد حذفها', 400);
+  $stores = []; foreach ($pick as $g) $stores = array_merge($stores, $groups[$g]);
+  $pdo = db(); $counts = []; $files = [];
+  $pdo->beginTransaction();
+  try {
+    $rev = bump_rev(1); $t = now_ms();
+    if ($stores) {
+      $in = implode(',', array_fill(0, count($stores), '?'));
+      $q = $pdo->prepare("SELECT store, COUNT(*) c FROM docs WHERE deleted = 0 AND store IN ($in) GROUP BY store");
+      $q->execute($stores);
+      foreach ($q->fetchAll() as $r) $counts[$r['store']] = (int) $r['c'];
+      $q = $pdo->prepare("SELECT JSON_UNQUOTE(JSON_EXTRACT(data, '$.fileId')) f FROM docs WHERE deleted = 0 AND store IN ($in) AND JSON_EXTRACT(data, '$.fileId') IS NOT NULL");
+      $q->execute($stores);
+      foreach ($q->fetchAll() as $r) if ($r['f']) $files[] = (string) $r['f'];
+      $pdo->prepare("UPDATE docs SET deleted = 1, data = '{}', rev = ?, updated_at = ? WHERE deleted = 0 AND store IN ($in)")->execute(array_merge([$rev, $t], $stores));
+    }
+    if ($users) {
+      /* الحسابات التجريبية: يبقى حساب المشرف الحالي وكل المشرفين وحسابات النظام */
+      $q = $pdo->query("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0");
+      $del = [];
+      foreach ($q->fetchAll() as $r) {
+        $d = json_decode($r['data'], true) ?: [];
+        if ($r['doc_id'] === (string) $user['id'] || ($d['role'] ?? '') === 'supervisor' || ($d['role'] ?? '') === 'monitor' || !empty($d['system'])) continue;
+        $del[] = $r['doc_id'];
+      }
+      if ($del) {
+        $in = implode(',', array_fill(0, count($del), '?'));
+        $pdo->prepare("UPDATE docs SET deleted = 1, data = '{}', rev = ?, updated_at = ? WHERE store = 'users' AND doc_id IN ($in)")->execute(array_merge([$rev, $t], $del));
+        try { $pdo->prepare("DELETE FROM sessions WHERE user_id IN ($in)")->execute($del); } catch (Throwable $e) { /* جدول الجلسات باسم مختلف */ }
+      }
+      $counts['users'] = count($del);
+    }
+    foreach ($pick as $g) foreach ($seqOf[$g] ?? [] as $name) $pdo->prepare("DELETE FROM counters WHERE name = ?")->execute([$name]);
+    if ($files) { $in = implode(',', array_fill(0, count($files), '?')); $pdo->prepare("DELETE FROM files WHERE id IN ($in)")->execute($files); }
+    $pdo->commit();
+  } catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    fail('تعذر حذف البيانات: ' . $e->getMessage(), 500);
+  }
+  $dir = rtrim((string) ($CONFIG['files_dir'] ?? ''), '/\\');
+  if ($dir !== '') foreach ($files as $f) { $f = preg_replace('/[^A-Za-z0-9_.-]/', '', $f); if ($f !== '') @unlink($dir . DIRECTORY_SEPARATOR . $f . '.bin'); }
+  out(['ok' => true, 'rev' => current_rev(), 'counts' => (object) $counts, 'files' => count($files)]);
+}
+
 case 'svstats': {
   $user = session_user();
   $sid = (string) ($_GET['id'] ?? '');
