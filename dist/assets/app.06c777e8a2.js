@@ -340,8 +340,8 @@ const Nav = {
   },
   async save(map) { if (!Auth.can('nav.manage')) throw new AppError('لا تملك صلاحية إظهار وإخفاء الأقسام'); await DB.put('meta', { key: 'navhide', value: map }); Data.c.navHide = map; await Data.log('update', 'settings', 'navhide', 'تحديث إظهار أقسام القائمة'); }
 };
-/* الإشعارات: المقروءة تُحذف بعد أسبوع من فتحها، وإشعار «بلاغ جديد» يُحذف من حسابك حين يستلم البلاغ فني آخر */
-const NOTE_KEEP_DAYS = 7;
+/* الإشعارات: المقروءة تُحذف بعد 3 أيام من فتحها، وإشعار «بلاغ جديد» يُحذف من حسابك حين يستلم البلاغ فني آخر */
+const NOTE_KEEP_DAYS = 3;
 const NoteSweep = {
   busy: false,
   async run() {
@@ -1880,7 +1880,7 @@ Pages.scene = (title, text, kicker = '') => {
       <div class="lux-crest"><img src="${ASSETS.logo}" alt=""></div>
     </div>
     <div class="scene-caption">${kicker ? html`<span class="lux-kicker">${kicker}</span>` : ''}<b>${title}</b>${text ? html`<span class="lux-text">${text}</span>` : ''}
-      <div class="scene-badges"><span>${UI.icon('shield')} حماية وأمن المعلومات</span>${sp ? html`<span>${UI.icon('phone')} رقم التواصل <bdi class="ltr">${sp}</bdi></span>` : ''}</div></div>
+      <div class="scene-badges"><span>${UI.icon('mail')} <bdi class="ltr">SQAPS.IT@sqaps.edu.om</bdi></span>${sp ? html`<span>${UI.icon('phone')} رقم التواصل <bdi class="ltr">${sp}</bdi></span>` : ''}</div></div>
   </section>`;
 };
 Pages.login = () => {
