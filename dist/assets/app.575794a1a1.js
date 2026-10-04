@@ -2482,6 +2482,9 @@ Pages.item = async (ctx) => {
     const it = await DB.get('items', id);
     if (!it) { ctx.view.innerHTML = String(UI.empty({ illu: 'box', title: 'الصنف غير موجود', action: html`<a class="btn btn-primary" href="#/inventory/items">العودة إلى الأصناف</a>` })); return; }
     const [stock, mv, loans, deptRows, units] = await Promise.all([Data.inv.stockOf(id), Data.inv.movements({ itemId: id, offset: st.offset, limit: st.limit }), DB.getAll('loans', 'itemId', KR(id)), Data.dept.ofItem(id), Data.assets.byItem(id)]);
+    /* داخل المخزن تظهر الوحدات الموجودة فيه فقط، وأماكن البقية في البحث العام */
+    const allUnits = units.splice(0, units.length); units.push(...allUnits.filter((a) => a.status === 'in_store'));
+    const outside = isSerialItem(it) ? allUnits.filter((a) => a.status !== 'in_store' && a.status !== 'retired').length : deptRows.reduce((n, d) => n + (Number(d.qty) || 0), 0) + loans.filter((l) => l.status === 'active').reduce((n, l) => n + (Number(l.qty) - Number(l.returnedQty || 0)), 0);
     const days = 60, from = startOfDay() - (days - 1) * DAY, hist = await DB.getAll('movements', 'item_at', KR([id, from], [id, Infinity]));
     const bal = new Array(days).fill(0); let run = it.onHand, j = hist.length - 1;
     for (let d = days - 1; d >= 0; d--) { bal[d] = run; const dayStart = from + d * DAY; while (j >= 0 && hist[j].at >= dayStart) { run -= hist[j].delta; j--; } }
@@ -2497,9 +2500,9 @@ Pages.item = async (ctx) => {
         <div class="stack">
           ${UI.panel({ title: 'الرصيد الحالي', icon: 'box', body: html`<div class="center"><div style="font:800 54px/1.1 var(--f-display)" data-count="${it.onHand}">0</div><div class="faint">${it.unit}</div><div style="margin-top:12px">${UI.meter(it)}</div>${it.minQty ? html`<p class="small faint" style="margin-top:8px">حد التنبيه: ${fmtNum(it.minQty)} ${it.unit}</p>` : ''}</div>` })}
           ${UI.panel({ title: 'التوزيع على المخازن', icon: 'warehouse', body: stock.some((s) => s.qty) ? UI.chart.hbars(stock.filter((s) => s.qty).map((s, i) => ({ label: Data.nameOf('warehouses', s.warehouseId), value: s.qty, tone: TONES[i % TONES.length] }))) : UI.noData('لا يوجد رصيد في أي مخزن') })}
-          ${units.length ? UI.panel({ title: 'الوحدات المسلسلة', icon: 'tag', sub: `${fmtNum(units.length)} وحدة مسجلة`, tools: html`<button class="btn btn-ghost btn-sm" data-act="labels">${UI.icon('print')} ملصقات</button>`, flush: true, body: html`<div class="table-wrap"><table class="table"><thead><tr><th>الرقم التسلسلي</th><th>الحالة</th><th>الموقع أو الحائز</th></tr></thead><tbody>${units.slice(0, 60).map((a) => html`<tr><td class="t-num"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button>${a.host ? html`<div class="t-sub ltr">${a.host}</div>` : ''}</td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td></tr>`)}</tbody></table></div>` }) : ''}
-          ${deptRows.length ? UI.panel({ title: 'بعهدة الإدارات', icon: 'building', body: UI.chart.hbars(deptRows.map((d, i) => ({ label: Data.nameOf('departments', d.departmentId, 'غير محدد'), value: d.qty, tone: TONES[(i + 2) % TONES.length] }))) }) : ''}
-          ${UI.panel({ title: 'العهد النشطة', icon: 'clipboard', body: active.length ? html`<div class="list">${active.map((l) => html`<div class="list-row"><div class="grow"><b>${l.borrower}</b><div class="t-sub">${l.number} — ${fmtNum(l.qty - l.returnedQty)} ${it.unit}</div></div>${l.dueAt && l.dueAt < now() ? UI.chip('red', 'متأخرة', 'alert') : UI.chip('teal', l.dueAt ? fmtDate(l.dueAt) : 'دائمة')}</div>`)}</div>` : UI.noData('لا توجد عهد نشطة لهذا الصنف') })}
+          ${units.length ? UI.panel({ title: 'الوحدات في المخزن', icon: 'tag', sub: `${fmtNum(units.length)} وحدة متاحة`, tools: html`<button class="btn btn-ghost btn-sm" data-act="labels">${UI.icon('print')} ملصقات</button>`, flush: true, body: html`<div class="table-wrap"><table class="table"><thead><tr><th>الرقم التسلسلي</th><th>الحالة</th><th>الموقع أو الحائز</th></tr></thead><tbody>${units.slice(0, 60).map((a) => html`<tr><td class="t-num"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button>${a.host ? html`<div class="t-sub ltr">${a.host}</div>` : ''}</td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td></tr>`)}</tbody></table></div>` }) : ''}
+          ${outside ? UI.panel({ title: 'خارج المخزن', icon: 'pin', body: html`<p class="muted" style="margin:0 0 10px">${fmtNum(outside)} ${it.unit || 'وحدة'} لدى الإدارات أو مُعارة أو في الصيانة. لا تظهر تفاصيلها داخل المخزن.</p><a class="btn btn-soft btn-sm" href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}">${UI.icon('search')} أماكنها في البحث العام</a>` }) : ''}
+          
           ${it.notes ? UI.panel({ title: 'ملاحظات', icon: 'info', body: html`<p class="article" style="font-size:14px">${it.notes}</p>` }) : ''}
         </div>
       </div>`);
@@ -3899,7 +3902,7 @@ setInterval(() => AutoClose.run(), 10 * MIN);
 const SERIAL_CATS = new Set(['laptop', 'printer', 'scanner', 'projector', 'monitor', 'camera', 'network', 'audio', 'storage', 'power', 'hardware']);
 const catKey = (id) => String(id || '').replace(/^ic_/, '');
 const isSerialItem = (it) => !!it && (it.serialized === 1 || (it.serialized == null && IC.chain(it.categoryId).some((c) => SERIAL_CATS.has(catKey(c.id)))));
-const ASSET_STATUS = { in_store: { label: 'في المخزن', tone: 'teal', icon: 'warehouse' }, issued: { label: 'بعهدة إدارة', tone: 'violet', icon: 'building' }, loaned: { label: 'معار لشخص', tone: 'amber', icon: 'clipboard' }, maintenance: { label: 'تحت الصيانة', tone: 'sky', icon: 'refresh' }, retired: { label: 'مشطوب', tone: 'red', icon: 'x' } };
+const ASSET_STATUS = { in_store: { label: 'في المخزن', tone: 'teal', icon: 'warehouse' }, issued: { label: 'بعهدة إدارة', tone: 'violet', icon: 'building' }, loaned: { label: 'معار لشخص', tone: 'amber', icon: 'clipboard' }, maintenance: { label: 'تحت الصيانة', tone: 'sky', icon: 'refresh' }, retired: { label: 'خارج عن الخدمة', tone: 'red', icon: 'x' } };
 Data.assets = {
   byItem: (itemId) => DB.getAll('assets', 'itemId', KR(itemId)),
   byStatus: (itemId, status) => DB.getAll('assets', 'item_status', KR([itemId, status])),
@@ -4086,7 +4089,7 @@ Pages.browse = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="lend"]', async (e, el) => { if (await Pages.loanModal(el.dataset.item)) draw(); });
   UI.on(ctx.view, 'change', 'input[name="devview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_devview', st.view); draw(); });
   UI.on(ctx.view, 'click', '[data-bicon]', async (e, el) => { e.preventDefault(); e.stopPropagation(); const b = el.dataset.bicon, map = await Data.brands.map(); if (await Pages.brandIconModal(st.cat, b, map.get(`${st.cat}|${b}`) || '')) draw(); });
-  UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, {}); draw(); });
+  UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, { store: true }); draw(); });
   Pages.bindInv(ctx, draw);
   await draw();
 };
@@ -4900,7 +4903,8 @@ Pages.deviceModal = async (itemId, scope = {}) => {
   const [stock, deptRows, assets, units] = await Promise.all([Data.inv.stockOf(itemId), Data.dept.ofItem(itemId), Data.assets.byItem(itemId), scope.departmentId ? Data.units.tree(scope.departmentId) : Promise.resolve([])]);
   const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name })));
   const unitRows = scope.departmentId ? (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === scope.departmentId && r.qty > 0) : [];
-  const mine = scope.departmentId ? assets.filter((a) => a.departmentId === scope.departmentId) : assets;
+  const mine = scope.departmentId ? assets.filter((a) => a.departmentId === scope.departmentId) : scope.store ? assets.filter((a) => a.status === 'in_store') : assets;
+  const outside = scope.store ? (isSerialItem(it) ? assets.filter((a) => a.status !== 'in_store' && a.status !== 'retired').length : deptRows.reduce((n, d) => n + (Number(d.qty) || 0), 0)) : 0;
   const maintN = (await Data.maint.byItem(itemId)).filter((r) => !scope.departmentId || !r.fromDepartmentId || r.fromDepartmentId === scope.departmentId).length;
   const specs = Object.entries(it.specs || {}), defs = specsOf(it.categoryId);
   const specLabel = (k) => (defs.find((d) => d.k === k) || {}).l || k;
@@ -4910,11 +4914,11 @@ Pages.deviceModal = async (itemId, scope = {}) => {
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
       <div class="kpis mt" style="border-radius:14px">
         ${UI.kpi({ label: 'في المخازن', icon: 'warehouse', tone: 'teal', value: it.onHand })}
-        ${scope.departmentId ? UI.kpi({ label: `بعهدة ${Data.nameOf('departments', scope.departmentId)}`, icon: 'building', tone: 'violet', value: inDept }) : UI.kpi({ label: 'بعهدة الإدارات', icon: 'building', tone: 'violet', value: deptRows.reduce((s, d) => s + d.qty, 0) })}
-        ${UI.kpi({ label: 'وحدات مسلسلة', icon: 'tag', tone: 'sky', value: mine.length })}
+        ${scope.departmentId ? UI.kpi({ label: `بعهدة ${Data.nameOf('departments', scope.departmentId)}`, icon: 'building', tone: 'violet', value: inDept }) : scope.store ? UI.kpi({ label: 'خارج المخزن', icon: 'pin', tone: 'violet', value: outside }) : UI.kpi({ label: 'بعهدة الإدارات', icon: 'building', tone: 'violet', value: deptRows.reduce((s, d) => s + d.qty, 0) })}
+        ${UI.kpi({ label: scope.store ? 'وحدات في المخزن' : 'وحدات مسلسلة', icon: 'tag', tone: 'sky', value: mine.length })}
         ${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maintN ? 'amber' : 'teal', value: maintN })}
       </div>
-      ${mine.length ? html`<p class="hint mt">${UI.icon('info')} اضغط أي رقم تسلسلي لعرض كامل تفاصيل الوحدة وموقعها وملاحظاتها وكل مرة دخلت فيها الصيانة.</p>` : ''}
+      ${mine.length ? html`<p class="hint mt">${UI.icon('info')} اضغط أي رقم تسلسلي لعرض كامل تفاصيل الوحدة وموقعها وملاحظاتها وكل مرة دخلت فيها الصيانة.</p>` : ''}${scope.store && outside ? html`<p class="hint">${UI.icon('pin')} ${fmtNum(outside)} وحدة خارج المخزن لا تظهر هنا. <a href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}" data-close-dev>اعرض أماكنها في البحث العام</a></p>` : ''}
       ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v2]) => html`<dt>${specLabel(k)}</dt><dd>${v2}</dd>`)}</dl>${it.notes ? html`<p class="muted small mt">${it.notes}</p>` : ''}</div>` : it.notes ? html`<p class="muted mt">${it.notes}</p>` : ''}
       ${mine.length ? html`<div class="u-sec mt"><h3>${UI.icon('tag')} الأرقام التسلسلية</h3><div class="table-wrap"><table class="table"><thead><tr><th>الرقم</th><th>الحالة</th><th>الموقع أو الحائز</th>${Auth.can('inventory.move') ? html`<th></th>` : ''}</tr></thead><tbody>${mine.slice(0, 60).map((a) => html`<tr><td class="t-num ltr"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button></td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td>${Auth.can('inventory.move') ? html`<td class="nowrap"><select class="input" data-astatus="${a.id}" style="height:30px;max-width:140px">${Object.entries(ASSET_STATUS).map(([k, s]) => html`<option value="${k}"${a.status === k ? raw(' selected') : ''}>${s.label}</option>`)}</select></td>` : ''}</tr>`)}</tbody></table></div></div>` : ''}
       ${unitRows.length ? html`<div class="u-sec mt"><h3>${UI.icon('pin')} التوزيع على المكاتب</h3><div class="list">${unitRows.map((r) => { const o = offices.find((x) => x.id === r.unitId); return html`<div class="list-row"><div class="grow"><b>${o ? `${o.section} — ${o.name}` : 'موقع محذوف'}</b></div>${UI.chip('sky', fmtNum(r.qty))}</div>`; })}</div></div>` : ''}
@@ -4925,7 +4929,7 @@ Pages.deviceModal = async (itemId, scope = {}) => {
       UI.on(form, 'change', '[data-astatus]', async (e, el) => { try { await Data.assets.assign([el.dataset.astatus], { status: el.value }); UI.toast('حُدِّثت حالة الوحدة'); } catch (ex) { UI.error(ex); } });
     },
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null },
-      ...(Auth.can('inventory.move') ? [{ label: 'صيانة', kind: 'soft', icon: 'tools', value: 'maint' }, { label: 'شطب', kind: 'danger', icon: 'x', value: 'retire' }] : []),
+      ...(Auth.can('inventory.move') ? [{ label: 'صيانة', kind: 'soft', icon: 'tools', value: 'maint' }, { label: 'إخراج من الخدمة', kind: 'danger', icon: 'x', value: 'retire' }] : []),
       ...(Auth.can('inventory.move') && scope.departmentId ? [{ label: 'نقل', kind: 'soft', icon: 'swap', value: 'transfer' }, { label: 'استبدال', kind: 'primary', icon: 'refresh', value: 'replace' }] : []),
       { label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }]
   });
@@ -5003,7 +5007,7 @@ Pages.replaceModal = async ({ itemId, departmentId, unitId = '' }) => {
     title: `استبدال ${oldItem.name}`, icon: 'refresh', size: 'lg',
     body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">يُرجَع الجهاز القديم من عهدة الإدارة ويُصرف الجهاز الجديد مكانه، ويصدر سند استبدال بالبيانات كاملة.</div></div>
       <div class="u-sec mt"><h3>${UI.icon('undo')} الجهاز القديم</h3>
-        <div class="form-grid">${UI.fields([{ name: 'qty', label: `الكمية (المتاح ${fmtNum(held)})`, type: 'number', min: 1, value: 1, required: true }, { name: 'oldFate', label: 'مصير الجهاز القديم', type: 'select', placeholder: false, options: [{ value: 'إرجاع إلى المخزن', label: 'إرجاع إلى المخزن' }, { value: 'تحويل إلى الصيانة', label: 'تحويل إلى الصيانة' }, { value: 'شطب (تالف)', label: 'شطب (تالف)' }] }, { name: 'reason', label: 'سبب الاستبدال', type: 'select', placeholder: false, options: [{ value: 'عطل فني', label: 'عطل فني' }, { value: 'تقادم الجهاز', label: 'تقادم الجهاز' }, { value: 'ترقية المواصفات', label: 'ترقية المواصفات' }, { value: 'سبب آخر', label: 'سبب آخر' }] }, { name: 'warehouseId', label: 'المخزن المستلم', type: 'select', options: UI.opts('warehouses'), placeholder: false }])}</div>
+        <div class="form-grid">${UI.fields([{ name: 'qty', label: `الكمية (المتاح ${fmtNum(held)})`, type: 'number', min: 1, value: 1, required: true }, { name: 'oldFate', label: 'مصير الجهاز القديم', type: 'select', placeholder: false, options: [{ value: 'إرجاع إلى المخزن', label: 'إرجاع إلى المخزن' }, { value: 'تحويل إلى الصيانة', label: 'تحويل إلى الصيانة' }, { value: 'خارج عن الخدمة (تالف)', label: 'خارج عن الخدمة (تالف)' }] }, { name: 'reason', label: 'سبب الاستبدال', type: 'select', placeholder: false, options: [{ value: 'عطل فني', label: 'عطل فني' }, { value: 'تقادم الجهاز', label: 'تقادم الجهاز' }, { value: 'ترقية المواصفات', label: 'ترقية المواصفات' }, { value: 'سبب آخر', label: 'سبب آخر' }] }, { name: 'warehouseId', label: 'المخزن المستلم', type: 'select', options: UI.opts('warehouses'), placeholder: false }])}</div>
         ${oldAssets.length ? UI.serialPick(oldAssets, 1) : ''}
       </div>
       <div class="u-sec mt"><h3>${UI.icon('upload')} الجهاز الجديد</h3>
@@ -5030,8 +5034,8 @@ Pages.replaceModal = async ({ itemId, departmentId, unitId = '' }) => {
       const oldSerials = oldPicks.map((id) => (oldAssets.find((a) => a.id === id) || {}).serial).filter(Boolean);
       await Data.dept.returnToStore({ departmentId, itemId, warehouseId: v.warehouseId, qty: n, note: `استبدال: ${v.reason}` });
       if (v.fromUnitId || unitId) { const uid2 = v.fromUnitId || unitId; const cur = await DB.get('unitStock', [uid2, itemId]); if (cur && cur.qty >= n) { cur.qty -= n; cur.updatedAt = now(); await DB.put('unitStock', cur); } }
-      if (oldPicks.length) await Data.assets.assign(oldPicks, { status: v.oldFate === 'تحويل إلى الصيانة' ? 'maintenance' : v.oldFate === 'شطب (تالف)' ? 'retired' : 'in_store', departmentId: '', holder: '', holderId: '', warehouseId: v.warehouseId });
-      if (v.oldFate === 'شطب (تالف)') { const st = await DB.get('stock', [v.warehouseId, itemId]); await Data.inv.move({ type: 'adjust', itemId, warehouseId: v.warehouseId, qty: Math.max(0, ((st || {}).qty || 0) - n), note: `شطب عند الاستبدال: ${v.reason}` }); }
+      if (oldPicks.length) await Data.assets.assign(oldPicks, { status: v.oldFate === 'تحويل إلى الصيانة' ? 'maintenance' : v.oldFate === 'خارج عن الخدمة (تالف)' ? 'retired' : 'in_store', departmentId: '', holder: '', holderId: '', warehouseId: v.warehouseId });
+      if (v.oldFate === 'خارج عن الخدمة (تالف)') { const st = await DB.get('stock', [v.warehouseId, itemId]); await Data.inv.move({ type: 'adjust', itemId, warehouseId: v.warehouseId, qty: Math.max(0, ((st || {}).qty || 0) - n), note: `إخراج من الخدمة عند الاستبدال: ${v.reason}` }); }
       const holder = v.holderId ? (Data.c.users.get(v.holderId) || {}).name || '' : '';
       await Data.inv.move({ type: 'issue', itemId: v.newItemId, warehouseId: v.newWarehouseId, qty: n, departmentId, party: holder, note: `استبدال ${oldItem.name}` });
       if (v.unitId) await Data.units.add(v.unitId, departmentId, v.newItemId, n);
@@ -6183,7 +6187,7 @@ const MAINT_STATUS = {
   open: { label: 'تحت الصيانة', tone: 'sky', icon: 'tools' },
   done: { label: 'انتهت الصيانة — بانتظار الإرجاع', tone: 'teal', icon: 'check' },
   returned: { label: 'أُرجع إلى الموقع', tone: 'green', icon: 'undo' },
-  retired: { label: 'مشطوب (تالف)', tone: 'red', icon: 'x' }
+  retired: { label: 'خارج عن الخدمة (تالف)', tone: 'red', icon: 'x' }
 };
 const MAINT_REASONS = ['عطل في التشغيل', 'بطء أو تعليق', 'عطل في الشاشة', 'عطل في الطاقة', 'عطل في الطباعة', 'تلف مادي', 'صيانة دورية', 'سبب آخر'];
 const RETIRE_REASONS = ['تلف لا يمكن إصلاحه', 'تقادم وانتهاء العمر التشغيلي', 'فقدان', 'استبدال بجهاز أحدث', 'سبب آخر'];
@@ -6217,7 +6221,7 @@ Data.maint = {
     if (result === 'retired') { rec.status = 'retired'; rec.retireReason = retireReason || 'تلف لا يمكن إصلاحه'; if (rec.assetId) await Data.maint.markRetired(rec.assetId, rec.retireReason, rec.fromDepartmentId); }
     else rec.status = 'done';
     await DB.put('maintenance', rec);
-    await Data.log('update', 'inventory', rec.itemId, `${result === 'retired' ? 'شطب بعد الصيانة' : 'انتهت صيانة'} ${rec.itemName}${rec.serial ? ` (${rec.serial})` : ''}`);
+    await Data.log('update', 'inventory', rec.itemId, `${result === 'retired' ? 'إخراج من الخدمة بعد الصيانة' : 'انتهت صيانة'} ${rec.itemName}${rec.serial ? ` (${rec.serial})` : ''}`);
     Bus.emit('inventory', {});
     return rec;
   },
@@ -6272,10 +6276,10 @@ Pages.maintDoneModal = (rec) => UI.modal({
     <div class="form-grid mt">
       ${UI.field({ name: 'workDone', label: 'ما تم في الصيانة', type: 'textarea', rows: 3, required: true, wide: true, placeholder: 'مثال: استبدال مزود الطاقة وتنظيف داخلي وتحديث التعريفات' })}
       ${UI.field({ name: 'parts', label: 'القطع المستخدمة', placeholder: 'مثال: مزود طاقة 500W' })}
-      ${UI.field({ name: 'result', label: 'النتيجة', type: 'select', placeholder: false, options: [{ value: 'repaired', label: 'تم الإصلاح ويعمل' }, { value: 'retired', label: 'تعذر الإصلاح — شطب الجهاز' }] })}
-      ${UI.field({ name: 'retireReason', label: 'سبب الشطب (عند تعذر الإصلاح)', type: 'select', options: RETIRE_REASONS.map((r) => ({ value: r, label: r })), wide: true })}
+      ${UI.field({ name: 'result', label: 'النتيجة', type: 'select', placeholder: false, options: [{ value: 'repaired', label: 'تم الإصلاح ويعمل' }, { value: 'retired', label: 'تعذر الإصلاح — إخراج الجهاز من الخدمة' }] })}
+      ${UI.field({ name: 'retireReason', label: 'سبب الإخراج من الخدمة (عند تعذر الإصلاح)', type: 'select', options: RETIRE_REASONS.map((r) => ({ value: r, label: r })), wide: true })}
     </div>`,
-  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ نتيجة الصيانة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); const out = await Data.maint.complete(rec.id, v); UI.toast(v.result === 'retired' ? 'سُجّل الجهاز مشطوباً' : 'سُجّلت نتيجة الصيانة'); return out; } }]
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ نتيجة الصيانة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); const out = await Data.maint.complete(rec.id, v); UI.toast(v.result === 'retired' ? 'سُجّل الجهاز خارجاً عن الخدمة' : 'سُجّلت نتيجة الصيانة'); return out; } }]
 });
 Pages.maintBackModal = async (rec) => {
   const dep = rec.fromDepartmentId || '';
@@ -6292,24 +6296,24 @@ Pages.retireModal = async (itemId, scope = {}) => {
   const item = await DB.get('items', itemId);
   const assets = (await Data.assets.byItem(itemId)).filter((a) => a.status !== 'retired');
   return UI.modal({
-    title: `شطب ${item ? item.name : 'جهاز'}`, icon: 'x', size: 'lg',
-    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow">الجهاز المشطوب يخرج من أرصدة المخزن والعهد ويُحفظ في سجل الأجهزة الخارجة عن الخدمة.</div></div>
+    title: `إخراج ${item ? item.name : 'جهاز'} من الخدمة`, icon: 'x', size: 'lg',
+    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow">الجهاز الخارج عن الخدمة يخرج من أرصدة المخزن والعهد ويُحفظ في سجل الأجهزة الخارجة عن الخدمة.</div></div>
       <div class="form-grid mt">
         ${assets.length ? UI.field({ name: 'assetId', label: 'الوحدة', type: 'select', options: assets.map((a) => ({ value: a.id, label: `${a.serial}${a.tag ? ` — ${a.tag}` : ''} (${ASSET_STATUS[a.status].label})` })), required: true }) : ''}
-        ${UI.field({ name: 'reason', label: 'سبب الشطب', type: 'select', placeholder: false, options: RETIRE_REASONS.map((r) => ({ value: r, label: r })) })}
+        ${UI.field({ name: 'reason', label: 'سبب الإخراج من الخدمة', type: 'select', placeholder: false, options: RETIRE_REASONS.map((r) => ({ value: r, label: r })) })}
         ${UI.field({ name: 'replacedBy', label: 'الجهاز البديل إن وُجد', placeholder: 'اسم الجهاز أو رقمه التسلسلي' })}
         ${UI.field({ name: 'notes', label: 'ملاحظات', type: 'textarea', rows: 2, wide: true })}
       </div>`,
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تأكيد الشطب', kind: 'danger', icon: 'x', submit: true, handler: async (form) => {
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تأكيد الإخراج من الخدمة', kind: 'danger', icon: 'x', submit: true, handler: async (form) => {
       const v = UI.formValues(form);
-      if (!v.assetId) throw new AppError('اختر الوحدة المطلوب شطبها');
+      if (!v.assetId) throw new AppError('اختر الوحدة المطلوب إخراجها من الخدمة');
       const a = await DB.get('assets', v.assetId);
       const dep = a ? a.departmentId : scope.departmentId || '';
       if (dep) { const ds = await DB.get('deptStock', [dep, itemId]); if (ds && ds.qty > 0) { ds.qty -= 1; ds.updatedAt = now(); await DB.put('deptStock', ds); } }
-      if (a && a.status === 'in_store' && a.warehouseId) { const st = await DB.get('stock', [a.warehouseId, itemId]); await Data.inv.move({ type: 'adjust', itemId, warehouseId: a.warehouseId, qty: Math.max(0, ((st || {}).qty || 0) - 1), note: `شطب: ${v.reason}` }); }
+      if (a && a.status === 'in_store' && a.warehouseId) { const st = await DB.get('stock', [a.warehouseId, itemId]); await Data.inv.move({ type: 'adjust', itemId, warehouseId: a.warehouseId, qty: Math.max(0, ((st || {}).qty || 0) - 1), note: `إخراج من الخدمة: ${v.reason}` }); }
       await Data.maint.markRetired(v.assetId, v.reason, dep, v.replacedBy);
       await DB.put('maintenance', { id: uid('mt'), itemId, assetId: v.assetId, serial: a ? a.serial : '', tag: a ? a.tag || '' : '', itemName: item.name, brand: item.brand || '', model: item.model || '', fromDepartmentId: dep, fromUnitId: '', reason: v.reason, symptom: v.notes || '', status: 'retired', retireReason: v.reason, replacedBy: v.replacedBy || '', openedAt: now(), openedBy: Auth.user.id, workDone: '', parts: '', cost: '', closedAt: now(), closedBy: Auth.user.id, returnedAt: 0, returnedBy: '' });
-      await Data.log('delete', 'inventory', itemId, `شطب ${item.name}${a ? ` (${a.serial})` : ''} — ${v.reason}`);
+      await Data.log('delete', 'inventory', itemId, `إخراج من الخدمة: ${item.name}${a ? ` (${a.serial})` : ''} — ${v.reason}`);
       Bus.emit('inventory', {});
       UI.toast('سُجّل الجهاز في سجل الخارج عن الخدمة'); return true;
     } }]
@@ -6332,10 +6336,10 @@ Pages.maintenance = async (ctx) => {
         ${UI.kpi({ label: 'تحت الصيانة', icon: 'tools', tone: 'sky', value: count('open') })}
         ${UI.kpi({ label: 'بانتظار الإرجاع', icon: 'check', tone: 'teal', value: count('done') })}
         ${UI.kpi({ label: 'أُرجعت للمواقع', icon: 'undo', tone: 'green', value: count('returned') })}
-        ${UI.kpi({ label: 'مشطوبة', icon: 'x', tone: 'red', value: count('retired') })}
+        ${UI.kpi({ label: 'خارجة عن الخدمة', icon: 'x', tone: 'red', value: count('retired') })}
       </div>
       <section class="panel mt"><div class="toolbar">
-        <div class="tabs">${[['open', 'تحت الصيانة'], ['done', 'بانتظار الإرجاع'], ['returned', 'مكتملة'], ['retired', 'مشطوبة'], ['all', 'الكل']].map(([k, l]) => html`<button class="tab${st.tab === k ? ' active' : ''}" data-tab="${k}">${l}</button>`)}</div>
+        <div class="tabs">${[['open', 'تحت الصيانة'], ['done', 'بانتظار الإرجاع'], ['returned', 'مكتملة'], ['retired', 'خارجة عن الخدمة'], ['all', 'الكل']].map(([k, l]) => html`<button class="tab${st.tab === k ? ' active' : ''}" data-tab="${k}">${l}</button>`)}</div>
         <div class="search-box">${UI.icon('search')}<input id="mq" type="search" placeholder="الجهاز أو الرقم التسلسلي أو الإدارة" value="${st.q}"></div>
         <div class="range-bar"><span class="faint small">من</span><input type="date" id="mFrom" dir="ltr" lang="en-GB" value="${st.from}"><span class="faint small">إلى</span><input type="date" id="mTo" dir="ltr" lang="en-GB" value="${st.to}"></div>
       </div>
@@ -6388,10 +6392,10 @@ Pages.retired = async (ctx) => {
       return at >= f && at <= t && (!qn || normalizeAr(`${a.serial} ${a.tag || ''} ${(items.get(a.itemId) || {}).name || ''} ${a.retireReason || ''} ${Data.nameOf('departments', a.retiredFrom, '')}`).includes(qn));
     }).sort((a, b) => (b.retiredAt || 0) - (a.retiredAt || 0));
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'الأجهزة الخارجة عن الخدمة', sub: 'الأجهزة المشطوبة أو التالفة، لا تُحتسب ضمن أرصدة المخزن ولا عهد الإدارات', illu: 'box', actions: html`<a class="btn btn-ghost" href="#/maintenance">${UI.icon('tools')} الصيانة</a><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
-      <div class="kpis">${UI.kpi({ label: 'إجمالي المشطوبة', icon: 'x', tone: 'red', value: assets.length })}${UI.kpi({ label: 'خلال 90 يوماً', icon: 'clock', tone: 'amber', value: assets.filter((a) => now() - (a.retiredAt || 0) < 90 * DAY).length })}${UI.kpi({ label: 'إدارات متأثرة', icon: 'building', tone: 'violet', value: new Set(assets.map((a) => a.retiredFrom).filter(Boolean)).size })}</div>
+      ${UI.pageHead({ title: 'الأجهزة الخارجة عن الخدمة', sub: 'الأجهزة التي أُخرجت من الخدمة أو التالفة، لا تُحتسب ضمن أرصدة المخزن ولا عهد الإدارات', illu: 'box', actions: html`<a class="btn btn-ghost" href="#/maintenance">${UI.icon('tools')} الصيانة</a><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
+      <div class="kpis">${UI.kpi({ label: 'إجمالي الخارجة عن الخدمة', icon: 'x', tone: 'red', value: assets.length })}${UI.kpi({ label: 'خلال 90 يوماً', icon: 'clock', tone: 'amber', value: assets.filter((a) => now() - (a.retiredAt || 0) < 90 * DAY).length })}${UI.kpi({ label: 'إدارات متأثرة', icon: 'building', tone: 'violet', value: new Set(assets.map((a) => a.retiredFrom).filter(Boolean)).size })}</div>
       <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="rq" type="search" placeholder="الرقم التسلسلي أو الجهاز أو السبب" value="${st.q}"></div><div class="range-bar"><span class="faint small">من</span><input type="date" id="rFrom" dir="ltr" lang="en-GB" value="${st.from}"><span class="faint small">إلى</span><input type="date" id="rTo" dir="ltr" lang="en-GB" value="${st.to}"></div></div>
-      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>الرقم التسلسلي</th><th>سبب الشطب</th><th>كان في</th><th>البديل</th><th>التاريخ</th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((a) => { const it = items.get(a.itemId) || {}, m = info.get(a.id) || {}; return html`<tr><td><button type="button" class="t-title link-title" data-device="${a.itemId}">${UI.illu(itemIllu(it))}<div><div>${it.name || 'صنف محذوف'}</div><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></div></button></td><td class="t-num ltr">${a.serial}${a.tag ? html`<div class="t-sub ltr" style="text-align:start">أصل: ${a.tag}</div>` : ''}</td><td class="small">${a.retireReason || m.retireReason || '—'}</td><td class="small">${Data.nameOf('departments', a.retiredFrom, '—')}</td><td class="small">${a.replacedBy || '—'}</td><td class="faint nowrap">${a.retiredAt ? fmtDate(a.retiredAt) : '—'}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة مشطوبة', text: 'الأجهزة التي تُشطب أو يتعذر إصلاحها تظهر هنا مع أسبابها.' })}</div>`}</section>`);
+      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>الرقم التسلسلي</th><th>سبب الإخراج من الخدمة</th><th>كان في</th><th>البديل</th><th>التاريخ</th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((a) => { const it = items.get(a.itemId) || {}, m = info.get(a.id) || {}; return html`<tr><td><button type="button" class="t-title link-title" data-asset="${a.id}">${UI.illu(itemIllu(it))}<div><div>${it.name || 'صنف محذوف'}</div><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></div></button></td><td class="t-num ltr">${a.serial}${a.tag ? html`<div class="t-sub ltr" style="text-align:start">أصل: ${a.tag}</div>` : ''}</td><td class="small">${a.retireReason || m.retireReason || '—'}</td><td class="small">${Data.nameOf('departments', a.retiredFrom, '—')}</td><td class="small">${a.replacedBy || '—'}</td><td class="faint nowrap">${a.retiredAt ? fmtDate(a.retiredAt) : '—'}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة خارجة عن الخدمة', text: 'الأجهزة التي تُخرج من الخدمة أو يتعذر إصلاحها تظهر هنا مع أسبابها.' })}</div>`}</section>`);
     UI.hydrate(ctx.view); ctx.rows = rows; ctx.items = items;
     $('#rq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
     ['rFrom', 'rTo'].forEach((id) => { const el = $('#' + id, ctx.view); if (el) el.onchange = () => { st[id === 'rFrom' ? 'from' : 'to'] = el.value; draw(); }; });
@@ -6399,7 +6403,7 @@ Pages.retired = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, {}); });
   UI.on(ctx.view, 'click', '[data-act="xls"]', () => {
     const rows = ctx.rows || [], items = ctx.items || new Map();
-    downloadBlob(XL.write([{ name: 'خارج الخدمة', widths: [30, 18, 26, 22, 22, 16], rows: [['الجهاز', 'الرقم التسلسلي', 'سبب الشطب', 'كان في', 'البديل', 'التاريخ'], ...rows.map((a) => { const it = items.get(a.itemId) || {}; return [it.name || '', a.serial, a.retireReason || '', Data.nameOf('departments', a.retiredFrom, ''), a.replacedBy || '', a.retiredAt ? fmtDate(a.retiredAt) : '']; })] }]), `الأجهزة-الخارجة-عن-الخدمة-${dateInput(now())}.xlsx`);
+    downloadBlob(XL.write([{ name: 'خارج الخدمة', widths: [30, 18, 26, 22, 22, 16], rows: [['الجهاز', 'الرقم التسلسلي', 'سبب الإخراج من الخدمة', 'كان في', 'البديل', 'التاريخ'], ...rows.map((a) => { const it = items.get(a.itemId) || {}; return [it.name || '', a.serial, a.retireReason || '', Data.nameOf('departments', a.retiredFrom, ''), a.replacedBy || '', a.retiredAt ? fmtDate(a.retiredAt) : '']; })] }]), `الأجهزة-الخارجة-عن-الخدمة-${dateInput(now())}.xlsx`);
   });
   Pages.bindInv(ctx, draw);
   await draw();
@@ -9058,7 +9062,7 @@ UI.stateLegend = (keys, labels = {}) => { const def = { off: 'موقوف أو م
 /* ── تفاصيل الوحدة (العهدة): المواصفات والموقع والملاحظات وسجل الصيانة كاملاً ── */
 Pages.maintTimeline = (rows) => html`<div class="mt-list">${rows.map((r, i) => { const S = MAINT_STATUS[r.status] || MAINT_STATUS.open, end = r.returnedAt || r.closedAt || 0; return html`<div class="mt-rec tone-${S.tone}">
   <div class="mt-rec-head"><span class="mt-no">${fmtNum(rows.length - i)}</span><b>${r.reason || 'صيانة'}</b>${UI.chip(S.tone, S.label, S.icon)}<span class="faint small">${fmtDate(r.openedAt)}${end ? ` ← ${fmtDate(end)}` : ''} · ${end ? `استغرقت ${fmtDuration(end - r.openedAt)}` : `منذ ${fmtDuration(now() - r.openedAt)}`}</span></div>
-  <dl class="kv mt-kv">${r.serial ? html`<dt>الوحدة</dt><dd class="ltr" style="text-align:start">${r.serial}${r.tag && r.tag !== r.serial ? ` · ${r.tag}` : ''}</dd>` : ''}${r.symptom ? html`<dt>الأعراض</dt><dd>${r.symptom}</dd>` : ''}${r.fromDepartmentId ? html`<dt>أُرسل من</dt><dd>${Data.nameOf('departments', r.fromDepartmentId)}</dd>` : ''}<dt>أرسله</dt><dd>${Data.userName(r.openedBy)} — ${fmtDateTime(r.openedAt)}</dd>${r.workDone ? html`<dt>ما تم</dt><dd>${r.workDone}</dd>` : ''}${r.parts ? html`<dt>القطع المستبدلة</dt><dd>${r.parts}</dd>` : ''}${r.closedAt ? html`<dt>أنهاها</dt><dd>${Data.userName(r.closedBy)} — ${fmtDateTime(r.closedAt)}</dd>` : ''}${r.retireReason ? html`<dt>سبب الشطب</dt><dd>${r.retireReason}</dd>` : ''}${r.returnedAt ? html`<dt>أُرجع إلى</dt><dd>${Data.nameOf('departments', r.toDepartmentId, 'المخزن')} — ${fmtDateTime(r.returnedAt)}</dd>` : ''}${r.ticketId ? html`<dt>البلاغ</dt><dd><a href="#/tickets/${r.ticketId}" data-closemodal>فتح البلاغ المرتبط</a></dd>` : ''}</dl></div>`; })}</div>`;
+  <dl class="kv mt-kv">${r.serial ? html`<dt>الوحدة</dt><dd class="ltr" style="text-align:start">${r.serial}${r.tag && r.tag !== r.serial ? ` · ${r.tag}` : ''}</dd>` : ''}${r.symptom ? html`<dt>الأعراض</dt><dd>${r.symptom}</dd>` : ''}${r.fromDepartmentId ? html`<dt>أُرسل من</dt><dd>${Data.nameOf('departments', r.fromDepartmentId)}</dd>` : ''}<dt>أرسله</dt><dd>${Data.userName(r.openedBy)} — ${fmtDateTime(r.openedAt)}</dd>${r.workDone ? html`<dt>ما تم</dt><dd>${r.workDone}</dd>` : ''}${r.parts ? html`<dt>القطع المستبدلة</dt><dd>${r.parts}</dd>` : ''}${r.closedAt ? html`<dt>أنهاها</dt><dd>${Data.userName(r.closedBy)} — ${fmtDateTime(r.closedAt)}</dd>` : ''}${r.retireReason ? html`<dt>سبب الإخراج من الخدمة</dt><dd>${r.retireReason}</dd>` : ''}${r.returnedAt ? html`<dt>أُرجع إلى</dt><dd>${Data.nameOf('departments', r.toDepartmentId, 'المخزن')} — ${fmtDateTime(r.returnedAt)}</dd>` : ''}${r.ticketId ? html`<dt>البلاغ</dt><dd><a href="#/tickets/${r.ticketId}" data-closemodal>فتح البلاغ المرتبط</a></dd>` : ''}</dl></div>`; })}</div>`;
 Pages.maintSummary = (rows) => { const days = rows.reduce((s, r) => s + Math.max(0, (r.returnedAt || r.closedAt || now()) - r.openedAt), 0), open = rows.filter((r) => r.status === 'open').length; return html`<div class="mt-sum"><span><b>${fmtNum(rows.length)}</b> ${rows.length === 1 ? 'مرة' : 'مرات'} دخل الصيانة</span><span><b>${fmtDuration(days)}</b> إجمالي مدة الصيانة</span>${open ? html`<span class="tone-sky"><b>${fmtNum(open)}</b> قيد الصيانة الآن</span>` : ''}${rows[0] ? html`<span>آخر صيانة ${fmtDate(rows[0].openedAt)}</span>` : ''}</div>`; };
 Pages.maintHistory = async (itemId, assetId = '') => {
   const rows = assetId ? await Data.maint.byAsset(assetId) : await Data.maint.byItem(itemId);
@@ -9078,6 +9082,7 @@ Pages.assetDetail = async (assetId) => {
       <div class="kpis mt" style="border-radius:14px">${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maint.length ? 'amber' : 'teal', value: maint.length })}${UI.kpi({ label: 'السندات المرتبطة', icon: 'file', tone: 'sky', value: vs.length })}${UI.kpi({ label: 'عمر التسجيل', icon: 'clock', tone: 'violet', value: Math.max(0, Math.floor((now() - (a.addedAt || now())) / DAY)), foot: html`<span class="faint small">يوم</span>` })}</div>
       <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
       ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
+      ${a.status === 'retired' ? html`<div class="u-sec mt"><h3>${UI.icon('x')} الخروج من الخدمة</h3><dl class="kv"><dt>السبب</dt><dd>${a.retireReason || '—'}</dd><dt>كان في</dt><dd>${Data.nameOf('departments', a.retiredFrom, '—')}</dd><dt>التاريخ</dt><dd>${a.retiredAt ? fmtDate(a.retiredAt) : '—'}</dd>${a.replacedBy ? html`<dt>البديل</dt><dd class="ltr" style="text-align:start">${a.replacedBy}</dd>` : ''}</dl></div>` : ''}
       ${maint.length ? html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3>${Pages.maintSummary(maint)}${Pages.maintTimeline(maint)}</div>` : html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3><p class="faint small" style="margin:0">لم تدخل هذه الوحدة الصيانة من قبل.</p></div>`}
       ${vs.length ? html`<div class="u-sec mt"><h3>${UI.icon('file')} السندات</h3><div class="list">${vs.slice(0, 20).map((v) => html`<button type="button" class="list-row unit-item" data-vprint="${v.id}"><div class="grow ellipsis"><b>${(VOUCHER_KIND[v.type] || {}).label || 'سند'} ${v.number}</b><div class="t-sub">${fmtDateTime(v.at)} — ${v.holder || Data.nameOf('departments', v.departmentId, '')}</div></div>${UI.icon('print')}</button>`)}</div></div>` : ''}`,
     onMount: (form, finish) => {
@@ -9085,7 +9090,7 @@ Pages.assetDetail = async (assetId) => {
       UI.on(form, 'click', '[data-vprint]', (e, el) => { const v = vs.find((x) => x.id === el.dataset.vprint); if (v) Pages.printVoucher(v); });
       UI.on(form, 'click', '[data-closemodal]', () => finish(null));
     },
-    actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }] }).then((r) => { if (r === 'page') Router.go(`/inventory/items/${a.itemId}`); return r; });
+    actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(a.status === 'retired' ? [] : [{ label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }])] }).then((r) => { if (r === 'page') Router.go(`/inventory/items/${a.itemId}`); return r; });
 };
 document.addEventListener('click', (e) => { const el = e.target.closest('[data-asset]'); if (!el || e.target.closest('select')) return; e.preventDefault(); e.stopPropagation(); Pages.assetDetail(el.dataset.asset); });
 
@@ -9148,7 +9153,7 @@ Data.inv.removeItem = async (id) => {
   const [stock, dept, assets, loans, maint, moves] = await Promise.all([DB.getAll('stock'), Data.dept.ofItem(id), Data.assets.byItem(id), DB.getAll('loans', 'itemId', KR(id)), Data.maint.byItem(id), DB.count('movements', 'item_at', KR([id, 0], [id, Infinity]))]);
   const inStore = stock.filter((s) => s.itemId === id && s.qty > 0).reduce((s, r) => s + r.qty, 0), inDept = dept.reduce((s, d) => s + d.qty, 0);
   const why = [inStore ? `${fmtNum(inStore)} في المخازن` : '', inDept ? `${fmtNum(inDept)} بعهدة الإدارات` : '', loans.some((l) => l.status === 'active') ? 'عهد أفراد قائمة' : '', maint.some((m) => m.status === 'open') ? 'وحدات في الصيانة' : ''].filter(Boolean);
-  if (why.length) throw new AppError(`لا يمكن حذف الصنف وعليه: ${why.join('، ')}. أرجع الكميات أو اشطبها أولاً، أو انقله إلى مجلد آخر.`);
+  if (why.length) throw new AppError(`لا يمكن حذف الصنف وعليه: ${why.join('، ')}. أرجع الكميات أو أخرجها من الخدمة أولاً، أو انقله إلى مجلد آخر.`);
   if (moves || assets.length || maint.length) {
     await DB.put('items', { ...it, archived: 1, updatedAt: now() });
     await Data.log('delete', 'inventory', id, `أرشفة الصنف ${it.name} (له سجل حركات سابق)`); Bus.emit('inventory', { itemId: id }); return 'archived';
@@ -10876,5 +10881,7 @@ Pages.cartPicker = (form, rerender) => {
   setTimeout(() => q.focus(), 60);
 };
 
+/* رابط داخل نافذة يغلقها قبل الانتقال */
+document.addEventListener('click', (e) => { const l = e.target.closest('[data-close-dev]'); if (!l) return; const d = l.closest('dialog'); const x = d && d.querySelector('[data-x]'); if (x) setTimeout(() => x.click(), 0); });
 boot();
 })();
