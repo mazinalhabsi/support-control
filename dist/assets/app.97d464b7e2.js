@@ -340,8 +340,8 @@ const Nav = {
   },
   async save(map) { if (!Auth.can('nav.manage')) throw new AppError('لا تملك صلاحية إظهار وإخفاء الأقسام'); await DB.put('meta', { key: 'navhide', value: map }); Data.c.navHide = map; await Data.log('update', 'settings', 'navhide', 'تحديث إظهار أقسام القائمة'); }
 };
-/* الإشعارات: المقروءة تُحذف بعد 3 أيام من فتحها، وإشعار «بلاغ جديد» يُحذف من حسابك حين يستلم البلاغ فني آخر */
-const NOTE_KEEP_DAYS = 3;
+/* الإشعارات: المقروءة تُحذف بعد أسبوع من فتحها، وإشعار «بلاغ جديد» يُحذف من حسابك حين يستلم البلاغ فني آخر */
+const NOTE_KEEP_DAYS = 7;
 const NoteSweep = {
   busy: false,
   async run() {
@@ -2827,7 +2827,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat };
+  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -10759,6 +10759,74 @@ document.addEventListener('keydown', (e) => {
 Router.add('/printers', 'inventory.read', Pages.printers, 'الطابعات والأحبار');
 /* نقل الكتالوج تلقائياً عند أول دخول لمن يملك الصلاحية، حتى يظهر في نموذج البلاغ دون فتح الصفحة */
 { const r0 = Router.resolve; Router.resolve = async function () { await r0.apply(this, arguments); if (!PrintCat._seeded && PrintCat.can()) { PrintCat._seeded = 1; setTimeout(() => PrintCat.seed().catch(() => { PrintCat._seeded = 0; }), 5000); } }; }
+
+/* ══════════ اختيار المستلم: الإدارة ← القسم ← الأشخاص، مع بحث بالاسم أو الرقم العسكري ══════════ */
+const PP = {
+  sel: 'select[name="holderId"], select[name="borrowerId"]',
+  scan(root) { $$(PP.sel, root).forEach((s) => { if (!s._pp && [...s.options].some((o) => o.value && Data.c.users.has(o.value))) PP.mount(s).catch((e) => console.warn('people pick', e)); }); },
+  async mount(sel) {
+    sel._pp = 1;
+    const ids = new Set([...sel.options].map((o) => o.value).filter(Boolean)), pool = Data.list('users').filter((u) => ids.has(u.id));
+    const units = await DB.getAll('deptUnits'), uMap = new Map(units.map((u) => [u.id, u])), form = sel.form || sel.closest('form') || document;
+    const st = { dep: '', unit: '', q: '' };
+    const formDep = form.querySelector('select[name="departmentId"]'); if (formDep && formDep.value) st.dep = formDep.value;
+    const sub = (id) => { const out = new Set([id]); let grew = true; while (grew) { grew = false; for (const u of units) if (u.parentId && out.has(u.parentId) && !out.has(u.id)) { out.add(u.id); grew = true; } } return out; };
+    const inScope = (u, d = st.dep, un = st.unit) => (!d || u.departmentId === d) && (!un || sub(un).has(u.unitId));
+    const unitName = (u) => { const x = uMap.get(u.unitId); return x ? x.name : ''; };
+    sel.hidden = true;
+    const box = document.createElement('div'); box.className = 'pp'; sel.after(box);
+    const deps = Data.list('departments').map((d) => [d, pool.filter((u) => u.departmentId === d.id).length]).filter(([, n]) => n);
+    const noDep = pool.filter((u) => !u.departmentId || !Data.c.departments.has(u.departmentId)).length;
+    box.innerHTML = String(html`<div class="pp-chosen" hidden></div><div class="pp-body">
+      <div class="pp-filters"><select data-ppdep aria-label="الإدارة"><option value="">كل الإدارات (${fmtNum(pool.length)})</option>${deps.map(([d, n]) => html`<option value="${d.id}">${d.name} (${fmtNum(n)})</option>`)}${noDep ? html`<option value="__none">بدون إدارة (${fmtNum(noDep)})</option>` : ''}</select><select data-ppunit aria-label="القسم" disabled><option value="">اختر الإدارة أولاً</option></select></div>
+      <div class="pp-search">${UI.icon('search')}<input type="search" data-ppq placeholder="ابحث بالاسم أو الرقم العسكري" autocomplete="off"></div>
+      <div class="pp-count"></div><div class="pp-list" role="listbox"></div></div>`);
+    const $b = (s) => box.querySelector(s), depSel = $b('[data-ppdep]'), unitSel = $b('[data-ppunit]'), qIn = $b('[data-ppq]');
+    const fillUnits = () => {
+      const list = st.dep && st.dep !== '__none' ? orgUnitsFlat(units, st.dep).map(({ u, depth }) => [u, depth, pool.filter((p) => p.departmentId === st.dep && sub(u.id).has(p.unitId)).length]).filter(([, , n]) => n) : [];
+      unitSel.disabled = !list.length;
+      unitSel.innerHTML = String(html`<option value="">${!st.dep ? 'اختر الإدارة أولاً' : list.length ? 'كل الأقسام' : 'لا توجد أقسام بها مستخدمون'}</option>${list.map(([u, depth, n]) => html`<option value="${u.id}"${u.id === st.unit ? raw(' selected') : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name} (${fmtNum(n)})</option>`)}`);
+    };
+    const draw = () => {
+      const q = normalizeAr(st.q);
+      let rows = pool.filter((u) => (st.dep === '__none' ? !u.departmentId || !Data.c.departments.has(u.departmentId) : inScope(u)));
+      if (q) rows = rows.filter((u) => normalizeAr([u.name, u.militaryNo, u.username].join(' ')).includes(q));
+      rows.sort((a, b) => AR_COLL.compare(String(a.name), String(b.name)));
+      $b('.pp-count').textContent = rows.length ? `${fmtNum(rows.length)} مستخدم${rows.length > 60 ? ' — يظهر أول 60، ضيّق البحث بالإدارة أو القسم' : ''}` : '';
+      $b('.pp-list').innerHTML = rows.length ? String(html`${rows.slice(0, 60).map((u, i) => html`<button type="button" class="pp-item${i ? '' : ' first'}" data-ppid="${u.id}" role="option">${UI.avatar(u.id, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${[Data.nameOf('ranks', u.rankId, ''), Data.nameOf('departments', u.departmentId, ''), unitName(u)].filter(Boolean).join(' · ')}</small></span>${u.militaryNo ? html`<span class="pp-no ltr">${u.militaryNo}</span>` : ''}</button>`)}`) : String(html`<p class="pp-empty">لا يوجد مستخدمون مطابقون</p>`);
+    };
+    const showChosen = () => {
+      const u = Data.c.users.get(sel.value), ch = $b('.pp-chosen'), body = $b('.pp-body');
+      if (!u) { ch.hidden = true; body.hidden = false; return; }
+      ch.innerHTML = String(html`${UI.avatar(u.id, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${[Data.nameOf('departments', u.departmentId, ''), unitName(u)].filter(Boolean).join(' · ')}</small></span><button type="button" class="btn btn-ghost btn-sm" data-ppclr>${UI.icon('refresh')} تغيير</button>`);
+      ch.hidden = false; body.hidden = true;
+    };
+    const pick = (id) => { sel.value = id; sel.dispatchEvent(new Event('change', { bubbles: true })); showChosen(); };
+    depSel.value = st.dep; fillUnits(); draw(); showChosen();
+    depSel.addEventListener('change', () => {
+      st.dep = depSel.value; st.unit = ''; fillUnits(); draw();
+      /* الإدارة المختارة تُنقل أيضاً إلى خانة الإدارة في النموذج */
+      if (formDep && st.dep && st.dep !== '__none' && formDep.value !== st.dep) { formDep.value = st.dep; formDep.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    unitSel.addEventListener('change', () => { st.unit = unitSel.value; draw(); });
+    qIn.addEventListener('input', debounce(() => { st.q = qIn.value.trim(); draw(); }, 150));
+    qIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); const f = $b('.pp-item'); if (f) pick(f.dataset.ppid); } });
+    box.addEventListener('click', (e) => {
+      const it = e.target.closest('[data-ppid]'); if (it) { pick(it.dataset.ppid); return; }
+      if (e.target.closest('[data-ppclr]')) { pick(''); setTimeout(() => qIn.focus(), 30); }
+    });
+    sel.addEventListener('change', showChosen);
+  }
+};
+{
+  const m0 = UI.modal;
+  UI.modal = (o) => m0({ ...o, onMount: (form, finish) => {
+    PP.scan(form);
+    /* النماذج التي تعيد رسم محتواها (مثل سلة الصرف) */
+    try { new MutationObserver(debounce(() => PP.scan(form), 60)).observe(form, { childList: true, subtree: true }); } catch (_) { /* متصفح قديم */ }
+    if (o.onMount) return o.onMount(form, finish);
+  } });
+}
 
 boot();
 })();
