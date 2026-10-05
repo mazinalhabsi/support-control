@@ -1880,7 +1880,7 @@ Pages.scene = (title, text, kicker = '') => {
     <div class="lux-core iso-layer" data-depth="1.6">
       <svg class="lux-dial" viewBox="0 0 200 200"><circle class="d1" cx="100" cy="100" r="96"/><circle class="d2" cx="100" cy="100" r="88"/><circle class="d3" cx="100" cy="100" r="70"/></svg>
       <i class="lux-ring r1"></i><i class="lux-ring r2"></i>
-      <div class="lux-orbit">${chips.map(([ic, label], i) => html`<span class="lux-chip" style="--a:${i * 60}deg"><span>${UI.icon(ic)}<em>${label}</em></span></span>`)}</div>
+      <div class="lux-orbit">${chips.map(([ic, label], i) => html`<span class="lux-chip" style="--a:${i * 60}deg;left:${(50 + 41 * Math.sin((i * Math.PI) / 3)).toFixed(2)}%;top:${(50 - 41 * Math.cos((i * Math.PI) / 3)).toFixed(2)}%"><span>${UI.icon(ic)}<em>${label}</em></span></span>`)}</div>
       <div class="lux-crest"><img src="${ASSETS.logo}" alt=""></div>
     </div>
     <div class="scene-caption">${kicker ? html`<span class="lux-kicker">${kicker}</span>` : ''}<b>${title}</b>${text ? html`<span class="lux-text">${text}</span>` : ''}
@@ -3556,7 +3556,7 @@ const Forms = {
     const defs = this.def(catId); if (!defs.length) return '';
     return html`<div class="cat-fields" data-catfields="${catId}">${defs.map((f) => {
       const show = this.visible(f, v), opts = this.options(f, v), val = v[f.k] == null ? f.def || '' : v[f.k], isOther = val && opts.length && !opts.includes(val);
-      const input = f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
+      const input = f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick${f.k === 'brand' ? ' brand-pick' : ''}">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
         : f.t === 'select' ? html`<select name="x_${f.k}">${html`<option value="">${opts.length ? 'اختر...' : 'لا توجد خيارات، اكتبها يدوياً'}</option>`}${opts.map((o) => html`<option value="${o}"${val === o ? raw(' selected') : ''}>${o}</option>`)}${f.other || !opts.length ? html`<option value="__other"${isOther ? raw(' selected') : ''}>أخرى / غير مدرج</option>` : ''}</select>${f.other || !opts.length ? html`<input class="input cf-other" name="x_${f.k}_other" placeholder="اكتب الاسم يدوياً" value="${isOther ? val : ''}"${isOther || !opts.length ? '' : raw(' hidden')}>` : ''}`
         : f.t === 'table' ? Forms.tableHTML(f, val)
         : f.t === 'multi' ? html`<div class="choice-pick multi">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
@@ -3807,6 +3807,7 @@ Pages.deptStock = async (ctx) => {
       </div>
       <div class="grid g-3 mt stagger">${list.map((d) => html`<a class="wh" href="#/inventory/departments/${d.departmentId}"><div class="wh-head">${UI.illu('box')}<div class="grow"><b>${Data.nameOf('departments', d.departmentId, 'غير محدد')}</b><div class="t-sub">${arCount(d.skus, AR.item)} بعهدتها</div></div></div><div class="row" style="justify-content:space-between"><span class="faint small">إجمالي الوحدات</span><b style="font-family:var(--f-display);font-size:20px">${fmtNum(d.units)}</b></div><div class="shelf tone-${TONES[0]}"><i style="width:${Math.max(3, (d.units / Math.max(1, list[0].units)) * 100).toFixed(1)}%"></i></div></a>`)}</div>`
       : UI.empty({ illu: 'box', title: 'لا توجد عهد للإدارات بعد', text: 'عند صرف أي صنف من المخزن إلى إدارة تُسجَّل الكمية في عهدتها تلقائياً.', action: Auth.can('inventory.move') ? html`<button class="btn btn-primary" data-move="issue">${UI.icon('upload')} صرف لإدارة</button>` : '' })}`);
+    if (Pages.ctInject) await Pages.ctInject(ctx);
     UI.hydrate(ctx.view);
   };
   UI.on(ctx.view, 'click', '[data-act="dret"]', async () => { const d = await Pages.pickDept('إرجاع من عهدة إدارة'); if (d && (await Pages.deptReturnModal(d))) draw(); });
@@ -10611,7 +10612,18 @@ PrintCat.iconOf = (b) => (b.icon ? Forms.optIco({ oi: { x: b.icon } }, 'x') : ht
 /* أيقونة الماركة في نموذج البلاغ: شعارها إن وُجد، وإلا الحرفان الأولان */
 {
   const oi0 = Forms.optIco;
-  Forms.optIco = (f, o) => { if (f && f.oi && f.oi[o] === 'ic:printer' && f.k === 'brand') return html`<span class="pc-icon sm"><b class="pc-ini">${String(o).slice(0, 2)}</b></span>`; return oi0(f, o); };
+  /* شعار الماركة في نموذج البلاغ: لون الماركة واسمها المختصر، أو الشعار المرفوع إن وُجد */
+  const BRAND_LOOK = { hp: ['#0096d6', 'hp'], canon: ['#c4161c', 'Canon'], epson: ['#1f3f95', 'EPSON'], brother: ['#0d2d6c', 'brother'], xerox: ['#d71920', 'xerox'], ricoh: ['#c8102e', 'RICOH'], kyocera: ['#d50032', 'KYOCERA'], 'konica minolta': ['#0066b3', 'KONICA'], samsung: ['#1428a0', 'SAMSUNG'], lexmark: ['#00a651', 'LEXMARK'], sharp: ['#e60012', 'SHARP'], pantum: ['#ff6a13', 'PANTUM'], dell: ['#007db8', 'DELL'], oki: ['#00529b', 'OKI'], zebra: ['#111111', 'ZEBRA'] };
+  Forms.optIco = (f, o) => {
+    if (f && f.k === 'brand' && (!f.oi || !f.oi[o] || f.oi[o] === 'ic:printer')) {
+      const k = String(o || '').trim().toLowerCase(), look = BRAND_LOOK[k];
+      if (/^(أخرى|اخرى|other)$/i.test(k)) return html`<span class="pc-brand other">${UI.icon('plus')}</span>`;
+      const [c, w] = look || [`hsl(${[...k].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 360} 45% 38%)`, String(o).slice(0, 8)];
+      return html`<span class="pc-brand" style="--bc:${c}"><b class="${w.length > 6 ? 'sm' : ''}">${w}</b></span>`;
+    }
+    if (f && f.k === 'brand' && f.oi && f.oi[o]) return html`<span class="pc-brand img">${oi0(f, o)}</span>`;
+    return oi0(f, o);
+  };
 }
 
 /* ══════════ تنظيف بيانات التجربة قبل التشغيل الرسمي ══════════ */
@@ -10625,7 +10637,11 @@ const WIPE_GROUPS = [
   ['announcements', 'الإعلانات والتعاميم', 'bell', ['announcements']],
   ['extmaint', 'الصيانة الخارجية', 'external', ['extmaint']],
   ['vault', 'الملاحظات الإدارية', 'key', ['vault']],
-  ['activity', 'سجل النشاط', 'clock', ['activity']]
+  ['activity', 'سجل النشاط', 'clock', ['activity']],
+  ['org', 'الهيكل التنظيمي: الإدارات والأقسام والمكاتب والمواقع والمباني', 'layers', ['departments', 'deptUnits', 'locations'], 1],
+  ['catalog', 'تصنيفات الأصناف والمخازن وكتالوج الطابعات وأيقونات الماركات', 'box', ['itemCategories', 'warehouses', 'printers', 'brandIcons'], 1],
+  ['kb', 'قاعدة المعرفة والردود الجاهزة', 'book', ['kb', 'replies', 'templates'], 1],
+  ['forms', 'النماذج والاستمارات المرفوعة', 'file', ['forms'], 1]
 ];
 const WIPE_PHRASE = 'حذف بيانات التجربة';
 Pages.wipeModal = async () => {
@@ -10635,14 +10651,16 @@ Pages.wipeModal = async () => {
   const users = (await DB.getAll('users')).filter((u) => u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system).length;
   const r = await UI.modal({
     title: 'تنظيف بيانات التجربة', icon: 'trash', size: 'lg',
-    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>تُحذف البيانات المختارة نهائياً من الخادم ومن كل الأجهزة.</b><div class="small">تبقى الإعدادات والإدارات والفئات والقوائم وكتالوج الطابعات وقاعدة المعرفة والنماذج والردود الجاهزة. ويُعاد ترقيم البلاغات والأصناف من البداية.</div></div><a class="btn btn-soft btn-sm" href="#/backup" data-wipebk>${UI.icon('download')} نسخة احتياطية أولاً</a></div>
-      <div class="wipe-list mt">${WIPE_GROUPS.map(([k, label, icon]) => html`<label class="wipe-row"><input type="checkbox" name="g" value="${k}" checked><span class="wipe-ic">${UI.icon(icon)}</span><span class="grow">${label}</span><b class="wipe-n">${fmtNum(counts[k])}</b></label>`)}
+    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>تُحذف البيانات المختارة نهائياً من الخادم ومن كل الأجهزة.</b><div class="small">البيانات التشغيلية محددة مسبقاً. ولحذف كل شيء حدد أيضاً الهيكل التنظيمي والتصنيفات وقاعدة المعرفة والنماذج والحسابات (أو «تحديد الكل»). تبقى دائماً الإعدادات العامة وحسابك، ويُعاد ترقيم البلاغات والأصناف والسندات من البداية.</div></div><a class="btn btn-soft btn-sm" href="#/backup" data-wipebk>${UI.icon('download')} نسخة احتياطية أولاً</a></div>
+      <div class="wipe-list mt"><div class="row" style="gap:6px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-soft" data-wipeall>${UI.icon('check')} تحديد الكل (حذف كل البيانات)</button><button type="button" class="btn btn-sm btn-ghost" data-wipenone>إلغاء التحديد</button></div>${WIPE_GROUPS.map(([k, label, icon, , off]) => html`<label class="wipe-row${off ? ' warn' : ''}"><input type="checkbox" name="g" value="${k}"${off ? '' : raw(' checked')}><span class="wipe-ic">${UI.icon(icon)}</span><span class="grow">${label}</span><b class="wipe-n">${fmtNum(counts[k])}</b></label>`)}
         <label class="wipe-row warn"><input type="checkbox" name="users" value="1"><span class="wipe-ic">${UI.icon('users')}</span><span class="grow">حسابات المستخدمين التجريبية <small class="faint">— يبقى حسابك وحسابات المشرفين</small></span><b class="wipe-n">${fmtNum(users)}</b></label></div>
       <div class="field mt"><label>للتأكيد اكتب: <b class="wipe-phrase">${WIPE_PHRASE}</b></label><input name="confirm" autocomplete="off" placeholder="${WIPE_PHRASE}"></div>`,
     onMount: (form, finish) => {
       const btn = form.querySelector('.modal-foot .btn-danger'), sync = () => { btn.disabled = form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE || !form.querySelector('[name="g"]:checked, [name="users"]:checked'); };
       form.addEventListener('input', sync); form.addEventListener('change', sync); sync();
       UI.on(form, 'click', '[data-wipebk]', () => finish(null));
+      UI.on(form, 'click', '[data-wipeall]', () => { $$('[name="g"], [name="users"]', form).forEach((c) => { c.checked = true; }); sync(); });
+      UI.on(form, 'click', '[data-wipenone]', () => { $$('[name="g"], [name="users"]', form).forEach((c) => { c.checked = false; }); sync(); });
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حذف نهائياً', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => {
       const groups = $$('[name="g"]:checked', form).map((x) => x.value), wipeUsers = !!form.querySelector('[name="users"]:checked');
@@ -10664,7 +10682,7 @@ Data.wipeTrial = async (groups, wipeUsers) => {
   const put = Sync.on ? Sync.raw.put : (s, v) => DB.put(s, v), del = Sync.on ? Sync.raw.del : (s, k) => DB.del(s, k);
   for (const s of stores) await DB.clear(s);
   if (wipeUsers) for (const u of await DB.getAll('users')) if (u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system) await del('users', u.id);
-  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'] };
+  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'], extmaint: ['extmaint'] };
   for (const g of groups) for (const n of seqs[g] || []) await put('meta', { key: `seq:${n}`, value: 0 });
   await Data.log('delete', 'system', '', `تنظيف بيانات التجربة: ${groups.map((g) => (WIPE_GROUPS.find((x) => x[0] === g) || [])[1]).join('، ')}${wipeUsers ? '، والحسابات التجريبية' : ''}`);
   return res;
@@ -10750,6 +10768,7 @@ document.addEventListener('keydown', (e) => {
   }
   /* Ctrl+Enter: تأكيد النافذة حتى من داخل خانة نص متعددة الأسطر */
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && dlg) { const b = dlg.querySelector('.modal-foot button[type=submit]:not([disabled])'); if (b) { e.preventDefault(); b.click(); } return; }
+  if (e.key === 'Backspace' && dlg && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); const x = dlg.querySelector('[data-x]'); if (x) x.click(); return; }
   if (typing || dlg || e.ctrlKey || e.metaKey || e.altKey || $('.cmdk')) return;
   /* Backspace: رجوع للصفحة السابقة كما في المتصفحات القديمة */
   if (e.key === 'Backspace') { e.preventDefault(); Router.back(); return; }
@@ -12948,7 +12967,7 @@ Pages.controlCenter = async (ctx) => {
     try { await sec[6](sub); if (sub.alive()) { UI.hydrate(pane); document.title = `${sec[1]} | ${Data.c.settings.systemName}`; } } catch (e) { UI.error(e); if (sub.alive()) pane.innerHTML = String(UI.empty({ illu: 'box', title: 'تعذر فتح هذا القسم', text: e instanceof AppError ? e.message : '' })); }
     if (window.innerWidth < 900) main.scrollIntoView({ block: 'start' });
   };
-  UI.on(ctx.view, 'click', '[data-cc]', (e, el) => open(el.dataset.cc));
+  UI.on(ctx.view, 'click', '[data-cc]', (e, el) => { const k = el.dataset.cc; if (k === st.s) return; Router.go(`/settings${k === 'home' ? '' : `?s=${k}`}`); });
   UI.on(ctx.view, 'click', '[data-ccfold]', () => ctx.view.querySelector('.cc').classList.toggle('folded'));
   nav.querySelector('[data-ccq]').addEventListener('input', (e) => { const q = normalizeAr(e.target.value.trim()); $$('.cc-item[data-ccs]', nav).forEach((b) => { b.hidden = !!q && !b.dataset.ccs.includes(q); }); $$('.cc-grp', nav).forEach((g) => { g.hidden = !!q && !$$('.cc-item:not([hidden])', g).length; }); });
   ctx.onCleanup(() => st.cleanups.splice(0).forEach((f) => { try { f(); } catch (_) { /* تجاهل */ } }));
@@ -12959,6 +12978,120 @@ Router.add('/settings', CC_PERM, Pages.controlCenter, 'الإعدادات ومر
 {
   const sa0 = Shell.setActive.bind(Shell);
   Shell.setActive = (path) => { sa0(path); if (document.querySelector('.nav-link.active')) return; if (CC_ALL.some((x) => x[5] && (path === x[5] || path.startsWith(`${x[5]}/`))) || path.startsWith('/surveys/')) { const a = document.querySelector('.nav-link[data-path="/settings"]'); if (a) a.classList.add('active'); } };
+}
+
+/* ══════════ الرجوع خطوة واحدة (Backspace وزر الرجوع) ══════════
+   يرجع للخطوة السابقة داخل النظام نفسه، وإن لم توجد خطوة سابقة يصعد مستوى واحداً في المسار
+   (مثلاً من تفاصيل إدارة إلى قائمة الإدارات) بدل القفز إلى صفحة أخرى. */
+Router.back = function () {
+  const i = (history.state && history.state.sqi) || this.idx || 0;
+  if (i > 1) { history.back(); return; }
+  const hash = location.hash.slice(1) || '/', qi = hash.indexOf('?'), path = qi < 0 ? hash : hash.slice(0, qi);
+  const known = (p) => this.routes.some((r) => r.re.test(p));
+  let up = '';
+  if (qi >= 0) up = path;
+  else { const segs = path.split('/').filter(Boolean); while (segs.length > 1) { segs.pop(); const p = `/${segs.join('/')}`; if (known(p)) { up = p; break; } } }
+  this.replace(up || (Auth.user && Auth.user.role === 'monitor' ? '/monitor' : '/dashboard'));
+};
+
+/* ══════════ شجرة الهيكل والعهدة: الإدارات ← الأقسام ← الشُّعب ← المكاتب، مع الرصيد حتى لو كان صفراً ══════════ */
+const ORG_TYPE_LABEL = { section: 'قسم', branch: 'شعبة', unit: 'وحدة', office: 'مكتب' };
+Data.custodyTree = async () => {
+  const [dstock, ustock, units] = await Promise.all([DB.getAll('deptStock'), DB.getAll('unitStock'), DB.getAll('deptUnits')]);
+  const deps = Data.list('departments'), depIds = new Set(deps.map((d) => d.id));
+  const depQty = new Map(), depItems = new Map(), uQty = new Map(), uItems = new Map();
+  dstock.filter((r) => r.qty > 0).forEach((r) => { depQty.set(r.departmentId, (depQty.get(r.departmentId) || 0) + r.qty); const m = depItems.get(r.departmentId) || new Map(); m.set(r.itemId, (m.get(r.itemId) || 0) + r.qty); depItems.set(r.departmentId, m); });
+  ustock.filter((r) => r.qty > 0).forEach((r) => { uQty.set(r.unitId, (uQty.get(r.unitId) || 0) + r.qty); const m = uItems.get(r.unitId) || new Map(); m.set(r.itemId, (m.get(r.itemId) || 0) + r.qty); uItems.set(r.unitId, m); });
+  const ids = new Set(units.map((u) => u.id)), byId = new Map(units.map((u) => [u.id, u]));
+  const kids = (dep, pid) => units.filter((u) => u.departmentId === dep && (ids.has(u.parentId) && byId.get(u.parentId).departmentId === dep ? u.parentId : '') === pid).sort(sortByOrder);
+  const sub = new Map(); const subOf = (id) => { if (!sub.has(id)) sub.set(id, orgSubtree(units, id)); return sub.get(id); };
+  const total = (id) => { let n = 0; subOf(id).forEach((x) => { n += uQty.get(x) || 0; }); return n; };
+  const itemsOf = (id) => { const m = new Map(); subOf(id).forEach((x) => (uItems.get(x) || new Map()).forEach((q, it) => m.set(it, (m.get(it) || 0) + q))); return m; };
+  const path = (id) => { const out = []; let u = byId.get(id), g = 0; while (u && g++ < 30) { out.unshift(u); u = byId.get(u.parentId); } return out; };
+  const orphan = [...depQty.keys()].filter((d) => d && !depIds.has(d));
+  return { deps, units, byId, depQty, depItems, uQty, uItems, kids, total, itemsOf, path, orphan };
+};
+Pages.custodyExplorer = async (ctx, T) => {
+  const at = String(ctx.query.at || ''), [kind, nid] = at.includes(':') ? at.split(':') : ['', ''];
+  const unit = kind === 'u' ? T.byId.get(nid) : null, depId = kind === 'd' ? nid : unit ? unit.departmentId : '';
+  const itemIds = new Set(); T.depItems.forEach((m) => m.forEach((_, k) => itemIds.add(k)));
+  const items = new Map((await Promise.all([...itemIds].map((x) => DB.get('items', x)))).filter(Boolean).map((i) => [i.id, i]));
+  const href = (a) => `#/inventory/departments${a ? `?at=${a}` : ''}`;
+  const depAssigned = (d) => T.kids(d, '').reduce((s, u) => s + T.total(u.id), 0);
+  /* الشجرة الجانبية كاملة */
+  const openSet = new Set(unit ? T.path(unit.id).map((u) => u.id) : []);
+  const treeUnits = (dep, pid, lvl) => T.kids(dep, pid).map((u) => { const k = T.kids(dep, u.id), n = T.total(u.id), on = unit && unit.id === u.id; return html`<li><details${openSet.has(u.id) ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`u:${u.id}`)}" class="${on ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon((UNIT_TYPES[u.type] || UNIT_TYPES.section).icon || 'layers')}<span>${u.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length && lvl < ORG_MAX_DEPTH ? html`<ul>${treeUnits(dep, u.id, lvl + 1)}</ul>` : ''}</details></li>`; });
+  const tree = html`<ul class="ct-tree"><li><a href="${href('')}" class="${!at ? 'on' : ''}">${UI.icon('grid')}<span>كل الإدارات</span></a></li>${T.deps.map((d) => { const n = T.depQty.get(d.id) || 0, k = T.kids(d.id, ''); return html`<li><details${depId === d.id ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`d:${d.id}`)}" class="${kind === 'd' && nid === d.id ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon('building')}<span>${d.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length ? html`<ul>${treeUnits(d.id, '', 1)}</ul>` : ''}</details></li>`; })}</ul>`;
+  const card = (a, name, sub2, n, skus, kidsN, icon, tone) => html`<a class="ct-card${n ? '' : ' zero'}" href="${href(a)}"><span class="ct-ic tone-${tone}">${UI.icon(icon)}</span><div class="grow"><b>${name}</b><small>${sub2}</small></div><div class="ct-n"><b>${fmtNum(n)}</b><small>وحدة</small></div><div class="ct-meta">${kidsN ? html`<span>${UI.icon('layers')} ${fmtNum(kidsN)} فرع</span>` : html`<span class="faint">بلا فروع</span>`}<span>${UI.icon('box')} ${fmtNum(skus)} صنف</span>${n ? '' : html`<span class="chip tone-slate">الرصيد صفر</span>`}</div></a>`;
+  const itemTable = (rows, cols) => (rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th>${cols.map((c) => html`<th class="c">${c[0]}</th>`)}<th></th></tr></thead><tbody>${rows.map((r) => { const it = items.get(r.id) || { name: 'صنف محذوف' }; return html`<tr><td><b>${it.name}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></td>${cols.map((c) => html`<td class="c t-num" data-l="${c[0]}">${fmtNum(r[c[1]] || 0)}</td>`)}<td><button type="button" class="btn btn-sm btn-ghost" data-device="${r.id}"${depId ? raw(` data-dep="${depId}"`) : ''}>${UI.icon('eye')}</button></td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة في هذا المستوى', text: 'الرصيد صفر. تظهر الأجهزة هنا عند صرفها أو توزيعها على هذا القسم.' })}</div>`);
+  let crumbs = html`<a href="${href('')}">${UI.icon('grid')} كل الإدارات</a>`, body = '';
+  if (!at) {
+    const withC = T.deps.filter((d) => T.depQty.get(d.id)).length;
+    body = html`<div class="ct-cards">${T.deps.map((d) => card(`d:${d.id}`, d.name, d.code || 'إدارة', T.depQty.get(d.id) || 0, (T.depItems.get(d.id) || new Map()).size, T.kids(d.id, '').length, d.icon || 'building', d.tone || 'violet'))}</div><p class="faint small mt">${fmtNum(T.deps.length)} إدارة — ${fmtNum(withC)} لديها عهدة و${fmtNum(T.deps.length - withC)} رصيدها صفر.</p>`;
+  } else if (depId && Data.c.departments.get(depId)) {
+    const d = Data.c.departments.get(depId);
+    crumbs = html`${crumbs}${UI.icon('chevron-left')}<a href="${href(`d:${d.id}`)}">${d.name}</a>${unit ? T.path(unit.id).map((u) => html`${UI.icon('chevron-left')}<a href="${href(`u:${u.id}`)}">${u.name}</a>`) : ''}`;
+    if (!unit) {
+      const tot = T.depQty.get(d.id) || 0, asg = depAssigned(d.id), kids = T.kids(d.id, '');
+      const rows = [...(T.depItems.get(d.id) || new Map()).entries()].map(([id, q]) => { let inU = 0; kids.forEach((u) => { inU += T.itemsOf(u.id).get(id) || 0; }); return { id, q, inU, rest: Math.max(0, q - inU) }; }).sort((a, b) => b.q - a.q);
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي <b>${fmtNum(tot)}</b></span><span>${UI.icon('check')} موزّع على الأقسام <b>${fmtNum(asg)}</b></span><span class="${tot - asg > 0 ? 'warn' : ''}">${UI.icon('alert')} لدى الإدارة مباشرة (غير موزّع) <b>${fmtNum(Math.max(0, tot - asg))}</b></span><a class="btn btn-sm btn-soft" href="#/inventory/departments/${d.id}">${UI.icon('external')} صفحة العهدة التفصيلية</a></div>
+        ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الأقسام التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(d.id, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : html`<p class="faint small">لا توجد أقسام لهذه الإدارة في الهيكل التنظيمي.${canOrg() ? html` <a href="#/settings?s=org">إضافة أقسام</a>` : ''}</p>`}
+        ${UI.panel({ cls: 'mt', title: `أجهزة ${d.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['في الأقسام', 'inU'], ['لدى الإدارة مباشرة', 'rest']]) })}`;
+    } else {
+      const kids = T.kids(depId, unit.id), direct = T.uItems.get(unit.id) || new Map(), all = T.itemsOf(unit.id);
+      const rows = [...all.entries()].map(([id, q]) => ({ id, q, here: direct.get(id) || 0, below: q - (direct.get(id) || 0) })).sort((a, b) => b.q - a.q);
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}</div>
+        ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الفروع التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(depId, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : ''}
+        ${UI.panel({ cls: 'mt', title: `أجهزة ${unit.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['هنا مباشرة', 'here'], ['في الفروع', 'below']]) })}`;
+    }
+  } else body = UI.empty({ illu: 'box', title: 'هذا المستوى غير موجود', text: 'ربما حُذف من الهيكل التنظيمي.', action: html`<a class="btn btn-primary" href="${href('')}">كل الإدارات</a>` });
+  return html`<section class="panel mt ct"><div class="ct-top"><div class="ct-crumbs">${crumbs}</div><span class="faint small">${UI.icon('info')} Backspace للرجوع مستوى واحداً</span></div><div class="ct-grid"><aside class="ct-side">${tree}</aside><div class="ct-main">${body}</div></div></section>`;
+};
+Pages.ctInject = async (ctx) => {
+  const T = await Data.custodyTree(); if (!ctx.alive()) return;
+  const html2 = String(await Pages.custodyExplorer(ctx, T)); if (!ctx.alive()) return;
+  const kp = ctx.view.querySelector('.kpis'); if (!kp) return;
+  /* في المستوى الأعلى تبقى الرسوم والملخص، وتُستبدل بطاقات الإدارات بالشجرة؛ وفي المستويات الداخلية يُعرض المستوى وحده */
+  const keep = !ctx.query.at && kp.nextElementSibling && kp.nextElementSibling.classList.contains('g-2') ? kp.nextElementSibling : null;
+  let n = kp.nextElementSibling; while (n) { const nx = n.nextElementSibling; if (n !== keep) n.remove(); n = nx; }
+  (keep || kp).insertAdjacentHTML('afterend', html2);
+  if (!ctx._ct) {
+    ctx._ct = 1;
+    UI.on(ctx.view, 'click', '.ct [data-device]', async (e, el) => { e.preventDefault(); await Pages.deviceModal(el.dataset.device, el.dataset.dep ? { departmentId: el.dataset.dep } : {}); });
+    UI.on(ctx.view, 'click', '.ct-tree summary a', (e, el) => { e.preventDefault(); location.hash = el.getAttribute('href'); });
+  }
+};
+/* ══════════ المواقع والمباني تتبع الهيكل ══════════
+   عند اختيار الإدارة ثم القسم: قائمة «المكتب» تعرض مكاتب الهيكل بالتسلسل، وقائمة «المبنى» تبدأ بمباني الهيكل نفسه. */
+UI.orgPlaces = async (form, { dep = 'departmentId', unit = 'unitId' } = {}) => {
+  const ds = form.querySelector(`[name="${dep}"]`), us = form.querySelector(`[name="${unit}"]`); if (!ds || form.dataset.orgplaces) return;
+  form.dataset.orgplaces = '1';
+  const ls = form.querySelector('select[name="locationId"]'), os = form.querySelector('[name="location"], [name="office"]');
+  const units = await DB.getAll('deptUnits');
+  const allLocs = Data.list('locations');
+  const apply = () => {
+    const flat = orgUnitsFlat(units, ds.value), d = Data.c.departments.get(ds.value) || {};
+    const scope = us && us.value ? orgSubtree(units, us.value) : null, inScope = flat.filter((x) => !scope || scope.has(x.u.id));
+    const offices = inScope.filter((x) => x.u.type === 'office'), places = (offices.length ? offices : inScope).map((x) => x.path);
+    if (os) {
+      const list = form.querySelector(`[data-combo-list="${os.name}"]`);
+      if (list) list.innerHTML = places.length ? places.map((p) => `<button type="button" class="combo-opt" data-for="${esc(os.name)}" data-val="${esc(p)}">${esc(p)}</button>`).join('') : '<div class="combo-empty faint small" style="padding:8px">لا توجد مكاتب في هيكل هذه الإدارة</div>';
+      else { let dl = form.querySelector('datalist[data-orgplaces]'); if (!dl) { dl = document.createElement('datalist'); dl.id = `op_${Math.random().toString(36).slice(2, 8)}`; dl.dataset.orgplaces = '1'; form.appendChild(dl); os.setAttribute('list', dl.id); } dl.innerHTML = places.map((p) => `<option value="${esc(p)}">`).join(''); }
+    }
+    if (ls) {
+      const cur = ls.value, order = [];
+      [d.locationId, ...flat.map((x) => x.u.locationId)].forEach((id) => { if (id && !order.includes(id) && Data.c.locations && Data.c.locations.get(id)) order.push(id); });
+      const rest = allLocs.filter((l) => !order.includes(l.id));
+      ls.innerHTML = `<option value="">اختر...</option>${order.length ? `<optgroup label="مباني ${esc(d.name || 'الإدارة')} حسب الهيكل">${order.map((id) => `<option value="${esc(id)}">${esc(Data.nameOf('locations', id, ''))}</option>`).join('')}</optgroup>` : ''}${rest.length ? `<optgroup label="${order.length ? 'مبانٍ أخرى' : 'المباني'}">${rest.map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</optgroup>` : ''}`;
+      ls.value = cur;
+    }
+  };
+  ds.addEventListener('change', () => setTimeout(apply, 0)); if (us) us.addEventListener('change', () => setTimeout(apply, 0));
+  apply();
+};
+{
+  const al0 = UI.orgAutoLoc;
+  UI.orgAutoLoc = async (form, o = {}) => { await UI.orgPlaces(form, o); return al0(form, o); };
 }
 
 boot();

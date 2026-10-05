@@ -805,6 +805,10 @@ case 'wipe': {
     'announcements' => ['announcements'],
     'extmaint' => ['extmaint'],
     'vault' => ['vault'],
+    'org' => ['departments', 'deptUnits', 'locations'],
+    'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
+    'kb' => ['kb', 'replies', 'templates'],
+    'forms' => ['forms'],
     'activity' => ['activity'],
   ];
   $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher'], 'extmaint' => ['seq:extmaint']];
