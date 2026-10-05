@@ -1641,7 +1641,7 @@ const Shell = {
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/ext-maint', label: (Data.c.xmCfg && Data.c.xmCfg.name) || 'الصيانة الخارجية', icon: 'external', perm: 'extmaint.read' }, { path: '/printers', label: 'الطابعات والأحبار', icon: 'printer', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }, { path: '/vault', label: 'الملاحظات الإدارية', icon: 'key', perm: 'vault.read' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
-      { group: 'الإدارة', items: [{ path: '/users', label: 'المستخدمون', icon: 'users', perm: 'users.manage' }, { path: '/nav-visibility', label: 'إظهار الأقسام', icon: 'eye', perm: 'nav.manage' }, { path: '/surveys/manage', label: 'إدارة الاستبيانات', icon: 'poll', perm: 'surveys.manage' }, { path: '/ratings', label: 'مركز التقييم', icon: 'star', perm: 'ratings.manage' }, { path: '/voucher-designer', label: 'تصميم الاستمارات الرسمية', icon: 'print', perm: 'vouchers.design' }, { path: '/features', label: 'التحكم بالخصائص', icon: 'toggle', perm: 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design' }, { path: '/passwords', label: 'كلمات المرور', icon: 'key', perm: 'users.password' }, { path: '/org', label: 'الهيكل التنظيمي', icon: 'layers', perm: 'org.manage' }, { path: '/ticket-admin', label: 'إدارة البلاغات', icon: 'clipboard', perm: 'categories.manage' }, { path: '/backup', label: 'النسخ الاحتياطي', icon: 'database', perm: 'backup.manage' }, { path: '/settings', label: 'الإعدادات والبيانات', icon: 'sliders', perm: 'settings' }] }
+      { group: 'الإدارة', items: [{ path: '/settings', label: 'الإعدادات ومركز التحكم', icon: 'sliders', perm: CC_PERM }] }
     ];
   },
   mount() {
@@ -12142,8 +12142,15 @@ const VL = {
     else if (e.t === 'barcode') { const v = VL.tx(e.value || '[رقم السند]', F, '').replace(/<br>/g, ' '); const txt = String(v).replace(/&[a-z#0-9]+;/gi, ''); inner = `<div class="vl-bc">${String(UI.barcode(txt, { height: 40, w: 1.3 }))}${e.showText !== 0 ? `<b style="${VL.font(s)}">${esc(txt)}</b>` : ''}</div>`; }
     else if (e.t === 'table') {
       const T = e.tbl || { rows: [['']] }, cols = (T.rows[0] || []).length, cw = T.colW && T.colW.length === cols ? T.colW : Array(cols).fill(100 / Math.max(1, cols));
-      const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`;
-      inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup><tbody>${T.rows.map((r, i) => `<tr style="${T.rowH ? `height:${T.rowH}mm` : ''}">${r.map((c, j) => { const head = (T.head && i === 0) || (T.headCol && j === 0); const tag = head ? 'th' : 'td'; return `<${tag} data-cell="${i},${j}" style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && i % 2 === 0 ? 'background:rgba(0,0,0,.035)' : ''};text-align:${(T.al || [])[j] || s.align || 'right'}">${VL.tx(c, F, mode)}</${tag}>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+      const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`, SPN = T.span || {}, CS = T.cs || {}, cov = new Set();
+      Object.keys(SPN).forEach((k) => { const [i, j] = k.split(',').map(Number), [rs, cs] = SPN[k]; for (let a = i; a < i + rs; a++) for (let z = j; z < j + cs; z++) if (a !== i || z !== j) cov.add(`${a},${z}`); });
+      const selC = edit && opt.sel === e.id && opt.cell ? opt.cell.join(',') : '';
+      inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup><tbody>${T.rows.map((r, i) => `<tr style="${T.rowH ? `height:${T.rowH}mm` : ''}">${r.map((c, j) => {
+        const key = `${i},${j}`; if (cov.has(key)) return '';
+        const head = (T.head && i === 0) || (T.headCol && j === 0), tag = head ? 'th' : 'td', sp = SPN[key], x = CS[key] || {};
+        const bg = x.bg ? `background:${x.bg}` : head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && i % 2 === 0 ? 'background:rgba(0,0,0,.035)' : '';
+        return `<${tag} data-cell="${key}"${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${selC === key ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}">${VL.tx(c, F, mode)}</${tag}>`;
+      }).join('')}</tr>`).join('')}</tbody></table>`;
     }
     const sel = edit && opt.sel === e.id;
     const hidden = !VL.vis(e, d.kindKey);
@@ -12159,14 +12166,14 @@ const VL = {
   },
   itemsTable(b, lines, opt = {}) {
     const c = b.cfg || {}, cols = (c.cols || VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 }))).filter((x) => x.on && (x.k !== 'info' || lines.some((l) => l.info)));
-    const tw = cols.reduce((s, x) => s + (Number(x.w) || 10), 0), bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3;
+    const tw = cols.reduce((s, x) => s + (Number(x.w) || 10), 0), bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3, bs = c.bs || 'solid', pd = c.pad != null && c.pad !== '' ? `padding:${c.pad}mm;` : '', alOf = (x) => (x.al ? `text-align:${x.al};` : center.has(x.k) ? 'text-align:center;' : '');
     const td = (k, l, i) => ({ no: fmtNum(i + 1), name: `<b>${esc(l.name)}</b>${c.skuUnder !== 0 && l.sku && !cols.some((x) => x.k === 'sku') ? `<div class="vl-sku">${esc(l.sku)}</div>` : ''}`, brand: esc([l.brand, l.model].filter(Boolean).join(' ') || '—'), serials: `<span class="ltr vl-sn">${esc((l.serials || []).length ? l.serials.join('، ') : '—')}</span>`, info: esc(l.info || ''), qty: fmtNum(l.qty), unit: esc(l.unit || 'قطعة'), sku: `<span class="ltr">${esc(l.sku || '')}</span>` })[k];
     const center = new Set(['no', 'qty', 'unit']), padN = Math.max(0, (Number(c.minRows) || 0) - lines.length), total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0), qi = cols.findIndex((x) => x.k === 'qty');
-    const cell = (k, inner, i, tag = 'td') => `<${tag} style="border:${bw}mm solid ${bc};${center.has(k) ? 'text-align:center;' : ''}${c.zebra && i % 2 ? 'background:rgba(0,0,0,.035);' : ''}${c.rowH ? `height:${c.rowH}mm;` : ''}">${inner}</${tag}>`;
-    return `<table class="vl-items" style="font-size:${c.fs || 10}pt"><colgroup>${cols.map((x) => `<col style="width:${((Number(x.w) || 10) / tw) * 100}%">`).join('')}</colgroup>
-      <thead><tr>${cols.map((x) => `<th style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};color:${c.hc || '#111'};${center.has(x.k) ? 'text-align:center;' : ''}">${esc(x.l)}</th>`).join('')}</tr></thead>
-      <tbody>${lines.map((l, i) => `<tr>${cols.map((x) => cell(x.k, td(x.k, l, i), i)).join('')}</tr>`).join('')}${Array.from({ length: padN }, (_, j) => `<tr>${cols.map((x) => cell(x.k, x.k === 'no' ? fmtNum(lines.length + j + 1) : '&nbsp;', lines.length + j)).join('')}</tr>`).join('')}</tbody>
-      ${c.total !== 0 && qi >= 0 && !opt.noTotal ? `<tfoot><tr>${qi ? `<td colspan="${qi}" style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};font-weight:700">الإجمالي</td>` : ''}<td style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'};font-weight:700;text-align:center">${fmtNum(total)}</td>${cols.slice(qi + 1).map(() => `<td style="border:${bw}mm solid ${bc};background:${c.hbg || '#f6f2e8'}"></td>`).join('')}</tr></tfoot>` : ''}</table>`;
+    const cell = (x, inner, i, tag = 'td') => `<${tag} style="border:${bw}mm ${bs} ${bc};${pd}${alOf(x)}${c.zebra && i % 2 ? 'background:rgba(0,0,0,.035);' : ''}${c.rowH ? `height:${c.rowH}mm;` : ''}">${inner}</${tag}>`;
+    return `<table class="vl-items" style="font-size:${c.fs || 10}pt;${c.font ? `font-family:'${String(c.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif;` : ''}"><colgroup>${cols.map((x) => `<col style="width:${((Number(x.w) || 10) / tw) * 100}%">`).join('')}</colgroup>
+      <thead><tr>${cols.map((x) => `<th style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};color:${c.hc || '#111'};${c.hal ? `text-align:${c.hal};` : alOf(x)}${c.hb === 0 ? 'font-weight:400;' : ''}">${esc(x.l)}</th>`).join('')}</tr></thead>
+      <tbody>${lines.map((l, i) => `<tr>${cols.map((x) => cell(x, td(x.k, l, i), i)).join('')}</tr>`).join('')}${Array.from({ length: padN }, (_, j) => `<tr>${cols.map((x) => cell(x, x.k === 'no' ? fmtNum(lines.length + j + 1) : '&nbsp;', lines.length + j)).join('')}</tr>`).join('')}</tbody>
+      ${c.total !== 0 && qi >= 0 && !opt.noTotal ? `<tfoot><tr>${qi ? `<td colspan="${qi}" style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};font-weight:700">الإجمالي</td>` : ''}<td style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};font-weight:700;text-align:center">${fmtNum(total)}</td>${cols.slice(qi + 1).map(() => `<td style="border:${bw}mm ${bs} ${bc};background:${c.hbg || '#f6f2e8'}"></td>`).join('')}</tr></tfoot>` : ''}</table>`;
   },
   items(b, d) {
     const c = b.cfg || {};
@@ -12175,16 +12182,35 @@ const VL = {
   },
   notes(b, d) { const c = b.cfg || {}; return `<div class="vl-notes" style="border:${c.bw != null ? c.bw : 0.3}mm ${c.bs || 'solid'} ${c.bc || '#c9c2b1'};border-radius:${c.radius != null ? c.radius : 2}mm;min-height:${c.minH || 9}mm;background:${c.bg || '#fff'}"><span style="color:${c.lc || '#8a6a22'}">${esc(c.label || 'ملاحظات')}</span><p>${esc(d.note || '—').replace(/\n/g, '<br>')}</p></div>`; },
   sigsTable(b, parties) {
-    const c = b.cfg || {}, cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on), bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3, rh = c.rowH || 11;
+    const c = b.cfg || {}, cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on);
+    const bc = c.bc || '#c9c2b1', bw = c.bw != null ? c.bw : 0.3, bs = c.bs || 'solid', rh = Number(c.rowH) || 11, sh = Math.max(rh, Number(c.signH) || rh), pad = c.pad != null && c.pad !== '' ? c.pad : 1.2;
     const T = { recv: c.recv || 'المستلم', deliv: c.deliv || 'المُسلِّم', appr: c.appr || 'اعتماد المسؤول' };
     const extra = String(c.extra || '').split('\n').map((x) => x.trim()).filter(Boolean).map((t) => ({ title: t, signOnly: true }));
-    const list = parties.filter((p) => !p.signOnly || c.approver !== 0).map((p) => ({ ...p, title: p.role ? T[p.role] || p.title : p.title })).concat(extra);
-    const bd = `border:${bw}mm solid ${bc}`, hatch = 'background:repeating-linear-gradient(-45deg,#fff 0 1.6mm,#efebe1 1.6mm 1.9mm)';
-    if (c.layout === 'boxes') return `<div class="vl-sboxes" style="grid-template-columns:repeat(${Math.min(4, list.length)},minmax(0,1fr))">${list.map((p) => `<div class="vl-sbox" style="${bd};border-radius:${c.radius != null ? c.radius : 2}mm"><div class="vl-sbh" style="border-bottom:0.4mm solid ${c.hc || '#8a6a22'}"><b>${esc(p.title)}</b>${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}</div>${cols.filter((x) => !p.signOnly || x.k === 'sign').map((x) => `<div class="vl-sbr${x.k === 'sign' ? ' sg' : ''}"><span>${esc(x.l)}</span><em class="${x.k === 'no' ? 'ltr' : ''}">${x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || '')}</em></div>`).join('')}</div>`).join('')}</div>`;
-    const si = cols.findIndex((x) => x.k === 'sign');
-    return `<table class="vl-sigs" style="font-size:${c.fs || 10}pt"><thead><tr><th style="${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};width:${c.roleW || 26}mm">${esc(c.roleL || 'الصفة')}</th>${cols.map((x) => `<th style="${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};${x.k === 'sign' ? `width:${c.signW || 30}%` : ''}">${esc(x.l)}</th>`).join('')}</tr></thead><tbody>${list.map((p) => (p.signOnly
-      ? `<tr style="height:${rh}mm"><th style="${bd};background:${c.rbg || '#faf8f3'};text-align:right">${esc(p.title)}</th>${si > 0 ? `<td colspan="${si}" style="${bd};${hatch}"></td>` : ''}${si >= 0 ? `<td style="${bd}"></td>` : ''}${si >= 0 && si < cols.length - 1 ? `<td colspan="${cols.length - si - 1}" style="${bd};${hatch}"></td>` : si < 0 ? `<td colspan="${cols.length}" style="${bd};${hatch}"></td>` : ''}</tr>`
-      : `<tr style="height:${rh}mm"><th style="${bd};background:${c.rbg || '#faf8f3'};text-align:right">${esc(p.title)}${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}</th>${cols.map((x) => `<td style="${bd};${x.k === 'no' ? 'text-align:center' : ''}" class="${x.k === 'no' ? 'ltr' : ''}">${x.k === 'name' ? `<b>${esc(p.name || '')}</b>` : x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || '')}</td>`).join('')}</tr>`)).join('')}</tbody></table>`;
+    let list = parties.filter((p) => !p.signOnly || c.approver !== 0).map((p) => ({ ...p, title: p.role ? T[p.role] || p.title : p.title }));
+    if (c.order === 'dr') list = [...list.filter((p) => p.role === 'deliv'), ...list.filter((p) => p.role !== 'deliv')];
+    list = list.concat(extra);
+    const bdr = `border:${bw}mm ${bs} ${bc}`, bd = `${bdr};padding:${pad}mm`;
+    const hatch = c.hatch === 0 ? '' : 'background:repeating-linear-gradient(-45deg,#fff 0 1.6mm,#efebe1 1.6mm 1.9mm)';
+    const fnt = `font-size:${c.fs || 10}pt;${c.font ? `font-family:'${String(c.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif;` : ''}`;
+    const hst = `${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};text-align:${c.hal || 'center'};${c.hb === 0 ? 'font-weight:400;' : ''}`;
+    const rst = `${bd};background:${c.rbg || '#faf8f3'};text-align:${c.ral || 'right'};${c.rb === 0 ? 'font-weight:400;' : ''}`;
+    const roleOn = c.roleOn !== 0, head = c.head !== 0;
+    const role = (p) => `${esc(p.title)}${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}`;
+    const val = (p, x) => (x.k === 'name' ? `<b>${esc(p.name || '')}</b>` : x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || ''));
+    const al = (x) => x.al || (x.k === 'no' ? 'center' : 'right');
+    if (c.layout === 'boxes') return `<div class="vl-sboxes" style="grid-template-columns:repeat(${Math.min(4, list.length)},minmax(0,1fr));${fnt}">${list.map((p) => `<div class="vl-sbox" style="${bdr};border-radius:${c.radius != null ? c.radius : 2}mm;background:${c.boxbg || '#fff'}"><div class="vl-sbh" style="border-bottom:0.4mm solid ${c.hc || '#8a6a22'}"><b>${esc(p.title)}</b>${c.subs !== 0 && p.sub ? `<small>${esc(p.sub)}</small>` : ''}</div>${cols.filter((x) => !p.signOnly || x.k === 'sign').map((x) => `<div class="vl-sbr${x.k === 'sign' ? ' sg' : ''}"><span>${esc(x.l)}</span><em class="${x.k === 'no' ? 'ltr' : ''}" style="${x.k === 'sign' ? `min-height:${Math.max(6, sh - 3)}mm` : ''}">${x.k === 'sign' || x.k === 'date' ? '' : esc(p[x.k] || '')}</em></div>`).join('')}</div>`).join('')}</div>`;
+    /* الأطراف أعمدة والبيانات صفوف (شكل رأسي) */
+    if (c.layout === 'cols') {
+      const rp = Number(c.roleP) || 18;
+      return `<table class="vl-sigs" style="${fnt}"><colgroup>${roleOn ? `<col style="width:${rp}%">` : ''}${list.map(() => `<col style="width:${(100 - (roleOn ? rp : 0)) / Math.max(1, list.length)}%">`).join('')}</colgroup>${head ? `<thead><tr>${roleOn ? `<th style="${hst}">${esc(c.roleL || 'البيان')}</th>` : ''}${list.map((p) => `<th style="${hst}">${role(p)}</th>`).join('')}</tr></thead>` : ''}<tbody>${cols.map((x) => `<tr style="height:${x.k === 'sign' ? sh : rh}mm">${roleOn ? `<th style="${rst}">${esc(x.l)}</th>` : ''}${list.map((p) => (p.signOnly && x.k !== 'sign' ? `<td style="${bd};${hatch}"></td>` : `<td style="${bd};text-align:${al(x)}" class="${x.k === 'no' ? 'ltr' : ''}">${val(p, x)}</td>`)).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+    /* الأطراف صفوف (الشكل الافتراضي) مع عرض كل عمود */
+    const wOf = (x) => Number(x.w) || (x.k === 'sign' ? 30 : x.k === 'name' ? 24 : 14), tw = cols.reduce((s, x) => s + wOf(x), 0) || 1, rp = roleOn ? Number(c.roleP) || 17 : 0;
+    const si = cols.findIndex((x) => x.k === 'sign'), rowH = si >= 0 ? sh : rh;
+    const runs = (p) => { const out = []; let n = 0; cols.forEach((x, i) => { if (x.k === 'sign') { if (n) out.push(`<td colspan="${n}" style="${bd};${hatch}"></td>`); n = 0; out.push(`<td style="${bd}"></td>`); } else n++; if (i === cols.length - 1 && n) out.push(`<td colspan="${n}" style="${bd};${hatch}"></td>`); }); return out.join(''); };
+    return `<table class="vl-sigs" style="${fnt}"><colgroup>${roleOn ? `<col style="width:${rp}%">` : ''}${cols.map((x) => `<col style="width:${((100 - rp) * wOf(x)) / tw}%">`).join('')}</colgroup>${head ? `<thead><tr>${roleOn ? `<th style="${hst}">${esc(c.roleL || 'الصفة')}</th>` : ''}${cols.map((x) => `<th style="${hst}">${esc(x.l)}</th>`).join('')}</tr></thead>` : ''}<tbody>${list.map((p) => (p.signOnly
+      ? `<tr style="height:${rowH}mm">${roleOn ? `<th style="${rst}">${esc(p.title)}</th>` : ''}${runs(p)}</tr>`
+      : `<tr style="height:${rowH}mm">${roleOn ? `<th style="${rst}">${role(p)}</th>` : ''}${cols.map((x) => `<td style="${bd};text-align:${al(x)}" class="${x.k === 'no' ? 'ltr' : ''}">${val(p, x)}</td>`).join('')}</tr>`)).join('')}</tbody></table>`;
   },
   ret(b, d) {
     if (!d.returnHolder) return '';
@@ -12353,7 +12379,7 @@ Pages.voucherDesigner = async (ctx) => {
   };
   const drawCanvas0 = (z) => {
     const sb = st.sel ? st.sel.b : '', se = st.sel ? st.sel.e : '';
-    z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '' });
+    z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell });
     if (se) { const b = z.querySelector(`[data-band="${sb}"]`); if (b) b.classList.add('has-sel'); }
     z.classList.toggle('grid', st.grid);
     fit();
@@ -12432,7 +12458,7 @@ Pages.voucherDesigner = async (ctx) => {
   };
   const sec = (id, title, icon, body, open = false) => html`<details class="vle-sec" data-sec="${id}"${st.openSec[id] != null ? (st.openSec[id] ? raw(' open') : '') : open ? raw(' open') : ''}><summary>${UI.icon(icon)} ${title}</summary><div class="vle-sb">${body}</div></details>`;
   const kindsBox = (prefix, o) => html`<div class="vle-kinds"><label class="vle-chk"><input type="checkbox" data-allk="${prefix}"${!o.kinds || !o.kinds.length ? raw(' checked') : ''}><span>كل الاستمارات</span></label>${VT_KINDS.map(([k, l]) => html`<label class="vle-chk sm"><input type="checkbox" data-kd="${prefix}|${k}"${o.kinds && o.kinds.includes(k) ? raw(' checked') : ''}${!o.kinds || !o.kinds.length ? raw(' disabled') : ''}><span>${l}</span></label>`)}</div>`;
-  const colsEditor = (prefix, cols, withW) => html`<div class="vle-cols">${cols.map((c, i) => html`<div class="vle-colr"><input type="checkbox" data-k="${prefix}.${i}.on" data-t="b"${c.on ? raw(' checked') : ''} title="إظهار"><input data-k="${prefix}.${i}.l" value="${c.l}">${withW ? html`<input type="number" data-k="${prefix}.${i}.w" data-t="n" value="${c.w}" min="2" max="80" title="العرض النسبي" class="w">` : ''}<button type="button" class="icon-btn" data-colmv="${prefix}|${i}|-1" title="تقديم">↑</button><button type="button" class="icon-btn" data-colmv="${prefix}|${i}|1" title="تأخير">↓</button></div>`)}</div>`;
+  const colsEditor = (prefix, cols, withW) => html`<div class="vle-cols"><div class="vle-colh"><span></span><span>العنوان</span>${withW ? html`<span>العرض</span>` : ''}<span>المحاذاة</span><span></span></div>${cols.map((c, i) => html`<div class="vle-colr${withW ? '' : ' now'}"><input type="checkbox" data-k="${prefix}.${i}.on" data-t="b"${c.on ? raw(' checked') : ''} title="إظهار"><input data-k="${prefix}.${i}.l" value="${c.l}">${withW ? html`<input type="number" data-k="${prefix}.${i}.w" data-t="n" value="${c.w || ''}" min="2" max="80" title="العرض النسبي" class="w">` : ''}<select data-k="${prefix}.${i}.al" class="al" title="المحاذاة">${[['', 'تلقائي'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']].map(([a, l2]) => html`<option value="${a}"${(c.al || '') === a ? raw(' selected') : ''}>${l2}</option>`)}</select><span class="vle-mv"><button type="button" class="icon-btn" data-colmv="${prefix}|${i}|-1" title="تقديم">↑</button><button type="button" class="icon-btn" data-colmv="${prefix}|${i}|1" title="تأخير">↓</button></span></div>`)}</div>`;
   const drawInsp = () => {
     const box = $v('.vle-insp'); if (!box) return;
     const b = selB(), e = selE(), P = L().page;
@@ -12451,20 +12477,27 @@ Pages.voucherDesigner = async (ctx) => {
           <div class="vle-row">${fld('E.tbl.bw', 'سمك الحد', 'num', 0.1)}${fld('E.tbl.pad', 'هامش الخلية', 'num', 0.2)}${fld('E.tbl.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>
           ${fld('E.tbl.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}
           <div class="vle-f"><label>عرض الأعمدة (%) ومحاذاتها</label><div class="vle-cw">${(e.tbl.rows[0] || []).map((_, j) => html`<div><input type="number" data-cw="${j}" value="${Math.round((e.tbl.colW || [])[j] || 100 / e.tbl.rows[0].length)}" min="3" max="95"><select data-cal="${j}">${[['', '—'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']].map(([a, l2]) => html`<option value="${a}"${((e.tbl.al || [])[j] || '') === a ? raw(' selected') : ''}>${l2}</option>`)}</select></div>`)}</div></div>`, true) : ''}
+        ${e.t === 'table' && st.cell ? (() => { const ck = st.cell.join(','), x = (e.tbl.cs || {})[ck] || {}, sp = (e.tbl.span || {})[ck]; return sec('ecell', `الخلية المحددة (صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)})`, 'edit', html`<div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="mR">${UI.icon('swap')} دمج مع الخلية اليسرى</button><button type="button" class="btn btn-sm btn-soft" data-tb="mD">${UI.icon('swap')} دمج مع الخلية السفلى</button>${sp ? html`<button type="button" class="btn btn-sm btn-ghost" data-tb="mX">إلغاء الدمج</button>` : ''}</div>${fld(`E.tbl.cs.${ck}.bg`, 'لون تعبئة الخلية', 'color', 'clear', x.bg || '')}${fld(`E.tbl.cs.${ck}.color`, 'لون نص الخلية', 'color', null, x.color || '#111111')}<div class="vle-row">${fld(`E.tbl.cs.${ck}.al`, 'المحاذاة', 'select', [['', 'كالجدول'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']], x.al || '')}${fld(`E.tbl.cs.${ck}.va`, 'عمودياً', 'select', [['', 'وسط'], ['top', 'أعلى'], ['bottom', 'أسفل']], x.va || '')}</div><div class="vle-row">${fld(`E.tbl.cs.${ck}.b`, 'عريض', 'select', [['', 'كالجدول'], ['1', 'نعم'], ['0', 'لا']], x.b == null ? '' : String(x.b))}${fld(`E.tbl.cs.${ck}.fs`, 'حجم الخط', 'num', 0.5, x.fs || '')}</div>`, true); })() : ''}
         ${['text', 'table', 'barcode'].includes(e.t) ? sec('efont', 'الخط والتنسيق', 'edit', html`${fld('E.s.font', 'نوع الخط', 'font')}<div class="vle-row">${fld('E.s.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('E.s.color', 'لون النص', 'color')}<div class="vle-row">${fld('E.s.bold', 'عريض', 'check')}${fld('E.s.italic', 'مائل', 'check')}${fld('E.s.underline', 'تسطير', 'check')}</div>${fld('E.s.align', 'المحاذاة', 'select', [['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار'], ['justify', 'ضبط']])}${e.t === 'text' ? fld('E.s.valign', 'المحاذاة العمودية', 'select', [['top', 'أعلى'], ['middle', 'وسط'], ['bottom', 'أسفل']]) : ''}`) : ''}
         ${e.t !== 'line' ? sec('ebox', 'التعبئة والحدود والتأثيرات', 'layers', html`${fld('E.s.bg', 'لون التعبئة', 'color', 'clear')}<div class="vle-row">${fld('E.s.bw', 'سمك الحد', 'num', 0.1)}${fld('E.s.radius', 'تدوير الزوايا', 'num', 0.5)}${fld('E.s.padding', 'الهامش الداخلي', 'num', 0.5)}</div>${fld('E.s.bc', 'لون الحد', 'color')}${fld('E.s.bs', 'نمط الحد', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}<div class="vle-row">${fld('E.s.opacity', 'الشفافية %', 'num', 5)}${fld('E.s.rot', 'الدوران °', 'num', 1)}</div>${fld('E.s.shadow', 'ظل خفيف', 'check')}`, e.t === 'rect') : ''}
         ${sec('epos', 'الموضع والحجم', 'grid', html`<div class="vle-row">${fld('E.x', 'من اليسار (مم)', 'num', 0.5)}${fld('E.y', 'من الأعلى (مم)', 'num', 0.5)}</div><div class="vle-row">${fld('E.w', 'العرض (مم)', 'num', 0.5)}${e.t !== 'table' ? fld('E.h', 'الارتفاع (مم)', 'num', 0.5) : ''}</div>${fld('E.lock', 'قفل الموضع', 'check')}<div class="vle-f"><label>نقل إلى قسم آخر</label><select data-moveto><option value="">—</option>${L().bands.filter((x) => x.type === 'free' && x.id !== b.id).map((x) => html`<option value="${x.id}">${x.name || 'قسم حر'}</option>`)}</select></div>`)}
         ${sec('ekinds', 'يظهر في', 'eye', kindsBox('E', e))}`;
     } else if (b) {
       const [tl, ti] = VL_BAND_TYPES[b.type];
+      const shapeSec = (kind) => sec('bshape', 'شكل الجدول', 'grid', html`${kind === 'sigs' ? html`<div class="vle-f"><label>ترتيب الجدول</label><div class="vle-lay">${[['rows', 'الأطراف صفوف', 'r'], ['cols', 'الأطراف أعمدة', 'c'], ['boxes', 'بطاقات', 'b']].map(([v, l, ic]) => html`<label><input type="radio" name="sglay" data-k="B.cfg.layout" value="${v}"${(b.cfg.layout || 'rows') === v ? raw(' checked') : ''}><span><i class="vle-lay-${ic}"></i>${l}</span></label>`)}</div></div>${fld('B.cfg.order', 'ترتيب الأطراف', 'select', [['rd', 'المستلم ثم المُسلِّم'], ['dr', 'المُسلِّم ثم المستلم']])}` : ''}
+          ${kind !== 'items' ? html`<div class="vle-row">${fld('B.cfg.roleOn', 'عمود الصفة', 'check', null, b.cfg.roleOn !== 0)}${fld('B.cfg.head', 'صف العناوين', 'check', null, b.cfg.head !== 0)}${fld('B.cfg.hatch', 'تظليل خانات المسؤول', 'check', null, b.cfg.hatch !== 0)}</div><div class="vle-row">${fld('B.cfg.roleP', 'عرض عمود الصفة %', 'num', 1)}${fld('B.cfg.signH', 'ارتفاع صف التوقيع', 'num', 0.5)}</div>${fld('B.cfg.ral', 'محاذاة عمود الصفة', 'select', [['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']])}${fld('B.cfg.rb', 'عمود الصفة بخط عريض', 'check', null, b.cfg.rb !== 0)}` : ''}
+          ${fld('B.cfg.hal', 'محاذاة العناوين', 'select', [['', 'تلقائي'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']])}${fld('B.cfg.hb', 'العناوين بخط عريض', 'check', null, b.cfg.hb !== 0)}
+          <div class="vle-row">${fld('B.cfg.pad', 'هامش الخلية (مم)', 'num', 0.2)}${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}</div>${fld('B.cfg.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}${fld('B.cfg.font', 'خط الجدول', 'font')}
+          ${kind === 'sigs' ? html`<button type="button" class="btn btn-soft btn-block" data-sig2tbl>${UI.icon('list')} تحويله إلى جدول حر (تعديل كل خلية ودمجها)</button><p class="faint small">يصبح جدولاً عادياً تعدّل خلاياه وتدمجها وتلوّنها كما تشاء، وتبقى البيانات (الاسم، الرتبة، الرقم العسكري) تُملأ تلقائياً.</p>` : ''}`, true);
       const cfgBody = b.type === 'free' ? html`${fld('B.h', 'ارتفاع القسم (مم)', 'num', 1)}${fld('B.bg', 'خلفية القسم', 'color', 'clear')}<div class="vle-tbtn">${Object.entries(VL_EL_TYPES).map(([k, [l, ic]]) => html`<button type="button" class="btn btn-sm btn-soft" data-rb="ins:${k}">${UI.icon(ic)} ${l}</button>`)}</div><div class="vle-layers">${(b.els || []).slice().sort((x, y) => (y.z || 0) - (x.z || 0)).map((x) => html`<button type="button" class="vle-layer" data-pick="${x.id}">${UI.icon(VL_EL_TYPES[x.t][1])}<span>${x.t === 'text' ? String(x.text || '').slice(0, 26) || 'نص' : VL_EL_TYPES[x.t][0]}</span>${x.lock ? UI.icon('lock') : ''}</button>`)}</div>`
         : b.type === 'facts' ? html`${fld('B.cfg.style', 'الشكل', 'select', [['cards', 'بطاقات'], ['table', 'جدول'], ['line', 'سطر واحد']])}${fld('B.cfg.cols', 'عدد الأعمدة', 'num', 1)}${fld('B.cfg.bg', 'الخلفية', 'color')}${fld('B.cfg.lbg', 'خلفية العناوين (الجدول)', 'color')}${fld('B.cfg.lc', 'لون العناوين', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.radius', 'تدوير الزوايا', 'num', 0.5)}<p class="faint small">تتغير البيانات حسب نوع الاستمارة تلقائياً (الإدارة، القسم، المرجع، موعد الإرجاع…).</p>`
           : b.type === 'items' ? html`<p class="faint small">يمتد الجدول تلقائياً بعدد الأصناف ويدفع ما بعده للأسفل. في الاستبدال يظهر جدول الجهاز القديم تحته.</p>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 }))), true)}${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.hc', 'لون نص العناوين', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}<div class="vle-row">${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>${fld('B.cfg.minRows', 'أقل عدد أسطر (تكمَّل بأسطر فارغة)', 'num', 1)}${fld('B.cfg.total', 'سطر الإجمالي', 'check', null, b.cfg.total !== 0)}${fld('B.cfg.zebra', 'تظليل الأسطر بالتناوب', 'check')}`
             : b.type === 'notes' ? html`${fld('B.cfg.label', 'عنوان الخانة')}${fld('B.cfg.minH', 'أقل ارتفاع (مم)', 'num', 1)}${fld('B.cfg.lc', 'لون العنوان', 'color')}${fld('B.cfg.bg', 'الخلفية', 'color')}${fld('B.cfg.bc', 'لون الحد', 'color')}<div class="vle-row">${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}${fld('B.cfg.radius', 'التدوير', 'num', 0.5)}</div>`
-              : html`${b.type === 'ret' ? html`${fld('B.cfg.title', 'عنوان الخانة', 'text', null, b.cfg.title || 'يُعبَّأ عند الإرجاع')}${fld('B.cfg.t1', 'تسمية المُعيد', 'text', null, b.cfg.t1 || 'المُعيد')}${fld('B.cfg.t2', 'تسمية مستلم الإرجاع', 'text', null, b.cfg.t2 || 'مستلم الإرجاع')}` : html`${fld('B.cfg.layout', 'الشكل', 'select', [['rows', 'صفوف عرضية'], ['boxes', 'بطاقات متجاورة']])}${fld('B.cfg.recv', 'تسمية المستلم', 'text', null, b.cfg.recv || 'المستلم')}${fld('B.cfg.deliv', 'تسمية المُسلِّم', 'text', null, b.cfg.deliv || 'المُسلِّم')}${fld('B.cfg.appr', 'تسمية المسؤول', 'text', null, b.cfg.appr || 'اعتماد المسؤول')}${fld('B.cfg.approver', 'سطر اعتماد المسؤول (توقيع فقط)', 'check', null, b.cfg.approver !== 0)}${fld('B.cfg.subs', 'إظهار جهة كل طرف', 'check', null, b.cfg.subs !== 0)}${fld('B.cfg.extra', 'تواقيع إضافية (سطر لكل صفة)', 'area')}`}
-                <label class="vle-sl">الأعمدة</label>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))), false)}${fld('B.cfg.roleL', 'عنوان عمود الصفة', 'text', null, b.cfg.roleL || 'الصفة')}<div class="vle-row">${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}</div>${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.rbg', 'خلفية عمود الصفة', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.hc', 'لون التمييز', 'color')}`;
+              : html`${b.type === 'ret' ? html`${fld('B.cfg.title', 'عنوان الخانة', 'text', null, b.cfg.title || 'يُعبَّأ عند الإرجاع')}${fld('B.cfg.t1', 'تسمية المُعيد', 'text', null, b.cfg.t1 || 'المُعيد')}${fld('B.cfg.t2', 'تسمية مستلم الإرجاع', 'text', null, b.cfg.t2 || 'مستلم الإرجاع')}` : html`${fld('B.cfg.recv', 'تسمية المستلم', 'text', null, b.cfg.recv || 'المستلم')}${fld('B.cfg.deliv', 'تسمية المُسلِّم', 'text', null, b.cfg.deliv || 'المُسلِّم')}${fld('B.cfg.appr', 'تسمية المسؤول', 'text', null, b.cfg.appr || 'اعتماد المسؤول')}${fld('B.cfg.approver', 'سطر اعتماد المسؤول (توقيع فقط)', 'check', null, b.cfg.approver !== 0)}${fld('B.cfg.subs', 'إظهار جهة كل طرف', 'check', null, b.cfg.subs !== 0)}${fld('B.cfg.extra', 'تواقيع إضافية (سطر لكل صفة)', 'area')}`}
+                <label class="vle-sl">الأعمدة</label>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))), b.cfg.layout !== 'cols')}${fld('B.cfg.roleL', 'عنوان عمود الصفة', 'text', null, b.cfg.roleL || 'الصفة')}<div class="vle-row">${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}</div>${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.rbg', 'خلفية عمود الصفة', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.hc', 'لون التمييز', 'color')}`;
       body = html`<div class="vle-ih">${UI.icon(ti)}<b>${tl}</b><span class="grow"></span><button type="button" class="icon-btn" data-bmv="-1" title="نقل للأعلى">↑</button><button type="button" class="icon-btn" data-bmv="1" title="نقل للأسفل">↓</button><button type="button" class="icon-btn" data-bdup title="تكرار القسم">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-bdel title="حذف القسم">${UI.icon('trash')}</button></div>
         ${sec('bmain', 'إعدادات القسم', 'sliders', html`${fld('B.name', 'اسم القسم (للتنظيم)', 'text', null, b.name || tl)}${fld('B.mt', 'المسافة قبل القسم (مم)', 'num', 0.5)}${cfgBody}`, true)}
+        ${['sigs', 'ret', 'items'].includes(b.type) ? shapeSec(b.type) : ''}
         ${sec('bkinds', 'يظهر في', 'eye', kindsBox('B', b))}`;
     } else {
       body = html`<div class="vle-ih">${UI.icon('file')}<b>الصفحة</b></div>
@@ -12651,12 +12684,44 @@ Pages.voucherDesigner = async (ctx) => {
     const e = selE(); if (!e || e.t !== 'table') return; hist(true);
     const T = e.tbl, R = T.rows.length, C = T.rows[0].length, [ci, cj] = st.cell || [R - 1, C - 1];
     T.colW = T.colW && T.colW.length === C ? T.colW : Array(C).fill(100 / C);
-    if (op === 'rowA' || op === 'rowB') T.rows.splice(op === 'rowA' ? ci : ci + 1, 0, Array(C).fill(''));
-    if (op === 'rowD' && R > 1) { T.rows.splice(ci, 1); st.cell = null; }
-    if (op === 'colR' || op === 'colL') { const at = op === 'colR' ? cj : cj + 1; T.rows.forEach((r) => r.splice(at, 0, '')); T.colW.splice(at, 0, 100 / (C + 1)); if (T.al) T.al.splice(at, 0, ''); }
-    if (op === 'colD' && C > 1) { T.rows.forEach((r) => r.splice(cj, 1)); T.colW.splice(cj, 1); if (T.al) T.al.splice(cj, 1); st.cell = null; }
-    if (op === 'eq' || op.startsWith('col')) { const n = T.rows[0].length; if (op === 'eq') T.colW = Array(n).fill(100 / n); else { const s = T.colW.reduce((a, b) => a + b, 0); T.colW = T.colW.map((w) => (w / s) * 100); } }
+    T.span = T.span || {}; T.cs = T.cs || {};
+    /* إعادة ترقيم الخلايا المدموجة والمنسقة بعد إضافة صف أو عمود أو حذفه */
+    const remap = (fn) => ['span', 'cs'].forEach((n) => { const o = {}; Object.keys(T[n]).forEach((k) => { const [i, j] = k.split(',').map(Number), r = fn(i, j, n === 'span' ? T[n][k] : [1, 1]); if (r) o[`${r[0]},${r[1]}`] = T[n][k]; }); T[n] = o; });
+    const insR = (at) => remap((i, j, sp) => (i >= at ? [i + 1, j] : i + sp[0] > at ? null : [i, j]));
+    const insC = (at) => remap((i, j, sp) => (j >= at ? [i, j + 1] : j + sp[1] > at ? null : [i, j]));
+    if (op === 'rowA' || op === 'rowB') { const at = op === 'rowA' ? ci : ci + (T.span[`${ci},${cj}`] || [1])[0]; T.rows.splice(at, 0, Array(C).fill('')); insR(at); }
+    if (op === 'rowD' && R > 1) { T.rows.splice(ci, 1); remap((i, j, sp) => (i === ci ? null : i > ci ? [i - 1, j] : i + sp[0] > ci ? null : [i, j])); st.cell = null; }
+    if (op === 'colR' || op === 'colL') { const at = op === 'colR' ? cj : cj + (T.span[`${ci},${cj}`] || [1, 1])[1]; T.rows.forEach((r) => r.splice(at, 0, '')); T.colW.splice(at, 0, 100 / (C + 1)); if (T.al) T.al.splice(at, 0, ''); insC(at); }
+    if (op === 'colD' && C > 1) { T.rows.forEach((r) => r.splice(cj, 1)); T.colW.splice(cj, 1); if (T.al) T.al.splice(cj, 1); remap((i, j, sp) => (j === cj ? null : j > cj ? [i, j - 1] : j + sp[1] > cj ? null : [i, j])); st.cell = null; }
+    if (op === 'mR' || op === 'mD') {
+      const k = `${ci},${cj}`, sp = T.span[k] || [1, 1];
+      if (op === 'mR') { const nj = cj + sp[1]; if (nj >= C) { UI.toast('لا توجد خلية بعدها في الصف', 'warn'); return; } const o = T.span[`${ci},${nj}`] || [1, 1]; T.span[k] = [Math.max(sp[0], o[0]), sp[1] + o[1]]; delete T.span[`${ci},${nj}`]; if (T.rows[ci][nj]) T.rows[ci][cj] = [T.rows[ci][cj], T.rows[ci][nj]].filter(Boolean).join(' '); T.rows[ci][nj] = ''; }
+      else { const ni = ci + sp[0]; if (ni >= R) { UI.toast('لا توجد خلية تحتها', 'warn'); return; } const o = T.span[`${ni},${cj}`] || [1, 1]; T.span[k] = [sp[0] + o[0], Math.max(sp[1], o[1])]; delete T.span[`${ni},${cj}`]; if (T.rows[ni][cj]) T.rows[ci][cj] = [T.rows[ci][cj], T.rows[ni][cj]].filter(Boolean).join('\n'); T.rows[ni][cj] = ''; }
+    }
+    if (op === 'mX') delete T.span[`${ci},${cj}`];
+    if (op === 'eq' || op.startsWith('col')) { const n = T.rows[0].length; if (op === 'eq') T.colW = Array(n).fill(100 / n); else { const s2 = T.colW.reduce((a, b) => a + b, 0); T.colW = T.colW.map((w) => (w / s2) * 100); } }
     drawCanvas(); drawInsp();
+  };
+  /* تحويل جدول التواقيع إلى جدول حر يُعدَّل كاملاً (خلايا، دمج، ألوان) مع بقاء البيانات تلقائية */
+  const sigsToFree = () => {
+    const b = selB(); if (!b || b.type !== 'sigs') return;
+    hist(true);
+    const c = b.cfg || {}, cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on);
+    const tok = { recv: { no: '[الرقم العسكري للمستلم]', rank: '[رتبة المستلم]', name: '[المستلم]' }, deliv: { no: '[الرقم العسكري للمسلم]', rank: '[رتبة المسلم]', name: '[المسلم]' } };
+    const sub = { recv: '[جهة المستلم]', deliv: '[جهة المسلم]' };
+    const parties = [['recv', c.recv || 'المستلم'], ['deliv', c.deliv || 'المُسلِّم']];
+    if (c.order === 'dr') parties.reverse();
+    const rows = [[c.roleL || 'الصفة', ...cols.map((x) => x.l)], ...parties.map(([r, t]) => [`${t}${c.subs !== 0 ? `\n${sub[r]}` : ''}`, ...cols.map((x) => (tok[r][x.k] || ''))])];
+    const cs = {}; const span = {};
+    if (c.approver !== 0) { const i = rows.length; rows.push([c.appr || 'اعتماد المسؤول', ...cols.map(() => '')]); const si = cols.findIndex((x) => x.k === 'sign'); if (si > 0) { span[`${i},1`] = [1, si]; cs[`${i},1`] = { bg: '#f3f0e8' }; } }
+    String(c.extra || '').split('\n').map((x) => x.trim()).filter(Boolean).forEach((t) => rows.push([t, ...cols.map(() => '')]));
+    rows.forEach((r, i) => { if (i) cs[`${i},0`] = { ...(cs[`${i},0`] || {}), bg: c.rbg || '#faf8f3', b: 1 }; });
+    const cw = VL.cw(L()), wOf = (x) => Number(x.w) || (x.k === 'sign' ? 30 : x.k === 'name' ? 24 : 14), tw = cols.reduce((a, x) => a + wOf(x), 0), rp = 17;
+    const el = { id: uid('ve'), t: 'table', x: 0, y: 0, w: cw, h: rows.length * (c.rowH || 11), z: 1, s: { size: c.fs || 10 }, tbl: { rows, head: 1, hbg: c.hbg || '#f6f2e8', hc: c.hcol || '#111111', bc: c.bc || '#c9c2b1', bw: c.bw != null ? c.bw : 0.3, pad: 1.2, rowH: c.rowH || 11, colW: [rp, ...cols.map((x) => ((100 - rp) * wOf(x)) / tw)], al: ['right', ...cols.map((x) => (x.k === 'no' ? 'center' : 'right'))], span, cs } };
+    const nb = { id: uid('ve'), type: 'free', name: 'التواقيع (جدول حر)', mt: b.mt != null ? b.mt : 3, kinds: b.kinds || [], h: Math.ceil(el.h + 2), els: [el] };
+    const i = L().bands.indexOf(b); L().bands.splice(i, 1, nb);
+    st.sel = { b: nb.id, e: el.id }; st.cell = null; drawAll();
+    UI.toast('أصبح جدول التواقيع جدولاً حراً: عدّل أي خلية أو ادمجها، والبيانات تبقى تُملأ تلقائياً');
   };
   /* ── إدارة القوالب ── */
   const saveAll = async () => {
@@ -12715,6 +12780,7 @@ Pages.voucherDesigner = async (ctx) => {
     if (t.closest('[data-bdel]')) { const b = selB(); if (!(await UI.confirm(`حذف قسم «${b.name || VL_BAND_TYPES[b.type][0]}» من القالب؟`, { danger: true, ok: 'حذف' }))) return; hist(true); L().bands = L().bands.filter((x) => x.id !== b.id); st.sel = null; drawAll(); return; }
     const cm = t.closest('[data-colmv]'); if (cm) { const [p, i, d] = cm.dataset.colmv.split('|'); const arr = getP(p), a = Number(i), z = a + Number(d); if (!arr || z < 0 || z >= arr.length) return; hist(true); [arr[a], arr[z]] = [arr[z], arr[a]]; drawCanvas(); drawInsp(); return; }
     const tb = t.closest('[data-tb]'); if (tb) { tblOp(tb.dataset.tb); return; }
+    if (t.closest('[data-sig2tbl]')) { if (await UI.confirm('تحويل جدول التواقيع إلى جدول حر؟ ستتحكم في كل خلية، ويمكنك التراجع بـCtrl+Z.', { ok: 'تحويل', icon: 'list' })) sigsToFree(); return; }
     const im = t.closest('[data-img]'); if (im) { try { const r = await Pages.vleImage(); if (!r) return; hist(true); const e = selE(); e.src = r.src; e.h = Math.round(e.w * r.ar * 10) / 10; drawCanvas(); drawInsp(); } catch (err) { UI.error(err); } return; }
     if (t.closest('[data-logo]')) { hist(true); selE().src = 'logo'; drawCanvas(); drawInsp(); return; }
     if (t.closest('[data-ratio]')) { const e = selE(), n = elNode(e.id), img = n && n.querySelector('img'); if (img && img.naturalWidth) { hist(true); e.h = Math.round((e.w * img.naturalHeight / img.naturalWidth) * 10) / 10; drawCanvas(); drawInsp(); } return; }
@@ -12738,8 +12804,10 @@ Pages.voucherDesigner = async (ctx) => {
   view.addEventListener('input', (ev) => {
     const t = ev.target; if (!t.matches('[data-k]')) return;
     hist();
-    const v = t.dataset.t === 'b' ? (t.checked ? 1 : 0) : t.dataset.t === 'n' ? (t.value === '' ? '' : Number(t.value)) : t.value;
+    let v = t.dataset.t === 'b' ? (t.checked ? 1 : 0) : t.dataset.t === 'n' ? (t.value === '' ? '' : Number(t.value)) : t.value;
+    if (/\.cs\.[\d,]+\.b$/.test(t.dataset.k)) v = v === '' ? undefined : Number(v);
     setP(t.dataset.k, v);
+    if (/\.cfg\.layout$/.test(t.dataset.k)) drawInsp();
     if (t.dataset.k.startsWith('P.size') || t.dataset.k.startsWith('P.orient')) st.zoom = 0;
     rafDraw();
     if (t.type === 'checkbox' || t.tagName === 'SELECT') { drawRibbon(); if (t.dataset.k.endsWith('.layout') || t.dataset.k.endsWith('.dir') || t.dataset.k === 'P.frame.style') drawInsp(); }
@@ -12761,7 +12829,7 @@ Pages.voucherDesigner = async (ctx) => {
       if (cell && e.t === 'table') st.cell = cell.dataset.cell.split(',').map(Number);
       const was = st.sel && st.sel.e === e.id;
       st.sel = { b: b.id, e: e.id };
-      if (!was) { drawCanvas(); drawInsp(); drawRibbon(); } else if (cell) drawInsp();
+      if (!was) { drawCanvas(); drawInsp(); drawRibbon(); } else if (cell) { drawInsp(); $$('.vle-zoom .vl-csel').forEach((n) => n.classList.remove('vl-csel')); cell.classList.add('vl-csel'); }
       if (!e.lock) dragEl(ev, e, b, 'move');
       return;
     }
@@ -12807,6 +12875,91 @@ Pages.voucherDesigner = async (ctx) => {
   ctx.onCleanup(() => { document.removeEventListener('keydown', onKey, true); window.removeEventListener('beforeunload', leave); window.removeEventListener('resize', onR); $$('.vle-menu').forEach((m) => m.remove()); if (st.dirty) setTimeout(() => UI.toast('لم تُحفظ تعديلات القوالب الأخيرة', 'warn'), 300); });
 };
 Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تصميم الاستمارات الرسمية');
+
+/* ══════════ مركز الإعدادات والتحكم: مكان واحد لكل التعديلات والإضافات ══════════
+   كل قسم يظهر لمن يملك صلاحيته فقط، ويُفتح داخل المركز نفسه دون مغادرته. */
+const CC_FEAT = 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design';
+const CC_GROUPS = [
+  ['النظام', 'sliders', [
+    ['system', 'الإعدادات العامة', 'sliders', 'settings', 'اسم الجهة والنظام، اتفاقية الخدمة، القوائم، الردود، البيانات وتنظيف التجربة', '/settings', (c) => Pages.settings(c)],
+    ['features', 'تشغيل الخصائص وإيقافها', 'toggle', CC_FEAT, 'مركز التقييم، التعبئة الفورية، الصيانة الخارجية، الملاحظات الإدارية', '/features', (c) => Pages.features(c)],
+    ['nav', 'إظهار أقسام القائمة', 'eye', 'nav.manage', 'ما يظهر للموظفين والفنيين والإداريين من صفحات', '/nav-visibility', (c) => Pages.navVisibility(c)],
+    ['backup', 'النسخ الاحتياطي والاستعادة', 'database', 'backup.manage', 'أخذ النسخ واستعادتها وجدولة النسخ التلقائي', '/backup', (c) => Pages.backup(c)]
+  ]],
+  ['المستخدمون والصلاحيات', 'users', [
+    ['users', 'المستخدمون والصلاحيات', 'users', 'users.manage', 'إضافة الحسابات وتعديلها ومنح الصلاحيات وسحبها', '/users', (c) => Pages.users(c)],
+    ['passwords', 'كلمات المرور', 'key', 'users.password', 'إصدار كلمات المرور وتغييرها', '/passwords', (c) => Pages.passwords(c)],
+    ['org', 'الهيكل التنظيمي', 'layers', 'org.manage', 'الإدارات والأقسام والمكاتب', '/org', (c) => Pages.org(c)]
+  ]],
+  ['البلاغات والخدمة', 'ticket', [
+    ['tickets', 'فئات البلاغات وحقولها', 'clipboard', 'categories.manage', 'الفئات والحقول والملاحظات ومستندات كل فئة', '/ticket-admin', (c) => Pages.ticketAdmin(c)],
+    ['replies', 'الردود الجاهزة', 'message', 'replies.manage|users.manage', 'ردود وحلول جاهزة للفنيين', '/replies', (c) => Pages.repliesAdmin(c)],
+    ['ratings', 'مركز التقييم', 'star', 'ratings.manage', 'رضا المستفيدين وإعدادات تقييم البلاغات', '/ratings', (c) => Pages.ratingsCenter(c)],
+    ['surveys', 'الاستبيانات', 'poll', 'surveys.manage', 'إنشاء الاستبيانات والاختبارات ونشرها ونتائجها', '/surveys/manage', (c) => Pages.surveysManage(c)]
+  ]],
+  ['النماذج والاستمارات', 'file', [
+    ['vouchers', 'تصميم الاستمارات الرسمية', 'print', 'vouchers.design', 'محرر حر لسندات الصرف والإعارة والنقل والاستبدال وقوالبها', '/voucher-designer', (c) => Pages.voucherDesigner(c)],
+    ['forms', 'مكتبة النماذج', 'file', 'forms.manage|forms.hide|users.manage', 'رفع الاستمارات وإخفاؤها وقوالب التعبئة الفورية', '/forms', (c) => Pages.formsPage(c)]
+  ]],
+  ['المخازن', 'warehouse', [
+    ['printers', 'الطابعات والأحبار', 'printer', 'inventory.manage|settings', 'الماركات والموديلات والأحبار المتوافقة', '/printers', (c) => Pages.printers(c)],
+    ['extmaint', 'إعدادات الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'اسم القسم والمدة المعتادة والجهات', '', (c) => Pages.ccExtMaint(c)]
+  ]]
+];
+const CC_ALL = CC_GROUPS.flatMap(([, , items]) => items);
+const CC_PERM = [...new Set(CC_ALL.flatMap((x) => x[3].split('|')))].join('|');
+Pages.ccExtMaint = (ctx) => {
+  const draw = () => {
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إعدادات الصيانة الخارجية', sub: 'اسم القسم كما يظهر في القائمة والسندات، والمدة المعتادة، والجهات الخارجية', illu: 'tools' })}
+      <div class="grid g-2">${UI.panel({ title: 'القسم', icon: 'sliders', body: html`<div class="form-grid">${UI.field({ name: 'name', label: 'اسم القسم', wide: true }, XM.name())}${UI.field({ name: 'days', label: 'المدة المعتادة للإرجاع (يوم)', type: 'number', min: 1, max: 365 }, XM.overdueDays())}${UI.field({ name: 'on', type: 'switch', text: 'إظهار القسم في القائمة' }, XM.on() ? 1 : 0)}</div><button class="btn btn-primary mt" data-act="save">${UI.icon('check')} حفظ</button>` })}
+      ${UI.panel({ title: `الجهات (${fmtNum(XM.vendors().length)})`, icon: 'building', tools: html`<button class="btn btn-sm btn-soft" data-act="vendors">${UI.icon('edit')} إدارة الجهات</button>`, body: XM.vendors().length ? html`<div class="xm-vlist">${XM.vendors().map((v) => html`<div class="xm-v"><span class="xm-vi">${UI.icon('building')}</span><div class="grow"><b>${v.name}</b><div class="t-sub">${[XM_VENDOR_TYPES[v.type], v.phone].filter(Boolean).join(' · ')}</div></div></div>`)}</div>` : html`<p class="muted">تُحفظ الجهة تلقائياً عند أول إرسال إليها.</p>` })}</div>`);
+  };
+  UI.on(ctx.view, 'click', '[data-act="save"]', async () => { const g = (n) => ctx.view.querySelector(`[name="${n}"]`); try { await XM.saveCfg({ name: g('name').value.trim() || 'الصيانة الخارجية', overdueDays: clamp(Number(g('days').value) || 14, 1, 365), off: g('on').checked ? 0 : 1 }); UI.toast('حُفظت الإعدادات'); draw(); } catch (e) { UI.error(e); } });
+  UI.on(ctx.view, 'click', '[data-act="vendors"]', async () => { await Pages.xmVendorsModal(); draw(); });
+  draw();
+};
+Pages.controlCenter = async (ctx) => {
+  const allowed = CC_ALL.filter((x) => Auth.can(x[3]));
+  const st = { s: ctx.query.s || (ctx.query.tab ? 'system' : 'home'), q: '', token: 0, cleanups: [] };
+  if (st.s !== 'home' && !allowed.some((x) => x[0] === st.s)) st.s = 'home';
+  const groups = CC_GROUPS.map(([g, gi, items]) => [g, gi, items.filter((x) => Auth.can(x[3]))]).filter(([, , items]) => items.length);
+  ctx.view.innerHTML = String(html`<div class="cc"><aside class="cc-nav"><div class="cc-head"><span class="cc-hi">${UI.icon('sliders')}</span><div><b>الإعدادات</b><small>مركز التحكم بالنظام</small></div><button type="button" class="icon-btn cc-fold" data-ccfold title="طي القائمة">${UI.icon('menu')}</button></div>
+      <div class="search-box cc-q">${UI.icon('search')}<input type="search" placeholder="ابحث في الإعدادات" data-ccq></div>
+      <button type="button" class="cc-item" data-cc="home">${UI.icon('grid')}<span>نظرة عامة</span></button>
+      ${groups.map(([g, , items]) => html`<div class="cc-grp"><span class="cc-gl">${g}</span>${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-item" data-cc="${k}" title="${dsc}" data-ccs="${normalizeAr(`${l} ${dsc}`)}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`)}</aside>
+    <main class="cc-main"></main></div>`);
+  const main = $('.cc-main', ctx.view), nav = $('.cc-nav', ctx.view);
+  const home = () => html`${UI.pageHead({ title: 'الإعدادات ومركز التحكم', sub: 'كل التعديلات والإضافات في مكان واحد — يظهر لك ما تملك صلاحيته فقط', illu: 'ups' })}
+    <div class="cc-status">${[['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0], ['طلب التقييم', Ratings.cfg().on], ['التعبئة الفورية', FF.on()], [XM.name(), XM.on()], ['الملاحظات الإدارية', VAULT.on()], ['قوالب الاستمارات', !!(VL.data().tpls || []).length]].map(([l, on]) => html`<span class="cc-st ${on ? 'on' : 'off'}"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</span>`)}</div>
+    ${groups.map(([g, gi, items]) => html`<section class="cc-sec"><h3>${UI.icon(gi)} ${g}</h3><div class="cc-tiles">${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-tile" data-cc="${k}"><span class="cc-ti">${UI.icon(ic)}</span><b>${l}</b><small>${dsc}</small></button>`)}</div></section>`)}`;
+  const open = async (s) => {
+    st.cleanups.splice(0).forEach((f) => { try { f(); } catch (_) { /* تجاهل */ } });
+    const tok = ++st.token; st.s = s;
+    $$('.cc-item', nav).forEach((b) => b.classList.toggle('on', b.dataset.cc === s));
+    const sec = CC_ALL.find((x) => x[0] === s);
+    ctx.view.querySelector('.cc').classList.toggle('wide', s === 'vouchers');
+    try { history.replaceState(history.state, '', `#/settings${s === 'home' ? '' : `?s=${s}`}`); } catch (_) { /* تجاهل */ }
+    const pane = document.createElement('div'); pane.className = 'cc-pane'; pane.tabIndex = -1;
+    main.replaceChildren ? main.replaceChildren(pane) : (main.innerHTML = '', main.appendChild(pane));
+    if (!sec) { pane.innerHTML = String(home()); UI.hydrate(pane); document.title = `الإعدادات | ${Data.c.settings.systemName}`; return; }
+    pane.innerHTML = '<div class="page-loading"><div class="skel" style="height:96px"></div><div class="skel" style="height:340px"></div></div>';
+    const sub = { params: {}, query: { ...ctx.query, s }, view: pane, alive: () => ctx.alive() && st.token === tok, onCleanup: (fn) => st.cleanups.push(fn) };
+    if (sec[5] && VIEW_MODES[sec[5]]) { UI._vkey = sec[5]; pane.classList.add('vm-' + UI.vmode(sec[5], VIEW_MODES[sec[5]])); } else UI._vkey = '';
+    try { await sec[6](sub); if (sub.alive()) { UI.hydrate(pane); document.title = `${sec[1]} | ${Data.c.settings.systemName}`; } } catch (e) { UI.error(e); if (sub.alive()) pane.innerHTML = String(UI.empty({ illu: 'box', title: 'تعذر فتح هذا القسم', text: e instanceof AppError ? e.message : '' })); }
+    if (window.innerWidth < 900) main.scrollIntoView({ block: 'start' });
+  };
+  UI.on(ctx.view, 'click', '[data-cc]', (e, el) => open(el.dataset.cc));
+  UI.on(ctx.view, 'click', '[data-ccfold]', () => ctx.view.querySelector('.cc').classList.toggle('folded'));
+  nav.querySelector('[data-ccq]').addEventListener('input', (e) => { const q = normalizeAr(e.target.value.trim()); $$('.cc-item[data-ccs]', nav).forEach((b) => { b.hidden = !!q && !b.dataset.ccs.includes(q); }); $$('.cc-grp', nav).forEach((g) => { g.hidden = !!q && !$$('.cc-item:not([hidden])', g).length; }); });
+  ctx.onCleanup(() => st.cleanups.splice(0).forEach((f) => { try { f(); } catch (_) { /* تجاهل */ } }));
+  await open(st.s);
+};
+Router.add('/settings', CC_PERM, Pages.controlCenter, 'الإعدادات ومركز التحكم');
+/* صفحات الإدارة المفتوحة مباشرة تُظهر «الإعدادات» نشطة في القائمة */
+{
+  const sa0 = Shell.setActive.bind(Shell);
+  Shell.setActive = (path) => { sa0(path); if (document.querySelector('.nav-link.active')) return; if (CC_ALL.some((x) => x[5] && (path === x[5] || path.startsWith(`${x[5]}/`))) || path.startsWith('/surveys/')) { const a = document.querySelector('.nav-link[data-path="/settings"]'); if (a) a.classList.add('active'); } };
+}
 
 boot();
 })();
