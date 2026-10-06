@@ -2152,7 +2152,7 @@ Pages.newTicket = async (ctx) => {
         <div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button></div>
         <div data-svcnote></div>${Pages.catNotes(c.id)}${Pages.categoryFormBar(c.id)}<div id="catFields">${Forms.render(c.id, st.x || {})}</div>${c.id === 'card' ? Forms.personsBlock(st.persons || []) : ''}${c.id === 'path_code' ? Forms.codeBlock(st.codes || []) : ''}
         <div class="field"><label for="tt">${Forms.titleLabel(c.id)}<em>*</em></label><input id="tt" name="title" maxlength="120" placeholder="${catCfg(c.id) ? 'اكتب عنواناً مختصراً وواضحاً' : 'مثال: الطابعة في مكتب 12 لا تطبع'}" value="${st.title || ''}">${Forms.quickTitles(c.id).length ? html`<div class="quick-chips" style="margin-top:6px">${Forms.quickTitles(c.id).map((x) => html`<button type="button" class="qchip" data-quick="${x}">${x}</button>`)}</div>` : ''}</div>
-        <div class="field"><label for="td">وصف المشكلة</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea></div>
+        <div class="field"><label for="td">وصف المشكلة</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea><div class="desc-tools" data-desctools></div></div>
         <div class="field"><label>مدى تأثير المشكلة</label><div class="seg" role="radiogroup">${Object.entries(PRIORITY).reverse().map(([k, p]) => html`<label class="tone-${p.tone}"><input type="radio" name="priority" value="${k}"${(st.priority || 'medium') === k ? raw(' checked') : ''}><span><i class="dot"></i>${p.label}<small class="faint">${PRIO_HINT[k]}</small></span></label>`)}</div><small class="hint" id="slaHint"></small></div>
         ${Forms.baseFields(c.id, st)}
         <div class="field"><label>المرفقات (صور أو ملفات)</label><div class="dropzone" id="drop" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب الملفات هنا أو انقر للاختيار</b><span class="small faint">حتى 5 ملفات، 10 ميجابايت لكل ملف</span></div><div class="files" id="fileList" style="margin-top:10px"></div></div>
@@ -2176,6 +2176,7 @@ Pages.newTicket = async (ctx) => {
       box.innerHTML = String(res.length ? html`${res.map((a) => html`<button type="button" class="kb-card" data-kb="${a.id}"><b>${a.title}</b><p>${a.body}</p><span class="kb-meta">${UI.icon('eye')} ${fmtNum(a.views)} ${UI.icon('check')} ${fmtNum(a.helpful)} وجدوه مفيداً</span></button>`)}` : html`<p class="faint small">لا توجد حلول مطابقة، أكمل البلاغ وسنساعدك.</p>`);
     }, 350);
     title.addEventListener('input', suggest); desc.addEventListener('input', suggest); suggest();
+    Pages.descTools($('[data-desctools]', view), desc, c.id);
     const addFiles = (list) => { for (const f of list) { if (files.length >= 5) { UI.toast('الحد الأقصى 5 مرفقات', 'warn'); break; } if (f.size > 10 * 1048576) { UI.toast(`الملف ${f.name} أكبر من 10 ميجابايت`, 'warn'); continue; } files.push(f); } renderFiles(); };
     const drop = $('#drop', view);
     drop.addEventListener('sq:files', (e) => addFiles(e.detail || []));
@@ -9335,7 +9336,7 @@ const RESOLVE_REPLIES = [
 ];
 const RESOLVE_METHODS = [['remote', 'عن بُعد', 'monitor'], ['visit', 'زيارة المكتب', 'pin'], ['part', 'استبدال قطعة', 'tools'], ['reset', 'إعادة ضبط أو تثبيت', 'refresh'], ['guide', 'إرشاد المستخدم', 'user'], ['other', 'أخرى', 'info']];
 const RESOLVE_LABEL = Object.fromEntries(RESOLVE_METHODS.map(([k, l]) => [k, l]));
-const RP_KINDS = [{ value: 'resolve', label: 'تسجيل الحل' }, { value: 'ticket', label: 'الردود على البلاغات' }, { value: 'chat', label: 'الاستفسارات' }, { value: '', label: 'عام (كل الأماكن)' }, { value: 'work', label: 'سجل الأعمال' }];
+const RP_KINDS = [{ value: 'resolve', label: 'تسجيل الحل' }, { value: 'ticket', label: 'الردود على البلاغات' }, { value: 'chat', label: 'الاستفسارات' }, { value: 'desc', label: 'وصف المشكلة (بلاغ جديد)' }, { value: '', label: 'عام (كل الأماكن)' }, { value: 'work', label: 'سجل الأعمال' }];
 const RP_KIND_LABEL = { resolve: 'تسجيل الحل', ticket: 'البلاغات', chat: 'الاستفسارات', work: 'سجل الأعمال', wtype: 'أنواع الأعمال', '': 'عام' };
 
 /* عدد مرات استخدام كل رد يُحفظ لكل مستخدم على جهازه، فلا يُعدَّل الرد العام عند كل استخدام */
@@ -13327,6 +13328,66 @@ const InkReq = {
     InkReq.loadHist().then(go);
   }).observe(document.body, { childList: true, subtree: true });
 }
+
+/* ══════════ حفظ وصف المشكلة كرد جاهز في «بلاغ جديد» ══════════ */
+Pages.descTools = (box, ta, catId) => {
+  if (!box || !ta || !Auth.user) return;
+  const st = { all: [] };
+  const fit = (r) => !r.cat || r.cat === catId;
+  const load = async () => { st.all = (await Data.replies.list('desc')).filter((r) => r.kind === 'desc'); draw(); };
+  const draw = () => {
+    if (!box.isConnected) return;
+    const list = st.all.filter(fit).sort((a, b) => (b.cat === catId) - (a.cat === catId)), has = ta.value.trim().length >= 5;
+    box.innerHTML = String(html`<div class="dt-bar">${list.length ? html`<div class="dt-chips"><span class="dt-l">${UI.icon('message')} أوصافك الجاهزة:</span>${list.slice(0, 8).map((r) => html`<button type="button" class="qchip dt-chip${r.scope === 'all' ? ' shared' : ''}" data-dtuse="${r.id}" title="${r.text}">${r.scope === 'all' ? UI.icon('users') : ''}${r.title}</button>`)}${list.length > 8 ? html`<button type="button" class="qchip" data-dtman>+${fmtNum(list.length - 8)}</button>` : ''}</div>` : ''}
+      <div class="dt-acts"><button type="button" class="btn btn-ghost btn-sm" data-dtsave${has ? '' : raw(' disabled title="اكتب الوصف أولاً"')}>${UI.icon('message')} حفظ الوصف كرد جاهز</button>${st.all.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-dtman>${UI.icon('settings')} إدارة الأوصاف</button>` : ''}</div></div>`);
+  };
+  const insert = (text) => {
+    const cur = ta.value.trim();
+    if (cur.includes(text.trim())) return;
+    ta.value = cur ? `${cur}\n${text}` : text;
+    ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  };
+  const saveModal = () => {
+    const text = ta.value.trim(), same = st.all.find((r) => r.text.trim() === text && (r.scope !== 'all' || Data.replies.canShare()));
+    const cat = Data.nameOf('categories', catId, '');
+    return UI.modal({
+      title: same ? 'تحديث الوصف الجاهز' : 'حفظ الوصف كرد جاهز', icon: 'message', size: 'sm',
+      body: html`<div class="dt-prev">${text}</div>
+        ${UI.fields([{ name: 'title', label: 'اسم مختصر يظهر كزر', required: true, placeholder: 'مثال: الطابعة لا تطبع', wide: true }], { title: (same && same.title) || text.split(/[.،\n]/)[0].slice(0, 40) })}
+        <label class="chk mt"><input type="checkbox" name="onlyCat"${!same || same.cat ? raw(' checked') : ''}> يظهر في بلاغات فئة «${cat || 'هذه الفئة'}» فقط</label>
+        ${Data.replies.canShare() ? html`<div class="field mt"><label>متاح لـ</label><div class="seg"><label><input type="radio" name="scope" value="me"${!same || same.scope !== 'all' ? raw(' checked') : ''}><span>${UI.icon('user')} أنا فقط</span></label><label><input type="radio" name="scope" value="all"${same && same.scope === 'all' ? raw(' checked') : ''}><span>${UI.icon('users')} كل الموظفين</span></label></div></div>` : html`<small class="hint mt">يُحفظ لك وحدك، ويظهر في كل أجهزتك.</small>`}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+        const v = UI.formValues(form), nm = normalizeAr(String(v.title || '').trim());
+        if (st.all.some((r) => r !== same && normalizeAr(r.title) === nm && (r.scope !== 'all' || r.userId === Auth.user.id || !r.userId))) throw new AppError('يوجد وصف محفوظ بهذا الاسم، اختر اسماً آخر');
+        return Data.replies.save({ ...(same || {}), title: v.title, text, kind: 'desc', cat: v.onlyCat ? catId : '', scope: v.scope || 'me' });
+      } }]
+    });
+  };
+  const manage = () => UI.modal({
+    title: 'أوصاف المشكلة الجاهزة', icon: 'message', size: 'md',
+    body: html`<div class="search-box">${UI.icon('search')}<input type="search" data-dtq placeholder="ابحث في الأوصاف"></div><div class="dt-list mt" data-dtlist></div>`,
+    onMount: (form) => {
+      const listEl = $('[data-dtlist]', form), q = $('[data-dtq]', form);
+      const paint = () => {
+        const s = normalizeAr(q.value), rows = st.all.filter((r) => !s || normalizeAr(`${r.title} ${r.text}`).includes(s));
+        const mine = (r) => r.scope !== 'all' ? r.userId === Auth.user.id : Data.replies.canShare();
+        listEl.innerHTML = String(rows.length ? html`${rows.map((r) => html`<div class="dt-row"><button type="button" class="grow dt-pick" data-dtpick="${r.id}"><b>${r.title}</b><span>${r.text}</span><small class="faint">${r.cat ? Data.nameOf('categories', r.cat, '') : 'كل الفئات'}${r.scope === 'all' ? ' · لكل الموظفين' : ''}</small></button>${mine(r) ? html`<button type="button" class="icon-btn" data-dtedit="${r.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-dtdel="${r.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`)}` : UI.noData('لا توجد أوصاف محفوظة'));
+      };
+      q.addEventListener('input', paint); paint();
+      UI.on(form, 'click', '[data-dtpick]', (e, el) => { const r = st.all.find((x) => x.id === el.dataset.dtpick); if (r) { Data.replies.use(r.id); insert(r.text); } const d = form.closest('dialog'); const x = d && d.querySelector('[data-x]'); if (x) x.click(); });
+      UI.on(form, 'click', '[data-dtedit]', async (e, el) => { const r = st.all.find((x) => x.id === el.dataset.dtedit); if (r && (await Pages.replyModal(r))) { await load(); paint(); } });
+      UI.on(form, 'click', '[data-dtdel]', async (e, el) => { const r = st.all.find((x) => x.id === el.dataset.dtdel); if (!r || !(await UI.confirm(`حذف الوصف «${r.title}»؟`, { danger: true, ok: 'حذف' }))) return; try { await Data.replies.remove(r.id); UI.toast('حُذف الوصف'); await load(); paint(); } catch (ex) { UI.error(ex); } });
+    },
+    actions: [{ label: 'إغلاق', kind: 'ghost' }]
+  });
+  box.addEventListener('click', async (e) => {
+    const u = e.target.closest('[data-dtuse]'); if (u) { const r = st.all.find((x) => x.id === u.dataset.dtuse); if (r) { Data.replies.use(r.id); insert(r.text); } return; }
+    if (e.target.closest('[data-dtsave]')) { if (ta.value.trim().length < 5) return; const r = await saveModal(); if (r) { UI.toast('حُفظ الوصف، وسيظهر زراً في بلاغاتك القادمة'); await load(); } return; }
+    if (e.target.closest('[data-dtman]')) { await manage(); draw(); }
+  });
+  ta.addEventListener('input', debounce(() => { const b = $('[data-dtsave]', box), ok = ta.value.trim().length >= 5; if (b && b.disabled === ok) draw(); }, 150));
+  draw(); load().catch((ex) => console.warn('desc replies', ex));
+};
 
 boot();
 })();

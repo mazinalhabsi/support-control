@@ -3254,4 +3254,22 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .ir-sum tfoot td{font-weight:800;background:var(--surface-2)}
 .ir-sum .pc-dot{display:inline-block;vertical-align:-1px}
 
+/* ═══════════ أوصاف المشكلة الجاهزة ═══════════ */
+.desc-tools{margin-top:6px}
+.dt-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
+.dt-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+.dt-l{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--ink-3)}
+.dt-l .ic{width:14px;height:14px}
+.dt-chip{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt-chip .ic{width:13px;height:13px;margin-inline-end:4px;vertical-align:-2px}
+.dt-chip.shared{border-color:rgba(var(--accent),.45)}
+.dt-acts{display:flex;gap:4px;margin-inline-start:auto}
+.dt-acts .btn:disabled{opacity:.45}
+.dt-prev{padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;line-height:1.8;white-space:pre-wrap;max-height:140px;overflow:auto;margin-bottom:12px}
+.dt-list{display:grid;gap:6px;max-height:55vh;overflow:auto}
+.dt-row{display:flex;align-items:center;gap:6px;padding:4px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2)}
+.dt-pick{display:grid;gap:2px;padding:6px 8px;border:0;background:none;color:var(--ink);font:inherit;text-align:start;cursor:pointer;border-radius:9px;min-width:0}
+.dt-pick:hover{background:var(--surface-3)}
+.dt-pick span{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 @supports not (inset:0){.app-bg{top:0;right:0;bottom:0;left:0}.app-bg::after{top:0;right:0;bottom:0;left:0}.nav-link.active::before{right:-14px}.dot-badge{left:-5px}.popover{left:0}.scrim{top:0;right:0;bottom:0;left:0}.panel::before{top:0;right:0;bottom:0;left:0}.btn-primary::before{top:0;right:0;bottom:0;left:0}.switch i::after{right:2px}.search-box>.ic{right:12px}.meter>span::after{left:-5px}.kpi::after{right:18px;left:18px}.tile::after{top:0;right:0;bottom:0;left:0}.tile .count{left:10px}.timeline::before{right:16px}.step::before{right:50%}.gauge .g-center{top:0;right:0;bottom:0;left:0}.hello::after{top:0;right:0;bottom:0;left:0}.orb .core{top:15px;right:15px;bottom:15px;left:15px}.orb.sun .rays{top:0;right:0;bottom:0;left:0}.orb.moon .rays{top:-8px;right:-8px;bottom:-8px;left:-8px}.file .rm{left:6px}.avatar-edit .icon-btn{left:-4px}.toasts{left:22px}.toast::after{right:0;left:0}.cmdk{top:0;right:0;bottom:0;left:0}.fx{top:0;right:0;bottom:0;left:0}.boot{top:0;right:0;bottom:0;left:0}.boot-bar::after{top:0;bottom:0}.crest-wrap::before{top:-6px;right:-6px;bottom:-6px;left:-6px}.input-icon>.ic{right:15px}.reveal{left:8px}.lux::after{top:0;right:0;bottom:0;left:0}.lux-pattern{top:0;right:0;bottom:0;left:0}.lux-net{top:0;right:0;bottom:0;left:0}.lux-dial{top:0;right:0;bottom:0;left:0}.lux-ring.r1{top:6%;right:6%;bottom:6%;left:6%}.lux-ring.r2{top:24%;right:24%;bottom:24%;left:24%}.lux-orbit{top:0;right:0;bottom:0;left:0}.lux .scene-caption{right:48px;left:48px}.login-panel::before{right:0;left:0}.sidebar{top:0;bottom:0;right:0}.popover{right:10px;left:10px}0%{right:-40%}100%{right:100%}.perm i::after{right:2px}.tv-alert{top:0;right:0;bottom:0;left:0}.spec-tag{left:10px}.dc-qty{right:10px}.combo-list{right:0}.flow-step:not(:last-child)::after{right:15px}.scan-frame{top:18%;right:12%;bottom:18%;left:12%}.ucard-role{right:10px}.tile-edit{right:8px}.wx-tools{left:6px}.org-tree ul>li::before{right:-18px}.oc-box .org-acts{left:-6px}.oc.side ul ul::before{right:-30px}.oc.side li::before,.oc.side li::after{right:0}.img-tag{right:4px}.ce-img span{right:6px;left:6px}.ucard::before{top:0;right:0;bottom:auto;left:0}.folder-badge{right:10px}.arch-chip{left:10px}.sv-hero::after{right:-80px}.sv-card::before{top:0;bottom:0;right:0}.svm-ring::before{top:6px;right:6px;bottom:6px;left:6px}.xm-steps li::before{right:50%}.ff-bg{top:0;right:0;bottom:0;left:0}.ff-layer{top:0;right:0;bottom:0;left:0}.ff-grip{left:100%}.vd-wm{top:0;right:0;bottom:0;left:0}.vl-frame{top:0;right:0;bottom:0;left:0}.vl-wm{top:0;right:0;bottom:0;left:0}.vl-print .vl-frame,.vl-print .vl-wm{top:0;right:0;bottom:0;left:0}.vle-col input[type=color]{top:0;right:0;bottom:0;left:0}.vle-zoom.grid .vl-b-free::before{top:0;right:0;bottom:0;left:0}.vl-guides{top:0;right:0;bottom:0;left:0}.brand-pick input:checked+span::after{right:7px}}

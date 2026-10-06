@@ -219,8 +219,9 @@ function self_sql(array $u): array {
     . " AND (store NOT IN ('notifications', 'chats') OR {$j('userId')} = ?)"
     . " AND (store <> 'loans' OR {$j('borrowerId')} = ?)"
     . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)"
-    . " AND (store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?)))";
-  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me]];
+    . " AND (store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?)"
+    . " AND (store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?)))";
+  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me, $me]];
 }
 /** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
 function owners_of(string $store, array $ids, string $field, array $known): array {
@@ -264,18 +265,22 @@ function visible_rows(array $rows, array $u): array {
       case 'loans': $ok = (string) ($d['borrowerId'] ?? '') === $me; break;
       case 'assets': $ok = (string) ($d['holderId'] ?? '') === $me || ($dep !== '' && (string) ($d['departmentId'] ?? '') === $dep); break;
       case 'surveyResponses': case 'surveyMarks': $ok = (string) ($d['userId'] ?? '') === $me; break;
+      /* الردود الخاصة لا تصل إلا لصاحبها */
+      case 'replies': $ok = ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me; break;
       default: $ok = true;
     }
     if ($ok) $out[] = $r;
   }
   return $out;
 }
-/** الملاحظات الإدارية: لمن يملك صلاحية الاطلاع فقط، والخاصة لكاتبها وحده */
+/** الملاحظات الإدارية: لمن يملك صلاحية الاطلاع فقط، والخاصة لكاتبها وحده. والردود الجاهزة الخاصة لصاحبها */
 function vault_rows(array $rows, array $user): array {
   $read = can($user, 'vault.read'); $me = (string) ($user['id'] ?? '');
   return array_values(array_filter($rows, function ($r) use ($read, $me) {
-    if ($r['store'] !== 'vault' || (int) $r['deleted']) return true;
+    if ((int) $r['deleted'] || !in_array($r['store'], ['vault', 'replies'], true)) return true;
     $d = is_array($r['_d']) ? $r['_d'] : [];
+    /* الردود والأوصاف الجاهزة الخاصة لا تصل إلا لصاحبها */
+    if ($r['store'] === 'replies') return ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me;
     return $read && (($d['visibility'] ?? 'shared') !== 'private' || (string) ($d['createdBy'] ?? '') === $me);
   }));
 }
