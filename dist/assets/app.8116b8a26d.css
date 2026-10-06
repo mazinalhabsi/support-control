@@ -3168,12 +3168,18 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .brand-pick label>span{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:96px;padding:12px 8px;border-radius:16px;font-weight:700;text-align:center;transition:transform .2s var(--spring),border-color .2s,box-shadow .2s}
 .brand-pick label:hover>span{transform:translateY(-2px)}
 .brand-pick input:checked+span::after{content:"✓";position:absolute;top:7px;inset-inline-start:7px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgb(var(--accent));color:var(--on-accent);font-size:12px;font-weight:900}
-.pc-brand,.choice-pick .pc-brand{display:grid;place-items:center;width:84px;height:40px;padding:0;border:0;border-radius:10px;background:var(--bc);box-shadow:0 6px 14px -8px var(--bc),inset 0 1px 0 rgba(255,255,255,.25);overflow:hidden}
-.pc-brand b{font:800 15px/1 'Segoe UI',Arial,sans-serif;color:#fff;letter-spacing:.02em;direction:ltr;white-space:nowrap}
-.pc-brand b.sm{font-size:11.5px;letter-spacing:.04em}
-.pc-brand.other{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px var(--line-2)}
+.pc-brand,.choice-pick .pc-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:100%;max-width:120px;height:52px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--ink);overflow:visible;direction:ltr}
+.pc-brand .bl-m{width:auto;height:38px;max-width:100%}
+.pc-brand .bl-m+.bl-t{margin-top:-1px}
+.pc-brand .bl-w{width:98px;max-width:100%;height:auto;max-height:30px}
+.pc-brand .bl-t{display:block;color:currentColor;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.brand-pick label>span{color:var(--ink-3)}
+.brand-pick .pc-brand{transition:transform .2s var(--spring),opacity .2s;opacity:.82}
+.brand-pick label:hover .pc-brand,.brand-pick input:checked+span .pc-brand{opacity:1;transform:scale(1.04)}
+.brand-pick input:checked+span{color:var(--ink)}
+.pc-brand.other{width:52px;border-radius:14px;background:var(--surface-3);box-shadow:inset 0 0 0 1.5px var(--line-2)}
 .pc-brand.other .ic{width:20px;height:20px;color:var(--ink-2);margin:0}
-.pc-brand.img{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+.pc-brand.img{width:100px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
 .pc-brand.img .opt-img,.pc-brand.img img{width:100%;height:100%;object-fit:contain;padding:3px}
 .brand-pick .pc-brand .ic{margin:0}
 .choice-pick .pc-brand span{padding:0;border:0;background:none;border-radius:0}
