@@ -3226,6 +3226,76 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .pc-brand.img .opt-img,.pc-brand.img img{width:100%;height:100%;object-fit:contain;padding:3px}
 .brand-pick .pc-brand .ic{margin:0}
 .choice-pick .pc-brand span{padding:0;border:0;background:none;border-radius:0}
+
+/* ═══════════ أحبار الموديل دفعة واحدة ═══════════ */
+.pis-cur{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px}
+.pis-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12px}
+.pis-kind{margin-bottom:12px}
+.pis-rows{display:grid;gap:8px}
+.pis-row{display:grid;grid-template-columns:120px minmax(0,1fr) auto 32px;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.pis-c{display:flex;align-items:center;gap:8px;font-size:14px}
+.pis-csel{height:36px;min-width:0;width:100%}
+.pis-row .input{height:38px}
+.pis-hi{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2);white-space:nowrap;cursor:pointer}
+.pis-tools{gap:6px;margin-top:8px;flex-wrap:wrap}
+@media (max-width:560px){.pis-row{grid-template-columns:minmax(0,1fr) auto}.pis-row .input{grid-column:1/-1;grid-row:2}.pis-hi{grid-column:1}}
+
+/* ═══════════ طلب أحبار لأكثر من طابعة ═══════════ */
+.ir{display:grid;gap:12px}
+.ir-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.ir-count{display:flex;align-items:center;gap:10px;font-weight:700}
+.ir-step{display:inline-flex;align-items:center;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;background:var(--surface);flex:none}
+.ir-step button{width:30px;height:32px;border:0;background:var(--surface-2);color:var(--ink);font:700 17px/1 inherit;cursor:pointer}
+.ir-step button:hover:not(:disabled){background:rgba(var(--accent),.18)}
+.ir-step button:disabled{opacity:.4;cursor:default}
+.ir .ir-step input,.ir-step input{flex:none;width:44px!important;min-width:0!important;max-width:44px;height:32px!important;min-height:0;border-radius:0;box-shadow:none;border:0;border-inline:1px solid var(--line);background:none;text-align:center;font:700 14px/1 inherit;color:var(--ink);-moz-appearance:textfield;padding:0}
+.ir-step input::-webkit-inner-spin-button,.ir-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ir-step.big b{min-width:40px;text-align:center;font-size:17px}
+.ir-step.big button{width:36px;height:36px}
+.ir-hist{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.ir-hist .ic{width:14px;height:14px;vertical-align:-2px}
+.ir-lines{display:grid;gap:12px}
+.ir-line{border:1px solid var(--line);border-radius:16px;background:var(--surface-2);padding:12px 14px;display:grid;gap:12px;transition:border-color .2s,box-shadow .2s;animation:fade .25s}
+.ir-line.ok{border-color:rgba(var(--green),.55)}
+.ir-line.miss{border-color:rgb(var(--red));box-shadow:0 0 0 3px rgba(var(--red),.15)}
+.ir-lh{display:flex;align-items:center;gap:10px}
+.ir-n{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;background:rgba(var(--accent),.18);color:rgb(var(--accent-ink));font-weight:800}
+.ir-ok{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgb(var(--green));color:#fff}
+.ir-ok .ic{width:14px;height:14px}
+.ir-sec{display:grid;gap:7px}
+.ir-sl{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:var(--ink-3)}
+.ir-sl .btn{margin-inline-start:auto}
+.btn-xs{height:26px;padding:0 9px;font-size:11.5px;border-radius:8px}
+.btn-xs .ic{width:13px;height:13px}
+.ir-brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.ir-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:62px;padding:6px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.ir-b:hover{transform:translateY(-1px);border-color:rgba(var(--accent),.5)}
+.ir-b.on{border-color:rgb(var(--accent));background:rgba(var(--accent),.12);color:var(--ink);box-shadow:0 0 0 2px rgba(var(--accent),.18)}
+.ir-b .pc-brand{zoom:.62;opacity:.85}
+.ir-b.on .pc-brand{opacity:1}
+.ir-b .pc-brand.other{zoom:.55}
+.ir-mrow{display:flex;gap:8px;flex-wrap:wrap}
+.ir-mrow select{flex:1 1 220px;min-width:0}
+.ir-mrow .input{flex:1 1 200px}
+.ir-inks{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.ir-ink{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);transition:border-color .15s,background .15s}
+.ir-ink.on{border-color:rgba(var(--accent),.7);background:rgba(var(--accent),.08)}
+.ir-ink b{font-size:13.5px;white-space:nowrap}
+.ir-ink .grow{min-width:0}
+.ir-free .ir-step{opacity:.55;transition:opacity .15s}
+.ir-free:focus-within .ir-step,.ir-free.has .ir-step{opacity:1}
+.ir-free{display:flex;gap:8px;align-items:center}
+.ir-free .input{flex:1;min-width:0;height:36px}
+.ir-where{height:36px}
+.ir-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.ir-total{display:inline-flex;align-items:center;gap:6px;font-weight:800}
+.ir-total .ic{width:16px;height:16px}
+.ir-sum .table{font-size:13px}
+.ir-sum .table td,.ir-sum .table th{vertical-align:middle}
+.ir-sum .table td.c,.ir-sum .table th.c{text-align:center}
+.ir-sum tr.ir-gap td{border-top:2px solid var(--line-2)}
+.ir-sum tfoot td{font-weight:800;background:var(--surface-2)}
+.ir-sum .pc-dot{display:inline-block;vertical-align:-1px}
 </style>
 </head>
 <body>
@@ -6715,16 +6785,16 @@ const PRINTER_MODELS = {
 };
 const INK_BY_MODEL = {
   'LaserJet Pro M404': ['HP 59A أسود', 'HP 59X أسود سعة عالية'], 'LaserJet M428': ['HP 59A أسود', 'HP 59X أسود سعة عالية'], 'LaserJet P1102': ['HP 85A أسود'], 'LaserJet M1536': ['HP 78A أسود'],
-  'Color LaserJet M454': ['HP 415A أسود', 'HP 415A سماوي', 'HP 415A أرجواني', 'HP 415A أصفر'], 'OfficeJet Pro 9010': ['HP 963 أسود', 'HP 963 سماوي', 'HP 963 أرجواني', 'HP 963 أصفر'],
-  'imageRUNNER 2630': ['Canon C-EXV 59 أسود'], 'i-SENSYS LBP223': ['Canon 057 أسود', 'Canon 057H أسود سعة عالية'], 'imageCLASS MF445': ['Canon 057 أسود'], 'imageRUNNER C3226': ['Canon C-EXV 54 أسود', 'Canon C-EXV 54 سماوي', 'Canon C-EXV 54 أرجواني', 'Canon C-EXV 54 أصفر'],
+  'Color LaserJet M454': ['HP 415A أسود', 'HP 415A أزرق', 'HP 415A أحمر', 'HP 415A أصفر'], 'OfficeJet Pro 9010': ['HP 963 أسود', 'HP 963 أزرق', 'HP 963 أحمر', 'HP 963 أصفر'],
+  'imageRUNNER 2630': ['Canon C-EXV 59 أسود'], 'i-SENSYS LBP223': ['Canon 057 أسود', 'Canon 057H أسود سعة عالية'], 'imageCLASS MF445': ['Canon 057 أسود'], 'imageRUNNER C3226': ['Canon C-EXV 54 أسود', 'Canon C-EXV 54 أزرق', 'Canon C-EXV 54 أحمر', 'Canon C-EXV 54 أصفر'],
   'ECOSYS P3145': ['Kyocera TK-3160 أسود'], 'ECOSYS M2540': ['Kyocera TK-1170 أسود'], 'TASKalfa 3253': ['Kyocera TK-6115 أسود'],
-  'EcoTank L3250': ['Epson 003 أسود', 'Epson 003 سماوي', 'Epson 003 أرجواني', 'Epson 003 أصفر'], 'WorkForce WF-7840': ['Epson 502 أسود', 'Epson 502 سماوي', 'Epson 502 أرجواني', 'Epson 502 أصفر'], 'EcoTank L15150': ['Epson 008 أسود', 'Epson 008 سماوي', 'Epson 008 أرجواني', 'Epson 008 أصفر'],
-  'SP 330DN': ['Ricoh SP 330H أسود'], 'IM C3000': ['Ricoh IM C3000 أسود', 'Ricoh IM C3000 سماوي', 'Ricoh IM C3000 أرجواني', 'Ricoh IM C3000 أصفر'],
+  'EcoTank L3250': ['Epson 003 أسود', 'Epson 003 أزرق', 'Epson 003 أحمر', 'Epson 003 أصفر'], 'WorkForce WF-7840': ['Epson 502 أسود', 'Epson 502 أزرق', 'Epson 502 أحمر', 'Epson 502 أصفر'], 'EcoTank L15150': ['Epson 008 أسود', 'Epson 008 أزرق', 'Epson 008 أحمر', 'Epson 008 أصفر'],
+  'SP 330DN': ['Ricoh SP 330H أسود'], 'IM C3000': ['Ricoh IM C3000 أسود', 'Ricoh IM C3000 أزرق', 'Ricoh IM C3000 أحمر', 'Ricoh IM C3000 أصفر'],
   'HL-L2375': ['Brother TN-2455 أسود'], 'MFC-L2750': ['Brother TN-2455 أسود'],
-  'VersaLink B405': ['Xerox 106R03585 أسود'], 'WorkCentre 6515': ['Xerox 106R03480 أسود', 'Xerox 106R03477 سماوي', 'Xerox 106R03478 أرجواني', 'Xerox 106R03479 أصفر'],
+  'VersaLink B405': ['Xerox 106R03585 أسود'], 'WorkCentre 6515': ['Xerox 106R03480 أسود', 'Xerox 106R03477 أزرق', 'Xerox 106R03478 أحمر', 'Xerox 106R03479 أصفر'],
   'Xpress M2020': ['Samsung MLT-D111S أسود'], 'ProXpress M4020': ['Samsung MLT-D201S أسود']
 };
-const INK_COLORS = ['أسود', 'سماوي (Cyan)', 'أرجواني (Magenta)', 'أصفر (Yellow)', 'الألوان الأربعة معاً'];
+const INK_COLORS = ['أسود', 'أزرق (Cyan)', 'أحمر (Magenta)', 'أصفر (Yellow)', 'الألوان الأربعة معاً'];
 const CAT_FORMS = {
   printer: [
     { k: 'kind', l: 'ما المطلوب بالضبط؟', t: 'choice', req: 1, o: ['الطابعة لا تطبع', 'انحشار ورق', 'جودة الطباعة ضعيفة', 'طلب حبر', 'تعريف الطابعة على جهاز', 'إعداد المسح إلى البريد'] },
@@ -6795,7 +6865,7 @@ const Forms = {
     const defs = this.def(catId); if (!defs.length) return '';
     return html`<div class="cat-fields" data-catfields="${catId}">${defs.map((f) => {
       const show = this.visible(f, v), opts = this.options(f, v), val = v[f.k] == null ? f.def || '' : v[f.k], isOther = val && opts.length && !opts.includes(val);
-      const input = f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick${f.k === 'brand' ? ' brand-pick' : ''}">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
+      const input = f.t === 'inklines' ? InkReq.html(f, v) : f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick${f.k === 'brand' ? ' brand-pick' : ''}">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
         : f.t === 'select' ? html`<select name="x_${f.k}">${html`<option value="">${opts.length ? 'اختر...' : 'لا توجد خيارات، اكتبها يدوياً'}</option>`}${opts.map((o) => html`<option value="${o}"${val === o ? raw(' selected') : ''}>${o}</option>`)}${f.other || !opts.length ? html`<option value="__other"${isOther ? raw(' selected') : ''}>أخرى / غير مدرج</option>` : ''}</select>${f.other || !opts.length ? html`<input class="input cf-other" name="x_${f.k}_other" placeholder="اكتب الاسم يدوياً" value="${isOther ? val : ''}"${isOther || !opts.length ? '' : raw(' hidden')}>` : ''}`
         : f.t === 'table' ? Forms.tableHTML(f, val)
         : f.t === 'multi' ? html`<div class="choice-pick multi">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
@@ -6803,7 +6873,7 @@ const Forms = {
         : f.t === 'date' ? html`<input name="x_${f.k}" type="date" value="${val}">`
         : html`<input name="x_${f.k}" type="${f.t === 'number' ? 'number' : 'text'}"${f.t === 'number' ? raw(' min="1"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${val}" placeholder="${f.hint || ''}">`;
       const chips = (f.t === 'text' || f.t === 'textarea') && opts.length ? html`<div class="quick-chips cf-chips">${opts.map((o) => html`<button type="button" class="qchip" data-cffill="x_${f.k}" data-val="${o}">${o}</button>`)}</div>` : '';
-      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
+      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table', 'inklines'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
     })}</div>`;
   },
   values(root) {
@@ -7923,7 +7993,7 @@ const ITEM_SPECS = {
   network: [{ k: 'ports', l: 'عدد المنافذ', o: ['8', '16', '24', '48'] }, { k: 'speed', l: 'السرعة', o: ['100Mbps', '1Gbps', '10Gbps'] }],
   storage: [{ k: 'stype', l: 'نوع الوسيط', o: ['فلاش USB', 'قرص خارجي', 'قرص داخلي HDD', 'قرص داخلي SSD', 'بطاقة ذاكرة'] }, { k: 'cap', l: 'السعة', o: ['16GB', '32GB', '64GB', '128GB', '256GB', '500GB', '1TB', '2TB', '4TB'] }, { k: 'iface', l: 'التوصيل', o: ['USB 2.0', 'USB 3.0', 'USB-C', 'SATA', 'NVMe'] }],
   power: [{ k: 'va', l: 'القدرة', o: ['650VA', '1000VA', '1500VA', '3000VA'] }],
-  ink: [{ k: 'color', l: 'اللون', o: ['أسود', 'سماوي', 'أرجواني', 'أصفر', 'طقم كامل'] }, { k: 'code', l: 'رمز الحبر', t: 'text' }, { k: 'forPrinter', l: 'لأي طابعة', t: 'text' }],
+  ink: [{ k: 'color', l: 'اللون', o: ['أسود', 'أزرق', 'أحمر', 'أصفر', 'طقم كامل'] }, { k: 'code', l: 'رمز الحبر', t: 'text' }, { k: 'forPrinter', l: 'لأي طابعة', t: 'text' }],
   cable: [{ k: 'ctype', l: 'نوع الكابل', o: ['شبكة Cat6', 'HDMI', 'VGA', 'طاقة', 'USB'] }, { k: 'len', l: 'الطول', o: ['1 م', '2 م', '3 م', '5 م', '10 م'] }],
   hardware: [{ k: 'part', l: 'نوع القطعة', o: ['ماوس', 'لوحة مفاتيح', 'ذاكرة RAM', 'قرص', 'بطاقة شبكة', 'مزود طاقة', 'مروحة', 'أخرى'] }, { k: 'ramSize', l: 'حجم الذاكرة (للذاكرة فقط)', o: ['2GB', '4GB', '8GB', '16GB', '32GB', '64GB'] }, { k: 'ramType', l: 'نوع الذاكرة (للذاكرة فقط)', o: ['DDR3', 'DDR3L', 'DDR4', 'DDR5', 'SO-DIMM DDR4', 'SO-DIMM DDR5'] }, { k: 'conn', l: 'التوصيل', multi: 1, o: ['USB', 'لاسلكي', 'Bluetooth', 'PS/2'] }]
 };
@@ -13666,7 +13736,7 @@ Router.add('/ratings', 'ratings.manage', Pages.ratingsCenter, 'مركز التق
 Router.add('/replies', 'tickets.work', Pages.repliesAdmin, 'الردود الجاهزة');
 
 /* ══════════ كتالوج الطابعات والأحبار: ماركة ← موديلات ← أحبار متوافقة ══════════ */
-const INK_COLORS_MAP = { black: ['أسود', '#20242c'], cyan: ['سماوي', '#0ea5c6'], magenta: ['أرجواني', '#d0337f'], yellow: ['أصفر', '#e8b10c'], color: ['ثلاثي الألوان', 'conic-gradient(#0ea5c6 0 33%,#d0337f 0 66%,#e8b10c 0)'], other: ['أخرى', '#8a94a6'] };
+const INK_COLORS_MAP = { black: ['أسود', '#20242c'], cyan: ['أزرق', '#1f6fd1'], magenta: ['أحمر', '#d42a3c'], yellow: ['أصفر', '#e8b10c'], color: ['ثلاثي الألوان', 'conic-gradient(#1f6fd1 0 33%,#d42a3c 0 66%,#e8b10c 0)'], other: ['أخرى', '#8a94a6'] };
 const PRINTER_KINDS = { mono: 'أبيض وأسود', color: 'ملوّنة' };
 const PrintCat = {
   can: () => !!Auth.user && (canUser(Auth.user, 'inventory.manage') || canUser(Auth.user, 'settings')),
@@ -13677,7 +13747,7 @@ const PrintCat = {
   inkLabel(k) { const c = INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other; return [k.code, k.color && k.color !== 'other' ? c[0] : '', k.note].filter(Boolean).join(' — '); },
   parseInk(label) {
     let s = String(label || ''), color = 'other', note = '';
-    [['أسود', 'black'], ['سماوي', 'cyan'], ['أرجواني', 'magenta'], ['أصفر', 'yellow']].forEach(([w, k]) => { if (s.includes(w)) { color = k; s = s.replace(w, ''); } });
+    [['أسود', 'black'], ['سماوي', 'cyan'], ['أزرق', 'cyan'], ['أرجواني', 'magenta'], ['أحمر', 'magenta'], ['أصفر', 'yellow']].forEach(([w, k]) => { if (s.includes(w)) { color = k; s = s.replace(w, ''); } });
     if (s.includes('سعة عالية')) { note = 'سعة عالية'; s = s.replace('سعة عالية', ''); }
     return { id: uid('ink'), code: s.replace(/\s+/g, ' ').trim(), color, note };
   },
@@ -13810,7 +13880,7 @@ Pages.printers = async (ctx) => {
       <div class="pc-cols">
         <div class="pc-col"><div class="pc-colh">${UI.icon('printer')} الماركات</div><div class="pc-list">${all.map((b) => html`<div class="pc-row${b.id === st.b ? ' on' : ''}${b.hidden ? ' off' : ''}" data-pcb="${b.id}" tabindex="0"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name}</b><div class="t-sub">${fmtNum(PrintCat.models(b).length)} موديل${b.hidden ? ' · مخفية' : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="brand" data-id="${b.id}" title="تعديل">${UI.icon('edit')}</button>` : ''}</div>`)}</div></div>
         <div class="pc-col"><div class="pc-colh">${UI.icon('layers')} موديلات ${cur ? cur.name : ''}${can && cur ? html`<button class="btn btn-soft btn-sm" data-pcadd="model">${UI.icon('plus')} موديل</button>` : ''}</div><div class="pc-list">${models.length ? models.map((m) => html`<div class="pc-row${m.id === st.m ? ' on' : ''}" data-pcmodel="${m.id}" tabindex="0"><div class="grow"><b class="ltr">${m.name}</b><div class="t-sub">${PRINTER_KINDS[m.kind] || ''}${m.kind ? ' · ' : ''}${fmtNum((m.inks || []).length)} حبر${m.note ? ` · ${m.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="model" data-id="${m.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="model" data-id="${m.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">لا توجد موديلات لهذه الماركة بعد.</p>`}</div></div>
-        <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} حبر</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} أحبار</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
       </div>`}</section>`);
     UI.hydrate(ctx.view);
     const qi = $('#pcq', ctx.view); if (st.q) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
@@ -13826,8 +13896,8 @@ Pages.printers = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-pcadd]', async (e, el) => {
     const k = el.dataset.pcadd;
     if (k === 'brand') { const r = await Pages.printerBrandModal(); if (r) { st.b = r.id; st.m = ''; UI.toast('أُضيفت الماركة'); } }
-    if (k === 'model') { const r = await Pages.printerModelModal(brand()); if (r) { st.m = r.id; UI.toast('أُضيف الموديل'); } }
-    if (k === 'ink') { if (!modelOf(st.m) || !modelOf(st.m).id) await writeModels((ms) => ms); const r = await Pages.printerInkModal(brand(), modelOf(st.m)); if (r) UI.toast('أُضيف الحبر'); }
+    if (k === 'model') { const r = await Pages.printerModelModal(brand()); if (r) { st.m = r.id; UI.toast('أُضيف الموديل'); const m2 = modelOf(r.id); if (m2) { const r2 = await Pages.printerInkSetModal(brand(), m2); if (r2) UI.toast(`أُضيف ${fmtNum(r2.added)} حبر`); } } }
+    if (k === 'ink') { if (!modelOf(st.m) || !modelOf(st.m).id) await writeModels((ms) => ms); const r = await Pages.printerInkSetModal(brand(), modelOf(st.m)); if (r) UI.toast(r.added ? `أُضيف ${fmtNum(r.added)} حبر للموديل` : 'أُضيفت الأحبار للموديلات المختارة'); }
     draw();
   });
   UI.on(ctx.view, 'click', '[data-pcedit]', async (e, el) => {
@@ -16333,6 +16403,238 @@ UI.orgPlaces = async (form, { dep = 'departmentId', unit = 'unitId' } = {}) => {
 {
   const al0 = UI.orgAutoLoc;
   UI.orgAutoLoc = async (form, o = {}) => { await UI.orgPlaces(form, o); return al0(form, o); };
+}
+
+/* ══════════ أحبار الموديل دفعة واحدة: كل الألوان وأرقامها في نافذة واحدة ══════════ */
+Pages.printerInkSetModal = (brand, model) => {
+  const color = model.kind === 'color' || (model.inks || []).some((k) => ['cyan', 'magenta', 'yellow'].includes(k.color));
+  const base = color ? ['black', 'cyan', 'magenta', 'yellow'] : ['black'];
+  const others = PrintCat.models(brand).filter((x) => x.id && x.id !== model.id);
+  const cur = model.inks || [];
+  const row = (c, i) => html`<div class="pis-row" data-pisrow="${i}"><span class="pis-c">${c === 'pick' ? html`<select class="pis-csel" data-piscol>${Object.entries(INK_COLORS_MAP).map(([k, [l]]) => html`<option value="${k}">${l}</option>`)}</select>` : html`<i class="pc-dot lg" style="background:${INK_COLORS_MAP[c][1]}"></i><b>${INK_COLORS_MAP[c][0]}</b><input type="hidden" data-piscol value="${c}">`}</span>
+    <input class="input ltr" data-piscode placeholder="${c === 'black' ? 'مثال: HP 415A' : 'رقم الحبر'}" autocomplete="off">
+    <label class="pis-hi"><input type="checkbox" data-pishi><span>سعة عالية</span></label>
+    ${c === 'pick' ? html`<button type="button" class="icon-btn" data-pisrm title="حذف">${UI.icon('x')}</button>` : html`<span></span>`}</div>`;
+  return UI.modal({
+    title: `أحبار ${model.name}`, icon: 'box', size: 'md',
+    body: html`<p class="faint small" style="margin-bottom:10px">اكتب رقم الحبر بجانب كل لون، واترك اللون فارغاً إن لم يكن مطلوباً. تُضاف كلها مرة واحدة.</p>
+      ${cur.length ? html`<div class="pis-cur"><span class="faint small">المسجّلة حالياً:</span>${cur.map((k) => html`<span class="pis-tag"><i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><b class="ltr">${k.code}</b></span>`)}</div>` : ''}
+      <div class="seg pis-kind"><label><input type="radio" name="pkind" value="mono"${color ? '' : raw(' checked')}><span>${UI.icon('printer')} أبيض وأسود</span></label><label><input type="radio" name="pkind" value="color"${color ? raw(' checked') : ''}><span>${UI.icon('layers')} ملوّنة — 4 ألوان</span></label></div>
+      <div class="pis-rows" data-pisrows>${base.map(row)}</div>
+      <div class="row pis-tools"><button type="button" class="btn btn-ghost btn-sm" data-pissame>${UI.icon('copy')} نسخ رقم الأسود لبقية الألوان</button><button type="button" class="btn btn-ghost btn-sm" data-pisadd>${UI.icon('plus')} لون آخر</button></div>
+      ${others.length ? html`<div class="field mt"><label>متوافقة أيضاً مع <small class="faint">— اختياري، تُضاف الأحبار نفسها لهذه الموديلات</small></label><div class="chip-pick">${others.map((x) => html`<label><input type="checkbox" name="also" value="${x.id}"><span>${x.name}</span></label>`)}</div></div>` : ''}`,
+    onMount: (form) => {
+      const rows = $('[data-pisrows]', form);
+      let n = 100;
+      form.addEventListener('change', (e) => {
+        if (e.target.name !== 'pkind') return;
+        const want = e.target.value === 'color' ? ['black', 'cyan', 'magenta', 'yellow'] : ['black'];
+        const keep = {}; $$('.pis-row', rows).forEach((r) => { const c = $('[data-piscol]', r).value; keep[c] = [$('[data-piscode]', r).value, $('[data-pishi]', r).checked]; });
+        rows.innerHTML = String(html`${want.map(row)}`);
+        $$('.pis-row', rows).forEach((r) => { const k = keep[$('[data-piscol]', r).value]; if (k) { $('[data-piscode]', r).value = k[0]; $('[data-pishi]', r).checked = k[1]; } });
+      });
+      UI.on(form, 'click', '[data-pissame]', () => { const all = $$('[data-piscode]', rows), v = all[0] && all[0].value.trim(); if (!v) { UI.toast('اكتب رقم الحبر الأسود أولاً', 'warn'); all[0] && all[0].focus(); return; } all.slice(1).forEach((x) => { if (!x.value.trim()) x.value = v; }); });
+      UI.on(form, 'click', '[data-pisadd]', () => { rows.insertAdjacentHTML('beforeend', String(row('pick', n++))); const r = rows.lastElementChild; $('[data-piscol]', r).value = 'other'; $('[data-piscode]', r).focus(); });
+      UI.on(form, 'click', '[data-pisrm]', (e, el) => el.closest('.pis-row').remove());
+      const f0 = $('[data-piscode]', rows); if (f0) setTimeout(() => f0.focus(), 60);
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ الأحبار', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const add = $$('.pis-row', form).map((r) => ({ code: $('[data-piscode]', r).value.replace(/\s+/g, ' ').trim(), color: $('[data-piscol]', r).value || 'other', note: $('[data-pishi]', r).checked ? 'سعة عالية' : '' })).filter((x) => x.code);
+      if (!add.length) throw new AppError('اكتب رقم حبر واحد على الأقل');
+      const kind = (form.querySelector('[name="pkind"]:checked') || {}).value || model.kind || 'mono';
+      const also = $$('[name="also"]:checked', form).map((x) => x.value), b = await DB.get('printers', brand.id);
+      const same = (a, x) => a.code.toLowerCase() === x.code.toLowerCase() && a.color === x.color;
+      let added = 0;
+      const models = PrintCat.models(b).map((x) => {
+        const mine = x.id === model.id; if (!mine && !also.includes(x.id)) return x;
+        const inks = (x.inks || []).slice(); add.forEach((k) => { if (!inks.some((y) => same(y, k))) { inks.push({ id: uid('ink'), ...k }); if (mine) added++; } });
+        return { ...x, inks, kind: mine ? kind : x.kind };
+      });
+      if (!added && !also.length) throw new AppError('هذه الأحبار مضافة للموديل مسبقاً');
+      await PrintCat.save({ ...b, models }, 'إضافة أحبار لموديل طابعة'); return { added };
+    } }]
+  });
+};
+
+/* ══════════ طلب الأحبار: أكثر من طابعة في بلاغ واحد، لكل طابعة مسارها وخاناتها ══════════ */
+const InkReq = {
+  MAX: 12,
+  tree() {
+    if (PrintCat.ready()) return PrintCat.tree();
+    return Object.keys(PRINTER_MODELS).filter((n) => n !== 'أخرى').map((name) => ({ b: { id: '', name }, models: PrintCat.models({ name }) }));
+  },
+  brand(name) { return InkReq.tree().find((x) => x.b.name === name); },
+  model(bn, mn) { const e = InkReq.brand(bn); return e ? e.models.find((m) => m.name === mn) : null; },
+  blank: () => ({ brand: '', model: '', mOther: '', inks: {}, free: '', freeQty: 1, where: '' }),
+  parse(s) { try { const a = JSON.parse(s); return Array.isArray(a) ? a : []; } catch (_) { return []; } },
+  inkKey: (k) => `${k.code}|${k.color || ''}`,
+  modelName: (l) => (l.model === '__other' ? l.mOther : l.model) || '',
+  /* أحبار السطر المختارة بكمياتها */
+  picked(l) {
+    const m = l.model && l.model !== '__other' ? InkReq.model(l.brand, l.model) : null, out = [];
+    if (m) (m.inks || []).forEach((k) => { const q = Number(l.inks[InkReq.inkKey(k)]) || 0; if (q > 0) out.push({ code: k.code, color: k.color, note: k.note || '', label: PrintCat.inkLabel(k), qty: q }); });
+    if (String(l.free || '').trim() && Number(l.freeQty) > 0) out.push({ code: l.free.trim(), color: 'other', note: '', label: l.free.trim(), qty: Number(l.freeQty) });
+    return out;
+  },
+  done: (l) => !!(l.brand && InkReq.modelName(l) && InkReq.picked(l).length),
+  pack(lines) { return lines.filter(InkReq.done).map((l) => ({ brand: l.brand, model: InkReq.modelName(l), where: String(l.where || '').trim(), inks: InkReq.picked(l) })); },
+  lineText: (l) => `${[l.brand, l.model].filter(Boolean).join(' ')} — ${l.inks.map((k) => `${k.label} × ${fmtNum(k.qty)}`).join('، ')}${l.where ? ` (${l.where})` : ''}`,
+  brandOpts() { const o = PrintCat.ready() ? PrintCat.opts() : { brands: Object.keys(PRINTER_MODELS), oi: {} }; return o; },
+  lineHTML(l, i, n) {
+    const bo = InkReq.brandOpts(), f = { k: 'brand', oi: bo.oi }, e = l.brand ? InkReq.brand(l.brand) : null, models = e ? e.models : [];
+    const m = l.model && l.model !== '__other' ? models.find((x) => x.name === l.model) : null, inks = m ? m.inks || [] : [];
+    const pk = InkReq.picked(l), ok = InkReq.done(l), tot = pk.reduce((s, k) => s + k.qty, 0);
+    const colors = inks.filter((k) => ['black', 'cyan', 'magenta', 'yellow'].includes(k.color));
+    return html`<div class="ir-line${ok ? ' ok' : ''}" data-irl="${i}">
+      <div class="ir-lh"><span class="ir-n">${i + 1}</span><div class="grow"><b>الطابعة ${i + 1}</b><div class="t-sub">${l.brand ? html`<bdi dir="ltr">${[l.brand, InkReq.modelName(l)].filter(Boolean).join(' ')}</bdi>` : 'اختر الماركة'}${tot ? ` · ${fmtNum(tot)} عبوة` : ''}</div></div>
+        ${ok ? html`<span class="ir-ok">${UI.icon('check')}</span>` : ''}
+        <button type="button" class="icon-btn" data-ir="dup" title="نسخ هذه الطابعة">${UI.icon('copy')}</button>${n > 1 ? html`<button type="button" class="icon-btn danger" data-ir="rm" title="حذف">${UI.icon('trash')}</button>` : ''}</div>
+      <div class="ir-sec"><div class="ir-sl">١ · الماركة</div><div class="ir-brands">${bo.brands.map((b) => html`<button type="button" class="ir-b${l.brand === b ? ' on' : ''}" data-irb="${b}" title="${b}">${Forms.optIco(f, b)}<span>${b}</span></button>`)}</div></div>
+      ${l.brand ? html`<div class="ir-sec"><div class="ir-sl">٢ · الموديل</div><div class="ir-mrow"><select data-irm><option value="">${models.length ? 'اختر الموديل...' : 'لا توجد موديلات مسجلة'}</option>${models.map((x) => html`<option value="${x.name}"${l.model === x.name ? raw(' selected') : ''}>${x.name}${x.kind === 'color' ? ' — ملوّنة' : ''}</option>`)}<option value="__other"${l.model === '__other' || (!models.length && l.brand) ? raw(' selected') : ''}>أخرى / غير مدرج</option></select>${l.model === '__other' || (!models.length && l.brand) ? html`<input class="input ltr" data-irmo placeholder="اكتب اسم الموديل" value="${l.mOther || ''}">` : ''}</div></div>` : ''}
+      ${l.brand && (m || l.model === '__other' || !models.length) ? html`<div class="ir-sec"><div class="ir-sl">٣ · الحبر والكمية${colors.length > 1 ? html`<button type="button" class="btn btn-soft btn-xs" data-ir="set">${UI.icon('layers')} الطقم كاملاً</button>` : ''}</div>
+        ${inks.length ? html`<div class="ir-inks">${inks.map((k) => { const q = Number(l.inks[InkReq.inkKey(k)]) || 0, c = INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other; return html`<div class="ir-ink${q ? ' on' : ''}" data-irk="${InkReq.inkKey(k)}"><i class="pc-dot lg" style="background:${c[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${c[0]}${k.note ? ` · ${k.note}` : ''}</div></div><div class="ir-step"><button type="button" data-ir="dec" aria-label="إنقاص">−</button><input type="number" min="0" max="99" data-irq value="${q}"><button type="button" data-ir="inc" aria-label="زيادة">+</button></div></div>`; })}</div>` : ''}
+        <div class="ir-free${String(l.free || '').trim() ? ' has' : ''}"><input class="input" data-irfree placeholder="${inks.length ? 'حبر آخر غير مدرج؟ اكتب رقمه (اختياري)' : 'اكتب رقم الحبر أو لونه'}" value="${l.free || ''}"><div class="ir-step"><button type="button" data-ir="fdec">−</button><input type="number" min="1" max="99" data-irfq value="${l.freeQty || 1}"><button type="button" data-ir="finc">+</button></div></div>
+        <input class="input ir-where" data-irw placeholder="مكان الطابعة أو رقمها — اختياري (مثال: مكتب 12)" value="${l.where || ''}"></div>` : ''}
+    </div>`;
+  },
+  inner(lines, hist) {
+    const n = lines.length, ok = lines.filter(InkReq.done), tot = ok.reduce((s, l) => s + InkReq.picked(l).reduce((a, k) => a + k.qty, 0), 0);
+    return html`<div class="ir-top"><div class="ir-count"><span>عدد الطابعات</span><div class="ir-step big"><button type="button" data-ir="lessl" aria-label="إنقاص"${n <= 1 ? raw(' disabled') : ''}>−</button><b>${fmtNum(n)}</b><button type="button" data-ir="morel" aria-label="زيادة"${n >= InkReq.MAX ? raw(' disabled') : ''}>+</button></div></div>
+        <small class="faint">لكل طابعة مسارها: الماركة ← الموديل ← الحبر والكمية. يمكنك طلب أحبار لطابعات مختلفة في البلاغ نفسه.</small></div>
+      ${hist && hist.length ? html`<div class="ir-hist"><span class="faint small">${UI.icon('clock')} طابعاتك السابقة:</span>${hist.map((h, i) => html`<button type="button" class="qchip" data-irh="${i}">${h.brand} ${h.model}</button>`)}</div>` : ''}
+      <div class="ir-lines">${lines.map((l, i) => InkReq.lineHTML(l, i, n))}</div>
+      <div class="ir-foot"><button type="button" class="btn btn-soft" data-ir="morel"${n >= InkReq.MAX ? raw(' disabled') : ''}>${UI.icon('plus')} إضافة طابعة أخرى</button><span class="ir-total">${ok.length ? html`${UI.icon('box')} ${fmtNum(tot)} عبوة لـ ${fmtNum(ok.length)} ${ok.length === 1 ? 'طابعة' : 'طابعات'}` : html`<span class="faint">لم يكتمل أي طلب بعد</span>`}</span></div>`;
+  },
+  html(f, v) {
+    let lines = InkReq.parse(v[`${f.k}_draft`] || '');
+    if (!lines.length) lines = InkReq.parse(v[f.k] || '').map((p) => ({ ...InkReq.blank(), brand: p.brand, model: p.model, where: p.where || '', inks: Object.fromEntries((p.inks || []).filter((k) => k.color !== 'other' || InkReq.model(p.brand, p.model)).map((k) => [`${k.code}|${k.color || ''}`, k.qty])) }));
+    if (!lines.length) lines = [InkReq.blank()];
+    return html`<div class="ir" data-inklines="${f.k}">${InkReq.hidden(f.k, lines)}<div class="ir-body">${InkReq.inner(lines, InkReq._hist)}</div></div>`;
+  },
+  hidden(k, lines) { const p = InkReq.pack(lines); return html`<input type="hidden" name="x_${k}" value="${p.length ? JSON.stringify(p) : ''}"><input type="hidden" name="x_${k}_draft" value="${JSON.stringify(lines)}">`; },
+  state: (box) => InkReq.parse($(`[name="x_${box.dataset.inklines}_draft"]`, box).value),
+  /* حفظ الحالة في الخانتين المخفيتين، وإعادة الرسم عند تغيّر البنية */
+  commit(box, lines, redraw) {
+    const k = box.dataset.inklines, p = InkReq.pack(lines);
+    $(`[name="x_${k}"]`, box).value = p.length ? JSON.stringify(p) : '';
+    $(`[name="x_${k}_draft"]`, box).value = JSON.stringify(lines);
+    if (redraw) {
+      const ae = document.activeElement, sel = ae && box.contains(ae) ? [ae.closest('[data-irl]') && ae.closest('[data-irl]').dataset.irl, ae.dataset.ir || '', Object.keys(ae.dataset).join(','), (ae.closest('[data-irk]') || {}).dataset ? ae.closest('[data-irk]').dataset.irk : ''] : null;
+      $('.ir-body', box).innerHTML = String(InkReq.inner(lines, InkReq._hist));
+      if (sel) { const line = $(`[data-irl="${sel[0]}"]`, box); const t = line && (sel[3] ? $(`[data-irk="${CSS.escape(sel[3])}"] ${sel[1] ? `[data-ir="${sel[1]}"]` : '[data-irq]'}`, line) : sel[1] ? $(`[data-ir="${sel[1]}"]`, line) : null); if (t) t.focus(); }
+    } else {
+      const lineBoxes = $$('[data-irl]', box); lines.forEach((l, i) => { const lb = lineBoxes[i]; if (lb) lb.classList.toggle('ok', InkReq.done(l)); });
+    }
+    const hid = $(`[name="x_${k}"]`, box); hid.dispatchEvent(new Event('change', { bubbles: true }));
+  },
+  async loadHist() {
+    try {
+      if (!Auth.user) return [];
+      const mine = await DB.getAll('tickets', 'requester_createdAt', KR([Auth.user.id, 0], [Auth.user.id, Infinity]));
+      const seen = new Map();
+      mine.sort((a, b) => b.createdAt - a.createdAt).forEach((t) => { const e = t.extra || {}; (e.inkLines || []).forEach((l) => { const key = `${l.brand}|${l.model}`; if (!seen.has(key)) seen.set(key, { brand: l.brand, model: l.model, where: l.where || '' }); }); const g = (k) => ((e.fields || []).find((x) => x.key === k) || {}).value; if (['ink', 'printer'].includes(t.categoryId) && g('brand') && g('model')) { const key = `${g('brand')}|${g('model')}`; if (!seen.has(key)) seen.set(key, { brand: g('brand'), model: g('model'), where: '' }); } });
+      return [...seen.values()].filter((h) => InkReq.brand(h.brand)).slice(0, 6);
+    } catch (_) { return []; }
+  }
+};
+{
+  /* حقل طلب الأحبار يحل محل خانات الماركة والموديل والحبر والكمية في فئة الأحبار */
+  const d1 = Forms.def;
+  Forms.def = (catId) => {
+    const defs = d1(catId);
+    if (catId !== 'ink' || !defs.some((f) => f.k === 'brand') || !defs.some((f) => f.k === 'ink')) return defs;
+    const out = []; defs.forEach((f) => { if (f.k === 'brand') out.push({ k: 'lines', l: 'الأحبار المطلوبة', t: 'inklines', req: 1 }); else if (!['model', 'ink', 'qty'].includes(f.k)) out.push(f); });
+    return out;
+  };
+  const t1 = Forms.title;
+  Forms.title = (catId, v) => {
+    if (catId !== 'ink' || !v || !('lines' in v || 'lines_draft' in v)) return t1(catId, v);
+    const p = InkReq.parse(v.lines || ''); if (!p.length) return 'طلب أحبار';
+    if (p.length === 1) { const l = p[0]; return `طلب حبر ${l.inks.map((k) => k.code).join(' + ')} — ${l.brand} ${l.model}`.trim(); }
+    if (p.length === 2) return `طلب أحبار — ${p.map((l) => `${l.brand} ${l.model}`).join(' و ')}`;
+    return `طلب أحبار لـ ${fmtNum(p.length)} طابعات (${[...new Set(p.map((l) => l.brand))].join('، ')})`;
+  };
+  const e1 = Forms.extra;
+  Forms.extra = (id, v) => {
+    const types = new Map(Forms.def(id).map((f) => [f.k, f.t])), key = [...types].find(([, t]) => t === 'inklines');
+    if (!key) return e1(id, v);
+    const p = InkReq.parse((v || {})[key[0]] || ''), rest = { ...(v || {}) }; delete rest[key[0]]; delete rest[`${key[0]}_draft`];
+    const r = e1(id, rest) || { fields: [] };
+    r.fields = [...p.map((l, i) => ({ key: `ink${i + 1}`, label: `الطابعة ${i + 1}`, value: InkReq.lineText(l) })), ...(r.fields || [])];
+    if (p.length) r.inkLines = p;
+    return r.fields.length ? r : null;
+  };
+  /* عرض الطلب في صفحة البلاغ كجدول */
+  const s1 = Forms.summary.bind(Forms);
+  Forms.summary = (t) => {
+    const e = t.extra || {}; if (!Array.isArray(e.inkLines) || !e.inkLines.length) return s1(t);
+    const other = (e.fields || []).filter((f) => !/^ink\d+$/.test(f.key)), tot = e.inkLines.reduce((s, l) => s + l.inks.reduce((a, k) => a + k.qty, 0), 0);
+    let n = 0;
+    return html`<div class="ir-sum mt"><table class="table"><thead><tr><th>#</th><th>الطابعة</th><th>الحبر</th><th class="c">الكمية</th></tr></thead><tbody>${e.inkLines.map((l, i) => l.inks.map((k, j) => html`<tr${j === 0 && i ? raw(' class="ir-gap"') : ''}>${j === 0 ? html`<td rowspan="${l.inks.length}" class="c">${fmtNum(++n)}</td><td rowspan="${l.inks.length}"><b class="ltr">${l.brand} ${l.model}</b>${l.where ? html`<div class="t-sub">${UI.icon('pin')} ${l.where}</div>` : ''}</td>` : ''}<td><i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i> <span class="ltr">${k.code}</span> <small class="faint">${k.color && k.color !== 'other' ? (INK_COLORS_MAP[k.color] || [''])[0] : ''}${k.note ? ` · ${k.note}` : ''}</small></td><td class="c t-num"><b>${fmtNum(k.qty)}</b></td></tr>`))}</tbody><tfoot><tr><td colspan="3">الإجمالي</td><td class="c t-num"><b>${fmtNum(tot)}</b></td></tr></tfoot></table></div>${other.length ? html`<dl class="kv cat-kv mt">${other.map((f) => html`<dt>${UI.icon('tag')}${f.label}</dt><dd>${f.value}</dd>`)}</dl>` : ''}`;
+  };
+  /* أصناف المخزن: صنف لكل حبر مطلوب بكميته */
+  const tp1 = Pages.ticketParts;
+  Pages.ticketParts = async (t) => {
+    const e = t.extra || {}; if (!Array.isArray(e.inkLines) || !e.inkLines.length || !Auth.can('inventory.read')) return tp1(t);
+    const canMove = Auth.can('inventory.move') && OPEN.includes(t.status), rows = [];
+    for (const l of e.inkLines) for (const k of l.inks) {
+      let it = null; for (const q of [k.code, `${k.code} ${(INK_COLORS_MAP[k.color] || [''])[0]}`]) { const { rows: r } = await Data.inv.items({ q, limit: 3 }); it = r.find((x) => normalizeAr(x.name).includes(normalizeAr((INK_COLORS_MAP[k.color] || [''])[0] || ''))) || r[0]; if (it) break; }
+      rows.push({ l, k, it });
+    }
+    return UI.panel({ title: 'من المخزن', icon: 'box', sub: 'صنف لكل حبر مطلوب', body: html`<div class="list">${rows.map(({ l, k, it }) => html`<div class="list-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow ellipsis"><b class="ltr">${k.code}</b> <small class="faint">× ${fmtNum(k.qty)}</small><div class="t-sub">${it ? html`${it.name} · المتوفر ${fmtNum(it.onHand)}` : html`<span class="tone-red">غير موجود في المخزن</span>`} — ${l.brand} ${l.model}</div></div>${it ? UI.meter(it) : ''}${canMove && it && it.onHand > 0 ? html`<button class="btn btn-sm btn-ok" data-issue="${it.id}" data-qty="${Math.min(k.qty, it.onHand)}">${UI.icon('upload')} صرف</button>` : ''}</div>`)}</div>${canMove ? html`<button class="btn btn-ghost btn-sm btn-block mt" data-act="parts">${UI.icon('search')} صرف صنف آخر من المخزن</button>` : ''}` });
+  };
+  /* أحداث الحقل: تُعالَج في مرحلة الالتقاط قبل مستمع النموذج حتى تكون القيم محدثة */
+  const lineIdx = (el) => Number(el.closest('[data-irl]').dataset.irl);
+  document.addEventListener('click', (e) => {
+    const box = e.target.closest && e.target.closest('[data-inklines]'); if (!box) return;
+    const b = e.target.closest('[data-ir],[data-irb],[data-irh]'); if (!b || b.disabled) return;
+    e.preventDefault();
+    const lines = InkReq.state(box); if (!lines.length) lines.push(InkReq.blank());
+    const a = b.dataset.ir;
+    if (b.dataset.irh != null) { const h = (InkReq._hist || [])[Number(b.dataset.irh)]; if (h) { const empty = lines.findIndex((l) => !l.brand); const nl = { ...InkReq.blank(), brand: h.brand, model: h.model, where: h.where }; if (empty >= 0) lines[empty] = nl; else if (lines.length < InkReq.MAX) lines.push(nl); } return InkReq.commit(box, lines, true); }
+    if (a === 'morel') { if (lines.length < InkReq.MAX) lines.push(InkReq.blank()); InkReq.commit(box, lines, true); const ls = $$('[data-irl]', box); const last = ls[ls.length - 1]; if (last) last.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); return; }
+    if (a === 'lessl') { if (lines.length > 1) { const i = [...lines].reverse().findIndex((l) => !l.brand); lines.splice(i >= 0 ? lines.length - 1 - i : lines.length - 1, 1); } return InkReq.commit(box, lines, true); }
+    const i = lineIdx(b), l = lines[i]; if (!l) return;
+    if (b.dataset.irb != null) { if (l.brand !== b.dataset.irb) { l.brand = b.dataset.irb; l.model = ''; l.mOther = ''; l.inks = {}; } return InkReq.commit(box, lines, true); }
+    if (a === 'rm') { lines.splice(i, 1); return InkReq.commit(box, lines, true); }
+    if (a === 'dup') { if (lines.length < InkReq.MAX) lines.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(l)), inks: {}, free: '', freeQty: 1 }); return InkReq.commit(box, lines, true); }
+    if (a === 'set') { const m = InkReq.model(l.brand, l.model); const cs = new Set(); (m ? m.inks || [] : []).forEach((k) => { if (['black', 'cyan', 'magenta', 'yellow'].includes(k.color) && !cs.has(k.color)) { cs.add(k.color); const kk = InkReq.inkKey(k); l.inks[kk] = Math.max(1, Number(l.inks[kk]) || 0); } }); return InkReq.commit(box, lines, true); }
+    if (a === 'inc' || a === 'dec') { const kk = b.closest('[data-irk]').dataset.irk; l.inks[kk] = clamp((Number(l.inks[kk]) || 0) + (a === 'inc' ? 1 : -1), 0, 99); return InkReq.commit(box, lines, true); }
+    if (a === 'finc' || a === 'fdec') { l.freeQty = clamp((Number(l.freeQty) || 1) + (a === 'finc' ? 1 : -1), 1, 99); return InkReq.commit(box, lines, true); }
+  }, true);
+  const onField = (e, final) => {
+    const box = e.target.closest && e.target.closest('[data-inklines]'); if (!box) return;
+    const el = e.target; if (el.type === 'hidden') return;
+    const lines = InkReq.state(box), i = el.closest('[data-irl]') ? lineIdx(el) : -1, l = lines[i]; if (!l) return;
+    if (el.matches('[data-irm]')) { if (!final) return; l.model = el.value; l.inks = {}; const m = InkReq.model(l.brand, l.model); if (m && (m.inks || []).length === 1) l.inks[InkReq.inkKey(m.inks[0])] = 1; return InkReq.commit(box, lines, true); }
+    if (el.matches('[data-irmo]')) l.mOther = el.value;
+    else if (el.matches('[data-irq]')) { const kk = el.closest('[data-irk]').dataset.irk; l.inks[kk] = clamp(Number(el.value) || 0, 0, 99); el.closest('[data-irk]').classList.toggle('on', l.inks[kk] > 0); }
+    else if (el.matches('[data-irfree]')) l.free = el.value;
+    else if (el.matches('[data-irfq]')) l.freeQty = clamp(Number(el.value) || 1, 1, 99);
+    else if (el.matches('[data-irw]')) l.where = el.value;
+    else return;
+    InkReq.commit(box, lines, final && el.matches('[data-irq],[data-irfq]'));
+  };
+  document.addEventListener('input', (e) => onField(e, false), true);
+  document.addEventListener('change', (e) => onField(e, true), true);
+  /* السطر الناقص يمنع الانتقال للمراجعة مع تمييزه */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('[data-act="review"]'); if (!btn) return;
+    const box = document.querySelector('[data-inklines]'); if (!box) return;
+    const lines = InkReq.state(box), bad = lines.map((l, i) => (l.brand && !InkReq.done(l) ? i : -1)).filter((i) => i >= 0);
+    if (!bad.length || !lines.some(InkReq.done)) return;
+    e.stopPropagation(); e.preventDefault();
+    bad.forEach((i) => { const lb = $(`[data-irl="${i}"]`, box); if (lb) lb.classList.add('miss'); });
+    const first = $(`[data-irl="${bad[0]}"]`, box); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    UI.toast(`أكمل الطابعة ${bad.map((i) => fmtNum(i + 1)).join('، ')}: اختر الموديل والحبر وكميته، أو احذفها`, 'warn', 6000);
+  }, true);
+  /* طابعات الموظف السابقة تُحمَّل عند فتح فئة الأحبار */
+  new MutationObserver(() => {
+    const box = document.querySelector('[data-inklines]:not([data-irhist])'); if (!box) return;
+    box.setAttribute('data-irhist', '1');
+    const go = (h) => { InkReq._hist = h; if (!h.length || !box.isConnected) return; InkReq.commit(box, InkReq.state(box), true); };
+    InkReq.loadHist().then(go);
+  }).observe(document.body, { childList: true, subtree: true });
 }
 
 boot();
