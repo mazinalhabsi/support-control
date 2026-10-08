@@ -164,6 +164,15 @@ AddType application/manifest+json .webmanifest
 </IfModule>
 
 Options -Indexes
+
+# ── التحويل الإجباري إلى https (معطّل) ──
+# فعّله فقط بعد تثبيت شهادة الخادم على كل الأجهزة (docs/XAMPP-TUNING.md، القسم 8): أزل علامة # من الأسطر الخمسة التالية.
+# بعدها لا تمر كلمات المرور ولا رموز الجلسات على الشبكة نصاً مقروءاً.
+# <IfModule mod_rewrite.c>
+#   RewriteEngine On
+#   RewriteCond %{HTTPS} !=on
+#   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+# </IfModule>
 """)
 
 # 5) الخادم

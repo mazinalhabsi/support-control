@@ -7746,7 +7746,7 @@ const Sync = {
   keyOf(store, rec) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? k.map((f) => String(rec[f])).join('|') : String(rec[k]); },
   stores() { return Object.keys(DB.SCHEMA).filter((s) => s !== 'sessions'); },
   /* تُحفظ مراجع التعديلات فقط (المحتوى موجود أصلاً في قاعدة الجهاز)، وبتأجيل بسيط بدل الحفظ مع كل عملية */
-  saveQueue() { clearTimeout(this._sq); this._sq = setTimeout(() => { try { localStorage.setItem('sq_queue', JSON.stringify(this.queue.slice(0, 20000).map(({ store, id, rev, deleted }) => ({ store, id, rev, deleted })))); } catch (_) { /* تجاهل */ } }, 400); },
+  saveQueue() { clearTimeout(this._sq); this._sq = setTimeout(() => { try { localStorage.setItem('sq_queue', JSON.stringify(this.queue.slice(0, 20000).map(({ store, id, rev, deleted, g }) => ({ store, id, rev, deleted, ...(g ? { g } : {}) })))); } catch (_) { /* تجاهل */ } }, 400); },
   loadQueue() { try { this.queue = JSON.parse(localStorage.getItem('sq_queue') || '[]'); } catch (_) { this.queue = []; } },
   setStatus(s, err = '') { this.status = s; this.lastError = err; const b = $('#syncBtn'); if (b) { b.dataset.state = s; b.title = { online: 'متصل بالخادم', syncing: 'جارٍ المزامنة', offline: 'انقطع الاتصال بالخادم', local: 'وضع محلي: البيانات على هذا الجهاز فقط' }[s] || s; } },
 
@@ -7795,7 +7795,7 @@ const Sync = {
         put: (s, v) => { writes.push({ store: s, id: this.keyOf(s, v), rev: revOf(s, v), data: v }); return T.put(s, v); },
         del: (s, k) => { writes.push({ store: s, id: Array.isArray(k) ? k.map(String).join('|') : String(k), rev: -1, deleted: 1 }); return T.del(s, k); }
       }));
-      if (!this.applying && writes.length) this.enqueue(writes);
+      if (!this.applying && writes.length) { if (writes.length > 1) { const g = uid('g'); writes.forEach((w) => { w.g = g; }); } this.enqueue(writes); }
       return out;
     };
     this.hookAuth(); this.hookSeq(); this.hookFiles();
@@ -7816,10 +7816,15 @@ const Sync = {
     this.flushing = true; this.setStatus('syncing');
     try {
       while (this.queue.length) {
-        const taken = this.queue.slice(0, 400);
-        /* دمج التعديلات المتتالية على السجل نفسه: يُرسل آخرها فقط (أخف، ويمنع تعارض السجل مع نفسه) */
-        const last = new Map(); taken.forEach((op) => last.set(`${op.store}\u0001${op.id}`, op));
-        const batch = [...last.values()];
+        /* لا تُقسم مجموعة عملية واحدة على طلبين */
+        let cut = Math.min(400, this.queue.length);
+        while (cut < this.queue.length && this.queue[cut].g && this.queue[cut].g === this.queue[cut - 1].g) cut++;
+        const taken = this.queue.slice(0, cut);
+        /* دمج التعديلات المتتالية على السجل نفسه: يُرسل آخرها فقط (أخف، ويمنع تعارض السجل مع نفسه)،
+           وإن جمع السجل نفسه عمليتين صارت المجموعتان واحدة حتى تُحفظا معاً أو تُرفضا معاً */
+        const root = new Map(), find = (x) => { while (root.has(x) && root.get(x) !== x) x = root.get(x); return x; };
+        const last = new Map(); taken.forEach((op) => { const k = `${op.store}\u0001${op.id}`, prev = last.get(k); if (prev && prev.g) { if (op.g && find(op.g) !== find(prev.g)) root.set(find(op.g), find(prev.g)); else if (!op.g) op.g = prev.g; } last.set(k, op); });
+        const batch = [...last.values()]; batch.forEach((op) => { if (op.g) op.g = find(op.g); });
         /* تعديلات محفوظة من جلسة سابقة: يُقرأ محتواها الحالي من قاعدة الجهاز */
         await Promise.all(batch.filter((op) => !op.deleted && !op.data).map((op) => DB.get(op.store, this.localKey(op.store, op.id)).catch(() => null).then((rec) => { if (rec) op.data = rec; else op.skip = 1; })));
         for (let i = batch.length - 1; i >= 0; i--) if (batch[i].skip) batch.splice(i, 1);

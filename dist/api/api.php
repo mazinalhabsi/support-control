@@ -858,50 +858,79 @@ case 'push': {
     foreach ($ops as $op0) if (is_array($op0) && empty($op0['deleted']) && is_array($op0['data'] ?? null)) $GLOBALS['PUSH_BATCH'][(string) ($op0['store'] ?? '') . '|' . (string) ($op0['id'] ?? '')] = $op0['data'];
     $sel = $pdo->prepare("SELECT rev, data, deleted FROM docs WHERE store = ? AND doc_id = ? FOR UPDATE");
     $ins = $pdo->prepare("INSERT INTO docs (store, doc_id, rev, updated_at, deleted, data) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE rev = VALUES(rev), updated_at = VALUES(updated_at), deleted = VALUES(deleted), data = VALUES(data)");
+    /* العمليات المترابطة (مثل الصرف: الرصيد والحركة والوحدات) تصل بمعرّف مجموعة g، فتُحفظ كلها أو لا يُحفظ منها شيء:
+       لا تبقى حركة دون أثرها في الرصيد حين يعمل جهازان على الرصيد نفسه في اللحظة نفسها */
+    $units = []; $pos = [];
     foreach ($ops as $op) {
-      $store = (string) ($op['store'] ?? '');
-      $id = (string) ($op['id'] ?? '');
-      if ($store === '' || $id === '') continue;
-      $sel->execute([$store, $id]);
-      $cur = $sel->fetch();
-      $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
-      $deleted = !empty($op['deleted']) ? 1 : 0;
-      /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null) */
-      $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
-      if ($allowed === null) {
-        error_log('sqapa deny: ' . ($user['role'] ?? '?') . ' ' . ($user['id'] ?? '?') . ' ' . ($deleted ? 'del' : 'put') . " $store/$id");
-        /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
-        $back = $curData; if ($store === 'users' && is_array($back)) $back = strip_user($back);
-        $conflicts[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0, 'deleted' => $cur ? (int) $cur['deleted'] : 0, 'data' => $back, 'reason' => 'no_permission'];
-        continue;
-      }
-      $op['data'] = $deleted ? null : $allowed;
-      $expected = (int) ($op['rev'] ?? 0);
-      if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1) {
-        $data = json_decode($cur['data'], true);
-        if ($store === 'users' && is_array($data)) $data = strip_user($data);
-        $conflicts[] = ['store' => $store, 'id' => $id, 'rev' => (int) $cur['rev'], 'deleted' => (int) $cur['deleted'], 'data' => $data, 'reason' => 'conflict'];
-        continue;
-      }
-      $data = $op['data'] ?? null;
-      if ($store === 'users' && is_array($data) && $cur && !(int) $cur['deleted']) {
-        $old = json_decode($cur['data'], true) ?: [];
-        /* كلمة المرور لا تتغير إلا عبر passwd: نسخة قديمة محفوظة في متصفح ما لا تعيد كلمة مرور سابقة */
-        if (isset($old['pass'])) $data['pass'] = $old['pass']; else unset($data['pass']);
-        if (isset($old['passChangedAt'])) $data['passChangedAt'] = $old['passChangedAt'];
-      }
-      $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-      if ($json !== false && strlen($json) > max_doc_bytes()) { $conflicts[] = ['store' => $store, 'id' => $id, 'reason' => 'too_large', 'size' => strlen($json), 'max' => max_doc_bytes()]; continue; }
-      $ins->execute([$store, $id, $rev, now_ms(), $deleted, $json === false ? '{}' : $json]);
-      $applied[] = ['store' => $store, 'id' => $id, 'rev' => $rev];
-      /* رد جديد على استبيان: يسجّل الخادم بنفسه أن المستخدم شارك، فلا يُكرَّر الرد ولو تجاوز أحد الواجهة */
-      if ($store === 'surveyResponses' && !$deleted && !$cur && is_array($data)) {
-        $sid = (string) ($data['surveyId'] ?? ''); $mid = $sid . ':' . (string) ($user['id'] ?? '');
-        if ($sid !== '' && !doc_get('surveyMarks', $mid)) {
-          $ins->execute(['surveyMarks', $mid, $rev, now_ms(), 0, json_encode(['id' => $mid, 'surveyId' => $sid, 'userId' => (string) ($user['id'] ?? ''), 'at' => now_ms()], JSON_UNESCAPED_UNICODE)]);
-          $applied[] = ['store' => 'surveyMarks', 'id' => $mid, 'rev' => $rev];
+      if (!is_array($op)) continue;
+      $g = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($op['g'] ?? ''));
+      if ($g === '') { $units[] = [$op]; continue; }
+      if (!isset($pos[$g])) { $pos[$g] = count($units); $units[] = []; }
+      $units[$pos[$g]][] = $op;
+    }
+    foreach ($units as $ui => $unit) {
+      $atomic = count($unit) > 1; $uA = []; $uC = [];
+      if ($atomic) $pdo->exec("SAVEPOINT u$ui");
+      foreach ($unit as $op) {
+        $store = (string) ($op['store'] ?? '');
+        $id = (string) ($op['id'] ?? '');
+        if ($store === '' || $id === '') continue;
+        $sel->execute([$store, $id]);
+        $cur = $sel->fetch();
+        $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
+        $deleted = !empty($op['deleted']) ? 1 : 0;
+        /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null) */
+        $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
+        if ($allowed === null) {
+          error_log('sqapa deny: ' . ($user['role'] ?? '?') . ' ' . ($user['id'] ?? '?') . ' ' . ($deleted ? 'del' : 'put') . " $store/$id");
+          /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
+          $back = $curData; if ($store === 'users' && is_array($back)) $back = strip_user($back);
+          $uC[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0, 'deleted' => $cur ? (int) $cur['deleted'] : 0, 'data' => $back, 'reason' => 'no_permission'];
+          continue;
+        }
+        $op['data'] = $deleted ? null : $allowed;
+        $expected = (int) ($op['rev'] ?? 0);
+        if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1) {
+          $data = json_decode($cur['data'], true);
+          if ($store === 'users' && is_array($data)) $data = strip_user($data);
+          $uC[] = ['store' => $store, 'id' => $id, 'rev' => (int) $cur['rev'], 'deleted' => (int) $cur['deleted'], 'data' => $data, 'reason' => 'conflict'];
+          continue;
+        }
+        $data = $op['data'] ?? null;
+        if ($store === 'users' && is_array($data) && $cur && !(int) $cur['deleted']) {
+          $old = json_decode($cur['data'], true) ?: [];
+          /* كلمة المرور لا تتغير إلا عبر passwd: نسخة قديمة محفوظة في متصفح ما لا تعيد كلمة مرور سابقة */
+          if (isset($old['pass'])) $data['pass'] = $old['pass']; else unset($data['pass']);
+          if (isset($old['passChangedAt'])) $data['passChangedAt'] = $old['passChangedAt'];
+        }
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($json !== false && strlen($json) > max_doc_bytes()) { $uC[] = ['store' => $store, 'id' => $id, 'reason' => 'too_large', 'size' => strlen($json), 'max' => max_doc_bytes()]; continue; }
+        $ins->execute([$store, $id, $rev, now_ms(), $deleted, $json === false ? '{}' : $json]);
+        $uA[] = ['store' => $store, 'id' => $id, 'rev' => $rev];
+        /* رد جديد على استبيان: يسجّل الخادم بنفسه أن المستخدم شارك، فلا يُكرَّر الرد ولو تجاوز أحد الواجهة */
+        if ($store === 'surveyResponses' && !$deleted && !$cur && is_array($data)) {
+          $sid = (string) ($data['surveyId'] ?? ''); $mid = $sid . ':' . (string) ($user['id'] ?? '');
+          if ($sid !== '' && !doc_get('surveyMarks', $mid)) {
+            $ins->execute(['surveyMarks', $mid, $rev, now_ms(), 0, json_encode(['id' => $mid, 'surveyId' => $sid, 'userId' => (string) ($user['id'] ?? ''), 'at' => now_ms()], JSON_UNESCAPED_UNICODE)]);
+            $uA[] = ['store' => 'surveyMarks', 'id' => $mid, 'rev' => $rev];
+          }
         }
       }
+      $hard = array_values(array_filter($uC, fn($c) => in_array($c['reason'] ?? '', ['conflict', 'no_permission', 'too_large'], true)));
+      if ($atomic && $hard) {
+        $pdo->exec("ROLLBACK TO SAVEPOINT u$ui");
+        $failed = []; foreach ($uC as $c) $failed[$c['store'] . '|' . $c['id']] = $c;
+        foreach ($unit as $op) {
+          $st0 = (string) ($op['store'] ?? ''); $id0 = (string) ($op['id'] ?? '');
+          if ($st0 === '' || $id0 === '') continue;
+          if (isset($failed["$st0|$id0"])) { $conflicts[] = $failed["$st0|$id0"]; continue; }
+          /* بقية المجموعة تعود كما هي على الخادم (والسجل الجديد يُحذف من الجهاز) */
+          $sel->execute([$st0, $id0]); $cur0 = $sel->fetch();
+          $d0 = $cur0 ? json_decode($cur0['data'], true) : null; if ($st0 === 'users' && is_array($d0)) $d0 = strip_user($d0);
+          $conflicts[] = ['store' => $st0, 'id' => $id0, 'rev' => $cur0 ? (int) $cur0['rev'] : 0, 'deleted' => $cur0 ? (int) $cur0['deleted'] : 1, 'data' => $cur0 ? $d0 : null, 'reason' => 'group'];
+        }
+      } else { $applied = array_merge($applied, $uA); $conflicts = array_merge($conflicts, $uC); }
+      if ($atomic) $pdo->exec("RELEASE SAVEPOINT u$ui");
     }
     $pdo->commit();
   } catch (Throwable $e) {
