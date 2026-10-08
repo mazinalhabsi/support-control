@@ -98,7 +98,7 @@ function setup(): void {
   /* الفحص الكامل مرة كل 10 دقائق فقط، لا مع كل طلب */
   $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sqapa_setup_' . md5(__FILE__);
   /* العلامة تحمل رقم إصدار الجداول: ترقية الملف تُنشئ الجداول الجديدة فوراً دون انتظار انتهاء المدة */
-  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v5') return;
+  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v6') return;
   $pdo = db();
   /* رفع الحدود تلقائياً إن سمحت صلاحيات المستخدم (حساب root في XAMPP يسمح). تسري حتى إعادة تشغيل MySQL */
   try { if ((int) $pdo->query('SELECT @@global.max_allowed_packet')->fetchColumn() < 67108864) $pdo->exec('SET GLOBAL max_allowed_packet = 67108864'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
@@ -108,7 +108,7 @@ function setup(): void {
   try { if ((int) $pdo->query('SELECT @@global.max_connections')->fetchColumn() < 500) $pdo->exec('SET GLOBAL max_connections = 500'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   $ready = false;
   try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); $ready = true; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
-  if ($ready) { setup_v4($pdo); @file_put_contents($flag, 'v5'); return; }
+  if ($ready) { setup_v4($pdo); if (setup_v6($pdo)) @file_put_contents($flag, 'v6'); return; }
   $pdo->exec("CREATE TABLE IF NOT EXISTS docs (
     store VARCHAR(40) NOT NULL,
     doc_id VARCHAR(120) NOT NULL,
@@ -140,7 +140,25 @@ function setup(): void {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   $pdo->prepare("INSERT IGNORE INTO counters (name, value) VALUES ('rev', 0)")->execute();
   setup_v4($pdo);
-  @file_put_contents($flag, 'v5');
+  setup_v6($pdo);
+  @file_put_contents($flag, 'v6');
+}
+
+/** الإصدار 6: كلمات المرور المحفوظة نصاً صريحاً (استيراد «الرقم العسكري» أو النظام القديم) تُجزّأ فوراً،
+    ومن كانت كلمة مروره رقمه العسكري يُلزم بتغييرها عند الدخول. تكتمل الترقية إلى 100 ألف تكرار عند أول دخول */
+function setup_v6(PDO $pdo): bool {
+  $rows = $pdo->query("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0 AND data LIKE '%plain%'")->fetchAll();
+  foreach ($rows as $r) {
+    $u = json_decode((string) $r['data'], true); if (!is_array($u)) continue;
+    $p = is_array($u['pass'] ?? null) ? $u['pass'] : [];
+    if (($p['algo'] ?? '') !== 'legacy' || ($p['kind'] ?? 'plain') !== 'plain') continue;
+    $plain = (string) ($p['value'] ?? ''); $salt = random_bytes(16);
+    $u['pass'] = ['algo' => 'pbkdf2-sha256', 'iter' => 10000, 'salt' => bin2hex($salt), 'hash' => bin2hex(hash_pbkdf2('sha256', $plain, $salt, 10000, 32, true))];
+    if (trim((string) ($u['militaryNo'] ?? '')) !== '' && trim((string) $u['militaryNo']) === $plain && !is_sys_account($u, (string) $r['doc_id'])) $u['mustChangePassword'] = 1;
+    $rev = bump_rev();
+    $pdo->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?")->execute([$rev, now_ms(), json_encode($u, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $r['doc_id']]);
+  }
+  return true;
 }
 
 /** جداول الإصدار 4: التواجد وحجوزات المهام (لا تمر بسجل التغييرات) */
@@ -342,6 +360,13 @@ function doc_get(string $store, string $id): ?array {
 
 /** الحقول التي لا تُرسل للعملاء */
 function strip_user(array $data): array { unset($data['pass']); return $data; }
+/** سجل مستخدم آخر كما يراه الموظف أو شاشة العرض: بلا الرقم العسكري واسم الدخول (وهو الرقم العسكري لمن استُورد) وآخر دخول؛
+    ويبقى للفنيين ما يلزم الإسناد التلقائي والتواصل (الفئات والصلاحيات والهاتف) */
+function strip_user_public(array $d): array {
+  unset($d['pass'], $d['militaryNo'], $d['username'], $d['lastLoginAt'], $d['passChangedAt'], $d['mustChangePassword'], $d['imported']);
+  if (!in_array($d['role'] ?? '', ['technician', 'support_manager', 'supervisor'], true)) unset($d['phone'], $d['email'], $d['extraPerms'], $d['deniedPerms'], $d['categories']);
+  return $d;
+}
 
 /* ── الصلاحيات: نسخة مطابقة لما في الواجهة، حتى لا يعتمد الأمان على المتصفح وحده ── */
 const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work', 'tickets.all', 'kb.read', 'forms', 'profile', 'notifications', 'users.password', 'chat.answer', 'worklog'];
@@ -390,6 +415,30 @@ function inv_del_locked(): bool {
   $v = json_decode((string) $d['data'], true) ?: [];
   return !empty(($v['value'] ?? [])['del']);
 }
+/** السجل الحالي (من الخادم، أو من الدفعة نفسها إن أُنشئ فيها للتو) */
+function doc_data(string $store, string $id): ?array {
+  if ($id === '') return null;
+  $r = doc_get($store, $id);
+  if ($r && !(int) $r['deleted']) { $d = json_decode((string) $r['data'], true); if (is_array($d)) return $d; }
+  $b = $GLOBALS['PUSH_BATCH'][$store . '|' . $id] ?? null;
+  return is_array($b) ? $b : null;
+}
+const INV_STORES = ['items', 'stock', 'deptStock', 'unitStock', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'];
+const INV_PERMS = ['inventory.manage', 'inventory.move', 'loans.manage', 'custody.direct', 'extmaint.manage', 'settings'];
+const TICKET_STAFF = ['tickets.work', 'tickets.manage'];
+/** فني صالح للإسناد التلقائي: نشط، يعمل على البلاغات، ومسؤول عن فئة البلاغ */
+function valid_auto_assignee(string $uid, string $cat): bool {
+  if ($uid === '') return false;
+  $u = doc_data('users', $uid); if (!$u || ($u['active'] ?? 1) == 0) return false;
+  $u['id'] = $uid;
+  return can($u, 'tickets.work') && in_array($cat, (array) ($u['categories'] ?? []), true);
+}
+/** يُبقي حقلاً كما هو على الخادم (أو يحذفه إن لم يكن موجوداً) */
+function keep_fields(array $merged, ?array $old, array $keys): array {
+  foreach ($keys as $k) { if ($old !== null && array_key_exists($k, $old)) $merged[$k] = $old[$k]; else unset($merged[$k]); }
+  return $merged;
+}
+
 function authorize(array $user, string $store, ?array $old, $new, bool $deleted) {
   if ($deleted && in_array($store, ['items', 'assets'], true) && inv_del_locked()) return null;
   if ($store === 'meta') {
@@ -398,7 +447,9 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
   }
   if (is_sup($user)) return $new;
   $role = (string) ($user['role'] ?? 'department');
-  if ($role === 'monitor') return $store === 'meta' ? $new : null;
+  $me = (string) ($user['id'] ?? '');
+  /* شاشة العرض للقراءة فقط: لا تكتب إلا تواجدها */
+  if ($role === 'monitor') { $k = (string) ((is_array($new) ? ($new['key'] ?? '') : '') ?: (($old ?? [])['key'] ?? '')); return $store === 'meta' && $k === 'presence:' . $me ? $new : null; }
   $data = is_array($new) ? $new : [];
 
   switch ($store) {
@@ -461,7 +512,10 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       return ((string) ($tgt['userId'] ?? '') === $me && (!$old || (string) ($old['userId'] ?? '') === $me)) ? $new : null;
     }
     /* الإشعارات: يُنشئها النظام لأي مستخدم، لكن لا يحذفها إلا صاحبها */
-    case 'notifications': return !$deleted || (string) (($old ?? [])['userId'] ?? '') === (string) ($user['id'] ?? '') ? $new : null;
+    case 'notifications': {
+      if (!$old) return $deleted ? null : $new;
+      return (string) ($old['userId'] ?? '') === $me && ($deleted || (string) ($data['userId'] ?? '') === $me) ? $new : null;
+    }
     case 'meta': {
       $key = (string) ($data['key'] ?? ($old['key'] ?? ''));
       if ($key === 'settings') return can($user, 'settings') ? $new : null;
@@ -473,12 +527,94 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
       if ($key === 'seed:replies2') return can_any($user, ['replies.manage', 'users.manage']) ? $new : null;
-      if (strpos($key, 'lock:') === 0) return null;
-      if (strpos($key, 'presence:') === 0) return $key === 'presence:' . ($user['id'] ?? '') ? $new : null;
-      return $new;
+      if (strpos($key, 'lock:') === 0 || strpos($key, 'sync:') === 0) return null;
+      if (strpos($key, 'presence:') === 0) return $key === 'presence:' . $me ? $new : null;
+      /* عدادات احتياطية (الأرقام الفعلية تُحجز من الخادم): لا تنقص ولا تُحذف */
+      if (strpos($key, 'seq:') === 0) return !$deleted && (int) ($data['value'] ?? 0) >= (int) (($old ?? [])['value'] ?? 0) ? $new : null;
+      if (strpos($key, 'rr:') === 0) return !$deleted && can_any($user, ['tickets.create', 'tickets.work']) ? $new : null;
+      if (strpos($key, 'chatstat:') === 0) { if ($deleted) return null; if (can_any($user, ['chat.answer', 'tickets.work'])) return $new; $c = doc_data('chats', substr($key, 9)); return $c && (string) ($c['userId'] ?? '') === $me ? $new : null; }
+      if ($key === 'handover:phrases') return can_any($user, ['tickets.work', 'settings']) ? $new : null;
+      if ($key === 'ann:templates') return can_any($user, ['announce.manage', 'users.manage', 'settings']) ? $new : null;
+      if ($key === 'seed:printcat') return can_any($user, ['inventory.manage', 'settings']) ? $new : null;
+      if ($key === 'works:seed2') return can_any($user, ['works', 'worklog.all', 'settings']) ? $new : null;
+      /* أقفال المهام الدورية المحلية (عند تعذر الحجز على الخادم): للفنيين ومن فوقهم */
+      if (preg_match('/^(escalate|autoclose|loanalert|chatclose|chatpurge|backup|svcup|job)[:]/', $key)) return $role !== 'department' ? $new : null;
+      return can($user, 'settings') ? $new : null;
     }
+
+    /* ── البلاغات: الفني يعمل على كل البلاغات، والموظف على بلاغاته فقط ── */
+    case 'tickets': {
+      if (can_any($user, TICKET_STAFF)) return $deleted && !can_any($user, ['tickets.manage', 'settings']) ? null : $new;
+      if ($deleted) return null;
+      if (!$old) return can($user, 'tickets.create') && (string) ($data['requesterId'] ?? '') === $me ? $new : null;
+      if ((string) ($old['requesterId'] ?? '') !== $me) return null;
+      $merged = keep_fields($data, $old, ['requesterId', 'number', 'createdAt', 'escalated']);
+      $s0 = (string) ($old['status'] ?? 'new'); $s1 = (string) ($data['status'] ?? $s0);
+      $a0 = (string) ($old['assigneeId'] ?? ''); $a1 = (string) ($data['assigneeId'] ?? '');
+      /* الإسناد التلقائي بعد إنشاء البلاغ يجري على جهاز الموظف: يُقبل لفني مسؤول عن الفئة فقط */
+      $auto = $a0 === '' && $s0 === 'new' && $a1 !== '' && valid_auto_assignee($a1, (string) ($old['categoryId'] ?? ''));
+      if (!$auto) $merged = keep_fields($merged, $old, ['assigneeId']);
+      $okStatus = $s1 === $s0 || in_array($s1, ['cancelled', 'closed'], true) || (in_array($s0, ['resolved', 'closed'], true) && in_array($s1, ['new', 'assigned'], true)) || ($auto && $s1 === 'assigned');
+      if (!$okStatus) $merged['status'] = $s0;
+      return $merged;
+    }
+    case 'ticketEvents': case 'attachments': {
+      if (can_any($user, TICKET_STAFF)) return $new;
+      $rec = $old ?: $data; $t = doc_data('tickets', (string) ($rec['ticketId'] ?? ''));
+      if (!$t || (string) ($t['requesterId'] ?? '') !== $me) return null;
+      if ($deleted) return (string) (($old ?? [])['userId'] ?? '') === $me ? $new : null;
+      if ($old && (string) ($old['userId'] ?? '') !== $me) return null;
+      $by = (string) ($data['userId'] ?? '');
+      return $by === $me || ($by === '' && $store === 'ticketEvents' && ($data['type'] ?? '') === 'assigned') ? $new : null;
+    }
+
+    /* ── الاستفسارات ── */
+    case 'chats': {
+      if (can_any($user, ['chat.answer', 'tickets.work'])) return $new;
+      $owner = (string) (($old ?: $data)['userId'] ?? '');
+      if ($owner !== $me) return null;
+      if ($deleted || !$old) return $new;
+      return keep_fields($data, $old, ['userId', 'staffId']);
+    }
+    case 'chatMsgs': {
+      if (can_any($user, ['chat.answer', 'tickets.work'])) return $new;
+      $rec = $old ?: $data; $c = doc_data('chats', (string) ($rec['chatId'] ?? ''));
+      if (!$c || (string) ($c['userId'] ?? '') !== $me) return null;
+      if ($deleted || $old) return (string) (($old ?? [])['userId'] ?? '') === $me ? $new : null;
+      return (string) ($data['userId'] ?? '') === $me && empty($data['staff']) ? $new : null;
+    }
+
+    /* سجل النشاط: إضافة فقط، وباسم صاحب الجلسة دائماً */
+    case 'activity': {
+      if ($deleted || $old) return null;
+      $data['userId'] = $me;
+      return $data;
+    }
+    /* قاعدة المعرفة: الكتابة لصاحب الصلاحية، والقارئ يزيد عدادي المشاهدة والإفادة فقط */
+    case 'kb': {
+      if (can_any($user, ['kb.write', 'settings'])) return $new;
+      if ($deleted || !$old) return null;
+      $merged = $old;
+      foreach (['views', 'helpful'] as $k) { $v0 = (int) ($old[$k] ?? 0); $v1 = (int) ($data[$k] ?? $v0); $merged[$k] = max($v0, min($v1, $v0 + 10)); }
+      return $merged;
+    }
+    case 'templates': return can_any($user, ['settings', 'categories.manage', 'replies.manage', 'tickets.manage']) ? $new : null;
+    case 'announcements': case 'services': return can_any($user, ['announce.manage', 'users.manage', 'settings']) ? $new : null;
+    case 'backups': return can_any($user, ['backup.manage', 'settings']) ? $new : null;
+    case 'brandIcons': return can_any($user, ['inventory.manage', 'settings']) ? $new : null;
+    case 'worklog': case 'workFolders': case 'workItems': return can_any($user, ['worklog', 'worklog.all', 'works', 'settings']) ? $new : null;
+    /* مقابض المجلدات محلية في كل جهاز ولا تُزامن */
+    case 'handles': return null;
   }
-  return $new;
+  /* ── المخزن والعهد ── */
+  if (in_array($store, INV_STORES, true)) {
+    if (can_any($user, INV_PERMS)) return $new;
+    /* تنبيهات تأخر العهد تُرسل من أجهزة الفنيين: يُقبل منها ختم التنبيه فقط */
+    if ($store === 'loans' && $old && !$deleted && can_any($user, TICKET_STAFF)) { $m = $old; foreach (['lateNotifiedAt', 'dueNotifiedAt'] as $k) if (isset($data[$k])) $m[$k] = $data[$k]; return $m; }
+    return null;
+  }
+  /* الرفض هو الأصل لأي جدول لم يُذكر */
+  return null;
 }
 
 function pw_len(string $s): int { return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen($s); }
@@ -549,6 +685,17 @@ case 'login': {
     $st = db()->prepare("INSERT INTO docs (store, doc_id, rev, updated_at, deleted, data) VALUES ('meta', ?, ?, ?, 0, ?) ON DUPLICATE KEY UPDATE rev = VALUES(rev), updated_at = VALUES(updated_at), data = VALUES(data), deleted = 0");
     $st->execute([$lockKey, $rev, now_ms(), json_encode(['key' => $lockKey, 'value' => $val], JSON_UNESCAPED_UNICODE)]);
     fail('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
+  }
+  /* ترقية كلمة المرور المحفوظة نصاً أو بتجزئة ضعيفة إلى PBKDF2 بـ100 ألف تكرار، ومن يدخل برقمه العسكري يُلزم بتغييرها */
+  $pw0 = is_array($user['pass'] ?? null) ? $user['pass'] : [];
+  $weak = ($pw0['algo'] ?? '') !== 'pbkdf2-sha256' || (int) ($pw0['iter'] ?? 0) < 100000;
+  $mil = trim((string) ($user['militaryNo'] ?? ''));
+  $byMil = $mil !== '' && hash_equals($mil, $password) && empty($user['mustChangePassword']) && !is_sys_account($user, $uid);
+  if ($weak || $byMil) {
+    if ($weak) $user['pass'] = make_pass($password);
+    if ($byMil) $user['mustChangePassword'] = 1;
+    $rev = bump_rev();
+    db()->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?")->execute([$rev, now_ms(), json_encode($user, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $uid]);
   }
   /* دخول ناجح: تصفير عداد المحاولات الخاطئة حتى لا تتراكم عبر الأيام */
   if ((int) ($lock['tries'] ?? 0) > 0) {
@@ -650,7 +797,7 @@ case 'pull': {
   else $rows = vault_rows(survey_private_rows($rows, $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
-    if ($row['store'] === 'users' && is_array($data)) $data = strip_user($data);
+    if ($row['store'] === 'users' && is_array($data)) $data = ($scope === 'self' || ($user['role'] ?? '') === 'monitor') && $row['doc_id'] !== (string) $user['id'] ? strip_user_public($data) : strip_user($data);
     $docs[] = ['store' => $row['store'], 'id' => $row['doc_id'], 'rev' => (int) $row['rev'], 'deleted' => (int) $row['deleted'], 'data' => $data];
   }
   out(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more, 'scope' => $scope] + $extra);
@@ -707,6 +854,8 @@ case 'push': {
   $pdo->beginTransaction();
   try {
     $rev = bump_rev();
+    $GLOBALS['PUSH_BATCH'] = [];
+    foreach ($ops as $op0) if (is_array($op0) && empty($op0['deleted']) && is_array($op0['data'] ?? null)) $GLOBALS['PUSH_BATCH'][(string) ($op0['store'] ?? '') . '|' . (string) ($op0['id'] ?? '')] = $op0['data'];
     $sel = $pdo->prepare("SELECT rev, data, deleted FROM docs WHERE store = ? AND doc_id = ? FOR UPDATE");
     $ins = $pdo->prepare("INSERT INTO docs (store, doc_id, rev, updated_at, deleted, data) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE rev = VALUES(rev), updated_at = VALUES(updated_at), deleted = VALUES(deleted), data = VALUES(data)");
     foreach ($ops as $op) {
@@ -720,6 +869,7 @@ case 'push': {
       /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null) */
       $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
       if ($allowed === null) {
+        error_log('sqapa deny: ' . ($user['role'] ?? '?') . ' ' . ($user['id'] ?? '?') . ' ' . ($deleted ? 'del' : 'put') . " $store/$id");
         /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
         $back = $curData; if ($store === 'users' && is_array($back)) $back = strip_user($back);
         $conflicts[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0, 'deleted' => $cur ? (int) $cur['deleted'] : 0, 'data' => $back, 'reason' => 'no_permission'];
@@ -734,7 +884,7 @@ case 'push': {
         continue;
       }
       $data = $op['data'] ?? null;
-      if ($store === 'users' && is_array($data) && $cur) {
+      if ($store === 'users' && is_array($data) && $cur && !(int) $cur['deleted']) {
         $old = json_decode($cur['data'], true) ?: [];
         /* كلمة المرور لا تتغير إلا عبر passwd: نسخة قديمة محفوظة في متصفح ما لا تعيد كلمة مرور سابقة */
         if (isset($old['pass'])) $data['pass'] = $old['pass']; else unset($data['pass']);

@@ -436,7 +436,7 @@ const Migration = {
       lendingCats: this.read('lendingCategoriesV5') || this.read('lendingCategoriesV4') || this.read('lendingCategoriesV3')
     };
     const report = { at: now(), found: false, counts: {} };
-    if (!(L.users.length + L.tickets.length + L.inventory.length + L.loans.length)) { await DB.put('meta', { key: 'migration:legacy', value: report }); return null; }
+    if (!(L.users.length + L.tickets.length + L.inventory.length + L.loans.length)) { await (Sync.on && Sync.raw ? Sync.raw.put('meta', { key: 'migration:legacy', value: report }) : DB.put('meta', { key: 'migration:legacy', value: report })); return null; }
     report.found = true;
     const sla = DEFAULT_SETTINGS.sla, t0 = now();
     /* الأقسام */
@@ -455,7 +455,7 @@ const Migration = {
     const users = L.users.filter((o) => o && o.username).map((o) => {
       let username = String(o.username).trim().toLowerCase(); while (names.has(username)) username += '1'; names.add(username);
       const ph = o.passwordHash ? String(o.passwordHash) : '';
-      const pass = ph ? { algo: 'legacy', kind: ph.endsWith('fallback') ? 'fallback' : 'sha256', value: ph } : o.password ? { algo: 'legacy', kind: 'plain', value: String(o.password) } : null;
+      const pass = ph ? { algo: 'legacy', kind: ph.endsWith('fallback') ? 'fallback' : 'sha256', value: ph } : o.password ? (() => { const salt = Crypto.randomHex(16); return { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(String(o.password), Crypto.unhex(salt), 1000)) }; })() : null;
       const u = { id: uref(o.id), username, name: o.name || username, role: roleMap[o.role] || 'department', departmentId: depRef(o.department || o.departmentId), rankId: rankRef(o.rank), militaryNo: o.militaryNumber || o.militaryNo || '', phone: o.phone || o.contactNumber || '', email: o.email || '', active: o.active === false ? 0 : 1, mustChangePassword: 1, pass, createdAt: toTs(o.createdAt) || t0, updatedAt: t0, lastLoginAt: 0 };
       nameById.set(u.id, u.name); return u;
     });
@@ -508,7 +508,7 @@ const Migration = {
     for (const [store, rows] of writes) { if (rows.length) await DB.bulkPut(store, rows); report.counts[store] = rows.length; }
     await DB.put('meta', { key: 'seq:ticket', value: tickets.length });
     await DB.put('meta', { key: 'seq:loan', value: loans.length });
-    await DB.put('meta', { key: 'migration:legacy', value: report });
+    await (Sync.on && Sync.raw ? Sync.raw.put('meta', { key: 'migration:legacy', value: report }) : DB.put('meta', { key: 'migration:legacy', value: report }));
     return report;
   }
 };
@@ -3324,8 +3324,9 @@ Pages.runImport = async (a, { mode = 'random', update = true } = {}, onProgress)
     } else {
       let username = r.militaryNo.toLowerCase(); if (username.length < 3) username = `u${username}`; while (taken.has(username)) username = `${username}_1`; taken.add(username);
       const pw = mode === 'military' ? r.militaryNo : Crypto.tempPassword(), salt = Crypto.randomHex(16);
-      const pass = mode === 'military' ? { algo: 'legacy', kind: 'plain', value: r.militaryNo } : { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
-      batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 0, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
+      /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
+      const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
+      batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 1, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
       creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], Data.nameOf('departments', depId, ''), Data.nameOf('locations', locId, '')]); created += 1;
     }
     if (batch.length >= 150 || i === ok.length - 1) { await DB.bulkPut('users', batch.splice(0)); if (onProgress) onProgress(i + 1, ok.length); await new Promise((res) => setTimeout(res, 0)); }
@@ -4351,7 +4352,7 @@ const Sync = {
     this.hookAuth(); this.hookSeq(); this.hookFiles();
   },
 
-  enqueue(ops) { if (!this.on) return; this.queue.push(...ops); this.saveQueue(); clearTimeout(this._fl); this._fl = setTimeout(() => this.flush(), 120); },
+  enqueue(ops) { if (!this.on) return; ops = ops.filter((o) => o.store !== 'handles'); if (!ops.length) return; this.queue.push(...ops); this.saveQueue(); clearTimeout(this._fl); this._fl = setTimeout(() => this.flush(), 120); },
 
   sessionEnded(quiet = false) {
     if (this._ending) return; this._ending = true;
