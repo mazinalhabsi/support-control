@@ -3314,6 +3314,73 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .dt-pick{display:grid;gap:2px;padding:6px 8px;border:0;background:none;color:var(--ink);font:inherit;text-align:start;cursor:pointer;border-radius:9px;min-width:0}
 .dt-pick:hover{background:var(--surface-3)}
 .dt-pick span{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ═══════════ تعديل الخيارات من نموذج البلاغ ═══════════ */
+.cf-qe{display:inline-flex;align-items:center;gap:4px;margin-inline-start:10px;padding:2px 9px;border-radius:999px;border:1px dashed rgba(var(--accent),.55);background:rgba(var(--accent),.08);color:rgb(var(--accent-ink));font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;vertical-align:middle;text-decoration:none}
+.cf-qe:hover{background:rgba(var(--accent),.18)}
+.cf-qe .ic{width:13px;height:13px}
+
+/* ═══════════ الحذف والأرشفة ═══════════ */
+.purge-facts{display:flex;flex-wrap:wrap;gap:6px}
+.purge-facts span{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:12.5px}
+.purge-facts .ic{width:14px;height:14px}
+.purge-opts{display:grid;gap:8px}
+.purge-opt{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.purge-opt input{margin-top:4px}
+.purge-opt span{display:grid;gap:3px}
+.purge-opt b{display:inline-flex;align-items:center;gap:6px}
+.purge-opt small{color:var(--ink-3);line-height:1.7}
+.purge-opt.danger:has(input:checked){border-color:rgb(var(--red));box-shadow:0 0 0 2px rgba(var(--red),.15)}
+.purge-opt:has(input:checked){border-color:rgb(var(--accent))}
+.purge-opt.off{opacity:.55;cursor:not-allowed}
+
+/* ═══════════ الإضافة المباشرة دفعة واحدة ═══════════ */
+.bc-head,.bc-row{display:grid;grid-template-columns:minmax(0,2.3fr) 80px minmax(0,1.6fr) minmax(0,1fr) 34px;gap:8px;align-items:start}
+.bc-head{margin-top:14px;padding:0 4px 4px;font-size:12px;font-weight:800;color:var(--ink-3);border-bottom:1px solid var(--line)}
+.bc-rows{display:grid;gap:6px;margin-top:8px;max-height:52vh;overflow:auto;padding:2px}
+.bc-row .input{height:38px}
+.bc-item{display:grid;gap:4px;min-width:0}
+.bc-new{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;font-weight:700;color:rgb(var(--accent-ink))}
+.bc-new .ic{width:13px;height:13px}
+.bc-new select{height:28px;font-size:12px;padding:0 6px;max-width:220px}
+.bc-sum{font-size:13px}
+@media (max-width:760px){.bc-head{display:none}.bc-row{grid-template-columns:minmax(0,1fr) 80px 34px}.bc-row .bc-s,.bc-row .bc-n{grid-column:1/-1}}
+
+/* ═══════════ أقفال المخزن والعهد ═══════════ */
+.lk-state{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);margin-bottom:10px}
+.lk-state>.ic{width:26px;height:26px}
+.lk-state b{display:block;font-size:15px}
+.lk-state small{color:var(--ink-3)}
+.lk-state.tone-red{border-color:rgba(var(--red),.45);background:rgba(var(--red),.07)}
+.lk-state.tone-teal{border-color:rgba(var(--teal),.45);background:rgba(var(--teal),.07)}
+.custody-bar.inv-lk{margin-top:8px}
+.ct-acts{display:inline-flex;gap:6px;flex-wrap:wrap}
+.ct .table td.ct-act{white-space:nowrap;text-align:left}
+
+/* ═══════════ تنظيف البيانات ═══════════ */
+.wipe-presets{display:flex;gap:6px;flex-wrap:wrap}
+.wipe-row.locked{opacity:.6}
+.wipe-urow{display:flex;align-items:center;gap:10px}
+.wipe-ulist{margin:4px 0 6px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.wipe-users{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;max-height:260px;overflow:auto}
+.wipe-users label{display:flex;gap:8px;align-items:flex-start;padding:7px 9px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.wipe-users label[hidden]{display:none}
+.wipe-users label span{display:grid;min-width:0}
+.wipe-users label small{color:var(--ink-3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ═══════════ الجدول المتمدد والأقسام الحرة ═══════════ */
+.vl-flow{height:auto!important;display:flow-root}
+.vl-grp{position:relative;display:flow-root}
+.vl-dyn .vl-dyntag{position:absolute;top:-3.4mm;left:0;padding:0 1.6mm;border-radius:1.2mm;background:#16a34a;color:#fff;font:700 2.5mm/1.55 'IBM Plex Sans Arabic',Tahoma,sans-serif;white-space:nowrap;pointer-events:none;z-index:3}
+.vle-zoom tr.vl-rep>td,.vle-zoom tr.vl-rep>th{background-image:linear-gradient(rgba(22,163,74,.11),rgba(22,163,74,.11))!important}
+.vle-zoom tr.vl-rep>*:first-child{box-shadow:inset -.8mm 0 0 #16a34a}
+.vl-print .vl-dyn table,.vl-print .vl-flow,.vl-print .vl-grp,.vl-print .vl-dyn{break-inside:auto!important;page-break-inside:auto!important}
+.vl-print .vl-dyn tr{break-inside:avoid;page-break-inside:avoid}
+.vle-conv{margin-top:10px;padding:10px;border:1px dashed rgba(var(--accent),.5);border-radius:12px;background:rgba(var(--accent),.06)}
+.vle-conv>b{font-size:13px}
+.vle-conv>.ic{width:16px;height:16px;vertical-align:-3px}
+.vle-conv.ok{border-style:solid;border-color:rgba(var(--teal),.4);background:rgba(var(--teal),.06);font-size:12.5px}
+.vle-conv .btn{margin-top:6px}
 </style>
 </head>
 <body>
@@ -6164,7 +6231,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
+  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -6892,7 +6959,7 @@ const Forms = {
         : f.t === 'date' ? html`<input name="x_${f.k}" type="date" value="${val}">`
         : html`<input name="x_${f.k}" type="${f.t === 'number' ? 'number' : 'text'}"${f.t === 'number' ? raw(' min="1"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${val}" placeholder="${f.hint || ''}">`;
       const chips = (f.t === 'text' || f.t === 'textarea') && opts.length ? html`<div class="quick-chips cf-chips">${opts.map((o) => html`<button type="button" class="qchip" data-cffill="x_${f.k}" data-val="${o}">${o}</button>`)}</div>` : '';
-      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table', 'inklines'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
+      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table', 'inklines'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.l}${f.req ? html`<em>*</em>` : ''}${Forms.qe ? Forms.qe(catId, f) : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
     })}</div>`;
   },
   values(root) {
@@ -7092,6 +7159,7 @@ Data.dept.rebuild = async () => {
     if (m.type === 'issue') add(m.departmentId, m.qty);
     else if (m.type === 'dept_return') add(m.departmentId, -m.qty);
     else if (m.type === 'dept_opening') add(m.departmentId, m.qty);
+    else if (m.type === 'dept_adjust') add(m.departmentId, Number(m.ddelta) || 0);
     else if (m.type === 'dept_transfer') { add(m.departmentId, -m.qty); add(m.toDepartmentId, m.qty); }
   });
   const old = await DB.getAll('deptStock');
@@ -8236,7 +8304,7 @@ Pages.printVoucher = (v) => {
 Pages.deviceModal = async (itemId, scope = {}) => {
   const it = await DB.get('items', itemId); if (!it) { UI.toast('الصنف غير موجود', 'warn'); return false; }
   const [stock, deptRows, assets, units] = await Promise.all([Data.inv.stockOf(itemId), Data.dept.ofItem(itemId), Data.assets.byItem(itemId), scope.departmentId ? Data.units.tree(scope.departmentId) : Promise.resolve([])]);
-  const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name })));
+  const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name }))), allU = scope.departmentId ? await DB.getAll('deptUnits') : [], uPath = (id) => { const by = new Map(allU.map((u) => [u.id, u])), out = []; let u = by.get(id), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } return out.join(' — '); };
   const unitRows = scope.departmentId ? (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === scope.departmentId && r.qty > 0) : [];
   const mine = scope.departmentId ? assets.filter((a) => a.departmentId === scope.departmentId) : scope.store ? assets.filter((a) => a.status === 'in_store') : assets;
   const outside = scope.store ? (isSerialItem(it) ? assets.filter((a) => a.status !== 'in_store' && a.status !== 'retired').length : deptRows.reduce((n, d) => n + (Number(d.qty) || 0), 0)) : 0;
@@ -8255,8 +8323,8 @@ Pages.deviceModal = async (itemId, scope = {}) => {
       </div>
       ${mine.length ? html`<p class="hint mt">${UI.icon('info')} اضغط أي رقم تسلسلي لعرض كامل تفاصيل الوحدة وموقعها وملاحظاتها وكل مرة دخلت فيها الصيانة.</p>` : ''}${scope.store && outside ? html`<p class="hint">${UI.icon('pin')} ${fmtNum(outside)} وحدة خارج المخزن لا تظهر هنا. <a href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}" data-close-dev>اعرض أماكنها في البحث العام</a></p>` : ''}
       ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v2]) => html`<dt>${specLabel(k)}</dt><dd>${v2}</dd>`)}</dl>${it.notes ? html`<p class="muted small mt">${it.notes}</p>` : ''}</div>` : it.notes ? html`<p class="muted mt">${it.notes}</p>` : ''}
-      ${mine.length ? html`<div class="u-sec mt"><h3>${UI.icon('tag')} الأرقام التسلسلية</h3><div class="table-wrap"><table class="table"><thead><tr><th>الرقم</th><th>الحالة</th><th>الموقع أو الحائز</th>${Auth.can('inventory.move') ? html`<th></th>` : ''}</tr></thead><tbody>${mine.slice(0, 60).map((a) => html`<tr><td class="t-num ltr"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button></td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td>${Auth.can('inventory.move') ? html`<td class="nowrap"><select class="input" data-astatus="${a.id}" style="height:30px;max-width:140px">${Object.entries(ASSET_STATUS).map(([k, s]) => html`<option value="${k}"${a.status === k ? raw(' selected') : ''}>${s.label}</option>`)}</select></td>` : ''}</tr>`)}</tbody></table></div></div>` : ''}
-      ${unitRows.length ? html`<div class="u-sec mt"><h3>${UI.icon('pin')} التوزيع على المكاتب</h3><div class="list">${unitRows.map((r) => { const o = offices.find((x) => x.id === r.unitId); return html`<div class="list-row"><div class="grow"><b>${o ? `${o.section} — ${o.name}` : 'موقع محذوف'}</b></div>${UI.chip('sky', fmtNum(r.qty))}</div>`; })}</div></div>` : ''}
+      ${mine.length ? html`<div class="u-sec mt"><h3>${UI.icon('tag')} الأرقام التسلسلية</h3><div class="table-wrap"><table class="table"><thead><tr><th>الرقم</th><th>الحالة</th><th>الموقع أو الحائز</th>${Auth.can('inventory.move') ? html`<th></th>` : ''}<th></th></tr></thead><tbody>${mine.slice(0, 60).map((a) => html`<tr><td class="t-num ltr"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button></td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td>${Auth.can('inventory.move') ? html`<td class="nowrap"><select class="input" data-astatus="${a.id}" style="height:30px;max-width:140px">${Object.entries(ASSET_STATUS).map(([k, s]) => html`<option value="${k}"${a.status === k ? raw(' selected') : ''}>${s.label}</option>`)}</select></td>` : ''}<td class="nowrap">${Pages.assetActs(a)}</td></tr>`)}</tbody></table></div></div>` : ''}
+      ${unitRows.length ? html`<div class="u-sec mt"><h3>${UI.icon('pin')} التوزيع على المكاتب</h3><div class="list">${unitRows.map((r) => { const o = offices.find((x) => x.id === r.unitId); return html`<div class="list-row"><div class="grow"><b>${uPath(r.unitId) || (o ? `${o.section} — ${o.name}` : 'موقع محذوف')}</b></div>${UI.chip('sky', fmtNum(r.qty))}</div>`; })}</div></div>` : ''}
       ${await Pages.maintHistory(itemId)}
       ${stock.length ? html`<div class="u-sec mt"><h3>${UI.icon('warehouse')} الأرصدة في المخازن</h3><div class="list">${stock.filter((s) => s.qty > 0).map((s) => html`<div class="list-row"><div class="grow"><b>${Data.nameOf('warehouses', s.warehouseId)}</b></div>${UI.chip('teal', fmtNum(s.qty))}</div>`)}</div></div>` : ''}`,
     onMount: (form) => {
@@ -11786,7 +11854,7 @@ Pages.catEditor = async (ctx) => {
       </div>`}</div>`;
   };
   const fieldsHTML = () => html`${d.fields.length ? d.fields.map(fieldCard) : html`<div class="empty-mini">${UI.icon('info')} لا توجد خانات خاصة بعد. أضف خانة من الأزرار أدناه.</div>`}
-    <div class="fb-add"><b>إضافة خانة:</b>${Object.entries(FIELD_TYPES).map(([k, x]) => html`<button type="button" class="btn btn-soft btn-sm" data-fadd="${k}">${UI.icon(x.icon)} ${x.label}</button>`)}</div>
+    <div class="fb-add"><b>إضافة خانة:</b>${Object.entries(FIELD_TYPES).filter(([k]) => k !== 'inklines').map(([k, x]) => html`<button type="button" class="btn btn-soft btn-sm" data-fadd="${k}">${UI.icon(x.icon)} ${x.label}</button>`)}</div>
     <div class="fb-add"><b>خانات جاهزة:</b>${READY_FIELDS.map((r, i) => html`<button type="button" class="qchip" data-fready="${i}">+ ${r.l}</button>`)}</div>`;
   const notesHTML = () => html`${d.notes.map((n, i) => html`<div class="note-row"><span>${UI.icon('info')}</span><input data-note="${i}" value="${n}" placeholder="اكتب الملاحظة أو المطلوب"><button type="button" class="icon-btn danger" data-notedel="${i}" title="حذف">${UI.icon('trash')}</button></div>`)}
     <div class="fb-add"><button type="button" class="btn btn-soft btn-sm" data-noteadd>${UI.icon('plus')} ملاحظة جديدة</button>${READY_NOTES.filter((n) => !d.notes.includes(n)).map((n) => html`<button type="button" class="qchip" data-noteready="${n}">+ ${n}</button>`)}</div>`;
@@ -12302,7 +12370,7 @@ const Custody = {
   canToggle: () => !!Auth.user && Auth.user.role === 'supervisor',
   async allowed() { return canUser(Auth.user, 'custody.direct') && (await this.state()).open; },
   async set(open, until = 0) {
-    if (!this.canToggle()) throw new AppError('فتح الإضافة المباشرة وإغلاقها للمشرف فقط');
+    if (!this.canToggle()) throw new AppError('فتح الإضافة المباشرة وإغلاقها للمشرف ومن يملك صلاحية «أقفال المخزن والعهد»');
     await DB.put('meta', { key: this.KEY, value: { open: open ? 1 : 0, until: open ? until : 0, by: Auth.user.id, at: now() } });
     await Data.log('update', 'inventory', '', open ? `فتح الإضافة المباشرة لعهدة الإدارات${until ? ` حتى ${fmtDateTime(until)}` : ''}` : 'إغلاق الإضافة المباشرة لعهدة الإدارات');
     const who = Data.list('users').filter((u) => u.active && u.role !== 'supervisor' && canUser(u, 'custody.direct')).map((u) => u.id);
@@ -12326,7 +12394,7 @@ Data.dept.addDirect = async ({ departmentId, itemId, qty, unitId = '', serials =
     mv = { id: uid('mv'), type: 'dept_opening', itemId, warehouseId: '', qty: n, delta: 0, balance: null, at, userId: me, note: note || 'إضافة مباشرة لعهدة الإدارة', ref: '', party: holder || Data.nameOf('departments', departmentId), departmentId };
     await T.put('deptStock', ds); await T.put('movements', mv);
   });
-  if (pairs.length) await DB.bulkPut('assets', pairs.map((p) => ({ id: uid('as'), itemId, serial: p.serial || p.tag, tag: p.tag || '', host: String(p.host || '').trim(), status: 'issued', warehouseId: '', departmentId, holder, holderId, loanId: '', note: 'إضافة مباشرة', addedAt: at, updatedAt: at })));
+  if (pairs.length) await DB.bulkPut('assets', pairs.map((p) => ({ id: uid('as'), itemId, serial: p.serial || p.tag, tag: p.tag || '', host: String(p.host || '').trim(), status: 'issued', warehouseId: '', departmentId, unitId: unitId || '', holder, holderId, loanId: '', note: 'إضافة مباشرة', addedAt: at, updatedAt: at })));
   if (unitId) { try { await Data.units.add(unitId, departmentId, itemId, n); } catch (_) { /* تجاهل */ } }
   await Data.log('move', 'inventory', itemId, `إضافة مباشرة: ${fmtNum(n)} × ${item.name} إلى عهدة ${Data.nameOf('departments', departmentId)}`);
   Bus.emit('inventory', { itemId }); return mv;
@@ -15729,6 +15797,7 @@ Pages.voucherDesigner = async (ctx) => {
   const drawCanvas0 = (z) => {
     const sb = st.sel ? st.sel.b : '', se = st.sel ? st.sel.e : '';
     z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell });
+    if (!st.data) { let ch = false; $$('.vl-el.vl-e-table', z).forEach((n) => { const bn = n.closest('[data-band]'), b = bn && band(bn.dataset.band), e = b && (b.els || []).find((x) => x.id === n.dataset.el); if (!e) return; const mm = Math.round((n.offsetHeight / MMPX) * 2) / 2; if (mm > 0 && Math.abs(mm - e.h) > 0.6) { e.h = mm; ch = true; if (e.y + e.h > b.h) b.h = Math.ceil(e.y + e.h + 1); } }); if (ch && !st._dynFix) { st._dynFix = 1; z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell }); st._dynFix = 0; } }
     if (se) { const b = z.querySelector(`[data-band="${sb}"]`); if (b) b.classList.add('has-sel'); }
     z.classList.toggle('grid', st.grid);
     fit();
@@ -15826,6 +15895,7 @@ Pages.voucherDesigner = async (ctx) => {
           <div class="vle-row">${fld('E.tbl.bw', 'سمك الحد', 'num', 0.1)}${fld('E.tbl.pad', 'هامش الخلية', 'num', 0.2)}${fld('E.tbl.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>
           ${fld('E.tbl.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}
           <div class="vle-f"><label>عرض الأعمدة (%) ومحاذاتها</label><div class="vle-cw">${(e.tbl.rows[0] || []).map((_, j) => html`<div><input type="number" data-cw="${j}" value="${Math.round((e.tbl.colW || [])[j] || 100 / e.tbl.rows[0].length)}" min="3" max="95"><select data-cal="${j}">${[['', '—'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']].map(([a, l2]) => html`<option value="${a}"${((e.tbl.al || [])[j] || '') === a ? raw(' selected') : ''}>${l2}</option>`)}</select></div>`)}</div></div>`, true) : ''}
+        ${e.t === 'table' ? Pages.vleDynSec(e, fld, sec) : ''}
         ${e.t === 'table' && st.cell ? (() => { const ck = st.cell.join(','), x = (e.tbl.cs || {})[ck] || {}, sp = (e.tbl.span || {})[ck]; return sec('ecell', `الخلية المحددة (صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)})`, 'edit', html`<div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="mR">${UI.icon('swap')} دمج مع الخلية اليسرى</button><button type="button" class="btn btn-sm btn-soft" data-tb="mD">${UI.icon('swap')} دمج مع الخلية السفلى</button>${sp ? html`<button type="button" class="btn btn-sm btn-ghost" data-tb="mX">إلغاء الدمج</button>` : ''}</div>${fld(`E.tbl.cs.${ck}.bg`, 'لون تعبئة الخلية', 'color', 'clear', x.bg || '')}${fld(`E.tbl.cs.${ck}.color`, 'لون نص الخلية', 'color', null, x.color || '#111111')}<div class="vle-row">${fld(`E.tbl.cs.${ck}.al`, 'المحاذاة', 'select', [['', 'كالجدول'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']], x.al || '')}${fld(`E.tbl.cs.${ck}.va`, 'عمودياً', 'select', [['', 'وسط'], ['top', 'أعلى'], ['bottom', 'أسفل']], x.va || '')}</div><div class="vle-row">${fld(`E.tbl.cs.${ck}.b`, 'عريض', 'select', [['', 'كالجدول'], ['1', 'نعم'], ['0', 'لا']], x.b == null ? '' : String(x.b))}${fld(`E.tbl.cs.${ck}.fs`, 'حجم الخط', 'num', 0.5, x.fs || '')}</div>`, true); })() : ''}
         ${['text', 'table', 'barcode'].includes(e.t) ? sec('efont', 'الخط والتنسيق', 'edit', html`${fld('E.s.font', 'نوع الخط', 'font')}<div class="vle-row">${fld('E.s.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('E.s.color', 'لون النص', 'color')}<div class="vle-row">${fld('E.s.bold', 'عريض', 'check')}${fld('E.s.italic', 'مائل', 'check')}${fld('E.s.underline', 'تسطير', 'check')}</div>${fld('E.s.align', 'المحاذاة', 'select', [['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار'], ['justify', 'ضبط']])}${e.t === 'text' ? fld('E.s.valign', 'المحاذاة العمودية', 'select', [['top', 'أعلى'], ['middle', 'وسط'], ['bottom', 'أسفل']]) : ''}`) : ''}
         ${e.t !== 'line' ? sec('ebox', 'التعبئة والحدود والتأثيرات', 'layers', html`${fld('E.s.bg', 'لون التعبئة', 'color', 'clear')}<div class="vle-row">${fld('E.s.bw', 'سمك الحد', 'num', 0.1)}${fld('E.s.radius', 'تدوير الزوايا', 'num', 0.5)}${fld('E.s.padding', 'الهامش الداخلي', 'num', 0.5)}</div>${fld('E.s.bc', 'لون الحد', 'color')}${fld('E.s.bs', 'نمط الحد', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}<div class="vle-row">${fld('E.s.opacity', 'الشفافية %', 'num', 5)}${fld('E.s.rot', 'الدوران °', 'num', 1)}</div>${fld('E.s.shadow', 'ظل خفيف', 'check')}`, e.t === 'rect') : ''}
@@ -15846,10 +15916,10 @@ Pages.voucherDesigner = async (ctx) => {
                 <label class="vle-sl">الأعمدة</label>${colsEditor('B.cfg.cols', b.cfg.cols || (b.cfg.cols = VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))), b.cfg.layout !== 'cols')}${fld('B.cfg.roleL', 'عنوان عمود الصفة', 'text', null, b.cfg.roleL || 'الصفة')}<div class="vle-row">${fld('B.cfg.rowH', 'ارتفاع الصف', 'num', 0.5)}${fld('B.cfg.fs', 'حجم الخط', 'num', 0.5)}${fld('B.cfg.bw', 'سمك الحد', 'num', 0.1)}</div>${fld('B.cfg.hbg', 'خلفية العناوين', 'color')}${fld('B.cfg.rbg', 'خلفية عمود الصفة', 'color')}${fld('B.cfg.bc', 'لون الحدود', 'color')}${fld('B.cfg.hc', 'لون التمييز', 'color')}`;
       body = html`<div class="vle-ih">${UI.icon(ti)}<b>${tl}</b><span class="grow"></span><button type="button" class="icon-btn" data-bmv="-1" title="نقل للأعلى">↑</button><button type="button" class="icon-btn" data-bmv="1" title="نقل للأسفل">↓</button><button type="button" class="icon-btn" data-bdup title="تكرار القسم">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-bdel title="حذف القسم">${UI.icon('trash')}</button></div>
         ${sec('bmain', 'إعدادات القسم', 'sliders', html`${fld('B.name', 'اسم القسم (للتنظيم)', 'text', null, b.name || tl)}${fld('B.mt', 'المسافة قبل القسم (مم)', 'num', 0.5)}${cfgBody}`, true)}
-        ${['sigs', 'ret', 'items'].includes(b.type) ? shapeSec(b.type) : ''}
+        ${['sigs', 'ret', 'items'].includes(b.type) ? shapeSec(b.type) : ''}${b.type !== 'free' && !ro ? Pages.vleConvBtn(b) : ''}
         ${sec('bkinds', 'يظهر في', 'eye', kindsBox('B', b))}`;
     } else {
-      body = html`<div class="vle-ih">${UI.icon('file')}<b>الصفحة</b></div>
+      body = html`<div class="vle-ih">${UI.icon('file')}<b>الصفحة</b></div>${ro ? '' : Pages.vleConvAll(L())}
         ${sec('pg', 'الورق والهوامش', 'file', html`${fld('P.size', 'مقاس الورق', 'select', [['A4', 'A4'], ['A5', 'A5'], ['Letter', 'Letter']])}${fld('P.orient', 'الاتجاه', 'select', [['portrait', 'عمودي'], ['landscape', 'أفقي']])}<div class="vle-row">${fld('P.mt', 'أعلى', 'num', 1)}${fld('P.mb', 'أسفل', 'num', 1)}${fld('P.mr', 'يمين', 'num', 1)}${fld('P.ml', 'يسار', 'num', 1)}</div>${fld('P.pad', 'مسافة المحتوى عن الإطار (مم)', 'num', 0.5)}${fld('P.bg', 'لون خلفية الصفحة', 'color')}`, true)}
         ${sec('pfont', 'الخط الأساسي', 'edit', html`${fld('P.font.family', 'الخط', 'font')}<div class="vle-row">${fld('P.font.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('P.font.color', 'اللون', 'color')}`, true)}
         ${sec('pframe', 'إطار الصفحة', 'layers', html`${fld('P.frame.style', 'النمط', 'select', [['none', 'بلا إطار'], ['solid', 'متصل'], ['double', 'مزدوج'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['thick-thin', 'عريض ورفيع'], ['ornate', 'زخرفي بزوايا']])}${fld('P.frame.color', 'لون الإطار', 'color')}<div class="vle-row">${fld('P.frame.w', 'السمك (مم)', 'num', 0.1)}${fld('P.frame.radius', 'تدوير الزوايا', 'num', 0.5)}</div>`, true)}
@@ -15897,7 +15967,7 @@ Pages.voucherDesigner = async (ctx) => {
     m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-tg]'); if (!t) return; const [R, C] = t.dataset.tg.split('x').map(Number); m.remove(); insert('table', { tbl: { rows: Array.from({ length: R }, () => Array(C).fill('')), head: R > 1 ? 1 : 0, hbg: '#f1ede3', bc: '#555555', bw: 0.3, pad: 1.2, colW: Array(C).fill(100 / C) }, h: R * 7 }); });
   };
   const fieldMenu = (btn) => {
-    const m = menu(btn, `<div class="vle-mh">إدراج حقل يُملأ تلقائياً</div>${VL_FIELDS.map(([k]) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}<div class="vle-mh">بيانات حسب نوع الاستمارة</div>${['الإدارة المستفيدة', 'الإدارة', 'القسم والمكتب', 'المرجع', 'موعد الإرجاع', 'السبب', 'الجهة', 'أمر العمل لدى الجهة', 'الموعد المتوقع'].map((k) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}`);
+    const m = menu(btn, `<div class="vle-mh">إدراج حقل يُملأ تلقائياً</div>${VL_FIELDS.map(([k]) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}<div class="vle-mh">بيانات حسب نوع الاستمارة</div>${['الإدارة المستفيدة', 'الإدارة', 'القسم والمكتب', 'المرجع', 'موعد الإرجاع', 'السبب', 'الجهة', 'أمر العمل لدى الجهة', 'الموعد المتوقع'].map((k) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}${VL.dynTokMenu()}`);
     m.classList.add('cols');
     m.addEventListener('click', (ev) => { const t = ev.target.closest('[data-fk]'); if (!t) return; m.remove(); insertToken(t.dataset.fk); });
   };
@@ -15906,6 +15976,7 @@ Pages.voucherDesigner = async (ctx) => {
     const ed = st.editing && $v('.vle-zoom [contenteditable]');
     if (ed) { ed.focus(); try { document.execCommand('insertText', false, tok); } catch (_) { ed.textContent += tok; } return; }
     const e = selE();
+    if (e && e.t === 'table' && st.cell && e.tbl.rows[st.cell[0]]) { hist(true); const [i, j] = st.cell, cur = e.tbl.rows[i][j] || ''; e.tbl.rows[i][j] = `${cur}${cur ? ' ' : ''}${tok}`; drawCanvas(); drawInsp(); return; }
     if (e && e.t === 'text') { hist(true); e.text = `${e.text || ''}${e.text ? ' ' : ''}${tok}`; drawCanvas(); drawInsp(); return; }
     insert('text', { text: tok });
   };
@@ -16128,7 +16199,10 @@ Pages.voucherDesigner = async (ctx) => {
     if (t.closest('[data-bdup]')) { const b = selB(); hist(true); const c = JSON.parse(JSON.stringify(b)); c.id = uid('ve'); (c.els || []).forEach((x) => { x.id = uid('ve'); }); L().bands.splice(L().bands.indexOf(b) + 1, 0, c); st.sel = { b: c.id, e: null }; drawAll(); return; }
     if (t.closest('[data-bdel]')) { const b = selB(); if (!(await UI.confirm(`حذف قسم «${b.name || VL_BAND_TYPES[b.type][0]}» من القالب؟`, { danger: true, ok: 'حذف' }))) return; hist(true); L().bands = L().bands.filter((x) => x.id !== b.id); st.sel = null; drawAll(); return; }
     const cm = t.closest('[data-colmv]'); if (cm) { const [p, i, d] = cm.dataset.colmv.split('|'); const arr = getP(p), a = Number(i), z = a + Number(d); if (!arr || z < 0 || z >= arr.length) return; hist(true); [arr[a], arr[z]] = [arr[z], arr[a]]; drawCanvas(); drawInsp(); return; }
-    const tb = t.closest('[data-tb]'); if (tb) { tblOp(tb.dataset.tb); return; }
+    const cv = t.closest('[data-conv]'); if (cv) { const b = selB(); if (!b || b.type === 'free') return; if (!(await UI.confirm(`تحويل «${b.name || VL_BAND_TYPES[b.type][0]}» إلى عناصر حرة؟ ستعدّل كل نص وخلية ولون وموضع فيه بحرية، والبيانات تبقى تُملأ تلقائياً. يمكنك التراجع بـCtrl+Z.`, { ok: 'تحويل', icon: 'layers' }))) return; hist(true); const nb = VL.toFree(b, L()); L().bands.splice(L().bands.indexOf(b), 1, ...nb); st.sel = { b: nb[0].id, e: ((nb[0].els || []).find((x) => x.t === 'table') || nb[0].els[0] || {}).id || null }; st.cell = null; drawAll(); UI.toast('أصبح القسم عناصر حرة: عدّل أي شيء فيه'); return; }
+    if (t.closest('[data-convall]')) { const n = L().bands.filter((x) => x.type !== 'free').length; if (!n) return; if (!(await UI.confirm(`تحويل ${fmtNum(n)} من الأقسام الثابتة إلى عناصر حرة؟ يصبح كل نص وخلية وإطار في الاستمارة قابلاً للتعديل والتحريك والحذف. يمكنك التراجع بـCtrl+Z.`, { ok: 'تحويل الكل', icon: 'layers' }))) return; hist(true); VL.allFree(L()); st.sel = null; st.cell = null; drawAll(); UI.toast('أصبح القالب كله عناصر حرة'); return; }
+    const dyb = t.closest('[data-dyn]'); if (dyb && !dyb.closest('.vle-zoom')) { const e = selE(); if (!e || e.t !== 'table') return; hist(true); if (dyb.dataset.dyn === 'off') delete e.tbl.dyn; else { const R = e.tbl.rows.length, r = st.cell ? st.cell[0] + 1 : R, lo = e.tbl.head && R > 1 ? 2 : 1, rr = Math.max(lo, r); e.tbl.dyn = { src: dyb.dataset.dyn === 'facts' ? 'facts' : 'items', r1: rr, r2: rr, per: 1, minRows: 0 }; } drawCanvas(); drawInsp(); return; }
+    const tb = t.closest('[data-tb]'); if (tb) { const e0 = selE(), dn = e0 && e0.tbl && e0.tbl.dyn, ci0 = st.cell ? st.cell[0] + 1 : e0 && e0.tbl ? e0.tbl.rows.length : 0; tblOp(tb.dataset.tb); if (dn && e0.tbl.dyn) { VL.dynShift(e0.tbl.dyn, tb.dataset.tb, ci0, e0.tbl); drawCanvas(); drawInsp(); } return; }
     if (t.closest('[data-sig2tbl]')) { if (await UI.confirm('تحويل جدول التواقيع إلى جدول حر؟ ستتحكم في كل خلية، ويمكنك التراجع بـCtrl+Z.', { ok: 'تحويل', icon: 'list' })) sigsToFree(); return; }
     const im = t.closest('[data-img]'); if (im) { try { const r = await Pages.vleImage(); if (!r) return; hist(true); const e = selE(); e.src = r.src; e.h = Math.round(e.w * r.ar * 10) / 10; drawCanvas(); drawInsp(); } catch (err) { UI.error(err); } return; }
     if (t.closest('[data-logo]')) { hist(true); selE().src = 'logo'; drawCanvas(); drawInsp(); return; }
@@ -16137,6 +16211,7 @@ Pages.voucherDesigner = async (ctx) => {
   });
   view.addEventListener('change', (ev) => {
     const t = ev.target;
+    if (t.matches('[data-k^="E.tbl.dyn."]')) { drawCanvas(); drawInsp(); }
     if (t.matches('[data-tpl]')) { st.id = t.value; st.sel = null; st.zoom = 0; st.undo = []; st.redo = []; drawAll(); return; }
     if (t.matches('[data-kind]')) { st.kind = t.value; drawCanvas(); drawInsp(); return; }
     if (t.matches('[data-n]')) { st.n = Number(t.value); drawCanvas(); return; }
@@ -16169,7 +16244,7 @@ Pages.voucherDesigner = async (ctx) => {
     if (t.closest('[contenteditable="true"],[contenteditable="plaintext-only"]')) return;
     const hd = t.closest('[data-h]'), bh = t.closest('[data-bh]'), en = t.closest('[data-el]'), bn = t.closest('[data-band]');
     if (ro) { if (en) { st.sel = { b: bn.dataset.band, e: en.dataset.el }; drawAll(); } return; }
-    if (hd) { ev.preventDefault(); const e = selE(); if (e) dragEl(ev, e, selB(), hd.dataset.h); return; }
+    if (hd) { ev.preventDefault(); const e = selE(); if (e && !(st.data && VL.flowy(selB()))) dragEl(ev, e, selB(), hd.dataset.h); return; }
     if (bh) { ev.preventDefault(); const b = band(bh.closest('[data-band]').dataset.band); st.sel = { b: b.id, e: null }; drawInsp(); dragBand(ev, b); return; }
     if (en) {
       ev.preventDefault();
@@ -16179,7 +16254,7 @@ Pages.voucherDesigner = async (ctx) => {
       const was = st.sel && st.sel.e === e.id;
       st.sel = { b: b.id, e: e.id };
       if (!was) { drawCanvas(); drawInsp(); drawRibbon(); } else if (cell) { drawInsp(); $$('.vle-zoom .vl-csel').forEach((n) => n.classList.remove('vl-csel')); cell.classList.add('vl-csel'); }
-      if (!e.lock) dragEl(ev, e, b, 'move');
+      if (!e.lock && !(st.data && VL.flowy(b))) dragEl(ev, e, b, 'move'); else if (st.data && VL.flowy(b) && !st._flowTip) { st._flowTip = 1; UI.toast('في «معاينة بالبيانات» يتمدد الجدول ويدفع ما تحته كما في الطباعة. للتحريك ارجع إلى «إظهار أسماء الحقول»', 'info', 5000); }
       return;
     }
     if (bn) { st.sel = { b: bn.dataset.band, e: null }; drawCanvas(); drawInsp(); drawRibbon(); return; }
@@ -16252,7 +16327,8 @@ const CC_GROUPS = [
   ]],
   ['المخازن', 'warehouse', [
     ['printers', 'الطابعات والأحبار', 'printer', 'inventory.manage|settings', 'الماركات والموديلات والأحبار المتوافقة', '/printers', (c) => Pages.printers(c)],
-    ['extmaint', 'إعدادات الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'اسم القسم والمدة المعتادة والجهات', '', (c) => Pages.ccExtMaint(c)]
+    ['extmaint', 'إعدادات الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'اسم القسم والمدة المعتادة والجهات', '', (c) => Pages.ccExtMaint(c)],
+    ['locks', 'أقفال المخزن والعهد', 'lock', 'custody.lock|settings', 'الإضافة المباشرة لعهد الإدارات وقفل حذف الأجهزة', '', (c) => Pages.ccLocks(c)]
   ]]
 ];
 const CC_ALL = CC_GROUPS.flatMap(([, , items]) => items);
@@ -16342,6 +16418,7 @@ Data.custodyTree = async () => {
   return { deps, units, byId, depQty, depItems, uQty, uItems, kids, total, itemsOf, path, orphan };
 };
 Pages.custodyExplorer = async (ctx, T) => {
+  const canAdd = await Custody.allowed(), delLock = await InvLock.locked();
   const at = String(ctx.query.at || ''), [kind, nid] = at.includes(':') ? at.split(':') : ['', ''];
   const unit = kind === 'u' ? T.byId.get(nid) : null, depId = kind === 'd' ? nid : unit ? unit.departmentId : '';
   const itemIds = new Set(); T.depItems.forEach((m) => m.forEach((_, k) => itemIds.add(k)));
@@ -16353,7 +16430,7 @@ Pages.custodyExplorer = async (ctx, T) => {
   const treeUnits = (dep, pid, lvl) => T.kids(dep, pid).map((u) => { const k = T.kids(dep, u.id), n = T.total(u.id), on = unit && unit.id === u.id; return html`<li><details${openSet.has(u.id) ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`u:${u.id}`)}" class="${on ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon((UNIT_TYPES[u.type] || UNIT_TYPES.section).icon || 'layers')}<span>${u.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length && lvl < ORG_MAX_DEPTH ? html`<ul>${treeUnits(dep, u.id, lvl + 1)}</ul>` : ''}</details></li>`; });
   const tree = html`<ul class="ct-tree"><li><a href="${href('')}" class="${!at ? 'on' : ''}">${UI.icon('grid')}<span>كل الإدارات</span></a></li>${T.deps.map((d) => { const n = T.depQty.get(d.id) || 0, k = T.kids(d.id, ''); return html`<li><details${depId === d.id ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`d:${d.id}`)}" class="${kind === 'd' && nid === d.id ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon('building')}<span>${d.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length ? html`<ul>${treeUnits(d.id, '', 1)}</ul>` : ''}</details></li>`; })}</ul>`;
   const card = (a, name, sub2, n, skus, kidsN, icon, tone) => html`<a class="ct-card${n ? '' : ' zero'}" href="${href(a)}"><span class="ct-ic tone-${tone}">${UI.icon(icon)}</span><div class="grow"><b>${name}</b><small>${sub2}</small></div><div class="ct-n"><b>${fmtNum(n)}</b><small>وحدة</small></div><div class="ct-meta">${kidsN ? html`<span>${UI.icon('layers')} ${fmtNum(kidsN)} فرع</span>` : html`<span class="faint">بلا فروع</span>`}<span>${UI.icon('box')} ${fmtNum(skus)} صنف</span>${n ? '' : html`<span class="chip tone-slate">الرصيد صفر</span>`}</div></a>`;
-  const itemTable = (rows, cols) => (rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th>${cols.map((c) => html`<th class="c">${c[0]}</th>`)}<th></th></tr></thead><tbody>${rows.map((r) => { const it = items.get(r.id) || { name: 'صنف محذوف' }; return html`<tr><td><b>${it.name}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></td>${cols.map((c) => html`<td class="c t-num" data-l="${c[0]}">${fmtNum(r[c[1]] || 0)}</td>`)}<td><button type="button" class="btn btn-sm btn-ghost" data-device="${r.id}"${depId ? raw(` data-dep="${depId}"`) : ''}>${UI.icon('eye')}</button></td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة في هذا المستوى', text: 'الرصيد صفر. تظهر الأجهزة هنا عند صرفها أو توزيعها على هذا القسم.' })}</div>`);
+  const itemTable = (rows, cols) => (rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th>${cols.map((c) => html`<th class="c">${c[0]}</th>`)}<th></th></tr></thead><tbody>${rows.map((r) => { const it = items.get(r.id) || { name: 'صنف محذوف' }; return html`<tr><td><b>${it.name}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></td>${cols.map((c) => html`<td class="c t-num" data-l="${c[0]}">${fmtNum(r[c[1]] || 0)}</td>`)}<td class="ct-act"><button type="button" class="btn btn-sm btn-ghost" data-device="${r.id}"${depId ? raw(` data-dep="${depId}"`) : ''} title="التفاصيل والوحدات">${UI.icon('eye')}</button>${canAdd ? html`<button type="button" class="btn btn-sm btn-ghost" data-ctfix="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="تعديل الكمية هنا">${UI.icon('edit')}</button>${delLock ? '' : html`<button type="button" class="btn btn-sm btn-ghost danger" data-ctdel="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="حذف من العهدة هنا">${UI.icon('trash')}</button>`}` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة في هذا المستوى', text: canAdd ? 'الرصيد صفر. أضف الأجهزة الموجودة فعلاً بزر «إضافة مباشرة» أعلاه، أو تظهر عند صرفها أو توزيعها.' : 'الرصيد صفر. تظهر الأجهزة هنا عند صرفها أو توزيعها على هذا القسم.' })}</div>`);
   let crumbs = html`<a href="${href('')}">${UI.icon('grid')} كل الإدارات</a>`, body = '';
   if (!at) {
     const withC = T.deps.filter((d) => T.depQty.get(d.id)).length;
@@ -16364,13 +16441,13 @@ Pages.custodyExplorer = async (ctx, T) => {
     if (!unit) {
       const tot = T.depQty.get(d.id) || 0, asg = depAssigned(d.id), kids = T.kids(d.id, '');
       const rows = [...(T.depItems.get(d.id) || new Map()).entries()].map(([id, q]) => { let inU = 0; kids.forEach((u) => { inU += T.itemsOf(u.id).get(id) || 0; }); return { id, q, inU, rest: Math.max(0, q - inU) }; }).sort((a, b) => b.q - a.q);
-      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي <b>${fmtNum(tot)}</b></span><span>${UI.icon('check')} موزّع على الأقسام <b>${fmtNum(asg)}</b></span><span class="${tot - asg > 0 ? 'warn' : ''}">${UI.icon('alert')} لدى الإدارة مباشرة (غير موزّع) <b>${fmtNum(Math.max(0, tot - asg))}</b></span><a class="btn btn-sm btn-soft" href="#/inventory/departments/${d.id}">${UI.icon('external')} صفحة العهدة التفصيلية</a></div>
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي <b>${fmtNum(tot)}</b></span><span>${UI.icon('check')} موزّع على الأقسام <b>${fmtNum(asg)}</b></span><span class="${tot - asg > 0 ? 'warn' : ''}">${UI.icon('alert')} لدى الإدارة مباشرة (غير موزّع) <b>${fmtNum(Math.max(0, tot - asg))}</b></span>${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${d.id}|">${UI.icon('plus')} إضافة مباشرة للإدارة</button>` : ''}<a class="btn btn-sm btn-soft" href="#/inventory/departments/${d.id}">${UI.icon('external')} صفحة العهدة التفصيلية</a></div>
         ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الأقسام التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(d.id, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : html`<p class="faint small">لا توجد أقسام لهذه الإدارة في الهيكل التنظيمي.${canOrg() ? html` <a href="#/settings?s=org">إضافة أقسام</a>` : ''}</p>`}
         ${UI.panel({ cls: 'mt', title: `أجهزة ${d.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['في الأقسام', 'inU'], ['لدى الإدارة مباشرة', 'rest']]) })}`;
     } else {
       const kids = T.kids(depId, unit.id), direct = T.uItems.get(unit.id) || new Map(), all = T.itemsOf(unit.id);
       const rows = [...all.entries()].map(([id, q]) => ({ id, q, here: direct.get(id) || 0, below: q - (direct.get(id) || 0) })).sort((a, b) => b.q - a.q);
-      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}</div>
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${depId}|${unit.id}">${UI.icon('plus')} إضافة مباشرة هنا</button>` : ''}</div>
         ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الفروع التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(depId, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : ''}
         ${UI.panel({ cls: 'mt', title: `أجهزة ${unit.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['هنا مباشرة', 'here'], ['في الفروع', 'below']]) })}`;
     }
@@ -16715,6 +16792,641 @@ Pages.descTools = (box, ta, catId) => {
   ta.addEventListener('input', debounce(() => { const b = $('[data-dtsave]', box), ok = ta.value.trim().length >= 5; if (b && b.disabled === ok) draw(); }, 150));
   draw(); load().catch((ex) => console.warn('desc replies', ex));
 };
+
+/* ══════════ تعديل خيارات خانات البلاغ من نموذج البلاغ نفسه (مثل «نوع الطلب») ══════════
+   من يملك إدارة فئات البلاغات يرى زر «تعديل الخيارات» بجانب الخانة، فيعدّل الخيارات ويضيف غيرها دون مغادرة الصفحة */
+FIELD_TYPES.inklines = { label: 'أحبار لعدة طابعات', icon: 'printer', opts: '' };
+Forms.qe = (catId, f) => {
+  if (!catId || catId === '__pv' || !Auth.user || !canCatAdmin()) return '';
+  if (!['choice', 'select', 'multi'].includes(f.t)) return '';
+  if (['printer', 'ink'].includes(catId) && ['brand', 'model', 'ink'].includes(f.k) && PrintCat.ready()) return html`<a class="cf-qe" href="#/printers" title="الماركات والموديلات والأحبار تُدار من كتالوج الطابعات">${UI.icon('printer')} كتالوج الطابعات</a>`;
+  if (f.dep) return '';
+  return html`<button type="button" class="cf-qe" data-cfqe="${catId}|${f.k}" title="تعديل خيارات «${f.l}» وإضافة خيارات جديدة">${UI.icon('edit')} تعديل الخيارات</button>`;
+};
+Pages.quickOptModal = async (catId, k) => {
+  const d = catDraft(catId), f = d.fields.find((x) => x.k === k);
+  if (!f) { UI.toast('الخانة غير موجودة في إعداد الفئة', 'warn'); return null; }
+  f.o = (f.o || []).filter(Boolean);
+  const cat = Data.nameOf('categories', catId, '');
+  return UI.modal({
+    title: `خيارات «${f.l}»`, icon: 'edit', size: 'md',
+    body: html`<p class="faint small" style="margin-top:0">${UI.icon('info')} فئة «${cat}». يظهر التعديل لكل الموظفين في البلاغات الجديدة فور الحفظ، والبلاغات السابقة تحتفظ بقيمها.</p>
+      <div class="field"><label>اسم الخانة</label><input class="input" data-qel value="${f.l}"></div>
+      <div class="field mt"><label>الخيارات <small class="faint">— غيّر الاسم مباشرة، رتّب بالأسهم، أخفِ أو احذف، وأضف من الأسفل</small></label><div data-qeo>${Pages.optEditor(f, 'o', f.o)}</div></div>
+      <div class="row mt" style="gap:16px;flex-wrap:wrap"><label class="chk"><input type="checkbox" data-qereq${f.req ? raw(' checked') : ''}> خانة إلزامية</label>${f.t === 'select' ? html`<label class="chk"><input type="checkbox" data-qeoth${f.other ? raw(' checked') : ''}> السماح بكتابة خيار غير موجود («أخرى»)</label>` : ''}</div>
+      <p class="small mt"><a href="#/ticket-admin/${catId}" data-x>${UI.icon('sliders')} كل إعدادات الفئة وخاناتها</a></p>`,
+    onMount: (form) => {
+      const redraw = () => { $('[data-qeo]', form).innerHTML = String(Pages.optEditor(f, 'o', (f.o = (f.o || []).filter(Boolean)))); };
+      Pages.bindOptEditor(form, { field: () => f, fields: () => d.fields, builtin: () => null, mark: () => {}, redraw });
+      const n = $('[data-onew]', form); if (n) setTimeout(() => n.focus(), 80);
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ الخيارات', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const l = String($('[data-qel]', form).value || '').trim(); if (!l) throw new AppError('اكتب اسم الخانة');
+      /* ما كُتب في خانة الإضافة ولم يُضغط «إضافة» يُضاف أيضاً */
+      const pend = $('[data-onew]', form);
+      if (pend && pend.value.trim()) pend.value.split(/[\n،,]+/).map((x) => x.trim()).filter((x) => x && !f.o.includes(x)).forEach((x) => f.o.push(x));
+      f.l = l; f.req = $('[data-qereq]', form).checked ? 1 : 0;
+      const oth = $('[data-qeoth]', form); if (oth) f.other = oth.checked ? 1 : 0;
+      await Data.catAdmin.save(catId, d); return true;
+    } }]
+  });
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-cfqe]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const [catId, k] = b.dataset.cfqe.split('|');
+  try {
+    if (!(await Pages.quickOptModal(catId, k))) return;
+    UI.toast('حُفظت الخيارات، وتظهر للجميع في البلاغات الجديدة');
+    $$(`[data-catfields="${catId}"]`).forEach((box) => { const host = box.parentElement; if (!host) return; const v = Forms.values(host); host.innerHTML = String(Forms.render(catId, v)); });
+  } catch (ex) { UI.error(ex); }
+}, true);
+
+/* ══════════ أقفال المخزن والعهد: قفل حذف الأجهزة، وصلاحية للتحكم في الأقفال ══════════ */
+{
+  const g = PERM_GROUPS.find((x) => x.title === 'المخازن والعهد');
+  if (g && !g.items.some((i) => i[0] === 'custody.lock')) g.items.splice(Math.max(0, g.items.findIndex((i) => i[0] === 'custody.direct') + 1), 0, ['custody.lock', 'أقفال المخزن والعهد', 'فتح الإضافة المباشرة لعهد الإدارات وإغلاقها، وقفل حذف الأجهزة أو فتحه']);
+  PERM_KEYS.add('custody.lock'); PERM_LABEL['custody.lock'] = 'أقفال المخزن والعهد';
+}
+MOVES.dept_adjust = { label: 'تصحيح عهدة', sign: 0 }; MOVE_TONE.dept_adjust = 'amber';
+const InvLock = {
+  KEY: 'inv:lock', cur: {},
+  async state() { let v = {}; try { const r = await DB.get('meta', this.KEY); v = (r && r.value) || {}; } catch (_) { /* تجاهل */ } this.cur = v; return v; },
+  isLocked() { return !!(this.cur && this.cur.del); },
+  canToggle: () => !!Auth.user && (Auth.user.role === 'supervisor' || canUser(Auth.user, 'custody.lock')),
+  async locked() { return !!(await this.state()).del; },
+  async guard() { if (await this.locked()) throw new AppError('حذف الأجهزة مقفل. التعديل متاح، أما الحذف فيحتاج فتح القفل من «أقفال المخزن والعهد»'); },
+  async set(on) {
+    if (!this.canToggle()) throw new AppError('قفل الحذف وفتحه للمشرف ومن يملك صلاحية «أقفال المخزن والعهد»');
+    await DB.put('meta', { key: this.KEY, value: { del: on ? 1 : 0, by: Auth.user.id, at: now() } });
+    this.cur = { del: on ? 1 : 0, by: Auth.user.id, at: now() };
+    await Data.log('update', 'inventory', '', on ? 'قفل حذف الأجهزة والأصناف والعهد' : 'فتح حذف الأجهزة والأصناف والعهد');
+    const who = Data.list('users').filter((u) => u.active && u.id !== Auth.user.id && (canUser(u, 'inventory.manage') || canUser(u, 'custody.direct'))).map((u) => u.id);
+    if (who.length) await Data.notify(who, { title: on ? 'قُفل حذف الأجهزة' : 'فُتح حذف الأجهزة', body: on ? 'لم يعد بالإمكان حذف الأصناف والأجهزة والعهد المسجلة. التعديل والإضافة متاحان حسب الصلاحيات.' : `فتحه ${Auth.user.name}`, link: '/inventory', kind: 'system' });
+    Bus.emit('inventory', {});
+  }
+};
+Custody.canToggle = () => !!Auth.user && (Auth.user.role === 'supervisor' || canUser(Auth.user, 'custody.lock'));
+setTimeout(() => { if (Auth.user) InvLock.state(); }, 1500);
+{
+  const n0 = Sync.notifyStores.bind(Sync);
+  Sync.notifyStores = function (stores) { if ((stores || []).includes('meta')) InvLock.state().then(() => Bus.emit('invlock', {})); return n0(stores); };
+}
+
+/* ── استخدام الصنف: ما الذي يرتبط به قبل حذفه ── */
+Data.inv.usage = async (id) => {
+  const [stock, dept, units, assets, loans, maint, moves] = await Promise.all([DB.getAll('stock', 'itemId', KR(id)), DB.getAll('deptStock', 'itemId', KR(id)), DB.getAll('unitStock', 'itemId', KR(id)), Data.assets.byItem(id), DB.getAll('loans', 'itemId', KR(id)), Data.maint.byItem(id), DB.getAll('movements', 'item_at', KR([id, 0], [id, Infinity]))]);
+  const sum = (a) => a.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+  return { stock, dept, units, assets, loans, maint, moves, inStore: sum(stock.filter((s) => s.qty > 0)), inDept: sum(dept.filter((d) => d.qty > 0)), activeLoans: loans.filter((l) => l.status === 'active').length, openMaint: maint.filter((m) => m.status === 'open').length };
+};
+/* حذف نهائي للصنف مع كل ما يتعلق به: الأرصدة والعهد والوحدات والإعارات والصيانة والحركات. السندات المطبوعة تبقى وثائق كما هي */
+Data.inv.purgeItem = async (id) => {
+  if (!canUser(Auth.user, 'inventory.manage')) throw new AppError('حذف الأصناف لمن يملك صلاحية إدارة الأصناف');
+  await InvLock.guard();
+  const it = await DB.get('items', id); if (!it) throw new AppError('الصنف غير موجود');
+  const u = await Data.inv.usage(id);
+  await DB.run(['items', 'stock', 'deptStock', 'unitStock', 'assets', 'loans', 'maintenance', 'movements'], async (T) => {
+    for (const s of u.stock) await T.del('stock', [s.warehouseId, s.itemId]);
+    for (const d of u.dept) await T.del('deptStock', [d.departmentId, d.itemId]);
+    for (const x of u.units) await T.del('unitStock', [x.unitId, x.itemId]);
+    for (const a of u.assets) await T.del('assets', a.id);
+    for (const l of u.loans) await T.del('loans', l.id);
+    for (const m of u.maint) await T.del('maintenance', m.id);
+    for (const m of u.moves) await T.del('movements', m.id);
+    await T.del('items', id);
+  });
+  await Data.log('delete', 'inventory', id, `حذف نهائي للصنف ${it.name}: ${fmtNum(u.inStore)} في المخازن، ${fmtNum(u.inDept)} بعهدة الإدارات، ${fmtNum(u.assets.length)} وحدة مسلسلة، ${fmtNum(u.moves.length)} حركة`);
+  Bus.emit('inventory', { itemId: id });
+  return u;
+};
+{
+  const ri0 = Data.inv.removeItem;
+  Data.inv.removeItem = async (id) => { if (await InvLock.locked()) { const u = await Data.inv.usage(id); if (!u.moves.length && !u.assets.length && !u.maint.length) throw new AppError('حذف الأجهزة مقفل. يمكنك أرشفة الصنف بدل حذفه'); } return ri0(id); };
+  const rm0 = Data.inv.removeMistakes;
+  Data.inv.removeMistakes = async (...a) => { await InvLock.guard(); return rm0(...a); };
+}
+Data.inv.archive = async (id) => {
+  if (!canUser(Auth.user, 'inventory.manage')) throw new AppError('للمخولين فقط');
+  const it = await DB.get('items', id); if (!it) return;
+  await DB.put('items', { ...it, archived: 1, updatedAt: now() });
+  await Data.log('delete', 'inventory', id, `أرشفة الصنف ${it.name}`); Bus.emit('inventory', { itemId: id });
+};
+Pages.itemDeleteFlow = async (id) => {
+  const it = await DB.get('items', id); if (!it) return false;
+  if (it.archived) { if (await UI.confirm(`استعادة «${it.name}» من الأرشيف ليظهر في المخزن مجدداً؟`, { ok: 'استعادة', icon: 'undo' })) { await Data.inv.restoreItem(id); UI.toast('استُعيد الصنف'); return 'restored'; } return false; }
+  const [u, locked] = await Promise.all([Data.inv.usage(id), InvLock.locked()]);
+  const busy = u.inStore || u.inDept || u.activeLoans || u.openMaint, history = u.moves.length || u.assets.length || u.maint.length;
+  if (!busy && !history && !locked) {
+    if (!(await UI.confirm(`حذف الصنف «${it.name}»؟ لا توجد عليه أرصدة أو حركات.`, { danger: true, ok: 'حذف' }))) return false;
+    await Data.inv.removeItem(id); UI.toast('حُذف الصنف'); return 'deleted';
+  }
+  const facts = [[u.inStore, 'في المخازن', 'warehouse'], [u.inDept, 'بعهدة الإدارات', 'building'], [u.assets.length, 'وحدة مسلسلة', 'tag'], [u.loans.length, 'عهدة أفراد وإعارة', 'clipboard'], [u.maint.length, 'سجل صيانة', 'tools'], [u.moves.length, 'حركة في السجل', 'refresh']].filter(([n]) => n);
+  const canArchive = !busy;
+  const r = await UI.modal({
+    title: `حذف «${it.name}»`, icon: 'trash', size: 'md',
+    body: html`${facts.length ? html`<div class="purge-facts">${facts.map(([n, l, ic]) => html`<span>${UI.icon(ic)} <b>${fmtNum(n)}</b> ${l}</span>`)}</div>` : ''}
+      ${locked ? html`<div class="banner tone-red mt">${UI.icon('lock')}<div class="grow"><b>حذف الأجهزة مقفل</b><div class="small">يمكن الأرشفة فقط (إخفاء الصنف مع بقاء سجله). لفتح الحذف: الإعدادات ← أقفال المخزن والعهد.</div></div></div>` : ''}
+      <div class="purge-opts mt">
+        <label class="purge-opt${canArchive ? '' : ' off'}"><input type="radio" name="how" value="archive"${canArchive ? raw(' checked') : raw(' disabled')}><span><b>${UI.icon('archive')} أرشفة</b><small>${canArchive ? 'يختفي من المخزن والقوائم، ويبقى سجله في التقارير، ويمكن استعادته.' : 'غير متاحة: عليه أرصدة أو عهد قائمة.'}</small></span></label>
+        ${locked ? '' : html`<label class="purge-opt danger"><input type="radio" name="how" value="purge"${canArchive ? '' : raw(' checked')}><span><b>${UI.icon('trash')} حذف نهائي مع كل ما يتعلق به</b><small>يُحذف الصنف وأرصدته في المخازن وعهده لدى الإدارات والأقسام ووحداته المسلسلة وإعاراته وصيانته وحركاته من الخادم ومن كل الأجهزة. السندات المطبوعة سابقاً تبقى.</small></span></label>`}
+      </div>
+      ${locked ? '' : html`<label class="chk mt purge-ok"><input type="checkbox" name="sure"> أفهم أن الحذف النهائي لا يمكن التراجع عنه</label>`}`,
+    onMount: (form) => {
+      const btn = form.querySelector('.modal-foot .btn-danger'), sync = () => { const how = (form.querySelector('[name="how"]:checked') || {}).value; if (btn) btn.disabled = !how || (how === 'purge' && !form.querySelector('[name="sure"]').checked); };
+      form.addEventListener('change', sync); sync();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تنفيذ', kind: 'danger', icon: 'check', submit: true, handler: async (form) => {
+      const how = (form.querySelector('[name="how"]:checked') || {}).value;
+      if (how === 'archive') { await Data.inv.archive(id); return 'archived'; }
+      if (how === 'purge') { if (!form.querySelector('[name="sure"]').checked) throw new AppError('أكّد الحذف النهائي'); await Data.inv.purgeItem(id); return 'purged'; }
+      return null;
+    } }]
+  });
+  if (r === 'archived') UI.toast('أُرشف الصنف، ويمكن استعادته');
+  if (r === 'purged') UI.toast('حُذف الصنف نهائياً مع كل ما يتعلق به');
+  return r;
+};
+
+/* ── الوحدات المسلسلة: تعديل وحذف من نافذة الجهاز ── */
+Data.assets.purge = async (id) => {
+  if (!Auth.can('inventory.manage') && !Auth.can('inventory.move') && !Auth.can('custody.direct')) throw new AppError('لا تملك صلاحية حذف الوحدات');
+  await InvLock.guard();
+  const a = await DB.get('assets', id); if (!a) return null;
+  if (a.status === 'in_store' && a.warehouseId) return Data.inv.removeMistakes(a.itemId, a.warehouseId, [a.id], 1, 'حذف وحدة سُجلت بالخطأ');
+  const at = now(), me = Auth.user.id;
+  await DB.run(['assets', 'deptStock', 'unitStock', 'movements'], async (T) => {
+    if (a.departmentId && ['issued', 'maintenance'].includes(a.status)) {
+      const ds = await T.get('deptStock', [a.departmentId, a.itemId]);
+      if (ds && ds.qty > 0) { ds.qty -= 1; ds.updatedAt = at; await T.put('deptStock', ds); }
+      if (a.unitId) { const us = await T.get('unitStock', [a.unitId, a.itemId]); if (us && us.qty > 0) { us.qty -= 1; us.updatedAt = at; await T.put('unitStock', us); } }
+      await T.put('movements', { id: uid('mv'), type: 'dept_adjust', itemId: a.itemId, warehouseId: '', qty: 1, delta: 0, ddelta: -1, balance: null, at, userId: me, note: `حذف وحدة سُجلت بالخطأ: ${a.serial}`, ref: '', party: Data.nameOf('departments', a.departmentId), departmentId: a.departmentId, fix: 1 });
+    }
+    await T.del('assets', a.id);
+  });
+  await Data.log('delete', 'assets', id, `حذف وحدة ${a.serial}`); Bus.emit('inventory', {}); return a;
+};
+Pages.assetActs = (a) => {
+  const edit = Auth.can('inventory.move') || Auth.can('inventory.manage') || Auth.can('custody.direct');
+  if (!edit) return '';
+  return html`<button type="button" class="icon-btn" data-aedit="${a.id}" title="تعديل الرقم التسلسلي وبياناته">${UI.icon('edit')}</button>${InvLock.isLocked() ? '' : html`<button type="button" class="icon-btn danger" data-apurge="${a.id}" title="حذف الوحدة (سُجلت بالخطأ)">${UI.icon('trash')}</button>`}`;
+};
+document.addEventListener('click', async (e) => {
+  const ed = e.target.closest && e.target.closest('[data-aedit]'), pg = e.target.closest && e.target.closest('[data-apurge]');
+  if (!ed && !pg) return;
+  e.preventDefault(); e.stopPropagation();
+  try {
+    if (ed) { const a = await DB.get('assets', ed.dataset.aedit); if (!a) return; const r = await Pages.assetEditModal(a); if (r) { UI.toast('حُفظت بيانات الوحدة'); const sn = ed.closest('tr') && ed.closest('tr').querySelector('.link-sn'); if (sn && r.serial) sn.firstChild.textContent = `${r.serial} `; } return; }
+    const a = await DB.get('assets', pg.dataset.apurge); if (!a) return;
+    if (!(await UI.confirm(`حذف الوحدة «${a.serial}»؟ تُنقص من رصيد مكانها الحالي وتُسجل حركة تصحيح.`, { danger: true, ok: 'حذف' }))) return;
+    await Data.assets.purge(a.id); UI.toast('حُذفت الوحدة');
+    const tr = pg.closest('tr'); if (tr) tr.remove();
+  } catch (ex) { UI.error(ex); }
+}, true);
+
+/* ── تصحيح عهد الإدارات والأقسام: تعديل الكمية أو الحذف من المستوى نفسه ── */
+Data.custodyFix = {
+  async ctx(departmentId, unitId, itemId) {
+    const ds = (await DB.get('deptStock', [departmentId, itemId])) || { departmentId, itemId, qty: 0 };
+    const rows = (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === departmentId && r.qty > 0);
+    const assigned = rows.reduce((s, r) => s + r.qty, 0), us = unitId ? rows.find((r) => r.unitId === unitId) : null;
+    return { ds, rows, assigned, here: unitId ? (us ? us.qty : 0) : Math.max(0, ds.qty - assigned) };
+  },
+  async set({ departmentId, unitId = '', itemId, qty, note = '' }) {
+    if (!(await Custody.allowed())) throw new AppError('تعديل العهد المسجلة متاح أثناء فتح الإضافة المباشرة فقط');
+    const n = Math.floor(Number(qty)); if (!(n >= 0)) throw new AppError('أدخل كمية صحيحة (صفر أو أكثر)');
+    const c = await this.ctx(departmentId, unitId, itemId), delta = n - c.here;
+    if (!delta) return 0;
+    if (delta < 0) await InvLock.guard();
+    const at = now(), me = Auth.user.id, item = await DB.get('items', itemId);
+    await DB.run(['deptStock', 'unitStock', 'movements'], async (T) => {
+      const ds = (await T.get('deptStock', [departmentId, itemId])) || { departmentId, itemId, qty: 0 };
+      ds.qty = Math.max(0, (Number(ds.qty) || 0) + delta); ds.updatedAt = at; await T.put('deptStock', ds);
+      if (unitId) { const us = (await T.get('unitStock', [unitId, itemId])) || { unitId, itemId, departmentId, qty: 0 }; us.qty = n; us.departmentId = departmentId; us.updatedAt = at; await T.put('unitStock', us); }
+      await T.put('movements', { id: uid('mv'), type: 'dept_adjust', itemId, warehouseId: '', qty: Math.abs(delta), delta: 0, ddelta: delta, balance: null, at, userId: me, note: note || `تصحيح كمية العهدة إلى ${fmtNum(n)}`, ref: '', party: Data.nameOf('departments', departmentId), departmentId, unitId, fix: 1 });
+    });
+    await Data.log('move', 'inventory', itemId, `تصحيح عهدة ${item ? item.name : ''} لدى ${Data.nameOf('departments', departmentId)}: ${delta > 0 ? '+' : ''}${fmtNum(delta)}`);
+    Bus.emit('inventory', { itemId }); return delta;
+  },
+  /* الحذف من المستوى: تصفير الكمية وحذف وحداته المسلسلة في المكان نفسه */
+  async remove({ departmentId, unitId = '', itemId }) {
+    await InvLock.guard();
+    const c = await this.ctx(departmentId, unitId, itemId);
+    const units = (await Data.assets.byItem(itemId)).filter((a) => a.departmentId === departmentId && a.status === 'issued' && (unitId ? a.unitId === unitId : !a.unitId)).slice(0, c.here);
+    await this.set({ departmentId, unitId, itemId, qty: 0, note: 'حذف من العهدة' });
+    for (const a of units) await DB.del('assets', a.id);
+    return c.here;
+  }
+};
+document.addEventListener('click', async (e) => {
+  const fx = e.target.closest && e.target.closest('.ct [data-ctfix]'), dl = e.target.closest && e.target.closest('.ct [data-ctdel]'), ad = e.target.closest && e.target.closest('[data-ctadd]');
+  if (!fx && !dl && !ad) return;
+  e.preventDefault(); e.stopPropagation();
+  try {
+    if (ad) { const [dep, un] = ad.dataset.ctadd.split('|'); await Pages.directCustodyModal(dep, un || ''); return; }
+    const b = fx || dl, [k, id] = b.dataset.lvl.split(':'), itemId = b.dataset.ctfix || b.dataset.ctdel;
+    const units = k === 'u' ? await DB.getAll('deptUnits') : [], un = units.find((x) => x.id === id), departmentId = k === 'u' ? (un || {}).departmentId : id, unitId = k === 'u' ? id : '';
+    const item = await DB.get('items', itemId), c = await Data.custodyFix.ctx(departmentId, unitId, itemId), place = unitId ? (un || {}).name : `${Data.nameOf('departments', departmentId)} (غير موزّع على الأقسام)`;
+    if (dl) {
+      if (!(await UI.confirm(`حذف «${item ? item.name : 'الصنف'}» من عهدة ${place}؟ الكمية هنا ${fmtNum(c.here)}، وتُحذف وحداته المسلسلة في هذا المكان.`, { danger: true, ok: 'حذف' }))) return;
+      const n = await Data.custodyFix.remove({ departmentId, unitId, itemId }); UI.toast(`حُذف ${fmtNum(n)} من العهدة`); return;
+    }
+    const r = await UI.modal({ title: `تعديل الكمية — ${item ? item.name : ''}`, icon: 'edit', size: 'sm',
+      body: html`<p class="muted" style="margin-top:0">${UI.icon('pin')} ${place}</p>${UI.fields([{ name: 'qty', label: `الكمية هنا (الحالية ${fmtNum(c.here)})`, type: 'number', min: 0, required: true }, { name: 'note', label: 'سبب التعديل', placeholder: 'مثال: خطأ في العد', wide: true }], { qty: c.here })}${InvLock.isLocked() ? html`<p class="hint">${UI.icon('lock')} حذف الأجهزة مقفل: يمكن الزيادة فقط.</p>` : ''}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); return { d: await Data.custodyFix.set({ departmentId, unitId, itemId, qty: v.qty, note: String(v.note || '').trim() }) }; } }] });
+    if (r) UI.toast(r.d ? 'حُدّثت الكمية' : 'لم تتغير الكمية');
+  } catch (ex) { UI.error(ex); }
+}, true);
+
+/* ══════════ الإضافة المباشرة دفعة واحدة: الإدارة أو أي قسم أو مكتب داخلها ══════════
+   لتعبئة العهد الموجودة فعلاً عند بدء التشغيل الرسمي: عدة أصناف في نافذة واحدة، أصناف جديدة تُنشأ تلقائياً، أرقام تسلسلية اختيارية، ولصق من Excel */
+Pages.directCustodyModal = async (departmentId = '', unitId = '') => {
+  if (!(await Custody.allowed())) {
+    if (Custody.canToggle() && (await UI.confirm('الإضافة المباشرة مغلقة. هل تريد فتحها الآن؟', { ok: 'فتح الإضافة المباشرة', icon: 'key' }))) { const ok = await Pages.custodyOpenModal(); if (!ok) return false; }
+    else { UI.toast('الإضافة المباشرة مغلقة حالياً. يفتحها المشرف أو من يملك صلاحية «أقفال المخزن والعهد»', 'warn', 6000); return false; }
+  }
+  const items = (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
+  const lab = (i) => [i.name, [i.brand, i.model].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
+  const byLab = new Map(); items.forEach((i) => { byLab.set(normalizeAr(lab(i)), i); if (!byLab.has(normalizeAr(i.name))) byLab.set(normalizeAr(i.name), i); if (i.sku) byLab.set(normalizeAr(i.sku), i); });
+  const cats = Data.list('itemCategories').map((c) => ({ value: c.id, label: IC.label(c.id) || c.name })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
+  const find = (v) => byLab.get(normalizeAr(String(v || '').trim())) || null;
+  const row = (r = {}) => html`<div class="bc-row" data-bcrow>
+      <div class="bc-item"><input class="input" list="bcItems" data-bci placeholder="اكتب اسم الصنف أو اختره" value="${r.name || ''}" autocomplete="off"><div class="bc-new" hidden>${UI.icon('plus')} صنف جديد يُضاف للمخزن تحت تصنيف <select data-bcc>${cats.map((c) => html`<option value="${c.value}"${c.value === 'ic_other' ? raw(' selected') : ''}>${c.label}</option>`)}</select></div></div>
+      <input class="input bc-q" type="number" min="1" max="9999" data-bcq value="${r.qty || 1}" title="الكمية">
+      <input class="input ltr bc-s" data-bcs placeholder="الأرقام التسلسلية (اختياري) — افصل بينها بفاصلة" value="${r.sn || ''}">
+      <input class="input bc-n" data-bcn placeholder="ملاحظة" value="${r.note || ''}">
+      <button type="button" class="icon-btn danger" data-bcx title="حذف السطر">${UI.icon('x')}</button></div>`;
+  return UI.modal({ title: 'إضافة عهدة مباشرة', icon: 'plus', size: 'xl',
+    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">لتسجيل الأجهزة والأغراض الموجودة فعلاً في الإدارة أو أقسامها ومكاتبها دون صرف من المخزن. لا تتأثر أرصدة المخازن، وتُسجَّل حركة «إضافة عهدة مباشرة» لكل سطر.</div></div>
+      <div class="form-grid mt">${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments'), required: true }, { name: 'unitId', label: 'القسم / المكتب', type: 'select', options: [] }, { name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [] }], { departmentId })}</div>
+      <datalist id="bcItems">${items.map((i) => html`<option value="${lab(i)}">${i.sku || ''}</option>`)}</datalist>
+      <div class="bc-head"><span>الصنف</span><span>الكمية</span><span>الأرقام التسلسلية</span><span>ملاحظة</span><span></span></div>
+      <div class="bc-rows" data-bcrows>${row()}${row()}${row()}</div>
+      <div class="row mt" style="gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-soft btn-sm" data-bcadd>${UI.icon('plus')} سطر</button><button type="button" class="btn btn-ghost btn-sm" data-bcadd5>${UI.icon('plus')} 5 أسطر</button><span class="faint small">${UI.icon('copy')} يمكنك نسخ جدول من Excel (الصنف، الكمية، الأرقام التسلسلية، ملاحظة) ولصقه في خانة الصنف.</span><span class="grow"></span><b class="bc-sum" data-bcsum></b></div>`,
+    onMount: (form) => {
+      UI.bindOrgCascade(form, { value: unitId });
+      const dep = form.querySelector('[name="departmentId"]'), hs = form.querySelector('[name="holderId"]'), rows = $('[data-bcrows]', form);
+      const people = () => { const list = Data.list('users').filter((u) => u.active && u.departmentId === dep.value); hs.innerHTML = `<option value="">— بلا مستلم محدد —</option>${list.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; };
+      const mark = (r) => { const v = $('[data-bci]', r).value.trim(), nw = $('.bc-new', r); nw.hidden = !v || !!find(v); };
+      const sum = () => { let n = 0, q = 0; $$('[data-bcrow]', rows).forEach((r) => { if ($('[data-bci]', r).value.trim()) { n++; const sn = $('[data-bcs]', r).value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean).length; q += Math.max(Number($('[data-bcq]', r).value) || 0, sn); } }); $('[data-bcsum]', form).textContent = n ? `${fmtNum(n)} صنف — ${fmtNum(q)} وحدة` : ''; };
+      const addRows = (k, data = []) => { for (let i = 0; i < k; i++) rows.insertAdjacentHTML('beforeend', String(row(data[i] || {}))); $$('[data-bcrow]', rows).forEach(mark); sum(); };
+      dep.addEventListener('change', people); people();
+      form.addEventListener('input', (e) => { const r = e.target.closest('[data-bcrow]'); if (r && e.target.matches('[data-bci]')) mark(r); if (r && e.target.matches('[data-bcs]')) { const k = e.target.value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean).length, q = $('[data-bcq]', r); if (k > (Number(q.value) || 0)) q.value = k; } sum(); });
+      UI.on(form, 'click', '[data-bcadd]', () => { addRows(1); const all = $$('[data-bci]', rows); all[all.length - 1].focus(); });
+      UI.on(form, 'click', '[data-bcadd5]', () => addRows(5));
+      UI.on(form, 'click', '[data-bcx]', (e, b) => { const r = b.closest('[data-bcrow]'); if ($$('[data-bcrow]', rows).length > 1) r.remove(); else $$('input', r).forEach((x) => { x.value = x.matches('[data-bcq]') ? 1 : ''; }); sum(); });
+      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('[data-bcrow]')) { e.preventDefault(); const r = e.target.closest('[data-bcrow]'); if (!r.nextElementSibling) addRows(1); const nx = r.nextElementSibling; if (nx) $('[data-bci]', nx).focus(); } });
+      /* لصق جدول من Excel: كل سطر صنف، والأعمدة: الصنف، الكمية، الأرقام التسلسلية، ملاحظة */
+      form.addEventListener('paste', (e) => {
+        const inp = e.target.closest && e.target.closest('[data-bci]'); if (!inp) return;
+        const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; if (!/[\t\n]/.test(txt.trim())) return;
+        e.preventDefault();
+        const lines = txt.replace(/\r/g, '').split('\n').map((l) => l.split('\t')).filter((c) => (c[0] || '').trim());
+        const data = lines.map(([name, qty, sn, note]) => ({ name: String(name || '').trim(), qty: Math.max(1, parseInt(String(qty || '').replace(/[^\d]/g, ''), 10) || 1), sn: String(sn || '').trim(), note: String(note || '').trim() }));
+        let r = inp.closest('[data-bcrow]');
+        data.forEach((d, i) => { if (i > 0) { if (!r.nextElementSibling) rows.insertAdjacentHTML('beforeend', String(row())); r = r.nextElementSibling; } $('[data-bci]', r).value = d.name; $('[data-bcq]', r).value = d.qty; $('[data-bcs]', r).value = d.sn; $('[data-bcn]', r).value = d.note; });
+        $$('[data-bcrow]', rows).forEach(mark); sum(); UI.toast(`لُصق ${fmtNum(data.length)} سطر`);
+      });
+      sum();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة إلى العهدة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form);
+      if (!v.departmentId) throw new AppError('اختر الإدارة');
+      const lines = $$('[data-bcrow]', form).map((r, i) => ({ i, name: $('[data-bci]', r).value.trim(), qty: Math.floor(Number($('[data-bcq]', r).value) || 0), sns: $('[data-bcs]', r).value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean), note: $('[data-bcn]', r).value.trim(), cat: ($('[data-bcc]', r) || {}).value || 'ic_other' })).filter((l) => l.name);
+      if (!lines.length) throw new AppError('أضف صنفاً واحداً على الأقل');
+      lines.forEach((l) => { l.qty = Math.max(l.qty, l.sns.length); if (!(l.qty > 0)) throw new AppError(`أدخل كمية صحيحة للصنف «${l.name}»`); });
+      /* فحص تكرار الأرقام التسلسلية في كل الأسطر قبل حفظ أي شيء */
+      const pairs = lines.flatMap((l) => l.sns.map((s) => ({ serial: s, tag: '' })));
+      if (pairs.length) await Data.assets.check(pairs);
+      let created = 0, units = 0;
+      for (const l of lines) {
+        let it = find(l.name);
+        if (!it) { it = await Data.inv.saveItem({ name: l.name, categoryId: l.cat, unit: 'قطعة' }); byLab.set(normalizeAr(it.name), it); created++; }
+        await Data.dept.addDirect({ departmentId: v.departmentId, unitId: v.unitId || '', itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note, serials: l.sns.map((s) => ({ serial: s, tag: '' })) });
+        units += l.qty;
+      }
+      return { lines: lines.length, units, created, place: v.unitId ? ((await DB.get('deptUnits', v.unitId)) || {}).name : Data.nameOf('departments', v.departmentId) };
+    } }]
+  }).then((r) => { if (r && r.lines) UI.toast(`أُضيف ${fmtNum(r.lines)} صنف (${fmtNum(r.units)} وحدة) إلى عهدة ${r.place}${r.created ? ` — منها ${fmtNum(r.created)} صنف جديد في المخزن` : ''}`, 'ok', 6000); return r; });
+};
+
+/* ══════════ صفحة «أقفال المخزن والعهد» في مركز الإعدادات ══════════ */
+Pages.ccLocks = async (ctx) => {
+  const draw = async () => {
+    const [cs, ls] = await Promise.all([Custody.state(), InvLock.state()]);
+    const can = Custody.canToggle(), holders = Data.list('users').filter((u) => u.active && u.role !== 'supervisor' && (u.extraPerms || []).includes('custody.lock'));
+    const direct = Data.list('users').filter((u) => u.active && u.role !== 'supervisor' && canUser(u, 'custody.direct')).length;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'أقفال المخزن والعهد', sub: 'متى يُسمح بالإضافة المباشرة لعهد الإدارات، ومتى يُمنع حذف الأجهزة والأصناف', illu: 'key' })}
+      <div class="grid g-2">
+        ${UI.panel({ title: 'الإضافة المباشرة لعهد الإدارات', icon: cs.open ? 'key' : 'lock', body: html`<div class="lk-state tone-${cs.open ? 'teal' : 'slate'}">${UI.icon(cs.open ? 'key' : 'lock')}<div class="grow"><b>${cs.open ? 'مفتوحة' : 'مغلقة'}</b><small>${cs.open ? (cs.until ? `حتى ${fmtDateTime(cs.until)}` : 'حتى تُغلق') + (cs.by ? ` — فتحها ${Data.userName(cs.by)}` : '') : 'تتم العهدة عبر الصرف أو الإعارة أو الاستبدال أو النقل فقط'}</small></div></div>
+          <p class="muted small">عند فتحها يستطيع من يملك صلاحية «إضافة عهدة للإدارات مباشرة» (${fmtNum(direct)} حساب، والمشرف) تسجيل الأجهزة الموجودة فعلاً لدى الإدارات وأقسامها ومكاتبها، وتصحيح كمياتها.</p>
+          ${can ? html`<div class="row" style="gap:8px">${cs.open ? html`<button class="btn btn-danger" data-clock="close">${UI.icon('lock')} إغلاق الإضافة المباشرة</button>` : html`<button class="btn btn-primary" data-clock="open">${UI.icon('key')} فتح الإضافة المباشرة</button>`}<a class="btn btn-ghost" href="#/inventory/departments">${UI.icon('building')} عهدة الإدارات</a></div>` : ''}` })}
+        ${UI.panel({ title: 'حذف الأجهزة والأصناف', icon: ls.del ? 'lock' : 'trash', body: html`<div class="lk-state tone-${ls.del ? 'red' : 'teal'}">${UI.icon(ls.del ? 'lock' : 'check')}<div class="grow"><b>${ls.del ? 'الحذف مقفل' : 'الحذف متاح لأصحاب الصلاحية'}</b><small>${ls.by ? `${ls.del ? 'قفله' : 'فتحه'} ${Data.userName(ls.by)} — ${fmtDateTime(ls.at)}` : 'لم يُقفل بعد'}</small></div></div>
+          <p class="muted small">عند القفل لا يستطيع أحد (ولا المشرف حتى يفتحه) حذف: الأصناف، والوحدات المسلسلة، وعهد الإدارات والأقسام، ولا تنظيف بيانات المخزن. ويبقى التعديل والإضافة والأرشفة متاحة حسب الصلاحيات، ويرفض الخادم أي حذف حتى لو أُرسل من جهاز آخر.</p>
+          ${can ? html`<button class="btn ${ls.del ? 'btn-soft' : 'btn-danger'}" data-invlock="${ls.del ? 'off' : 'on'}">${UI.icon(ls.del ? 'key' : 'lock')} ${ls.del ? 'فتح الحذف' : 'قفل الحذف'}</button>` : ''}` })}
+      </div>
+      ${UI.panel({ cls: 'mt', title: 'من يتحكم في الأقفال', icon: 'users', body: html`<p class="muted small" style="margin-top:0">المشرف دائماً، ومن تمنحه صلاحية «أقفال المخزن والعهد» من صفحة المستخدمين والصلاحيات.</p>${holders.length ? html`<div class="row" style="gap:6px;flex-wrap:wrap">${holders.map((u) => UI.chip('violet', u.name, 'user'))}</div>` : html`<p class="faint small">لم تُمنح الصلاحية لأحد غير المشرف.</p>`}${Auth.can('users.manage') ? html`<a class="btn btn-ghost btn-sm mt" href="#/settings?s=users">${UI.icon('users')} المستخدمون والصلاحيات</a>` : ''}` })}`);
+  };
+  UI.on(ctx.view, 'click', '[data-invlock]', async (e, b) => {
+    const on = b.dataset.invlock === 'on';
+    if (on && !(await UI.confirm('قفل حذف الأجهزة والأصناف والعهد للجميع؟ يبقى التعديل والإضافة متاحين.', { ok: 'قفل الحذف', danger: true }))) return;
+    try { await InvLock.set(on); UI.toast(on ? 'قُفل الحذف' : 'فُتح الحذف'); draw(); } catch (ex) { UI.error(ex); }
+  });
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive()) draw(); }, 300)));
+  await draw();
+};
+/* شريط حالة قفل الحذف في صفحة عهدة الإدارات */
+{
+  const cb0 = Pages.custodyBar;
+  Pages.custodyBar = async (departmentId = '') => {
+    const a = await cb0(departmentId), lk = await InvLock.locked(), can = InvLock.canToggle();
+    if (!can && !lk) return a;
+    if (!a && !can && !canUser(Auth.user, 'inventory.manage')) return a;
+    return html`${a}<div class="live-bar custody-bar inv-lk tone-${lk ? 'red' : 'slate'}">${UI.icon(lk ? 'lock' : 'trash')}<div class="grow"><b>${lk ? 'حذف الأجهزة مقفل' : 'حذف الأجهزة متاح لأصحاب الصلاحية'}</b><span>${lk ? 'لا يمكن حذف الأصناف والوحدات والعهد المسجلة حتى يُفتح القفل' : 'بعد اكتمال تسجيل العهد يُنصح بقفل الحذف'}</span></div>${can ? html`<button class="btn btn-sm ${lk ? 'btn-soft' : 'btn-danger'}" data-invlock2="${lk ? 'off' : 'on'}">${UI.icon(lk ? 'key' : 'lock')} ${lk ? 'فتح الحذف' : 'قفل الحذف'}</button>` : ''}</div>`;
+  };
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest && e.target.closest('[data-invlock2]'); if (!b) return;
+    e.preventDefault();
+    const on = b.dataset.invlock2 === 'on';
+    if (on && !(await UI.confirm('قفل حذف الأجهزة والأصناف والعهد للجميع؟ يبقى التعديل والإضافة متاحين.', { ok: 'قفل الحذف', danger: true }))) return;
+    try { await InvLock.set(on); UI.toast(on ? 'قُفل الحذف' : 'فُتح الحذف'); } catch (ex) { UI.error(ex); }
+  });
+}
+
+/* ══════════ تنظيف البيانات للبدء الرسمي ══════════
+   «بداية رسمية» تحذف البيانات التشغيلية وتُبقي الهيكل والتصنيفات والحسابات، والحسابات تُختار واحداً واحداً بدل حذفها كلها */
+const WIPE_OFFICIAL = WIPE_GROUPS.filter((g) => !g[4]).map((g) => g[0]);
+Pages.wipeModal = async () => {
+  if (!Auth.user || Auth.user.role !== 'supervisor') return UI.toast('هذه العملية للمشرف فقط', 'warn');
+  const counts = {};
+  for (const [k, , , stores] of WIPE_GROUPS) counts[k] = (await Promise.all(stores.map((s) => DB.count(s).catch(() => 0)))).reduce((a, b) => a + b, 0);
+  const locked = await InvLock.locked();
+  const users = (await DB.getAll('users')).filter((u) => u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system)
+    .sort((a, b) => String(a.role).localeCompare(String(b.role)) || String(a.name).localeCompare(String(b.name), 'ar'));
+  const r = await UI.modal({
+    title: 'تنظيف البيانات', icon: 'trash', size: 'lg',
+    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>تُحذف البيانات المختارة نهائياً من الخادم ومن كل الأجهزة.</b><div class="small">خذ نسخة احتياطية أولاً. تبقى دائماً الإعدادات العامة وحسابك وحسابات المشرفين، ويُعاد ترقيم البلاغات والأصناف والسندات من 1.</div></div></div>
+      <div class="wipe-presets mt"><button type="button" class="btn btn-primary btn-sm" data-wipeoff>${UI.icon('check')} بداية رسمية (موصى به)</button><button type="button" class="btn btn-soft btn-sm" data-wipeall>${UI.icon('trash')} حذف كل شيء</button><button type="button" class="btn btn-ghost btn-sm" data-wipenone>إلغاء التحديد</button></div>
+      <p class="faint small">«بداية رسمية»: تُحذف البلاغات والاستفسارات والإشعارات والمخزن والعهد والسندات والأعمال والاستبيانات والإعلانات والصيانة الخارجية وسجل النشاط، ويبقى الهيكل التنظيمي والتصنيفات وكتالوج الطابعات وقاعدة المعرفة والنماذج والحسابات.</p>
+      <div class="wipe-list mt">${WIPE_GROUPS.map(([k, label, icon, , off]) => { const lk = locked && k === 'inventory'; return html`<label class="wipe-row${off ? ' warn' : ''}${lk ? ' locked' : ''}"><input type="checkbox" name="g" value="${k}"${!off && !lk ? raw(' checked') : ''}${lk ? raw(' disabled') : ''}><span class="wipe-ic">${UI.icon(lk ? 'lock' : icon)}</span><span class="grow">${label}${lk ? html` <small class="faint">— حذف الأجهزة مقفل، افتحه أولاً من «أقفال المخزن والعهد»</small>` : ''}</span><b class="wipe-n">${fmtNum(counts[k])}</b></label>`; })}
+        <div class="wipe-row warn wipe-urow"><span class="wipe-ic">${UI.icon('users')}</span><span class="grow">حسابات مستخدمين تختارها <small class="faint">— حسابك والمشرفون لا يُحذفون</small></span><b class="wipe-n" data-wun>0</b><button type="button" class="btn btn-sm btn-soft" data-wupick>${UI.icon('users')} اختيار الحسابات (${fmtNum(users.length)})</button></div>
+        <div class="wipe-ulist" data-wulist hidden><div class="row" style="gap:6px;margin-bottom:6px;flex-wrap:wrap"><div class="search-box grow">${UI.icon('search')}<input type="search" data-wuq placeholder="ابحث بالاسم أو اسم المستخدم"></div><button type="button" class="btn btn-sm btn-ghost" data-wusel="all">تحديد الظاهر</button><button type="button" class="btn btn-sm btn-ghost" data-wusel="none">إلغاء</button>${users.some((u) => u.demo) ? html`<button type="button" class="btn btn-sm btn-ghost" data-wusel="demo">التجريبية فقط</button>` : ''}</div>
+          <div class="wipe-users">${users.length ? users.map((u) => html`<label data-wuname="${normalizeAr(`${u.name} ${u.username}`)}"><input type="checkbox" name="uid" value="${u.id}"${u.demo ? raw(' checked') : ''}><span><b>${u.name}</b><small>${ROLES[u.role] || u.role} · ${u.username}${u.departmentId ? ` · ${Data.nameOf('departments', u.departmentId, '')}` : ''}${u.demo ? ' · تجريبي' : ''}</small></span></label>`) : html`<p class="faint small">لا توجد حسابات غير حسابك وحسابات المشرفين.</p>`}</div></div></div>
+      <div class="field mt"><label>للتأكيد اكتب: <b class="wipe-phrase">${WIPE_PHRASE}</b></label><input name="confirm" autocomplete="off" placeholder="${WIPE_PHRASE}"></div>`,
+    onMount: (form) => {
+      const btn = form.querySelector('.modal-foot .btn-danger');
+      const sync = () => { const n = $$('[name="uid"]:checked', form).length; $('[data-wun]', form).textContent = fmtNum(n); btn.disabled = form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE || !form.querySelector('[name="g"]:checked, [name="uid"]:checked'); };
+      form.addEventListener('input', sync); form.addEventListener('change', sync); sync();
+      const setG = (fn) => { $$('[name="g"]', form).forEach((c) => { if (!c.disabled) c.checked = fn(c.value); }); };
+      UI.on(form, 'click', '[data-wipeoff]', () => { setG((k) => WIPE_OFFICIAL.includes(k)); $$('[name="uid"]', form).forEach((c) => { c.checked = false; }); sync(); });
+      UI.on(form, 'click', '[data-wipeall]', () => { setG(() => true); $$('[name="uid"]', form).forEach((c) => { c.checked = true; }); $('[data-wulist]', form).hidden = false; sync(); });
+      UI.on(form, 'click', '[data-wipenone]', () => { setG(() => false); $$('[name="uid"]', form).forEach((c) => { c.checked = false; }); sync(); });
+      UI.on(form, 'click', '[data-wupick]', () => { const l = $('[data-wulist]', form); l.hidden = !l.hidden; if (!l.hidden) $('[data-wuq]', form).focus(); });
+      UI.on(form, 'click', '[data-wusel]', (e, b) => { const m = b.dataset.wusel; $$('.wipe-users label', form).forEach((l) => { const c = $('input', l); if (m === 'all') { if (!l.hidden) c.checked = true; } else if (m === 'none') c.checked = false; else c.checked = !!users.find((u) => u.id === c.value && u.demo); }); sync(); });
+      form.addEventListener('input', (e) => { if (!e.target.matches('[data-wuq]')) return; const q = normalizeAr(e.target.value.trim()); $$('.wipe-users label', form).forEach((l) => { l.hidden = !!q && !l.dataset.wuname.includes(q); }); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حذف نهائياً', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => {
+      const groups = $$('[name="g"]:checked', form).map((x) => x.value), userIds = $$('[name="uid"]:checked', form).map((x) => x.value);
+      if (form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE) throw new AppError('اكتب عبارة التأكيد كما هي');
+      return Data.wipeTrial(groups, userIds);
+    } }]
+  });
+  if (r) { UI.toast('حُذفت البيانات المختارة، وسيُعاد تحميل النظام', 'ok', 6000); setTimeout(() => location.reload(), 1600); }
+  return r;
+};
+Data.wipeTrial = async (groups, userIds = []) => {
+  if (groups.includes('inventory') && (await InvLock.locked())) throw new AppError('حذف الأجهزة مقفل: افتحه أولاً من «أقفال المخزن والعهد» ثم أعد المحاولة');
+  const ids = Array.isArray(userIds) ? userIds : [];
+  const stores = WIPE_GROUPS.filter(([k]) => groups.includes(k)).flatMap(([, , , s]) => s);
+  let res = { counts: {} };
+  if (Sync.on) {
+    if (!Sync.token) throw new AppError('لا يوجد اتصال بالخادم، أعد المحاولة بعد عودة الاتصال');
+    Sync.queue = Sync.queue.filter((op) => !stores.includes(op.store) && !(op.store === 'users' && ids.includes(String(op.id)))); Sync.saveQueue();
+    res = await Sync.call('wipe', { body: { groups, userIds: ids, confirm: WIPE_PHRASE } });
+  }
+  const put = Sync.on ? Sync.raw.put : (s, v) => DB.put(s, v), del = Sync.on ? Sync.raw.del : (s, k) => DB.del(s, k);
+  for (const s of stores) await DB.clear(s);
+  for (const id of ids) { const u = await DB.get('users', id); if (u && u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system) await del('users', u.id); }
+  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'], extmaint: ['extmaint'] };
+  for (const g of groups) for (const n of seqs[g] || []) await put('meta', { key: `seq:${n}`, value: 0 });
+  await Data.log('delete', 'system', '', `تنظيف البيانات: ${groups.map((g) => (WIPE_GROUPS.find((x) => x[0] === g) || [])[1]).join('، ')}${ids.length ? `، و${fmtNum(ids.length)} حساب` : ''}`);
+  return res;
+};
+{ const dm0 = Pages.deviceModal; Pages.deviceModal = async (...a) => { await InvLock.state(); return dm0(...a); }; }
+
+/* ══════════ محرر الاستمارات بلا قيود: كل قسم يتحول إلى عناصر حرة، وأي جدول يتمدد مع البيانات ══════════
+   الجدول المتمدد = جدول حر عادي (خلايا، دمج، ألوان، خطوط) فيه صف أو عدة صفوف تتكرر لكل صنف أو لكل بيان.
+   عند الطباعة يتمدد ويدفع ما تحته في القسم نفسه، ويتكرر رأسه في كل صفحة. */
+const VL_ITEM_TOKS = ['م', 'الصنف', 'الماركة', 'الموديل', 'الماركة والموديل', 'الأرقام التسلسلية', 'بيان الصنف', 'الكمية', 'الوحدة', 'رقم الصنف'];
+const VL_FACT_TOKS = ['عنوان البيان', 'قيمة البيان'];
+VL_FIELDS.push(['عدد أسطر الأصناف', (d) => fmtNum((d.lines || []).length)], ['المُعيد', (d) => (d.returnHolder || {}).name || ''], ['رتبة المُعيد', (d) => (d.returnHolder || {}).rank || ''], ['الرقم العسكري للمُعيد', (d) => (d.returnHolder || {}).no || '']);
+VL.isDyn = (e) => !!(e && e.t === 'table' && e.tbl && e.tbl.dyn);
+/* كل جدول في قسم حر يتمدد بمحتواه ويدفع ما تحته (مثل الوورد)، والمتمدد يكرر صفوفه أيضاً */
+VL.isGrow = (e) => !!(e && e.t === 'table' && e.tbl);
+VL.flowy = (b) => !!(b && b.type === 'free' && (b.els || []).some(VL.isGrow));
+VL.dynRecs = (e, d) => { const s = (e.tbl.dyn || {}).src || 'items'; return (s === 'facts' ? d.facts : s === 'old' ? d.oldLines : d.lines) || []; };
+VL.itemTok = (l, i) => (l ? { 'م': fmtNum(i + 1), 'الصنف': l.name || '', 'الماركة': l.brand || '', 'الموديل': l.model || '', 'الماركة والموديل': [l.brand, l.model].filter(Boolean).join(' ') || '—', 'الأرقام التسلسلية': (l.serials || []).length ? l.serials.join('، ') : '—', 'بيان الصنف': l.info || '', 'الكمية': fmtNum(l.qty), 'الوحدة': l.unit || 'قطعة', 'رقم الصنف': l.sku || '' } : { ...Object.fromEntries(VL_ITEM_TOKS.map((k) => [k, ''])), 'م': fmtNum(i + 1) });
+VL.factTok = (f) => (f ? { 'عنوان البيان': f[0] || '', 'قيمة البيان': f[1] == null || f[1] === '' ? '—' : String(f[1]) } : { 'عنوان البيان': '', 'قيمة البيان': '' });
+/* موضع العنصر داخل القسم المتمدد */
+VL.posCss = (e, p) => {
+  const z = (e.z || 1) + 1, hh = e.t === 'table' ? `min-height:${e.h}mm` : `height:${e.h}mm`;
+  if (p.mode === 'flow') return `position:relative;left:auto;top:auto;margin:${p.mt}mm auto ${p.mb}mm ${e.x}mm;width:${e.w}mm;z-index:${z}`;
+  if (p.mode === 'bot') return `left:${e.x}mm;top:auto;bottom:${p.bottom}mm;width:${e.w}mm;${hh};z-index:${z}`;
+  if (p.mode === 'str') return `left:${e.x}mm;top:${p.top}mm;bottom:${p.bottom}mm;width:${e.w}mm;z-index:${z}`;
+  return `left:${e.x}mm;top:${p.top}mm;width:${e.w}mm;${hh};z-index:${z}`;
+};
+/* الجدول المتمدد: في التصميم يظهر القالب بصفوفه المتكررة مميزة، وفي المعاينة والطباعة تُكرر لكل سجل */
+VL.dynTable = (e, d, F, opt, place) => {
+  const s = e.s || {}, edit = opt.edit, design = edit && !opt.data, mode = design ? 'raw' : '';
+  const T = e.tbl, R = T.rows.length, C = (T.rows[0] || []).length, dy = T.dyn || {};
+  const r1 = clamp((Number(dy.r1) || R) - 1, 0, R - 1), r2 = clamp((Number(dy.r2) || Number(dy.r1) || R) - 1, r1, R - 1);
+  const src = dy.src || 'items', recs = VL.dynRecs(e, d), per = src === 'facts' ? Math.max(1, Math.floor(Number(dy.per) || 1)) : 1;
+  if (!design && dy.hideEmpty && !recs.length) return '';
+  let reps = design ? 1 : Math.ceil(recs.length / per);
+  if (!design && src !== 'facts') reps = Math.max(reps, Math.floor(Number(dy.minRows) || 0));
+  const out = [], push = (i, rep) => out.push({ orig: i, rep, ni: out.length });
+  for (let i = 0; i < r1; i++) push(i, -1);
+  for (let r = 0; r < reps; r++) for (let i = r1; i <= r2; i++) push(i, r);
+  for (let i = r2 + 1; i < R; i++) push(i, -1);
+  const SPN = T.span || {}, CS = T.cs || {}, region = (i) => (i < r1 ? 0 : i <= r2 ? 1 : 2), lim = (i) => (i < r1 ? r1 - i : i <= r2 ? r2 - i + 1 : R - i);
+  const nSpan = {}, cov = new Set();
+  out.forEach((o) => { for (let j = 0; j < C; j++) { const sp = SPN[`${o.orig},${j}`]; if (!sp) continue; const rs = Math.max(1, Math.min(Number(sp[0]) || 1, lim(o.orig))), cs = Math.max(1, Math.min(Number(sp[1]) || 1, C - j)); nSpan[`${o.ni},${j}`] = [rs, cs]; } });
+  Object.keys(nSpan).forEach((k) => { const [i, j] = k.split(',').map(Number), [rs, cs] = nSpan[k]; for (let a = i; a < i + rs; a++) for (let z = j; z < j + cs; z++) if (a !== i || z !== j) cov.add(`${a},${z}`); });
+  const cw = T.colW && T.colW.length === C ? T.colW : Array(C).fill(100 / Math.max(1, C));
+  const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`, selC = edit && opt.sel === e.id && opt.cell ? opt.cell.join(',') : '';
+  const Fd = design ? { ...F, ...Object.fromEntries([...VL_ITEM_TOKS, ...VL_FACT_TOKS].map((k) => [k, ''])) } : F;
+  const rowHtml = (o) => `<tr${design && o.rep >= 0 ? ' class="vl-rep"' : ''} style="${T.rowH ? `height:${T.rowH}mm` : ''}">${(T.rows[o.orig] || []).map((c, j) => {
+    const key = `${o.ni},${j}`; if (cov.has(key)) return '';
+    const ok = `${o.orig},${j}`, head = (T.head && o.orig === 0) || (T.headCol && j === 0), tag = head ? 'th' : 'td', sp = nSpan[key], x = CS[ok] || {};
+    const bg = x.bg ? `background:${x.bg}` : head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && o.ni % 2 === 0 ? 'background:rgba(0,0,0,.035)' : '';
+    let Fx = Fd;
+    if (!design && o.rep >= 0) { const ri = o.rep * per + (per > 1 ? Math.floor((j * per) / Math.max(1, C)) : 0); Fx = { ...F, ...(src === 'facts' ? VL.factTok(recs[ri]) : VL.itemTok(recs[ri], ri)) }; }
+    return `<${tag} data-cell="${ok}"${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${design && selC === ok ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}">${VL.tx(c, Fx, mode)}</${tag}>`;
+  }).join('')}</tr>`;
+  const hRows = out.filter((o) => o.orig < r1), bRows = out.filter((o) => o.orig >= r1);
+  const inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>${hRows.length ? `<thead>${hRows.map(rowHtml).join('')}</thead>` : ''}<tbody>${bRows.map(rowHtml).join('')}</tbody></table>`;
+  const sel = edit && opt.sel === e.id, hidden = !VL.vis(e, d.kindKey);
+  const pos = place ? VL.posCss(e, place) : `left:${e.x}mm;top:${e.y}mm;width:${e.w}mm;min-height:${e.h}mm;z-index:${(e.z || 1) + 1}`;
+  const tag2 = design ? `<span class="vl-dyntag">↻ ${src === 'facts' ? 'يتكرر لكل بيان' : src === 'old' ? 'يتكرر لكل جهاز قديم' : 'يتكرر لكل صنف'}</span>` : '';
+  return `<div class="vl-el vl-e-table vl-dyn${sel ? ' sel' : ''}${e.lock ? ' lock' : ''}${hidden ? ' vl-hid' : ''}"${edit ? ` data-el="${e.id}"` : ''} data-dyn="1" style="${pos};${VL.box(s)}">${inner}${tag2}${sel && !e.lock && design ? ['e', 'w'].map((h) => `<i class="vl-hd vl-hd-${h}" data-h="${h}"></i>`).join('') : ''}</div>`;
+};
+{
+  const el0 = VL.el.bind(VL);
+  const SY = 31337.25, SH = 31338.75;
+  VL.el = (e, d, F, opt, place) => {
+    if (VL.isDyn(e)) return VL.dynTable(e, d, F, opt, place);
+    if (!place) return el0(e, d, F, opt);
+    /* العناصر العادية داخل قسم متمدد: تُرسم بموضع مؤقت ثم يُستبدل بالموضع الجديد */
+    const h0 = el0({ ...e, y: SY, h: SH }, d, F, opt), pos = VL.posCss(e, place);
+    return h0.replace(new RegExp(`left:${e.x}mm;top:${SY}mm;width:${e.w}mm;(min-)?height:${SH}mm;z-index:${(e.z || 1) + 1}`), pos).split(`${SH}mm`).join(`${e.h}mm`);
+  };
+  /* القسم الحر الذي فيه جدول متمدد: العناصر تُجمَّع صفوفاً حسب تداخلها الرأسي، وما تحت الجدول ينزل معه */
+  VL.flowBand = (b, d, F, opt, els) => {
+    const dyn = els.filter(VL.isGrow);
+    const wrap = els.filter((e) => !VL.isGrow(e) && dyn.some((t) => e.y <= t.y + 0.01 && e.y + e.h >= t.y + t.h - 0.01));
+    const rest = els.filter((e) => !wrap.includes(e)).sort((a, z) => a.y - z.y || a.x - z.x);
+    const groups = [];
+    rest.forEach((e) => { const g = groups[groups.length - 1]; if (g && e.y < g.bottom - 0.01) { g.els.push(e); g.bottom = Math.max(g.bottom, e.y + e.h); } else groups.push({ top: e.y, bottom: e.y + e.h, els: [e] }); });
+    let out = '', prev = 0;
+    groups.forEach((g) => {
+      const gh = Math.max(0, g.bottom - g.top), t = g.els.find(VL.isGrow);
+      let inner = '';
+      if (t) {
+        const tB = t.y + t.h;
+        g.els.filter((e) => e !== t).forEach((e) => {
+          if (e.y >= tB - 0.01) inner += VL.el(e, d, F, opt, { mode: 'bot', bottom: Math.max(0, g.bottom - (e.y + e.h)) });
+          else if (e.y <= t.y + 0.01 && e.y + e.h >= tB - 0.01) inner += VL.el(e, d, F, opt, { mode: 'str', top: e.y - g.top, bottom: Math.max(0, g.bottom - (e.y + e.h)) });
+          else inner += VL.el(e, d, F, opt, { mode: 'abs', top: e.y - g.top });
+        });
+        out += `<div class="vl-grp" style="margin-top:${Math.max(0, g.top - prev)}mm;min-height:${gh}mm">${VL.el(t, d, F, opt, { mode: 'flow', mt: Math.max(0, t.y - g.top), mb: Math.max(0, g.bottom - tB) })}${inner}</div>`;
+      } else {
+        g.els.forEach((e) => { inner += VL.el(e, d, F, opt, { mode: 'abs', top: e.y - g.top }); });
+        out += `<div class="vl-grp" style="margin-top:${Math.max(0, g.top - prev)}mm;height:${gh}mm">${inner}</div>`;
+      }
+      prev = Math.max(prev, g.bottom);
+    });
+    const tail = Math.max(0, b.h - prev);
+    if (tail) out += `<div style="height:${tail}mm"></div>`;
+    wrap.forEach((e) => { out += VL.el(e, d, F, opt, { mode: 'str', top: e.y, bottom: Math.max(0, b.h - (e.y + e.h)) }); });
+    return out;
+  };
+  const band0 = VL.band.bind(VL);
+  VL.band = (b, d, F, opt) => {
+    if (b.type !== 'free' || (opt.edit && !opt.data) || !VL.flowy(b)) return band0(b, d, F, opt);
+    const edit = opt.edit, hid = !VL.vis(b, d.kindKey);
+    if (!edit && hid) return '';
+    const els = (b.els || []).filter((e) => VL.vis(e, d.kindKey)).filter((e) => !(VL.isDyn(e) && e.tbl.dyn.hideEmpty && !VL.dynRecs(e, d).length));
+    if (!els.some(VL.isGrow)) return band0({ ...b, els }, d, F, opt);
+    const sel = edit && opt.selBand === b.id, [tl, ti] = VL_BAND_TYPES.free;
+    return `<section class="vl-band vl-b-free vl-flow${sel ? ' sel' : ''}${hid ? ' vl-hid' : ''}"${edit ? ` data-band="${b.id}"` : ''} style="margin-top:${b.mt != null ? b.mt : 3}mm;${b.bg ? `background:${b.bg};` : ''}">${VL.flowBand(b, d, F, opt, els)}${edit ? `<div class="vl-btag">${String(UI.icon(ti))}<span>${esc(b.name || tl)}</span><em>يتمدد مع البيانات</em></div><div class="vl-guides"></div>` : ''}</section>`;
+  };
+}
+/* تعديل حدود الصفوف المتكررة عند إضافة صف أو حذفه */
+VL.dynShift = (dn, op, ci, T) => {
+  if (op === 'rowA') { if (ci <= dn.r1) { dn.r1++; dn.r2++; } else if (ci <= dn.r2) dn.r2++; }
+  else if (op === 'rowB') { if (ci < dn.r1) { dn.r1++; dn.r2++; } else if (ci < dn.r2) dn.r2++; }
+  else if (op === 'rowD') { if (ci < dn.r1) { dn.r1--; dn.r2--; } else if (ci <= dn.r2) dn.r2--; }
+  const R = T.rows.length; dn.r1 = clamp(Number(dn.r1) || 1, 1, R); dn.r2 = clamp(Number(dn.r2) || dn.r1, dn.r1, R);
+};
+
+/* ── تحويل الأقسام الثابتة إلى عناصر حرة تُعدَّل بالكامل ── */
+VL.convItems = (b, L) => {
+  const c = b.cfg || {}, cw = VL.cw(L);
+  const cols = (c.cols || VL_ITEM_COLS.map(([k, l, w]) => ({ k, l, w, on: k === 'sku' ? 0 : 1 }))).filter((x) => x.on);
+  const TOK = { no: '[م]', name: '[الصنف]', brand: '[الماركة والموديل]', serials: '[الأرقام التسلسلية]', info: '[بيان الصنف]', qty: '[الكمية]', unit: '[الوحدة]', sku: '[رقم الصنف]' };
+  const tw = cols.reduce((s, x) => s + (Number(x.w) || 10), 0) || 1;
+  const colW = cols.map((x) => ((Number(x.w) || 10) / tw) * 100), al = cols.map((x) => x.al || (['no', 'qty', 'unit'].includes(x.k) ? 'center' : 'right'));
+  const mk = (src, total) => {
+    const rows = [cols.map((x) => x.l), cols.map((x) => TOK[x.k] || '')], span = {}, cs = {}, qi = cols.findIndex((x) => x.k === 'qty');
+    cols.forEach((x, j) => { const h = {}; if (c.hal) h.al = c.hal; if (c.hb === 0) h.b = 0; if (Object.keys(h).length) cs[`0,${j}`] = h; });
+    if (total && c.total !== 0 && qi >= 0) {
+      const r = cols.map((x, j) => (j === qi ? '[عدد الأصناف]' : ''));
+      if (qi > 0) { r[0] = 'الإجمالي'; if (qi > 1) span['2,0'] = [1, qi]; }
+      rows.push(r); cols.forEach((x, j) => { cs[`2,${j}`] = { bg: c.hbg || '#f6f2e8', b: 1, ...(j === qi ? { al: 'center' } : {}) }; });
+    }
+    const rh = Number(c.rowH) || 0;
+    return { id: uid('ve'), t: 'table', x: 0, y: 0, w: cw, h: rows.length * (rh || 7), z: 1, s: { size: c.fs || 10, ...(c.font ? { font: c.font } : {}) }, tbl: { rows, head: 1, hbg: c.hbg || '#f6f2e8', hc: c.hc || '#111111', bc: c.bc || '#c9c2b1', bw: c.bw != null ? c.bw : 0.3, bs: c.bs || 'solid', pad: c.pad != null && c.pad !== '' ? Number(c.pad) : 1.2, ...(rh ? { rowH: rh } : {}), colW, al, zebra: c.zebra ? 1 : 0, span, cs, dyn: { src, r1: 2, r2: 2, per: 1, minRows: src === 'items' ? Number(c.minRows) || 0 : 0, hideEmpty: src === 'old' ? 1 : 0 } } };
+  };
+  const main = mk('items', true);
+  const out = [{ id: uid('ve'), type: 'free', name: 'جدول الأصناف (حر)', mt: b.mt != null ? b.mt : 3, kinds: b.kinds || [], h: Math.ceil(main.h + 1), els: [main] }];
+  if (VL.vis(b, 'replace')) {
+    const old = mk('old', false); old.y = 7;
+    out.push({ id: uid('ve'), type: 'free', name: 'الجهاز القديم (الاستبدال)', mt: 3, kinds: ['replace'], h: Math.ceil(old.y + old.h + 1), els: [{ id: uid('ve'), t: 'text', x: 0, y: 0, w: cw, h: 6, z: 2, text: 'الجهاز المستبدَل (القديم)', s: { size: 10, bold: 1, align: 'right' } }, old] });
+  }
+  return out;
+};
+VL.convFacts = (b, L) => {
+  const c = b.cfg || {}, cw = VL.cw(L), bc = c.bc || '#c9c2b1', lc = c.lc || '#555555', soft = c.lbg || '#f6f2e8';
+  let t;
+  if (c.style === 'table') t = { h: 8, rows: [['[عنوان البيان]', '[قيمة البيان]', '[عنوان البيان]', '[قيمة البيان]']], colW: [18, 32, 18, 32], cs: { '0,0': { bg: soft, color: lc, b: 1 }, '0,2': { bg: soft, color: lc, b: 1 } }, dyn: { src: 'facts', r1: 1, r2: 1, per: 2 } };
+  else if (c.style === 'line') t = { h: 7, rows: [['[عنوان البيان]: [قيمة البيان]', '[عنوان البيان]: [قيمة البيان]', '[عنوان البيان]: [قيمة البيان]']], colW: [33.3, 33.3, 33.4], bw: 0, cs: {}, dyn: { src: 'facts', r1: 1, r2: 1, per: 3 } };
+  else {
+    const n = Math.max(1, Math.min(6, Number(c.cols) || 4)), cs = {}, bg = c.bg && !/^#fff(fff)?$/i.test(c.bg) ? c.bg : '';
+    for (let j = 0; j < n; j++) { cs[`0,${j}`] = { color: lc, fs: 8.5, b: 0, ...(bg ? { bg } : {}) }; cs[`1,${j}`] = { b: 1, ...(bg ? { bg } : {}) }; }
+    t = { h: 13, rows: [Array(n).fill('[عنوان البيان]'), Array(n).fill('[قيمة البيان]')], colW: Array(n).fill(100 / n), cs, dyn: { src: 'facts', r1: 1, r2: 2, per: n } };
+  }
+  const C = t.rows[0].length, { h, ...tb } = t;
+  const e = { id: uid('ve'), t: 'table', x: 0, y: 0, w: cw, h, z: 1, s: { size: 10 }, tbl: { head: 0, hbg: soft, hc: '#111111', bc, bw: 0.3, bs: 'solid', pad: 1.4, al: Array(C).fill('right'), span: {}, ...tb } };
+  return [{ id: uid('ve'), type: 'free', name: 'بيانات الاستمارة (حر)', mt: b.mt != null ? b.mt : 3, kinds: b.kinds || [], h: Math.ceil(e.h + 1), els: [e] }];
+};
+VL.convNotes = (b, L) => {
+  const c = b.cfg || {}, cw = VL.cw(L), h = Math.max(9, Number(c.minH) || 9) + 2;
+  const els = [
+    { id: uid('ve'), t: 'rect', x: 0, y: 0, w: cw, h, z: 1, s: { bg: c.bg || '#ffffff', bw: c.bw != null ? c.bw : 0.3, bc: c.bc || '#c9c2b1', bs: c.bs || 'solid', radius: c.radius != null ? c.radius : 2 } },
+    { id: uid('ve'), t: 'text', x: 2, y: 1, w: cw - 4, h: 5, z: 2, text: c.label || 'ملاحظات', s: { size: 9, bold: 1, color: c.lc || '#8a6a22', align: 'right' } },
+    { id: uid('ve'), t: 'text', x: 2, y: 5.5, w: cw - 4, h: h - 6.5, z: 2, text: '[الملاحظات]', s: { size: 10, align: 'right' } }
+  ];
+  return [{ id: uid('ve'), type: 'free', name: 'الملاحظات (حر)', mt: b.mt != null ? b.mt : 3, kinds: b.kinds || [], h: Math.ceil(h + 1), els }];
+};
+VL.convRet = (b, L) => {
+  const c = b.cfg || {}, cw = VL.cw(L), bc = c.bc || '#c9c2b1', soft = c.hbg || '#f7f5ef';
+  const cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on);
+  const tok = { no: '[الرقم العسكري للمُعيد]', rank: '[رتبة المُعيد]', name: '[المُعيد]' };
+  const rows = [['الصفة', ...cols.map((x) => x.l)], [c.t1 || 'المُعيد', ...cols.map((x) => tok[x.k] || '')], [c.t2 || 'مستلم الإرجاع', ...cols.map(() => '')]];
+  if (c.approver !== 0) rows.push(['اعتماد المسؤول', ...cols.map(() => '')]);
+  const rh = Number(c.rowH) || 10, top = 18, cs = {}; rows.forEach((r, i) => { if (i) cs[`${i},0`] = { bg: soft, b: 1 }; });
+  const els = [
+    { id: uid('ve'), t: 'rect', x: 0, y: 0, w: cw, h: top + rows.length * rh + 3, z: 1, s: { bw: 0.4, bs: 'dashed', bc, radius: c.radius != null ? c.radius : 3 } },
+    { id: uid('ve'), t: 'text', x: 3, y: 1.5, w: cw - 6, h: 5.5, z: 2, text: c.title || 'يُعبَّأ عند الإرجاع', s: { size: 10, bold: 1, color: c.hc || '#8a6a22' } },
+    { id: uid('ve'), t: 'table', x: 3, y: 7.5, w: cw - 6, h: 9, z: 2, s: { size: 9.5 }, tbl: { rows: [['تاريخ الإرجاع الفعلي', '', 'حالة الصنف عند الإرجاع', '']], colW: [20, 30, 22, 28], head: 0, hbg: soft, bc, bw: 0.3, pad: 1.4, rowH: 9, cs: { '0,0': { bg: soft, b: 1 }, '0,2': { bg: soft, b: 1 } } } },
+    { id: uid('ve'), t: 'table', x: 3, y: top, w: cw - 6, h: rows.length * rh, z: 2, s: { size: 9.5 }, tbl: { rows, head: 1, hbg: soft, hc: '#111111', bc, bw: 0.3, pad: 1.2, rowH: rh, colW: [16, ...cols.map(() => 84 / Math.max(1, cols.length))], al: Array(cols.length + 1).fill('right'), cs } }
+  ];
+  const kinds = (b.kinds && b.kinds.length ? b.kinds : ['loan', 'receipt']).filter((k) => ['loan', 'receipt'].includes(k));
+  return [{ id: uid('ve'), type: 'free', name: 'خانة الإرجاع (حر)', mt: b.mt != null ? b.mt : 4, kinds: kinds.length ? kinds : ['loan', 'receipt'], h: Math.ceil(els[0].h + 1), els }];
+};
+VL.convSigs = (b, L) => {
+  const c = b.cfg || {}, cols = (c.cols || VL_SIG_COLS.map(([k, l]) => ({ k, l, on: k === 'date' ? 0 : 1 }))).filter((x) => x.on);
+  const tok = { recv: { no: '[الرقم العسكري للمستلم]', rank: '[رتبة المستلم]', name: '[المستلم]' }, deliv: { no: '[الرقم العسكري للمسلم]', rank: '[رتبة المسلم]', name: '[المسلم]' } };
+  const sub = { recv: '[جهة المستلم]', deliv: '[جهة المسلم]' }, parties = [['recv', c.recv || 'المستلم'], ['deliv', c.deliv || 'المُسلِّم']];
+  if (c.order === 'dr') parties.reverse();
+  const rows = [[c.roleL || 'الصفة', ...cols.map((x) => x.l)], ...parties.map(([r, t]) => [`${t}${c.subs !== 0 ? `\n${sub[r]}` : ''}`, ...cols.map((x) => tok[r][x.k] || '')])], cs = {}, span = {};
+  if (c.approver !== 0) { const i = rows.length; rows.push([c.appr || 'اعتماد المسؤول', ...cols.map(() => '')]); const si = cols.findIndex((x) => x.k === 'sign'); if (si > 0) { span[`${i},1`] = [1, si]; cs[`${i},1`] = { bg: '#f3f0e8' }; } }
+  String(c.extra || '').split('\n').map((x) => x.trim()).filter(Boolean).forEach((t) => rows.push([t, ...cols.map(() => '')]));
+  rows.forEach((r, i) => { if (i) cs[`${i},0`] = { ...(cs[`${i},0`] || {}), bg: c.rbg || '#faf8f3', b: 1 }; });
+  const cw = VL.cw(L), wOf = (x) => Number(x.w) || (x.k === 'sign' ? 30 : x.k === 'name' ? 24 : 14), tw = cols.reduce((a, x) => a + wOf(x), 0) || 1, rp = 17;
+  const el = { id: uid('ve'), t: 'table', x: 0, y: 0, w: cw, h: rows.length * (c.rowH || 11), z: 1, s: { size: c.fs || 10 }, tbl: { rows, head: 1, hbg: c.hbg || '#f6f2e8', hc: c.hcol || '#111111', bc: c.bc || '#c9c2b1', bw: c.bw != null ? c.bw : 0.3, pad: 1.2, rowH: c.rowH || 11, colW: [rp, ...cols.map((x) => ((100 - rp) * wOf(x)) / tw)], al: ['right', ...cols.map((x) => (x.k === 'no' ? 'center' : 'right'))], span, cs } };
+  return [{ id: uid('ve'), type: 'free', name: 'التواقيع (جدول حر)', mt: b.mt != null ? b.mt : 3, kinds: b.kinds || [], h: Math.ceil(el.h + 2), els: [el] }];
+};
+VL.toFree = (b, L) => { const f = { items: VL.convItems, facts: VL.convFacts, notes: VL.convNotes, sigs: VL.convSigs, ret: VL.convRet }[b.type]; return f ? f(b, L) : [b]; };
+VL.allFree = (L) => { L.bands = (L.bands || []).flatMap((b) => (b.type === 'free' ? [b] : VL.toFree(b, L))); return L; };
+VLS.free = () => VL.allFree(vlFix(VLS.classic()));
+VL_STARTERS.splice(1, 0, ['free', 'حر بالكامل', 'كل جزء عناصر حرة: البيانات والأصناف والتواقيع جداول تعدّل كل خلية فيها وتدمجها وتلوّنها، والجداول تتمدد مع البيانات']);
+VL.dynTokMenu = () => `<div class="vle-mh">داخل الجدول المتمدد: بيانات كل صنف</div>${VL_ITEM_TOKS.map((k) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}<div class="vle-mh">داخل الجدول المتمدد: بيانات الاستمارة</div>${VL_FACT_TOKS.map((k) => `<button type="button" data-fk="${esc(k)}">[${esc(k)}]</button>`).join('')}`;
+
+/* ── لوحات المحرر الجديدة ── */
+Pages.vleDynSec = (e, fld, sec) => {
+  const dy = e.tbl.dyn;
+  if (!dy) return sec('edyn', 'جدول يتمدد مع البيانات', 'refresh', html`<p class="faint small">اجعل صفاً أو عدة صفوف تتكرر تلقائياً لكل صنف في السند، أو لكل بيان من بيانات الاستمارة، فيتمدد الجدول ويدفع ما تحته عند الطباعة — بأي شكل تصممه.</p><div class="vle-tbtn"><button type="button" class="btn btn-sm btn-primary" data-dyn="items">${UI.icon('list')} تكرار الصف المحدد لكل صنف</button><button type="button" class="btn btn-sm btn-soft" data-dyn="facts">${UI.icon('grid')} تكرار لكل بيان</button></div>`, true);
+  const toks = dy.src === 'facts' ? VL_FACT_TOKS : [...VL_ITEM_TOKS, 'عدد الأصناف'];
+  return sec('edyn', 'جدول يتمدد مع البيانات', 'refresh', html`${fld('E.tbl.dyn.src', 'الصفوف المتكررة تعرض', 'select', [['items', 'أصناف السند'], ['old', 'الجهاز القديم (الاستبدال)'], ['facts', 'بيانات الاستمارة (الإدارة، المرجع…)']])}
+    <div class="vle-row">${fld('E.tbl.dyn.r1', 'تتكرر الصفوف من', 'num', 1)}${fld('E.tbl.dyn.r2', 'إلى الصف', 'num', 1)}</div>
+    ${dy.src === 'facts' ? fld('E.tbl.dyn.per', 'عدد البيانات في كل تكرار', 'num', 1) : fld('E.tbl.dyn.minRows', 'أقل عدد أسطر (تكمَّل بأسطر فارغة)', 'num', 1)}
+    ${fld('E.tbl.dyn.hideEmpty', 'إخفاء الجدول إن لم توجد بيانات', 'check')}
+    <p class="faint small">الصفوف قبل المتكررة رأس يتكرر في كل صفحة، وما بعدها ذيل (مثل الإجمالي). حدّد خلية ثم اختر ما يُكتب فيها:</p>
+    <div class="vle-fields">${toks.map((k) => html`<button type="button" class="vle-tokb" data-tok="${k}">[${k}]</button>`)}</div>
+    <button type="button" class="btn btn-sm btn-ghost mt" data-dyn="off">${UI.icon('x')} إيقاف التكرار</button>`, true);
+};
+Pages.vleConvBtn = (b) => html`<div class="vle-conv"><button type="button" class="btn btn-soft btn-block" data-conv>${UI.icon('layers')} تحويل إلى عناصر حرة — تعديل كل شيء</button><p class="faint small">${b.type === 'items' ? 'يصبح جدولاً حراً يتمدد لكل صنف: غيّر الأعمدة والعناوين وادمج الخلايا ولوّنها وأضف صفوفاً فوقه وتحته.' : b.type === 'facts' ? 'تصبح البيانات جدولاً حراً يتكرر لكل بيان، تغيّر شكله وألوانه وخطوطه كما تشاء، أو تحذفه وتكتب البيانات في مربعات نص.' : 'يصبح عناصر حرة: نصوصاً وجداول وإطارات تعدّلها وتحرّكها وتحذفها، والبيانات تبقى تُملأ تلقائياً.'}</p></div>`;
+Pages.vleConvAll = (L) => (L.bands || []).some((b) => b.type !== 'free') ? html`<div class="vle-conv">${UI.icon('layers')} <b>القالب غير مقيّد بتصميم معين</b><p class="faint small">حوّل كل الأقسام الثابتة (البيانات، الأصناف، الملاحظات، التواقيع، الإرجاع) إلى عناصر حرة، فيصبح كل نص وخلية وإطار في الاستمارة قابلاً للتعديل والتحريك والحذف.</p><button type="button" class="btn btn-primary btn-block" data-convall>${UI.icon('layers')} تحويل القالب كله إلى عناصر حرة</button></div>` : html`<div class="vle-conv ok">${UI.icon('check')} كل أجزاء هذا القالب عناصر حرة تعدّلها كما تشاء.</div>`;
 
 boot();
 })();</script>

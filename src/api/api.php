@@ -383,7 +383,19 @@ const USER_PROTECTED = ['role', 'username', 'active', 'extraPerms', 'deniedPerms
  * يقرر مصير عملية كتابة واحدة: يعيد البيانات المسموح حفظها، أو null للرفض.
  * $old = السجل الحالي على الخادم (أو null)، $new = ما أرسله المتصفح.
  */
+/** قفل حذف الأجهزة: يرفض حذف الأصناف والوحدات للجميع حتى يُفتح */
+function inv_del_locked(): bool {
+  $d = doc_get('meta', 'inv:lock');
+  if (!$d || (int) $d['deleted']) return false;
+  $v = json_decode((string) $d['data'], true) ?: [];
+  return !empty(($v['value'] ?? [])['del']);
+}
 function authorize(array $user, string $store, ?array $old, $new, bool $deleted) {
+  if ($deleted && in_array($store, ['items', 'assets'], true) && inv_del_locked()) return null;
+  if ($store === 'meta') {
+    $lk = (string) ((is_array($new) ? ($new['key'] ?? '') : '') ?: ($old['key'] ?? ''));
+    if ($lk === 'inv:lock' || $lk === 'custody:direct') return (is_sup($user) || can($user, 'custody.lock')) ? $new : null;
+  }
   if (is_sup($user)) return $new;
   $role = (string) ($user['role'] ?? 'department');
   if ($role === 'monitor') return $store === 'meta' ? $new : null;
@@ -818,8 +830,10 @@ case 'wipe': {
   ];
   $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher'], 'extmaint' => ['seq:extmaint']];
   $pick = array_values(array_intersect(array_keys($groups), array_map('strval', (array) ($b['groups'] ?? []))));
-  $users = !empty($b['users']);
+  $userIds = array_values(array_filter(array_map('strval', (array) ($b['userIds'] ?? []))));
+  $users = !empty($b['users']) || $userIds;
   if (!$pick && !$users) fail('اختر البيانات المراد حذفها', 400);
+  if (in_array('inventory', $pick, true) && inv_del_locked()) fail('حذف الأجهزة مقفل: افتحه أولاً من «أقفال المخزن والعهد» ثم أعد المحاولة', 409);
   $stores = []; foreach ($pick as $g) $stores = array_merge($stores, $groups[$g]);
   $pdo = db(); $counts = []; $files = [];
   $pdo->beginTransaction();
@@ -842,6 +856,8 @@ case 'wipe': {
       foreach ($q->fetchAll() as $r) {
         $d = json_decode($r['data'], true) ?: [];
         if ($r['doc_id'] === (string) $user['id'] || ($d['role'] ?? '') === 'supervisor' || ($d['role'] ?? '') === 'monitor' || !empty($d['system'])) continue;
+        /* الحسابات المختارة بالاسم فقط، أو كل الحسابات غير المحمية في الطلبات القديمة */
+        if ($userIds && !in_array((string) $r['doc_id'], $userIds, true)) continue;
         $del[] = $r['doc_id'];
       }
       if ($del) {
