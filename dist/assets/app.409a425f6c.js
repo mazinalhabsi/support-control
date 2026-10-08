@@ -2508,7 +2508,8 @@ Pages.item = async (ctx) => {
           ${UI.panel({ title: 'الرصيد الحالي', icon: 'box', body: html`<div class="center"><div style="font:800 54px/1.1 var(--f-display)" data-count="${it.onHand}">0</div><div class="faint">${it.unit}</div><div style="margin-top:12px">${UI.meter(it)}</div>${it.minQty ? html`<p class="small faint" style="margin-top:8px">حد التنبيه: ${fmtNum(it.minQty)} ${it.unit}</p>` : ''}</div>` })}
           ${UI.panel({ title: 'التوزيع على المخازن', icon: 'warehouse', body: stock.some((s) => s.qty) ? UI.chart.hbars(stock.filter((s) => s.qty).map((s, i) => ({ label: Data.nameOf('warehouses', s.warehouseId), value: s.qty, tone: TONES[i % TONES.length] }))) : UI.noData('لا يوجد رصيد في أي مخزن') })}
           ${units.length ? UI.panel({ title: 'الوحدات في المخزن', icon: 'tag', sub: `${fmtNum(units.length)} وحدة متاحة`, tools: html`<button class="btn btn-ghost btn-sm" data-act="labels">${UI.icon('print')} ملصقات</button>`, flush: true, body: html`<div class="table-wrap"><table class="table"><thead><tr><th>الرقم التسلسلي</th><th>الحالة</th><th>الموقع أو الحائز</th></tr></thead><tbody>${units.slice(0, 60).map((a) => html`<tr><td class="t-num"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button>${a.host ? html`<div class="t-sub ltr">${a.host}</div>` : ''}</td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td></tr>`)}</tbody></table></div>` }) : ''}
-          ${outside ? UI.panel({ title: 'خارج المخزن', icon: 'pin', body: html`<p class="muted" style="margin:0 0 10px">${fmtNum(outside)} ${it.unit || 'وحدة'} لدى الإدارات أو مُعارة أو في الصيانة. لا تظهر تفاصيلها داخل المخزن.</p><a class="btn btn-soft btn-sm" href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}">${UI.icon('search')} أماكنها في البحث العام</a>` }) : ''}
+          ${Object.keys(it.specs || {}).length ? UI.panel({ title: 'المواصفات', icon: 'info', body: html`<dl class="kv">${Object.entries(it.specs).filter(([, v2]) => String(v2 || '').trim()).map(([k, v2]) => html`<dt>${specLabel(it.categoryId, k)}</dt><dd>${v2}</dd>`)}</dl>` }) : ''}
+          ${await Pages.whereHTML(id)}${outside ? html`<p class="faint small">${UI.icon('info')} ${fmtNum(outside)} ${it.unit || 'وحدة'} خارج المخزن. <a href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}">${UI.icon('search')} البحث العام</a></p>` : ''}
           
           ${it.notes ? UI.panel({ title: 'ملاحظات', icon: 'info', body: html`<p class="article" style="font-size:14px">${it.notes}</p>` }) : ''}
         </div>
@@ -4690,13 +4691,13 @@ const ITEM_SPECS = {
   cable: [{ k: 'ctype', l: 'نوع الكابل', o: ['شبكة Cat6', 'HDMI', 'VGA', 'طاقة', 'USB'] }, { k: 'len', l: 'الطول', o: ['1 م', '2 م', '3 م', '5 م', '10 م'] }],
   hardware: [{ k: 'part', l: 'نوع القطعة', o: ['ماوس', 'لوحة مفاتيح', 'ذاكرة RAM', 'قرص', 'بطاقة شبكة', 'مزود طاقة', 'مروحة', 'أخرى'] }, { k: 'ramSize', l: 'حجم الذاكرة (للذاكرة فقط)', o: ['2GB', '4GB', '8GB', '16GB', '32GB', '64GB'] }, { k: 'ramType', l: 'نوع الذاكرة (للذاكرة فقط)', o: ['DDR3', 'DDR3L', 'DDR4', 'DDR5', 'SO-DIMM DDR4', 'SO-DIMM DDR5'] }, { k: 'conn', l: 'التوصيل', multi: 1, o: ['USB', 'لاسلكي', 'Bluetooth', 'PS/2'] }]
 };
-const specsOf = (catId) => { let c = catId, g = 0; while (c && g++ < 40) { if (ITEM_SPECS[catKey(c)]) return ITEM_SPECS[catKey(c)]; c = (Data.c.itemCategories.get(c) || {}).parentId; } return []; };
+const specsOf = (catId) => { let c = catId, g = 0; while (c && g++ < 40) { if (ITEM_SPECS[catKey(c)]) return ITEM_SPECS[catKey(c)]; c = (Data.c.itemCategories.get(c) || {}).parentId; } c = catId; g = 0; while (c && g++ < 40) { const r = Data.c.itemCategories.get(c) || {}, k = r.illustration && r.illustration !== 'box' ? Object.keys(ITEMCAT_ILLU).find((x) => ITEMCAT_ILLU[x] === r.illustration) : ''; if (k && ITEM_SPECS[k]) return ITEM_SPECS[k]; c = r.parentId; } return []; };
 /* اسم الحقل الفني حسب فئة الصنف (مثل: المعالج، السعة) */
 const specLabel = (catId, k) => { const f = specsOf(catId).find((x) => x.k === k); return f ? f.l.replace(/\s*\(.*\)\s*$/, '') : k; };
 
 /* نافذة الصنف: الفئة جاهزة مسبقاً وحقول خاصة بها */
 Pages.itemModal = async (id, preset = {}) => {
-  const it = id ? await DB.get('items', id) : { unit: 'قطعة', minQty: 0, categoryId: preset.categoryId || '', brand: preset.brand || '' };
+  const it = id ? await DB.get('items', id) : { unit: 'قطعة', minQty: 0, categoryId: preset.categoryId || '', brand: preset.brand || '', model: preset.model || '' };
   const cats = Data.list('itemCategories');
   let cat = it.categoryId || (cats[0] || {}).id, view = localStorage.getItem('sq_catview') || 'grid';
   const specsHTML = () => { const defs = specsOf(cat); return defs.length ? html`<div class="u-sec" data-specs><h3>${UI.icon('tag')} تفاصيل ${Data.nameOf('itemCategories', cat)}</h3><div class="form-grid">${defs.map((f) => (f.multi ? html`<div class="field wide"><label>${f.l}</label><div class="chip-pick">${(f.o || []).map((o) => html`<label><input type="checkbox" name="sp_${f.k}" value="${o}"${String((it.specs || {})[f.k] || '').split('، ').includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div></div>` : UI.field({ name: `sp_${f.k}`, label: f.l, type: f.t === 'text' ? 'text' : 'select', options: (f.o || []).map((o) => ({ value: o, label: o })) }, (it.specs || {})[f.k])))}</div></div>` : html`<div data-specs></div>`; };
@@ -4910,7 +4911,7 @@ Pages.printVoucher = (v) => {
 Pages.deviceModal = async (itemId, scope = {}) => {
   const it = await DB.get('items', itemId); if (!it) { UI.toast('الصنف غير موجود', 'warn'); return false; }
   const [stock, deptRows, assets, units] = await Promise.all([Data.inv.stockOf(itemId), Data.dept.ofItem(itemId), Data.assets.byItem(itemId), scope.departmentId ? Data.units.tree(scope.departmentId) : Promise.resolve([])]);
-  const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name }))), allU = scope.departmentId ? await DB.getAll('deptUnits') : [], uPath = (id) => { const by = new Map(allU.map((u) => [u.id, u])), out = []; let u = by.get(id), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } return out.join(' — '); };
+  const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name }))), allU = await DB.getAll('deptUnits'), uPath = (id) => { const by = new Map(allU.map((u) => [u.id, u])), out = []; let u = by.get(id), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } return out.join(' — '); };
   const unitRows = scope.departmentId ? (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === scope.departmentId && r.qty > 0) : [];
   const mine = scope.departmentId ? assets.filter((a) => a.departmentId === scope.departmentId) : scope.store ? assets.filter((a) => a.status === 'in_store') : assets;
   const outside = scope.store ? (isSerialItem(it) ? assets.filter((a) => a.status !== 'in_store' && a.status !== 'retired').length : deptRows.reduce((n, d) => n + (Number(d.qty) || 0), 0)) : 0;
@@ -4928,11 +4929,11 @@ Pages.deviceModal = async (itemId, scope = {}) => {
         ${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maintN ? 'amber' : 'teal', value: maintN })}
       </div>
       ${mine.length ? html`<p class="hint mt">${UI.icon('info')} اضغط أي رقم تسلسلي لعرض كامل تفاصيل الوحدة وموقعها وملاحظاتها وكل مرة دخلت فيها الصيانة.</p>` : ''}${scope.store && outside ? html`<p class="hint">${UI.icon('pin')} ${fmtNum(outside)} وحدة خارج المخزن لا تظهر هنا. <a href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}" data-close-dev>اعرض أماكنها في البحث العام</a></p>` : ''}
-      ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v2]) => html`<dt>${specLabel(k)}</dt><dd>${v2}</dd>`)}</dl>${it.notes ? html`<p class="muted small mt">${it.notes}</p>` : ''}</div>` : it.notes ? html`<p class="muted mt">${it.notes}</p>` : ''}
-      ${mine.length ? html`<div class="u-sec mt"><h3>${UI.icon('tag')} الأرقام التسلسلية</h3><div class="table-wrap"><table class="table"><thead><tr><th>الرقم</th><th>الحالة</th><th>الموقع أو الحائز</th>${Auth.can('inventory.move') ? html`<th></th>` : ''}<th></th></tr></thead><tbody>${mine.slice(0, 60).map((a) => html`<tr><td class="t-num ltr"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button></td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td>${Auth.can('inventory.move') ? html`<td class="nowrap"><select class="input" data-astatus="${a.id}" style="height:30px;max-width:140px">${Object.entries(ASSET_STATUS).map(([k, s]) => html`<option value="${k}"${a.status === k ? raw(' selected') : ''}>${s.label}</option>`)}</select></td>` : ''}<td class="nowrap">${Pages.assetActs(a)}</td></tr>`)}</tbody></table></div></div>` : ''}
+      ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v2]) => html`<dt>${specLabel(k)}</dt><dd>${v2}</dd>`)}</dl>${it.notes ? html`<p class="muted small mt">${it.notes}</p>` : ''}</div>` : html`${it.notes ? html`<p class="muted mt">${it.notes}</p>` : ''}<p class="faint small mt">${UI.icon('info')} لا توجد مواصفات مسجلة لهذا الصنف${Auth.can('inventory.manage') ? ' — أضفها بزر «تعديل».' : '.'}</p>`}
+      ${mine.length ? html`<div class="u-sec mt"><h3>${UI.icon('tag')} الأرقام التسلسلية</h3><div class="table-wrap"><table class="table"><thead><tr><th>الرقم</th><th>الحالة</th><th>الموقع أو الحائز</th>${Auth.can('inventory.move') ? html`<th></th>` : ''}<th></th></tr></thead><tbody>${mine.slice(0, 60).map((a) => html`<tr><td class="t-num ltr"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button></td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? [Data.nameOf('departments', a.departmentId, a.holder || '—'), a.unitId ? uPath(a.unitId) : ''].filter(Boolean).join(' — ') : a.extId && a.status === 'maintenance' ? `لدى ${XM.name()}` : a.holder || '—'}</td>${Auth.can('inventory.move') ? html`<td class="nowrap"><select class="input" data-astatus="${a.id}" style="height:30px;max-width:140px">${Object.entries(ASSET_STATUS).map(([k, s]) => html`<option value="${k}"${a.status === k ? raw(' selected') : ''}>${s.label}</option>`)}</select></td>` : ''}<td class="nowrap">${Pages.assetActs(a)}</td></tr>`)}</tbody></table></div></div>` : ''}
       ${unitRows.length ? html`<div class="u-sec mt"><h3>${UI.icon('pin')} التوزيع على المكاتب</h3><div class="list">${unitRows.map((r) => { const o = offices.find((x) => x.id === r.unitId); return html`<div class="list-row"><div class="grow"><b>${uPath(r.unitId) || (o ? `${o.section} — ${o.name}` : 'موقع محذوف')}</b></div>${UI.chip('sky', fmtNum(r.qty))}</div>`; })}</div></div>` : ''}
       ${await Pages.maintHistory(itemId)}
-      ${stock.length ? html`<div class="u-sec mt"><h3>${UI.icon('warehouse')} الأرصدة في المخازن</h3><div class="list">${stock.filter((s) => s.qty > 0).map((s) => html`<div class="list-row"><div class="grow"><b>${Data.nameOf('warehouses', s.warehouseId)}</b></div>${UI.chip('teal', fmtNum(s.qty))}</div>`)}</div></div>` : ''}`,
+      ${await Pages.whereHTML(itemId, scope)}`,
     onMount: (form) => {
       UI.hydrate(form);
       UI.on(form, 'change', '[data-astatus]', async (e, el) => { try { await Data.assets.assign([el.dataset.astatus], { status: el.value }); UI.toast('حُدِّثت حالة الوحدة'); } catch (ex) { UI.error(ex); } });
@@ -4940,9 +4941,13 @@ Pages.deviceModal = async (itemId, scope = {}) => {
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null },
       ...(Auth.can('inventory.move') ? [{ label: 'صيانة', kind: 'soft', icon: 'tools', value: 'maint' }, { label: 'إخراج من الخدمة', kind: 'danger', icon: 'x', value: 'retire' }] : []),
       ...(Auth.can('inventory.move') && scope.departmentId ? [{ label: 'نقل', kind: 'soft', icon: 'swap', value: 'transfer' }, { label: 'استبدال', kind: 'primary', icon: 'refresh', value: 'replace' }] : []),
+      ...(XM.on() && XM.canManage() ? [{ label: XM.name(), kind: 'soft', icon: 'external', value: 'xm' }] : []),
+      ...(Auth.can('inventory.manage') ? [{ label: 'تعديل', kind: 'soft', icon: 'edit', value: 'edit' }] : []),
       { label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }]
   });
   if (res === 'page') Router.go(`/inventory/items/${itemId}`);
+  else if (res === 'xm') return Pages.xmSendModal({ itemId, departmentId: scope.departmentId || '', unitId: scope.unitId || '' });
+  else if (res === 'edit') return Pages.itemModal(itemId);
   else if (res === 'maint') return Pages.maintSendModal(itemId, scope);
   else if (res === 'retire') return Pages.retireModal(itemId, scope);
   else if (res === 'transfer') return Pages.transferModal({ itemId, departmentId: scope.departmentId, unitId: scope.unitId });
@@ -11177,11 +11182,11 @@ const XM = {
       const number = await XM.nextNumber();
       const rec = {
         id: uid('xm'), number, batch, status: 'sent', createdAt: t, updatedAt: t, createdBy: Auth.user.id,
-        source: l.assetId ? 'inventory' : 'manual', itemId: l.itemId || '', assetId: l.assetId || '', itemName: String(l.itemName).trim(), kind: l.kind || '', brand: l.brand || '', model: l.model || '', serial: l.serial || '', tag: l.tag || '',
+        source: l.assetId ? 'inventory' : l.itemId ? 'item' : 'manual', itemId: l.itemId || '', assetId: l.assetId || '', itemName: String(l.itemName).trim(), kind: l.kind || '', brand: l.brand || '', model: l.model || '', serial: l.serial || '', tag: l.tag || '',
         departmentId: l.departmentId || (prev ? prev.departmentId : '') || '', holderId: l.holderId || (prev ? prev.holderId : '') || '', holder: l.holder || (prev ? prev.holder : '') || '', prev,
         ticketRef: common.ticketRef || '', vendor: { name: String(common.vendor.name).trim(), type: common.vendor.type || 'company', contact: common.vendor.contact || '', phone: common.vendor.phone || '', email: common.vendor.email || '' },
         vendorRef: common.vendorRef || '', warranty: l.warranty || 'unknown', warrantyEnd: l.warrantyEnd || 0,
-        fault: String(l.fault).trim(), accessories: l.accessories || [], condition: l.condition || '', dataFlags: l.dataFlags || {}, note: common.note || '',
+        fault: String(l.fault).trim(), accessories: l.accessories || [], condition: l.condition || '', dataFlags: l.dataFlags || {}, specs: XM.clean(l.specs), extra: XM.clean(l.extra), unitId: l.unitId || (prev ? prev.unitId : '') || '', note: common.note || '',
         sentAt: common.sentAt || t, sentBy: Auth.user.id, courier: common.courier || '', vendorReceiver: common.vendorReceiver || '', expectedAt: common.expectedAt || 0,
         receivedAt: 0, receivedBy: '', result: '', resultNote: '', newSerial: '', deliveredAt: 0, deliveredBy: '', deliveredTo: '',
         log: [{ at: t, by: Auth.user.id, status: 'sent', text: `أُرسل إلى ${String(common.vendor.name).trim()}${common.vendorRef ? ` — أمر العمل ${common.vendorRef}` : ''}` }]
@@ -11365,7 +11370,7 @@ Pages.xmPrint = (recs, mode = 'send') => {
   const send = mode === 'send';
   const kind = send ? VOUCHER_KIND.xmsend : VOUCHER_KIND.xmrecv;
   const tech = VD.person(send ? r.sentBy : r.receivedBy || Auth.user.id);
-  const lines = recs.map((x) => ({ name: x.itemName, sku: x.tag ? `أصل ${x.tag}` : '', brand: x.brand, model: x.model, serials: [send || !x.newSerial ? x.serial : `${x.newSerial} (بديل عن ${x.serial})`].filter(Boolean), qty: 1, unit: 'جهاز', info: send ? [x.fault, (x.accessories || []).length ? `الملحقات: ${x.accessories.join('، ')}` : ''].filter(Boolean).join(' — ') : [XM_RESULTS[x.result] ? XM_RESULTS[x.result][0] : '', x.resultNote].filter(Boolean).join(' — ') }));
+  const lines = recs.map((x) => ({ name: x.itemName, sku: x.tag ? `أصل ${x.tag}` : '', brand: x.brand, model: x.model, serials: [send || !x.newSerial ? x.serial : `${x.newSerial} (بديل عن ${x.serial})`].filter(Boolean), qty: 1, unit: 'جهاز', info: send ? [x.fault, XM.extraText(x), (x.accessories || []).length ? `الملحقات: ${x.accessories.join('، ')}` : ''].filter(Boolean).join(' — ') : [XM_RESULTS[x.result] ? XM_RESULTS[x.result][0] : '', x.resultNote].filter(Boolean).join(' — ') }));
   const vend = `${r.vendor.name}${r.vendor.phone ? ` — ${r.vendor.phone}` : ''}`;
   const facts = send ? [['الجهة', vend], ['أمر العمل لدى الجهة', r.vendorRef], ['الموعد المتوقع', r.expectedAt ? fmtDate(r.expectedAt) : ''], ['المرجع', r.ticketRef ? `بلاغ ${r.ticketRef}` : (recs.length > 1 ? `${fmtNum(recs.length)} أجهزة` : '')]]
     : [['الجهة', vend], ['أمر العمل لدى الجهة', r.vendorRef], ['تاريخ الإرسال', fmtDate(r.sentAt)], ['مدة البقاء لدى الجهة', `${fmtNum(XM.days(r))} يوم`]];
@@ -11398,7 +11403,7 @@ Pages.xmDetail = async (id) => {
       <div class="xm-head tone-${S.tone}"><span class="xm-badge">${UI.icon(S.icon)} ${S.label}</span>${late ? UI.chip('red', `متأخر منذ ${fmtNum(Math.round((now() - r.expectedAt) / DAY))} يوم`, 'alert') : ''}${r.result ? UI.chip(XM_RESULTS[r.result][1], XM_RESULTS[r.result][0], XM_RESULTS[r.result][2]) : ''}<span class="grow"></span><span class="faint small">${fmtNum(XM.days(r))} يوم ${r.receivedAt ? 'لدى الجهة' : 'منذ الإرسال'}</span></div>
       <ol class="xm-steps">${XM_STEPS.map(([k, l, ic], i) => html`<li class="${i < stepIdx || r.status === 'delivered' ? 'done' : i === stepIdx ? 'now' : ''}${r.status === 'closed' && i === 4 ? ' x' : ''}"><i>${UI.icon(i < stepIdx ? 'check' : ic)}</i><span>${i === 4 && r.status === 'closed' ? 'إغلاق' : l}</span></li>`)}</ol>
       <div class="xm-cols">
-        <div><h4>${UI.icon('monitor')} الجهاز</h4><dl class="kv">${kv('الجهاز', r.itemName)}${kv('الماركة والموديل', [r.brand, r.model].filter(Boolean).join(' '))}${kv('الرقم التسلسلي', r.serial, 'ltr')}${kv('الرقم الجديد', r.newSerial, 'ltr')}${kv('رقم الأصل', r.tag, 'ltr')}${kv('الإدارة', Data.nameOf('departments', r.departmentId, ''))}${kv('صاحب العهدة', r.holder)}${kv('الضمان', XM_WARRANTY[r.warranty])}${kv('الحالة عند الإرسال', r.condition)}${kv('الملحقات', (r.accessories || []).join('، '))}${kv('حماية البيانات', flags.join('، '))}</dl></div>
+        <div><h4>${XM_TYPES[r.kind] ? UI.illu(XM_TYPES[r.kind].il, 'mini') : UI.icon('monitor')} الجهاز</h4><dl class="kv">${kv('الجهاز', r.itemName)}${kv('النوع', XM.typeLabel(r.kind))}${kv('الماركة والموديل', [r.brand, r.model].filter(Boolean).join(' '))}${kv('الرقم التسلسلي', r.serial, 'ltr')}${kv('الرقم الجديد', r.newSerial, 'ltr')}${kv('رقم الأصل', r.tag, 'ltr')}${kv('الإدارة', Data.nameOf('departments', r.departmentId, ''))}${kv('صاحب العهدة', r.holder)}${kv('الضمان', XM_WARRANTY[r.warranty])}${kv('الحالة عند الإرسال', r.condition)}${kv('الملحقات', (r.accessories || []).join('، '))}${kv('حماية البيانات', flags.join('، '))}${XM.extraRows(r).map(([k, v]) => kv(k, v))}${XM.specRows(r).map(([k, v]) => kv(k, v))}</dl></div>
         <div><h4>${UI.icon('building')} الجهة</h4><dl class="kv">${kv('الجهة', r.vendor.name)}${kv('نوعها', XM_VENDOR_TYPES[r.vendor.type])}${kv('المسؤول', r.vendor.contact)}${kv('الهاتف', r.vendor.phone, 'ltr')}${kv('أمر العمل', r.vendorRef, 'ltr')}${kv('أُرسل', `${fmtDateTime(r.sentAt)} — ${who(r.sentBy)}`)}${kv('الناقل', r.courier)}${kv('المستلم لدى الجهة', r.vendorReceiver)}${kv('الموعد المتوقع', r.expectedAt ? fmtDate(r.expectedAt) : '')}${kv('استُلم', r.receivedAt ? `${fmtDateTime(r.receivedAt)} — ${who(r.receivedBy)}` : '')}${kv('سُلّم', r.deliveredAt ? `${fmtDateTime(r.deliveredAt)}${r.deliveredTo ? ` إلى ${r.deliveredTo}` : ''}` : '')}${kv('البلاغ', r.ticketRef, 'ltr')}</dl></div>
       </div>
       <div class="xm-fault"><b>${UI.icon('alert')} العطل</b><p>${r.fault}</p>${r.vendorReport ? html`<b>${UI.icon('file')} تقرير الجهة</b><p>${r.vendorReport}</p>` : ''}${r.resultNote ? html`<b>${UI.icon('check')} ملاحظة الاستلام</b><p>${r.resultNote}</p>` : ''}</div>
@@ -11470,10 +11475,10 @@ Pages.xmEditModal = (r) => UI.modal({
     ${UI.field({ name: 'expectedAt', label: 'الموعد المتوقع', type: 'date' }, r.expectedAt ? dateInput(r.expectedAt) : '')}${UI.field({ name: 'warranty', label: 'الضمان', type: 'select', placeholder: false, options: Object.entries(XM_WARRANTY).map(([value, label]) => ({ value, label })) }, r.warranty)}
     ${UI.field({ name: 'courier', label: 'الناقل' }, r.courier)}${UI.field({ name: 'vendorReceiver', label: 'المستلم لدى الجهة' }, r.vendorReceiver)}
     ${UI.field({ name: 'fault', label: 'العطل', type: 'textarea', rows: 2, wide: true, required: true }, r.fault)}
-    ${UI.field({ name: 'note', label: 'ملاحظات', wide: true }, r.note)}</div>`,
+    ${UI.field({ name: 'note', label: 'ملاحظات', wide: true }, r.note)}</div>${XM.editExtraHTML(r)}`,
   actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (f) => {
     const v = UI.formValues(f); if (!v.itemName.trim() || !v.vname.trim() || !v.fault.trim()) throw new AppError('أكمل الحقول المطلوبة');
-    await XM.update(r.id, (x) => { Object.assign(x, { itemName: v.itemName.trim(), brand: '', model: v.model.trim(), serial: v.serial.trim(), holder: v.holder, vendorRef: v.vendorRef, expectedAt: v.expectedAt ? fromDateInput(v.expectedAt, true) : 0, warranty: v.warranty, courier: v.courier, vendorReceiver: v.vendorReceiver, fault: v.fault.trim(), note: v.note }); x.vendor = { ...x.vendor, name: v.vname.trim(), phone: v.vphone, contact: v.vcontact }; }, 'تعديل بيانات السجل');
+    await XM.update(r.id, (x) => { Object.assign(x, { itemName: v.itemName.trim(), brand: '', model: v.model.trim(), serial: v.serial.trim(), holder: v.holder, vendorRef: v.vendorRef, expectedAt: v.expectedAt ? fromDateInput(v.expectedAt, true) : 0, warranty: v.warranty, courier: v.courier, vendorReceiver: v.vendorReceiver, fault: v.fault.trim(), note: v.note }); x.vendor = { ...x.vendor, name: v.vname.trim(), phone: v.vphone, contact: v.vcontact }; XM.readExtra(f, x); }, 'تعديل بيانات السجل');
     await XM.rememberVendor({ name: v.vname, phone: v.vphone, contact: v.vcontact });
     return true;
   } }]
@@ -11508,7 +11513,7 @@ Pages.extMaint = async (ctx) => {
     const all = (await XM.list()).sort((a, b) => b.sentAt - a.sentAt);
     if (!ctx.alive()) return;
     const manage = XM.canManage(), qn = normalizeAr(st.q);
-    const rows = all.filter((r) => inTab(r, st.tab) && (!st.vendor || r.vendor.name === st.vendor) && (!qn || normalizeAr(`${r.number} ${r.itemName} ${r.serial} ${r.newSerial} ${r.vendor.name} ${r.vendorRef} ${r.holder} ${Data.nameOf('departments', r.departmentId, '')} ${r.fault}`).includes(qn)));
+    const rows = all.filter((r) => inTab(r, st.tab) && (!st.vendor || r.vendor.name === st.vendor) && (!qn || normalizeAr(`${r.number} ${r.itemName} ${r.serial} ${r.newSerial} ${r.vendor.name} ${r.vendorRef} ${r.holder} ${Data.nameOf('departments', r.departmentId, '')} ${r.fault} ${XM.typeLabel(r.kind)} ${XM.extraText(r)}`).includes(qn)));
     const n = (t) => all.filter((r) => inTab(r, t)).length;
     const doneRows = all.filter((r) => r.receivedAt), avg = doneRows.length ? doneRows.reduce((s, r) => s + XM.days(r), 0) / doneRows.length : 0;
     const vend = [...new Set(all.map((r) => r.vendor.name))].sort((a, b) => AR_COLL.compare(a, b));
@@ -11528,7 +11533,7 @@ Pages.extMaint = async (ctx) => {
         <div class="search-box">${UI.icon('search')}<input id="xq" type="search" placeholder="الجهاز، الرقم التسلسلي، الجهة، أمر العمل" value="${st.q}"></div>
         ${vend.length > 1 ? html`<select id="xv"><option value="">كل الجهات</option>${vend.map((v) => html`<option${v === st.vendor ? raw(' selected') : ''}>${v}</option>`)}</select>` : ''}
       </div>
-      ${rows.length ? html`<div class="table-wrap"><table class="table xm-table"><thead><tr><th>الرقم</th><th>الجهاز</th><th>الجهة</th><th>الحالة</th><th>المدة</th><th>الموعد المتوقع</th></tr></thead><tbody class="stagger">${rows.slice(0, 300).map((r) => { const S = XM_STATUS[r.status] || XM_STATUS.sent; return html`<tr class="clickable${XM.late(r) ? ' xm-late' : ''}" data-xm="${r.id}"><td class="ltr t-num">${r.number}</td><td><div class="t-title"><div><div>${r.itemName}</div><div class="t-sub">${[[r.brand, r.model].filter(Boolean).join(' '), r.serial ? `S/N ${r.serial}` : '', Data.nameOf('departments', r.departmentId, '')].filter(Boolean).join(' · ')}</div></div></div></td><td>${r.vendor.name}${r.vendorRef ? html`<div class="t-sub ltr" style="text-align:right">${r.vendorRef}</div>` : ''}</td><td>${UI.chip(S.tone, S.label, S.icon)}${r.result ? html`<div class="t-sub">${XM_RESULTS[r.result][0]}</div>` : ''}</td><td>${fmtNum(XM.days(r))} يوم${prog(r)}</td><td>${r.expectedAt ? html`<span class="${XM.late(r) ? 'txt-red' : ''}">${fmtDate(r.expectedAt)}</span>` : '—'}</td></tr>`; })}</tbody></table></div>`
+      ${rows.length ? html`<div class="table-wrap"><table class="table xm-table"><thead><tr><th>الرقم</th><th>الجهاز</th><th>الجهة</th><th>الحالة</th><th>المدة</th><th>الموعد المتوقع</th></tr></thead><tbody class="stagger">${rows.slice(0, 300).map((r) => { const S = XM_STATUS[r.status] || XM_STATUS.sent; return html`<tr class="clickable${XM.late(r) ? ' xm-late' : ''}" data-xm="${r.id}"><td class="ltr t-num">${r.number}</td><td><div class="t-title">${XM_TYPES[r.kind] ? UI.illu(XM_TYPES[r.kind].il, 'mini') : ''}<div><div>${r.itemName}</div><div class="t-sub">${[[r.brand, r.model].filter(Boolean).join(' '), r.serial ? `S/N ${r.serial}` : '', Data.nameOf('departments', r.departmentId, '')].filter(Boolean).join(' · ')}</div></div></div></td><td>${r.vendor.name}${r.vendorRef ? html`<div class="t-sub ltr" style="text-align:right">${r.vendorRef}</div>` : ''}</td><td>${UI.chip(S.tone, S.label, S.icon)}${r.result ? html`<div class="t-sub">${XM_RESULTS[r.result][0]}</div>` : ''}</td><td>${fmtNum(XM.days(r))} يوم${prog(r)}</td><td>${r.expectedAt ? html`<span class="${XM.late(r) ? 'txt-red' : ''}">${fmtDate(r.expectedAt)}</span>` : '—'}</td></tr>`; })}</tbody></table></div>`
         : html`<div class="panel-body">${UI.empty({ illu: 'tools', title: st.tab === 'late' ? 'لا توجد أجهزة متأخرة' : 'لا توجد سجلات هنا', text: manage ? 'أرسل جهازاً إلى جهة خارجية وتابع حالته حتى عودته.' : '', action: manage && st.tab === 'active' ? html`<button class="btn btn-primary" data-act="send">${UI.icon('upload')} إرسال جهاز</button>` : '' })}</div>`}</section>
       ${byV.length ? UI.panel({ cls: 'mt', title: 'أداء الجهات', icon: 'building', flush: true, body: html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهة</th><th>الإجمالي</th><th>لديها الآن</th><th>متأخرة</th><th>نسبة الإصلاح</th><th>متوسط المدة</th></tr></thead><tbody>${byV.map((x) => html`<tr><td><b>${x.v}</b></td><td>${fmtNum(x.n)}</td><td>${fmtNum(x.act)}</td><td>${x.late ? html`<b class="txt-red">${fmtNum(x.late)}</b>` : '0'}</td><td>${x.dn ? `${fmtNum(Math.round((x.ok / x.dn) * 100))}%` : '—'}</td><td>${x.dn ? `${x.avg.toFixed(1)} يوم` : '—'}</td></tr>`)}</tbody></table></div>` }) : ''}`);
     UI.hydrate(ctx.view);
@@ -13036,7 +13041,7 @@ Pages.custodyExplorer = async (ctx, T) => {
   const treeUnits = (dep, pid, lvl) => T.kids(dep, pid).map((u) => { const k = T.kids(dep, u.id), n = T.total(u.id), on = unit && unit.id === u.id; return html`<li><details${openSet.has(u.id) ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`u:${u.id}`)}" class="${on ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon((UNIT_TYPES[u.type] || UNIT_TYPES.section).icon || 'layers')}<span>${u.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length && lvl < ORG_MAX_DEPTH ? html`<ul>${treeUnits(dep, u.id, lvl + 1)}</ul>` : ''}</details></li>`; });
   const tree = html`<ul class="ct-tree"><li><a href="${href('')}" class="${!at ? 'on' : ''}">${UI.icon('grid')}<span>كل الإدارات</span></a></li>${T.deps.map((d) => { const n = T.depQty.get(d.id) || 0, k = T.kids(d.id, ''); return html`<li><details${depId === d.id ? raw(' open') : ''}><summary class="${k.length ? '' : 'leaf'}"><a href="${href(`d:${d.id}`)}" class="${kind === 'd' && nid === d.id ? 'on' : ''}${n ? '' : ' zero'}">${UI.icon('building')}<span>${d.name}</span><b>${fmtNum(n)}</b></a></summary>${k.length ? html`<ul>${treeUnits(d.id, '', 1)}</ul>` : ''}</details></li>`; })}</ul>`;
   const card = (a, name, sub2, n, skus, kidsN, icon, tone) => html`<a class="ct-card${n ? '' : ' zero'}" href="${href(a)}"><span class="ct-ic tone-${tone}">${UI.icon(icon)}</span><div class="grow"><b>${name}</b><small>${sub2}</small></div><div class="ct-n"><b>${fmtNum(n)}</b><small>وحدة</small></div><div class="ct-meta">${kidsN ? html`<span>${UI.icon('layers')} ${fmtNum(kidsN)} فرع</span>` : html`<span class="faint">بلا فروع</span>`}<span>${UI.icon('box')} ${fmtNum(skus)} صنف</span>${n ? '' : html`<span class="chip tone-slate">الرصيد صفر</span>`}</div></a>`;
-  const itemTable = (rows, cols) => (rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th>${cols.map((c) => html`<th class="c">${c[0]}</th>`)}<th></th></tr></thead><tbody>${rows.map((r) => { const it = items.get(r.id) || { name: 'صنف محذوف' }; return html`<tr><td><b>${it.name}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></td>${cols.map((c) => html`<td class="c t-num" data-l="${c[0]}">${fmtNum(r[c[1]] || 0)}</td>`)}<td class="ct-act"><button type="button" class="btn btn-sm btn-ghost" data-device="${r.id}"${depId ? raw(` data-dep="${depId}"`) : ''} title="التفاصيل والوحدات">${UI.icon('eye')}</button>${canAdd ? html`<button type="button" class="btn btn-sm btn-ghost" data-ctfix="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="تعديل الكمية هنا">${UI.icon('edit')}</button>${delLock ? '' : html`<button type="button" class="btn btn-sm btn-ghost danger" data-ctdel="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="حذف من العهدة هنا">${UI.icon('trash')}</button>`}` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة في هذا المستوى', text: canAdd ? 'الرصيد صفر. أضف الأجهزة الموجودة فعلاً بزر «إضافة مباشرة» أعلاه، أو تظهر عند صرفها أو توزيعها.' : 'الرصيد صفر. تظهر الأجهزة هنا عند صرفها أو توزيعها على هذا القسم.' })}</div>`);
+  const itemTable = (rows, cols) => (rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th>${cols.map((c) => html`<th class="c">${c[0]}</th>`)}<th></th></tr></thead><tbody>${rows.map((r) => { const it = items.get(r.id) || { name: 'صنف محذوف' }; return html`<tr><td><b>${it.name}</b><div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div></td>${cols.map((c) => html`<td class="c t-num" data-l="${c[0]}">${fmtNum(r[c[1]] || 0)}</td>`)}<td class="ct-act"><button type="button" class="btn btn-sm btn-ghost" data-device="${r.id}"${depId ? raw(` data-dep="${depId}"`) : ''}${unit ? raw(` data-unit="${unit.id}"`) : ''} title="التفاصيل والمواصفات وأين يوجد">${UI.icon('eye')}</button>${XM.on() && XM.canManage() ? html`<button type="button" class="btn btn-sm btn-ghost" data-ctxm="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="إرسال إلى ${XM.name()}">${UI.icon('external')}</button>` : ''}${canAdd ? html`<button type="button" class="btn btn-sm btn-ghost" data-ctfix="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="تعديل الكمية هنا">${UI.icon('edit')}</button>${delLock ? '' : html`<button type="button" class="btn btn-sm btn-ghost danger" data-ctdel="${r.id}" data-lvl="${unit ? `u:${unit.id}` : `d:${depId}`}" title="حذف من العهدة هنا">${UI.icon('trash')}</button>`}` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد أجهزة في هذا المستوى', text: canAdd ? 'الرصيد صفر. أضف الأجهزة الموجودة فعلاً بزر «إضافة مباشرة» أعلاه، أو تظهر عند صرفها أو توزيعها.' : 'الرصيد صفر. تظهر الأجهزة هنا عند صرفها أو توزيعها على هذا القسم.' })}</div>`);
   let crumbs = html`<a href="${href('')}">${UI.icon('grid')} كل الإدارات</a>`, body = '';
   if (!at) {
     const withC = T.deps.filter((d) => T.depQty.get(d.id)).length;
@@ -13047,13 +13052,13 @@ Pages.custodyExplorer = async (ctx, T) => {
     if (!unit) {
       const tot = T.depQty.get(d.id) || 0, asg = depAssigned(d.id), kids = T.kids(d.id, '');
       const rows = [...(T.depItems.get(d.id) || new Map()).entries()].map(([id, q]) => { let inU = 0; kids.forEach((u) => { inU += T.itemsOf(u.id).get(id) || 0; }); return { id, q, inU, rest: Math.max(0, q - inU) }; }).sort((a, b) => b.q - a.q);
-      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي <b>${fmtNum(tot)}</b></span><span>${UI.icon('check')} موزّع على الأقسام <b>${fmtNum(asg)}</b></span><span class="${tot - asg > 0 ? 'warn' : ''}">${UI.icon('alert')} لدى الإدارة مباشرة (غير موزّع) <b>${fmtNum(Math.max(0, tot - asg))}</b></span>${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${d.id}|">${UI.icon('plus')} إضافة مباشرة للإدارة</button>` : ''}<a class="btn btn-sm btn-soft" href="#/inventory/departments/${d.id}">${UI.icon('external')} صفحة العهدة التفصيلية</a></div>
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي <b>${fmtNum(tot)}</b></span><span>${UI.icon('check')} موزّع على الأقسام <b>${fmtNum(asg)}</b></span><span class="${tot - asg > 0 ? 'warn' : ''}">${UI.icon('alert')} لدى الإدارة مباشرة (غير موزّع) <b>${fmtNum(Math.max(0, tot - asg))}</b></span>${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${d.id}|">${UI.icon('plus')} إضافة وتعديل أجهزة الإدارة</button>` : ''}<a class="btn btn-sm btn-soft" href="#/inventory/departments/${d.id}">${UI.icon('external')} صفحة العهدة التفصيلية</a></div>
         ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الأقسام التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(d.id, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : html`<p class="faint small">لا توجد أقسام لهذه الإدارة في الهيكل التنظيمي.${canOrg() ? html` <a href="#/settings?s=org">إضافة أقسام</a>` : ''}</p>`}
         ${UI.panel({ cls: 'mt', title: `أجهزة ${d.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['في الأقسام', 'inU'], ['لدى الإدارة مباشرة', 'rest']]) })}`;
     } else {
       const kids = T.kids(depId, unit.id), direct = T.uItems.get(unit.id) || new Map(), all = T.itemsOf(unit.id);
       const rows = [...all.entries()].map(([id, q]) => ({ id, q, here: direct.get(id) || 0, below: q - (direct.get(id) || 0) })).sort((a, b) => b.q - a.q);
-      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${depId}|${unit.id}">${UI.icon('plus')} إضافة مباشرة هنا</button>` : ''}</div>
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${depId}|${unit.id}">${UI.icon('plus')} إضافة وتعديل الأجهزة هنا</button>` : ''}</div>
         ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الفروع التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(depId, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : ''}
         ${UI.panel({ cls: 'mt', title: `أجهزة ${unit.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['هنا مباشرة', 'here'], ['في الفروع', 'below']]) })}`;
     }
@@ -13070,7 +13075,7 @@ Pages.ctInject = async (ctx) => {
   (keep || kp).insertAdjacentHTML('afterend', html2);
   if (!ctx._ct) {
     ctx._ct = 1;
-    UI.on(ctx.view, 'click', '.ct [data-device]', async (e, el) => { e.preventDefault(); await Pages.deviceModal(el.dataset.device, el.dataset.dep ? { departmentId: el.dataset.dep } : {}); });
+    UI.on(ctx.view, 'click', '.ct [data-device]', async (e, el) => { e.preventDefault(); await Pages.deviceModal(el.dataset.device, el.dataset.dep ? { departmentId: el.dataset.dep, ...(el.dataset.unit ? { unitId: el.dataset.unit } : {}) } : {}); });
     UI.on(ctx.view, 'click', '.ct-tree summary a', (e, el) => { e.preventDefault(); location.hash = el.getAttribute('href'); });
   }
 };
@@ -14034,5 +14039,403 @@ Pages.vleDynSec = (e, fld, sec) => {
 Pages.vleConvBtn = (b) => html`<div class="vle-conv"><button type="button" class="btn btn-soft btn-block" data-conv>${UI.icon('layers')} تحويل إلى عناصر حرة — تعديل كل شيء</button><p class="faint small">${b.type === 'items' ? 'يصبح جدولاً حراً يتمدد لكل صنف: غيّر الأعمدة والعناوين وادمج الخلايا ولوّنها وأضف صفوفاً فوقه وتحته.' : b.type === 'facts' ? 'تصبح البيانات جدولاً حراً يتكرر لكل بيان، تغيّر شكله وألوانه وخطوطه كما تشاء، أو تحذفه وتكتب البيانات في مربعات نص.' : 'يصبح عناصر حرة: نصوصاً وجداول وإطارات تعدّلها وتحرّكها وتحذفها، والبيانات تبقى تُملأ تلقائياً.'}</p></div>`;
 Pages.vleConvAll = (L) => (L.bands || []).some((b) => b.type !== 'free') ? html`<div class="vle-conv">${UI.icon('layers')} <b>القالب غير مقيّد بتصميم معين</b><p class="faint small">حوّل كل الأقسام الثابتة (البيانات، الأصناف، الملاحظات، التواقيع، الإرجاع) إلى عناصر حرة، فيصبح كل نص وخلية وإطار في الاستمارة قابلاً للتعديل والتحريك والحذف.</p><button type="button" class="btn btn-primary btn-block" data-convall>${UI.icon('layers')} تحويل القالب كله إلى عناصر حرة</button></div>` : html`<div class="vle-conv ok">${UI.icon('check')} كل أجزاء هذا القالب عناصر حرة تعدّلها كما تشاء.</div>`;
 
+/* ══════════ أين يوجد الصنف: المخازن والإدارات ومكاتبها، مع مواصفاته ══════════ */
+Data.inv.where = async (itemId) => {
+  const [stock, dept, units, assets, allU] = await Promise.all([DB.getAll('stock', 'itemId', KR(itemId)), DB.getAll('deptStock', 'itemId', KR(itemId)), DB.getAll('unitStock', 'itemId', KR(itemId)), Data.assets.byItem(itemId), DB.getAll('deptUnits')]);
+  const by = new Map(allU.map((u) => [u.id, u]));
+  const path = (id) => { const out = []; let u = by.get(id), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } return out.join(' — '); };
+  const st = stock.filter((s) => s.qty > 0).map((s) => ({ wh: s.warehouseId, qty: s.qty }));
+  const deps = dept.filter((d) => d.qty > 0).map((d) => ({ dep: d.departmentId, qty: d.qty, units: units.filter((u) => u.departmentId === d.departmentId && u.qty > 0).map((u) => ({ id: u.unitId, path: path(u.unitId) || 'موقع محذوف', qty: u.qty })) })).sort((a, b) => b.qty - a.qty);
+  const byStatus = {}; assets.forEach((a) => { byStatus[a.status] = (byStatus[a.status] || 0) + 1; });
+  return { st, deps, assets, byStatus, path, inStore: st.reduce((s, x) => s + x.qty, 0), inDept: deps.reduce((s, x) => s + x.qty, 0) };
+};
+Pages.whereHTML = async (itemId, scope = {}) => {
+  const w = await Data.inv.where(itemId);
+  const head = html`<h3>${UI.icon('pin')} أين يوجد <small class="faint">— في المخازن ${fmtNum(w.inStore)}، ولدى الإدارات ${fmtNum(w.inDept)}</small></h3>`;
+  if (!w.st.length && !w.deps.length) return html`<div class="u-sec mt where-sec">${head}<p class="faint small">لا يوجد رصيد لهذا الصنف في المخازن أو لدى الإدارات.</p></div>`;
+  return html`<div class="u-sec mt where-sec">${head}<div class="where-grid">
+    ${w.st.map((s) => html`<div class="where-row"><span class="where-ic tone-teal">${UI.icon('warehouse')}</span><div class="grow"><b>${Data.nameOf('warehouses', s.wh)}</b><small>مخزن</small></div><b class="where-n">${fmtNum(s.qty)}</b></div>`)}
+    ${w.deps.map((d) => { const direct = d.qty - d.units.reduce((s, u) => s + u.qty, 0); return html`<div class="where-row${d.dep === scope.departmentId ? ' here' : ''}"><span class="where-ic tone-violet">${UI.icon('building')}</span><div class="grow"><b>${Data.nameOf('departments', d.dep, 'إدارة محذوفة')}${d.dep === scope.departmentId ? html` <span class="chip tone-sky">هنا</span>` : ''}</b><small>${[...d.units.map((u) => `${u.path} (${fmtNum(u.qty)})`), direct > 0 ? `لدى الإدارة مباشرة (${fmtNum(direct)})` : ''].filter(Boolean).join('، ')}</small></div><b class="where-n">${fmtNum(d.qty)}</b></div>`; })}
+  </div>${Object.keys(w.byStatus).length ? html`<div class="row mt" style="gap:6px;flex-wrap:wrap"><span class="faint small">الوحدات المسلسلة:</span>${Object.entries(w.byStatus).map(([k, n]) => UI.chip((ASSET_STATUS[k] || {}).tone || 'slate', `${(ASSET_STATUS[k] || {}).label || k}: ${fmtNum(n)}`, (ASSET_STATUS[k] || {}).icon))}</div>` : ''}</div>`;
+};
+Pages.specsHTML = (it) => {
+  const specs = Object.entries(it.specs || {}).filter(([, v]) => v !== '' && v != null);
+  return specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${specLabel(it.categoryId, k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}</dd>`)}</dl></div>` : html`<p class="faint small mt">${UI.icon('info')} لا توجد مواصفات مسجلة لهذا الصنف${canUser(Auth.user, 'inventory.manage') ? ' — أضفها من «تعديل الصنف ومواصفاته»' : ''}.</p>`;
+};
+/* بطاقة الصنف: المواصفات وأماكن وجوده، من أي مكان في النظام */
+Pages.itemInfo = async (itemId) => {
+  const it = await DB.get('items', itemId); if (!it) { UI.toast('الصنف غير موجود', 'warn'); return null; }
+  const r = await UI.modal({ title: it.name, icon: 'box', size: 'lg',
+    body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
+      ${Pages.specsHTML(it)}${it.notes ? html`<p class="muted small">${it.notes}</p>` : ''}${await Pages.whereHTML(itemId)}`,
+    actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(canUser(Auth.user, 'inventory.manage') ? [{ label: 'تعديل الصنف ومواصفاته', kind: 'soft', icon: 'edit', value: 'edit' }] : []), ...(Auth.can('inventory.read') ? [{ label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }] : [])] });
+  if (r === 'edit') return Pages.itemModal(itemId);
+  if (r === 'page') Router.go(`/inventory/items/${itemId}`);
+  return r;
+};
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-iteminfo]'); if (!b) return; e.preventDefault(); e.stopPropagation(); Pages.itemInfo(b.dataset.iteminfo); }, true);
+
+/* ══════════ جرد المكتب: كل ما في الإدارة أو القسم أو المكتب في نافذة واحدة ══════════
+   يظهر ما سُجل سابقاً قابلاً للتعديل (الكمية والأرقام التسلسلية والحذف)، وتحته أسطر لإضافة الجديد، ويُحفظ الكل بخطوة واحدة */
+Data.custodyAt = async (departmentId, unitId = '') => {
+  if (!departmentId) return [];
+  let rows;
+  if (unitId) rows = (await DB.getAll('unitStock', 'unitId', KR(unitId))).filter((r) => r.qty > 0).map((r) => ({ itemId: r.itemId, qty: r.qty }));
+  else {
+    const ds = (await DB.getAll('deptStock', 'departmentId', KR(departmentId))).filter((r) => r.qty > 0), us = (await DB.getAll('unitStock')).filter((r) => r.departmentId === departmentId && r.qty > 0);
+    rows = ds.map((d) => ({ itemId: d.itemId, qty: Math.max(0, d.qty - us.filter((u) => u.itemId === d.itemId).reduce((s, u) => s + u.qty, 0)) })).filter((r) => r.qty > 0);
+  }
+  const assets = (await DB.getAll('assets')).filter((a) => a.status === 'issued' && a.departmentId === departmentId && (unitId ? a.unitId === unitId : !a.unitId));
+  assets.forEach((a) => { if (!rows.some((r) => r.itemId === a.itemId)) rows.push({ itemId: a.itemId, qty: 0 }); });
+  const items = new Map((await Promise.all(rows.map((r) => DB.get('items', r.itemId)))).filter(Boolean).map((i) => [i.id, i]));
+  return rows.filter((r) => items.has(r.itemId)).map((r) => ({ ...r, item: items.get(r.itemId), serials: assets.filter((a) => a.itemId === r.itemId).map((a) => ({ id: a.id, serial: a.serial })) })).sort((a, b) => String(a.item.name).localeCompare(String(b.item.name), 'ar'));
+};
+Data.custodyFix.addAssets = async ({ departmentId, unitId = '', itemId, serials = [], holderId = '' }) => {
+  if (!serials.length) return 0;
+  const t = now(), holder = holderId ? Data.userName(holderId) : '';
+  await DB.bulkPut('assets', serials.map((s) => ({ id: uid('as'), itemId, serial: s, tag: '', host: '', status: 'issued', warehouseId: '', departmentId, unitId, holder, holderId, loanId: '', note: 'إضافة مباشرة', addedAt: t, updatedAt: t })));
+  return serials.length;
+};
+const snSplit = (v) => String(v || '').split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean);
+Pages.directCustodyModal = async (departmentId = '', unitId = '') => {
+  if (!(await Custody.allowed())) {
+    if (Custody.canToggle() && (await UI.confirm('الإضافة المباشرة مغلقة. هل تريد فتحها الآن؟', { ok: 'فتح الإضافة المباشرة', icon: 'key' }))) { const ok = await Pages.custodyOpenModal(); if (!ok) return false; }
+    else { UI.toast('الإضافة المباشرة مغلقة حالياً. يفتحها المشرف أو من يملك صلاحية «أقفال المخزن والعهد»', 'warn', 6000); return false; }
+  }
+  let items = (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
+  const lab = (i) => [i.name, [i.brand, i.model].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
+  const byLab = new Map(), index = () => { byLab.clear(); items.forEach((i) => { byLab.set(normalizeAr(lab(i)), i); if (!byLab.has(normalizeAr(i.name))) byLab.set(normalizeAr(i.name), i); if (i.sku) byLab.set(normalizeAr(i.sku), i); }); };
+  index();
+  const cats = Data.list('itemCategories').map((c) => ({ value: c.id, label: IC.label(c.id) || c.name })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
+  const find = (v) => byLab.get(normalizeAr(String(v || '').trim())) || null;
+  const locked = await InvLock.locked();
+  let cur = [];
+  const where = new Map();
+  const whereLine = async (it) => { if (where.has(it.id)) return where.get(it.id); const w = await Data.inv.where(it.id); const s = [w.inStore ? `في المخازن ${fmtNum(w.inStore)}` : '', w.deps.length ? `لدى ${fmtNum(w.deps.length)} ${w.deps.length === 1 ? 'إدارة' : 'إدارات'} ${fmtNum(w.inDept)}` : ''].filter(Boolean).join(' · ') || 'لا رصيد له في أي مكان بعد'; where.set(it.id, s); return s; };
+  const row = (r = {}) => html`<div class="bc-row" data-bcrow>
+      <div class="bc-item"><input class="input" list="bcItems" data-bci placeholder="اكتب اسم الصنف أو اختره" value="${r.name || ''}" autocomplete="off"><div class="bc-meta" data-bcmeta></div><div class="bc-new" hidden>${UI.icon('plus')} صنف جديد يُضاف للمخزن تحت تصنيف <select data-bcc>${cats.map((c) => html`<option value="${c.value}"${c.value === 'ic_other' ? raw(' selected') : ''}>${c.label}</option>`)}</select><button type="button" class="btn btn-xs btn-soft" data-bcspec>${UI.icon('edit')} بياناته ومواصفاته</button></div></div>
+      <input class="input bc-q" type="number" min="1" max="9999" data-bcq value="${r.qty || 1}" title="الكمية">
+      <input class="input ltr bc-s" data-bcs placeholder="الأرقام التسلسلية (اختياري) — افصل بينها بفاصلة" value="${r.sn || ''}">
+      <input class="input bc-n" data-bcn placeholder="ملاحظة" value="${r.note || ''}">
+      <button type="button" class="icon-btn danger" data-bcx title="حذف السطر">${UI.icon('x')}</button></div>`;
+  const curHTML = (place) => html`<div class="bc-cur"><div class="bc-curh">${UI.icon('pin')} <b>المسجّل حالياً في ${place}</b><span class="faint small">${cur.length ? `— ${fmtNum(cur.length)} صنف، ${fmtNum(cur.reduce((s, r) => s + Math.max(r.qty, r.serials.length), 0))} وحدة. عدّل الكمية أو الأرقام التسلسلية مباشرة${locked ? '' : '، أو احذف الصنف من هنا'}.` : '— لا يوجد شيء مسجل هنا بعد.'}</span></div>
+    ${cur.length ? html`<div class="bc-head cur"><span>الصنف</span><span>الكمية</span><span>الأرقام التسلسلية</span><span></span><span></span></div><div class="bc-rows cur">${cur.map((r) => html`<div class="bc-row cur" data-cur="${r.itemId}"><div class="bc-item"><b>${lab(r.item)}</b><small class="faint">${r.item.sku || ''}${isSerialItem(r.item) ? ' · مُسلسل' : ''}</small></div>
+      <input class="input bc-q" type="number" min="0" max="9999" data-cq value="${Math.max(r.qty, r.serials.length)}" title="الكمية">
+      <input class="input ltr bc-s" data-cs value="${r.serials.map((x) => x.serial).join('، ')}" placeholder="بلا أرقام تسلسلية — أضفها إن رغبت">
+      <div class="bc-acts"><button type="button" class="icon-btn" data-iteminfo="${r.itemId}" title="التفاصيل والمواصفات وأين يوجد">${UI.icon('info')}</button>${canUser(Auth.user, 'inventory.manage') ? html`<button type="button" class="icon-btn" data-bcedit="${r.itemId}" title="تعديل الصنف ومواصفاته">${UI.icon('edit')}</button>` : ''}</div>
+      ${locked ? html`<span></span>` : html`<button type="button" class="icon-btn danger" data-cdel title="حذف من هنا">${UI.icon('trash')}</button>`}</div>`)}</div>` : ''}</div>`;
+  return UI.modal({ title: 'إضافة وتعديل الأجهزة والأغراض', icon: 'plus', size: 'xl',
+    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">اختر الإدارة ثم القسم أو المكتب: يظهر ما سُجل فيه سابقاً لتعدّله، وأضف تحته كل ما يوجد فيه فعلاً — ثم احفظ مرة واحدة. لا تتأثر أرصدة المخازن، وتُسجَّل كل إضافة أو تعديل في سجل الحركات.</div></div>
+      <div class="form-grid mt">${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments'), required: true }, { name: 'unitId', label: 'القسم / المكتب', type: 'select', options: [] }, { name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [] }], { departmentId })}</div>
+      <div data-bccur></div>
+      <datalist id="bcItems"></datalist>
+      <h4 class="bc-addh">${UI.icon('plus')} إضافة أصناف</h4>
+      <div class="bc-head"><span>الصنف</span><span>الكمية</span><span>الأرقام التسلسلية</span><span>ملاحظة</span><span></span></div>
+      <div class="bc-rows" data-bcrows>${row()}${row()}${row()}</div>
+      <div class="row mt" style="gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-soft btn-sm" data-bcadd>${UI.icon('plus')} سطر</button><button type="button" class="btn btn-ghost btn-sm" data-bcadd5>${UI.icon('plus')} 5 أسطر</button><span class="faint small">${UI.icon('copy')} يمكنك نسخ جدول من Excel (الصنف، الكمية، الأرقام التسلسلية، ملاحظة) ولصقه في خانة الصنف.</span><span class="grow"></span><b class="bc-sum" data-bcsum></b></div>`,
+    onMount: (form) => {
+      const dep = form.querySelector('[name="departmentId"]'), un = form.querySelector('[name="unitId"]'), hs = form.querySelector('[name="holderId"]'), rows = $('[data-bcrows]', form), curBox = $('[data-bccur]', form), dl = $('#bcItems', form);
+      const fillDl = () => { dl.innerHTML = items.map((i) => `<option value="${esc(lab(i))}">${esc(i.sku || '')}</option>`).join(''); };
+      fillDl();
+      const people = () => { const list = Data.list('users').filter((u) => u.active && u.departmentId === dep.value); hs.innerHTML = `<option value="">— بلا مستلم محدد —</option>${list.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; };
+      let tok = 0;
+      const loadCur = async () => {
+        const t = ++tok, d = dep.value, u = un.value;
+        if (!d) { curBox.innerHTML = ''; cur = []; form._curAt = ''; sum(); return; }
+        const place = u ? (((await DB.get('deptUnits', u)) || {}).name || 'القسم') : `${Data.nameOf('departments', d)} (غير موزّع على الأقسام)`;
+        const rows0 = await Data.custodyAt(d, u); if (t !== tok) return;
+        cur = rows0; form._curAt = `${d}|${u}`; curBox.innerHTML = String(curHTML(place));
+        $$('[data-bcrow]', rows).forEach(mark); sum();
+      };
+      const mark = async (r) => {
+        const v = $('[data-bci]', r).value.trim(), it = v ? find(v) : null, nw = $('.bc-new', r), meta = $('[data-bcmeta]', r);
+        nw.hidden = !v || !!it;
+        if (it) { const wl = await whereLine(it); if ($('[data-bci]', r).value.trim() !== v) return; meta.innerHTML = String(html`<button type="button" class="bc-info" data-iteminfo="${it.id}">${UI.icon('info')} ${wl}</button>${cur.some((c) => c.itemId === it.id) ? html`<span class="chip tone-amber">مسجل هنا — تُضاف الكمية إليه</span>` : ''}`); } else meta.innerHTML = '';
+      };
+      const sum = () => { let n = 0, q = 0; $$('[data-bcrow]', rows).forEach((r) => { if ($('[data-bci]', r).value.trim()) { n++; q += Math.max(Number($('[data-bcq]', r).value) || 0, snSplit($('[data-bcs]', r).value).length); } }); const ch = $$('[data-cur]', form).filter((r) => r.classList.contains('del') || r.dataset.dirty).length; $('[data-bcsum]', form).textContent = [n ? `إضافة ${fmtNum(n)} صنف — ${fmtNum(q)} وحدة` : '', ch ? `تعديل ${fmtNum(ch)} صنف` : ''].filter(Boolean).join(' · '); };
+      const addRows = (k, data = []) => { for (let i = 0; i < k; i++) rows.insertAdjacentHTML('beforeend', String(row(data[i] || {}))); $$('[data-bcrow]', rows).forEach(mark); sum(); };
+      dep.addEventListener('change', () => { people(); setTimeout(loadCur, 0); }); un.addEventListener('change', loadCur); people();
+      UI.bindOrgCascade(form, { value: unitId }).then(loadCur);
+      form.addEventListener('input', (e) => {
+        const r = e.target.closest('[data-bcrow]'), c = e.target.closest('[data-cur]');
+        if (r && e.target.matches('[data-bci]')) mark(r);
+        if (r && e.target.matches('[data-bcs]')) { const k = snSplit(e.target.value).length, q = $('[data-bcq]', r); if (k > (Number(q.value) || 0)) q.value = k; }
+        if (c) { c.dataset.dirty = '1'; if (e.target.matches('[data-cs]')) { const k = snSplit(e.target.value).length, q = $('[data-cq]', c); if (k > (Number(q.value) || 0)) q.value = k; } }
+        sum();
+      });
+      UI.on(form, 'click', '[data-bcadd]', () => { addRows(1); const all = $$('[data-bci]', rows); all[all.length - 1].focus(); });
+      UI.on(form, 'click', '[data-bcadd5]', () => addRows(5));
+      UI.on(form, 'click', '[data-bcx]', (e, b) => { const r = b.closest('[data-bcrow]'); if ($$('[data-bcrow]', rows).length > 1) r.remove(); else { $$('input', r).forEach((x) => { x.value = x.matches('[data-bcq]') ? 1 : ''; }); mark(r); } sum(); });
+      UI.on(form, 'click', '[data-cdel]', (e, b) => { const c = b.closest('[data-cur]'); c.classList.toggle('del'); b.title = c.classList.contains('del') ? 'تراجع عن الحذف' : 'حذف من هنا'; sum(); });
+      UI.on(form, 'click', '[data-bcedit]', async (e, b) => {
+        const id = b.dataset.bcedit, r = await Pages.itemModal(id); if (!r) return;
+        items = (await DB.getAll('items')).filter((i) => !i.archived); index(); fillDl(); where.clear();
+        /* تحديث اسم الصنف في سطره فقط حتى لا تضيع تعديلات الأسطر الأخرى؛ وعند حذف الصنف يُعاد التحميل */
+        const it = r === 'deleted' ? null : await DB.get('items', id), c = cur.find((x) => x.itemId === id), row = b.closest('[data-cur]');
+        if (it && c && row) { c.item = it; row.querySelector('.bc-item b').textContent = lab(it); } else await loadCur();
+      });
+      UI.on(form, 'click', '[data-bcspec]', async (e, b) => {
+        const r = b.closest('[data-bcrow]'), cat = ($('[data-bcc]', r) || {}).value || '';
+        const it = await Pages.itemModal(null, { ...(cat && cat !== 'ic_other' ? { categoryId: cat } : {}), name: $('[data-bci]', r).value.trim() });
+        if (it && it.id) { items = (await DB.getAll('items')).filter((i) => !i.archived); index(); fillDl(); $('[data-bci]', r).value = lab(it); await mark(r); sum(); }
+      });
+      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('[data-cur]')) { e.preventDefault(); return; } if (e.key === 'Enter' && e.target.closest('[data-bcrow]')) { e.preventDefault(); const r = e.target.closest('[data-bcrow]'); if (!r.nextElementSibling) addRows(1); const nx = r.nextElementSibling; if (nx) $('[data-bci]', nx).focus(); } });
+      form.addEventListener('paste', (e) => {
+        const inp = e.target.closest && e.target.closest('[data-bci]'); if (!inp) return;
+        const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; if (!/[\t\n]/.test(txt.trim())) return;
+        e.preventDefault();
+        const lines = txt.replace(/\r/g, '').split('\n').map((l) => l.split('\t')).filter((c) => (c[0] || '').trim());
+        const data = lines.map(([name, qty, sn, note]) => ({ name: String(name || '').trim(), qty: Math.max(1, parseInt(String(qty || '').replace(/[^\d]/g, ''), 10) || 1), sn: String(sn || '').trim(), note: String(note || '').trim() }));
+        let r = inp.closest('[data-bcrow]');
+        data.forEach((d, i) => { if (i > 0) { if (!r.nextElementSibling) rows.insertAdjacentHTML('beforeend', String(row())); r = r.nextElementSibling; } $('[data-bci]', r).value = d.name; $('[data-bcq]', r).value = Math.max(d.qty, snSplit(d.sn).length); $('[data-bcs]', r).value = d.sn; $('[data-bcn]', r).value = d.note; });
+        $$('[data-bcrow]', rows).forEach(mark); sum(); UI.toast(`لُصق ${fmtNum(data.length)} سطر`);
+      });
+      sum();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ الكل', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), depId = v.departmentId, unId = v.unitId || '';
+      if (!depId) throw new AppError('اختر الإدارة');
+      if (form._curAt !== `${depId}|${unId}`) throw new AppError('انتظر لحظة حتى يكتمل تحميل محتويات المكان المختار ثم أعد الحفظ');
+      if (!(await Custody.allowed())) throw new AppError('أُغلقت الإضافة المباشرة؛ اطلب فتحها ثم أعد الحفظ');
+      const N = Data.assets.norm;
+      /* تعديلات ما هو مسجل: الصفوف التي لمسها المستخدم فقط؛ الرقم المصحَّح يُعدَّل في الوحدة نفسها بدل حذفها وإعادة إنشائها */
+      const edits = $$('[data-cur]', form).filter((c) => c.dataset.dirty || c.classList.contains('del')).map((c) => {
+        const r = cur.find((x) => x.itemId === c.dataset.cur); if (!r) return null;
+        const del = c.classList.contains('del'), s1 = del ? [] : [...new Map(snSplit($('[data-cs]', c).value).map((s) => [N(s), s])).values()], s0 = r.serials, k1 = new Set(s1.map(N)), k0 = new Set(s0.map((x) => N(x.serial)));
+        const gone = s0.filter((x) => !k1.has(N(x.serial))), fresh = s1.filter((x) => !k0.has(N(x)));
+        const renamed = del ? [] : gone.slice(0, fresh.length).map((a, i) => ({ a, serial: fresh[i] }));
+        const removed = gone.slice(renamed.length), added = fresh.slice(renamed.length);
+        const q1 = del ? 0 : Math.max(Math.floor(Number($('[data-cq]', c).value) || 0), s1.length);
+        return q1 === r.qty && !removed.length && !added.length && !renamed.length ? null : { r, q0: r.qty, q1, removed, added, renamed, del };
+      }).filter(Boolean);
+      /* الإضافات الجديدة */
+      const lines = $$('[data-bcrow]', form).map((r) => ({ name: $('[data-bci]', r).value.trim(), qty: Math.floor(Number($('[data-bcq]', r).value) || 0), sns: snSplit($('[data-bcs]', r).value), note: $('[data-bcn]', r).value.trim(), cat: ($('[data-bcc]', r) || {}).value || 'ic_other' })).filter((l) => l.name);
+      lines.forEach((l) => { l.qty = Math.max(l.qty, l.sns.length); if (!(l.qty > 0)) throw new AppError(`أدخل كمية صحيحة للصنف «${l.name}»`); });
+      if (!edits.length && !lines.length) throw new AppError('لا توجد إضافات أو تعديلات للحفظ');
+      if (edits.some((x) => x.q1 < x.q0 || x.removed.length || x.del)) await InvLock.guard();
+      /* الأرقام المحذوفة من الجدول نفسه لا تُعد مكررة إذا نُقلت إلى سطر آخر */
+      const freed = new Set(edits.flatMap((x) => [...x.removed.map((a) => N(a.serial)), ...x.renamed.map((p) => N(p.a.serial))]));
+      const pairs = [...edits.flatMap((x) => [...x.added, ...x.renamed.map((p) => p.serial)]), ...lines.flatMap((l) => l.sns)].filter((s) => !freed.has(N(s))).map((s) => ({ serial: s, tag: '' }));
+      const all = [...edits.flatMap((x) => [...x.added, ...x.renamed.map((p) => p.serial)]), ...lines.flatMap((l) => l.sns)].map(N), twice = all.find((s, i) => all.indexOf(s) !== i);
+      if (twice) throw new AppError(`الرقم التسلسلي ${twice} مكرر في الجدول`);
+      if (pairs.length) await Data.assets.check(pairs);
+      let created = 0, units = 0;
+      for (const x of edits) {
+        for (const p of x.renamed) { const a = await DB.get('assets', p.a.id); if (a) { const old = a.serial; a.serial = p.serial; a.updatedAt = now(); await DB.put('assets', a); await Data.log('update', 'assets', a.id, `تصحيح رقم تسلسلي من جرد المكتب: ${old} ← ${p.serial}`); } }
+        for (const a of x.removed) { await DB.del('assets', a.id); await Data.log('delete', 'assets', a.id, `حذف وحدة من جرد المكتب: ${a.serial}`); }
+        await Data.custodyFix.addAssets({ departmentId: depId, unitId: unId, itemId: x.r.itemId, serials: x.added, holderId: v.holderId || '' });
+        if (x.q1 > x.q0) await Data.dept.addDirect({ departmentId: depId, unitId: unId, itemId: x.r.itemId, qty: x.q1 - x.q0, holderId: v.holderId || '', note: 'إضافة من جرد المكتب', serials: [] });
+        else if (x.q1 < x.q0) await Data.custodyFix.set({ departmentId: depId, unitId: unId, itemId: x.r.itemId, qty: x.q1, note: x.del ? 'حذف من جرد المكتب' : 'تعديل من جرد المكتب' });
+      }
+      for (const l of lines) {
+        let it = find(l.name);
+        if (!it) { it = await Data.inv.saveItem({ name: l.name, categoryId: l.cat, unit: 'قطعة' }); items.push(it); index(); created++; }
+        await Data.dept.addDirect({ departmentId: depId, unitId: unId, itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note, serials: l.sns.map((s) => ({ serial: s, tag: '' })) });
+        units += l.qty;
+      }
+      Bus.emit('inventory', {});
+      return { lines: lines.length, edits: edits.length, units, created, place: unId ? ((await DB.get('deptUnits', unId)) || {}).name : Data.nameOf('departments', depId) };
+    } }]
+  }).then((r) => { if (r && (r.lines || r.edits)) UI.toast([r.lines ? `أُضيف ${fmtNum(r.lines)} صنف (${fmtNum(r.units)} وحدة)` : '', r.edits ? `وعُدّل ${fmtNum(r.edits)} صنف` : '', `في ${r.place}`, r.created ? `— منها ${fmtNum(r.created)} صنف جديد في المخزن` : ''].filter(Boolean).join(' '), 'ok', 6000); return r; });
+};
+
+/* ══════════ الصيانة الخارجية حسب نوع الجهاز ══════════
+   لكل نوع بياناته: الحاسب (اسم الجهاز، البطارية، حماية البيانات)، الطابعة (العداد، رمز الخطأ، الحبر)، جهاز العرض (ساعات المصباح)… */
+const XM_TYPES = {
+  desktop: { l: 'حاسب مكتبي', il: 'computer', spec: 'laptop', data: 1, acc: ['كابل الطاقة', 'لوحة المفاتيح', 'الفأرة', 'كابل الشاشة', 'القرص الصلب'], faults: ['لا يعمل نهائياً', 'إعادة تشغيل متكررة', 'شاشة زرقاء', 'بطء شديد', 'صوت مرتفع من المروحة', 'لا توجد صورة', 'عطل في القرص', 'عطل في مزود الطاقة'], extra: [{ k: 'host', l: 'اسم الجهاز على الشبكة', dir: 'ltr', ph: 'NZWSQP00WS001' }, { k: 'user', l: 'المستخدم الحالي' }] },
+  laptop: { l: 'حاسب محمول', il: 'laptop', spec: 'laptop', data: 1, acc: ['الشاحن', 'الحقيبة', 'البطارية', 'الفأرة'], faults: ['لا يعمل نهائياً', 'الشاشة مكسورة', 'البطارية لا تشحن', 'لوحة المفاتيح لا تعمل', 'سخونة زائدة', 'المفصلات مكسورة', 'الشاحن لا يعمل', 'بطء شديد'], extra: [{ k: 'host', l: 'اسم الجهاز على الشبكة', dir: 'ltr' }, { k: 'battery', l: 'حالة البطارية', o: ['جيدة', 'ضعيفة', 'لا تشحن', 'منتفخة'] }] },
+  printer: { l: 'طابعة', il: 'printer', spec: 'printer', acc: ['كابل الطاقة', 'كابل USB', 'الحبر/الخرطوشة', 'درج الورق', 'وحدة الأسطوانة (Drum)'], faults: ['انحشار الورق', 'لا تسحب الورق', 'طباعة باهتة أو مخططة', 'رسالة خطأ على الشاشة', 'عطل الفيوزر (الحرارة)', 'لا تتصل بالشبكة', 'الماسح لا يعمل', 'صوت غريب'], extra: [{ k: 'counter', l: 'عداد الصفحات', t: 'number', dir: 'ltr' }, { k: 'err', l: 'رمز الخطأ الظاهر', dir: 'ltr', ph: 'مثال: 49.4C02' }, { k: 'ink', l: 'الحبر', o: ['أُرسل مع الطابعة', 'أُزيل قبل الإرسال'] }, { k: 'ip', l: 'عنوان IP', dir: 'ltr' }] },
+  scanner: { l: 'ماسح ضوئي', il: 'scanner', spec: 'scanner', acc: ['كابل الطاقة', 'كابل USB', 'وحدة التلقيم'], faults: ['لا يسحب الورق', 'خطوط في المسح', 'لا يتعرف عليه الحاسب', 'رسالة خطأ'], extra: [{ k: 'counter', l: 'عداد المسح', t: 'number', dir: 'ltr' }] },
+  monitor: { l: 'شاشة', il: 'display', spec: 'monitor', acc: ['كابل الطاقة', 'كابل HDMI/VGA', 'الحامل'], faults: ['لا تعمل', 'لا تستقبل إشارة', 'خطوط في الشاشة', 'بقع أو كسر', 'وميض أو انطفاء'] },
+  projector: { l: 'جهاز عرض', il: 'projector', spec: 'projector', acc: ['جهاز التحكم', 'كابل الطاقة', 'كابل HDMI/VGA', 'الحقيبة'], faults: ['المصباح لا يعمل', 'الصورة باهتة', 'سخونة وإطفاء', 'بقع في الصورة', 'لا يستقبل إشارة'], extra: [{ k: 'lamp', l: 'ساعات تشغيل المصباح', t: 'number', dir: 'ltr' }] },
+  network: { l: 'جهاز شبكة', il: 'network', spec: 'network', acc: ['محول الطاقة', 'أذن التثبيت', 'كابل الإعدادات'], faults: ['لا يعمل', 'منافذ معطلة', 'انقطاع متكرر', 'إعادة تشغيل متكررة', 'سخونة'], extra: [{ k: 'ip', l: 'عنوان IP', dir: 'ltr' }, { k: 'cfg', l: 'نسخة الإعدادات', o: ['أُخذت نسخة', 'لم تؤخذ'] }] },
+  ups: { l: 'مزود طاقة احتياطي UPS', il: 'ups', spec: 'power', acc: ['كابل الطاقة', 'البطارية', 'كابل البيانات'], faults: ['لا يشحن', 'البطارية منتهية', 'صفير مستمر', 'لا يعمل', 'ينطفئ تحت الحمل'], extra: [{ k: 'batAge', l: 'عمر البطارية', ph: 'مثال: 3 سنوات' }] },
+  camera: { l: 'كاميرا مراقبة', il: 'cctv', spec: 'camera', data: 1, acc: ['محول الطاقة', 'الحامل', 'بطاقة الذاكرة'], faults: ['لا صورة', 'صورة ضبابية', 'الرؤية الليلية لا تعمل', 'لا تتصل بالشبكة', 'لا تسجل'], extra: [{ k: 'ip', l: 'عنوان IP', dir: 'ltr' }, { k: 'place', l: 'موقع التركيب' }] },
+  phone: { l: 'هاتف / جهاز لوحي', il: 'phone', data: 1, acc: ['الشاحن', 'الغطاء', 'السماعة'], faults: ['الشاشة مكسورة', 'لا يشحن', 'لا يعمل', 'بطء', 'الصوت لا يعمل'], extra: [{ k: 'imei', l: 'IMEI', dir: 'ltr' }, { k: 'ext', l: 'رقم الهاتف / التحويلة', dir: 'ltr' }] },
+  storage: { l: 'وحدة تخزين', il: 'harddisk', spec: 'storage', data: 1, acc: ['كابل البيانات', 'العلبة', 'محول الطاقة'], faults: ['لا يُقرأ', 'بطء شديد', 'أصوات غريبة', 'ملفات تالفة'] },
+  other: { l: 'غرض آخر', il: 'box', acc: XM_ACCESSORIES, faults: ['لا يعمل', 'مكسور', 'يحتاج فحصاً'] }
+};
+/* نوع الجهاز: من التصنيف (المعرّف أو الرسمة أو الاسم) ثم من اسم الصنف وموديله، فلا يتأثر بإعادة إنشاء التصنيفات بأسماء أو معرّفات جديدة */
+const XM_TYPE_RX = [['phone', /هاتف|جوال|جهاز لوحي|ايباد|آيباد|\bphone\b|tablet|ipad|iphone|galaxy tab/i], ['printer', /طابع|printer|laserjet|deskjet|officejet|ricoh|kyocera|pantum/i], ['scanner', /ماسح|سكانر|scanner|scanjet/i], ['projector', /جهاز عرض|اجهزة عرض|أجهزة عرض|بروجكتر|projector/i], ['laptop', /محمول|لابتوب|laptop|notebook|macbook|latitude|thinkpad|elitebook|probook|vostro|ideapad/i], ['desktop', /حاسب|حاسوب|كمبيوتر|مكتبي|desktop|optiplex|prodesk|elitedesk|thinkcentre|workstation|all.in.one/i], ['network', /شبك|سويتش|راوتر|موجه|switch|router|access point|firewall|فايروول/i], ['camera', /كاميرا|كاميرات|مراقبة|camera|cctv|nvr|dvr/i], ['storage', /تخزين|قرص|هارد|فلاش|storage|\bssd\b|\bhdd\b|\bnas\b/i], ['ups', /طاقة احتياطي|مزود طاقة|مزودات طاقة|\bups\b|يو بي اس/i], ['monitor', /شاش|monitor|display/i]];
+const XM_CAT_KEY = { printer: 'printer', scanner: 'scanner', monitor: 'monitor', projector: 'projector', network: 'network', camera: 'camera', storage: 'storage', power: 'ups', laptop: 'computer' };
+const XM_CAT_ILL = { laptop: 'computer', computer: 'computer', printer: 'printer', scanner: 'scanner', projector: 'projector', display: 'monitor', cctv: 'camera', network: 'network', drive: 'storage', harddisk: 'storage', ups: 'ups', phone: 'phone', tablet: 'phone', server: 'desktop' };
+XM.typeOf = (it) => {
+  if (!it) return 'other';
+  const chain = IC.chain(it.categoryId) || [], txt = `${it.name || ''} ${it.model || ''}`, all = `${chain.map((c) => c.name).join(' ')} ${txt}`;
+  const rx = (t) => (XM_TYPE_RX.find((x) => x[0] === t) || [])[1];
+  if (rx('phone').test(txt)) return 'phone';
+  let k = '';
+  for (const c of chain.slice().reverse()) {
+    k = XM_CAT_KEY[catKey(c.id)] || XM_CAT_ILL[c.illustration] || ''; if (k) break;
+    const hit = XM_TYPE_RX.find(([, r]) => r.test(c.name)); if (hit) { k = ['laptop', 'desktop'].includes(hit[0]) ? 'computer' : hit[0]; break; }
+  }
+  if (!k) { const hit = XM_TYPE_RX.find(([, r]) => r.test(txt)); k = hit ? hit[0] : 'other'; }
+  if (k === 'computer') return rx('laptop').test(all) ? 'laptop' : 'desktop';
+  return k;
+};
+XM.typeLabel = (k) => (XM_TYPES[k] || {}).l || '';
+/* البيانات الخاصة بالنوع والمواصفات كنص للسند والتفاصيل */
+XM.clean = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v != null && String(v).trim() !== ''));
+XM.specLabel = (kind, k) => { const f = (ITEM_SPECS[(XM_TYPES[kind] || {}).spec] || []).find((x) => x.k === k) || Object.values(ITEM_SPECS).reduce((a, l) => a.concat(l), []).find((x) => x.k === k); return f ? f.l.replace(/\s*\(.*\)\s*$/, '') : k; };
+/* البيانات الخاصة بالنوع ثم المواصفات، كأزواج [العنوان، القيمة] للتفاصيل والسند */
+XM.extraRows = (r) => {
+  const T = XM_TYPES[r.kind] || {}, ex = XM.clean(r.extra), known = new Set((T.extra || []).map((f) => f.k));
+  return [...(T.extra || []).filter((f) => ex[f.k] != null).map((f) => [f.l, String(ex[f.k])]), ...Object.keys(ex).filter((k) => !known.has(k)).map((k) => [k, String(ex[k])])];
+};
+XM.specRows = (r) => Object.entries(XM.clean(r.specs)).map(([k, v]) => [XM.specLabel(r.kind, k), String(v)]);
+XM.extraText = (r) => XM.extraRows(r).map(([l, v]) => `${l}: ${v}`).join('، ');
+XM.specText = (r) => XM.specRows(r).map(([l, v]) => `${l}: ${v}`).join('، ');
+const xmFld = (l, f) => { const v = (l.extra || {})[f.k] == null ? '' : l.extra[f.k]; return f.o ? html`<div class="field"><label>${f.l}</label><select data-lx="${f.k}"><option value="">—</option>${f.o.map((o) => html`<option${v === o ? raw(' selected') : ''}>${o}</option>`)}</select></div>` : html`<div class="field"><label>${f.l}</label><input data-lx="${f.k}"${f.t === 'number' ? raw(' type="number" min="0"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${v}" placeholder="${f.ph || ''}"></div>`; };
+/* نافذة تعديل السجل: حقول النوع نفسها */
+XM.editExtraHTML = (r) => { const T = XM_TYPES[r.kind]; return T && (T.extra || []).length ? html`<div class="u-sec mt"><h3>${UI.illu(T.il, 'mini')} بيانات ${T.l}</h3><div class="form-grid">${T.extra.map((f) => xmFld(r, f))}</div></div>` : ''; };
+XM.readExtra = (form, x) => { const ex = { ...(x.extra || {}) }; $$('[data-lx]', form).forEach((i) => { ex[i.dataset.lx] = i.value.trim(); }); x.extra = XM.clean(ex); };
+/* مكان الوحدة الحالي كنص */
+XM.whereOf = async (a) => {
+  if (!a) return '';
+  if (a.status === 'in_store') return `في ${Data.nameOf('warehouses', a.warehouseId, 'المخزن')}`;
+  if (a.departmentId) { let p = ''; if (a.unitId) { const all = await DB.getAll('deptUnits'), by = new Map(all.map((u) => [u.id, u])), out = []; let u = by.get(a.unitId), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } p = out.join(' — '); } return `بعهدة ${Data.nameOf('departments', a.departmentId, '')}${p ? ` — ${p}` : ''}${a.holder ? ` — ${a.holder}` : ''}`; }
+  return (ASSET_STATUS[a.status] || {}).label || '';
+};
+/* بحث في المخزن والعهد: الوحدات بالرقم التسلسلي أو رقم الأصل أو اسم الجهاز، والأصناف بالاسم أو الموديل */
+XM.search = async (q) => {
+  const qn = normalizeAr(q), N = Data.assets.norm(q); if (!qn && !N) return { assets: [], items: [] };
+  const allItems = await DB.getAll('items'), itemsBy = new Map(allItems.map((i) => [i.id, i]));
+  const assets = (await DB.getAll('assets')).filter((a) => a.status !== 'retired' && ([a.serial, a.tag, a.host].some((v) => N && Data.assets.norm(v).includes(N)) || (qn.length > 2 && normalizeAr((itemsBy.get(a.itemId) || {}).name || '').includes(qn)))).slice(0, 8);
+  const items = allItems.filter((i) => !i.archived && normalizeAr(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`).includes(qn)).slice(0, 8);
+  return { assets: await Promise.all(assets.map(async (a) => ({ a, it: itemsBy.get(a.itemId), where: await XM.whereOf(a) }))), items };
+};
+Pages.xmSendModal = async (preset = {}) => {
+  const vendors = XM.vendors(), lines = [];
+  const blank = () => ({ itemName: '', serial: '', fault: '', accessories: [], dataFlags: {}, warranty: 'unknown', kind: '', specs: {}, extra: {} });
+  const fromItem = async (it, extra = {}) => {
+    const kind = XM.typeOf(it), l = { ...blank(), itemId: it.id, itemName: it.name, brand: it.brand || '', model: it.model || '', kind, specs: { ...(it.specs || {}) }, ...extra };
+    const units = (await Data.assets.byItem(it.id)).filter((a) => a.status !== 'retired' && !a.extId && (!extra.departmentId || a.departmentId === extra.departmentId) && (!extra.unitId || a.unitId === extra.unitId));
+    l.units = await Promise.all(units.slice(0, 60).map(async (a) => ({ id: a.id, serial: a.serial, where: await XM.whereOf(a) })));
+    return l;
+  };
+  const fromAsset = async (a) => {
+    const it = await DB.get('items', a.itemId), l = await fromItem(it || { id: a.itemId, name: 'جهاز' });
+    return Object.assign(l, { assetId: a.id, serial: a.serial, tag: a.tag || '', departmentId: a.departmentId || '', unitId: a.unitId || '', holder: a.holder || '', holderId: a.holderId || '', where: await XM.whereOf(a), extra: { ...(a.host ? { host: a.host } : {}) }, units: [] });
+  };
+  if (preset.assetId) { const a = await DB.get('assets', preset.assetId); if (a) lines.push(await fromAsset(a)); }
+  else if (preset.itemId) { const it = await DB.get('items', preset.itemId); if (it) lines.push(await fromItem(it, { departmentId: preset.departmentId || '', unitId: preset.unitId || '' })); }
+  if (!lines.length) lines.push(blank());
+  const fld = xmFld;
+  const specsBox = (l, T) => { const defs = ITEM_SPECS[T.spec] || []; if (!defs.length) return ''; const n = Object.values(l.specs || {}).filter((x) => String(x || '').trim()).length;
+    return html`<details class="xm-specs"${n ? raw(' open') : ''}><summary>${UI.icon('info')} مواصفات ${T.l} ${n ? html`<span class="chip tone-sky">${fmtNum(n)}</span>` : html`<small class="faint">— اختياري</small>`}</summary><div class="form-grid">${defs.map((f) => { const v = String((l.specs || {})[f.k] || ''); return f.multi ? html`<div class="field wide"><label>${f.l}</label><div class="xm-chips">${f.o.map((o) => html`<label class="xm-chip"><input type="checkbox" data-lsm="${f.k}" value="${o}"${v.split('، ').includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div></div>` : f.o ? html`<div class="field"><label>${f.l}</label><select data-ls="${f.k}"><option value="">—</option>${f.o.map((o) => html`<option${v === o ? raw(' selected') : ''}>${o}</option>`)}${v && !f.o.includes(v) ? html`<option selected>${v}</option>` : ''}</select></div>` : html`<div class="field"><label>${f.l}</label><input data-ls="${f.k}" value="${v}"></div>`; })}</div></details>`; };
+  const typeStrip = (l, i) => html`<div class="xm-types">${Object.entries(XM_TYPES).map(([k, t]) => html`<button type="button" class="xm-type${l.kind === k ? ' on' : ''}" data-xtype="${i}|${k}" title="${t.l}">${UI.illu(t.il, 'mini')}<span>${t.l}</span></button>`)}</div>`;
+  const lineBox = (l, i) => {
+    const T = XM_TYPES[l.kind] || null, acc = T ? T.acc : XM_ACCESSORIES, src = l.assetId ? 'unit' : l.itemId ? 'item' : '';
+    return html`<div class="xm-line" data-li="${i}">
+    <div class="xm-lh"><span class="xm-ln">${fmtNum(i + 1)}</span><b>${l.itemName || 'جهاز أو غرض'}</b>${l.serial ? html`<span class="chip tone-slate ltr">${l.serial}</span>` : ''}${src === 'unit' ? UI.chip('teal', 'من سجلات المخزن', 'warehouse') : src === 'item' ? UI.chip('sky', 'صنف من المخزن', 'box') : UI.chip('slate', 'إدخال يدوي', 'edit')}<span class="grow"></span>${lines.length > 1 ? html`<button type="button" class="icon-btn" data-xrm="${i}" title="حذف السطر">${UI.icon('trash')}</button>` : ''}</div>
+    ${src ? html`<div class="xm-card">${UI.illu((XM_TYPES[l.kind] || XM_TYPES.other).il, 'mini')}<div class="grow"><b>${l.itemName}</b><small>${[[l.brand, l.model].filter(Boolean).join(' '), l.serial ? `الرقم ${l.serial}` : '', l.where || (l.departmentId ? `لدى ${Data.nameOf('departments', l.departmentId, '')}` : '')].filter(Boolean).join(' · ')}</small></div>${l.itemId ? html`<button type="button" class="btn btn-xs btn-ghost" data-iteminfo="${l.itemId}">${UI.icon('info')} التفاصيل</button>` : ''}<button type="button" class="btn btn-xs btn-ghost" data-xclear="${i}">${UI.icon('x')} جهاز آخر</button></div>`
+      : html`<div class="xm-find"><div class="search-box">${UI.icon('search')}<input class="input" data-xq="${i}" placeholder="ابحث في المخزن والعهد: الرقم التسلسلي، رقم الأصل، اسم الجهاز على الشبكة، أو اسم الصنف" autocomplete="off"></div><div class="xm-res" data-xres="${i}" hidden></div></div>`}
+    ${(l.units || []).length ? html`<div class="field"><label>الوحدة المرسلة <small class="faint">— ${fmtNum(l.units.length)} وحدة مسلسلة، اختر المرسلة منها</small></label><select data-xunit="${i}"><option value="">— غير محددة —</option>${l.units.map((u) => html`<option value="${u.id}"${u.id === l.assetId ? raw(' selected') : ''}>${u.serial} — ${u.where}</option>`)}</select></div>` : ''}
+    ${T ? html`<details class="xm-typesw"><summary>${UI.icon('tag')} النوع: <b>${T.l}</b> <u>تغيير</u></summary>${typeStrip(l, i)}</details>` : html`<div class="xm-typeh">${UI.icon('tag')} اختر نوع الجهاز لتظهر بياناته الخاصة</div>${typeStrip(l, i)}`}
+    ${T ? html`<div class="form-grid">
+      <div class="field"><label>الجهاز / الغرض<em>*</em></label><input data-lk="itemName" value="${l.itemName || ''}" placeholder="مثال: ${T.l}"></div>
+      <div class="field"><label>الماركة والموديل</label><input data-lk="model"${l.kind === 'printer' ? raw(' list="xmPrModels"') : ''} value="${[l.brand, l.model].filter(Boolean).join(' ')}" placeholder="${l.kind === 'printer' ? 'اختر من كتالوج الطابعات أو اكتب' : 'مثال: Dell Latitude 5420'}" autocomplete="off"></div>
+      <div class="field"><label>الرقم التسلسلي</label><input data-lk="serial" dir="ltr" value="${l.serial || ''}" placeholder="اختياري"></div>
+      <div class="field"><label>رقم الأصل</label><input data-lk="tag" dir="ltr" value="${l.tag || ''}" placeholder="اختياري"></div>
+      <div class="field"><label>الإدارة المالكة</label><select data-lk="departmentId"><option value="">— المخزن / غير محدد —</option>${UI.opts('departments').map((o) => html`<option value="${o.value}"${o.value === l.departmentId ? raw(' selected') : ''}>${o.label}</option>`)}</select></div>
+      <div class="field"><label>صاحب العهدة</label><input data-lk="holder" value="${l.holder || ''}" placeholder="الاسم (اختياري)"></div>
+      ${(T.extra || []).map((f) => fld(l, f))}
+    </div>
+    ${specsBox(l, T)}
+    <div class="field mt"><label>وصف العطل<em>*</em> <small class="faint">— اضغط ما ينطبق أو اكتب</small></label><div class="xm-chips">${(T.faults || []).map((f) => html`<button type="button" class="xm-chip btn-chip" data-xf="${f}">${f}</button>`)}</div><textarea data-lk="fault" rows="2" placeholder="ما المشكلة؟ متى تظهر؟ ماذا جُرّب قبل الإرسال؟">${l.fault || ''}</textarea></div>
+    <div class="form-grid mt"><div class="field"><label>الضمان</label><select data-lk="warranty">${Object.entries(XM_WARRANTY).map(([k, v]) => html`<option value="${k}"${(l.warranty || 'unknown') === k ? raw(' selected') : ''}>${v}</option>`)}</select></div>
+      <div class="field"><label>الحالة الظاهرية عند الإرسال</label><input data-lk="condition" value="${l.condition || ''}" placeholder="مثال: خدش بسيط في الغطاء"></div></div>
+    <div class="field mt"><label>الملحقات المرسلة مع ${T.l}</label><div class="xm-chips">${[...new Set([...acc, ...(l.accessories || []).filter((a) => !acc.includes(a))])].map((a) => html`<label class="xm-chip"><input type="checkbox" data-acc="${a}"${(l.accessories || []).includes(a) ? raw(' checked') : ''}><span>${a}</span></label>`)}<input class="input xm-accother" data-accother placeholder="ملحق آخر…"></div></div>
+    ${T.data ? html`<div class="field mt"><label>${UI.icon('shield')} حماية البيانات قبل الإرسال</label><div class="xm-chips">${XM_DATA_FLAGS.map(([k, t]) => html`<label class="xm-chip safe"><input type="checkbox" data-flag="${k}"${(l.dataFlags || {})[k] ? raw(' checked') : ''}><span>${t}</span></label>`)}</div></div>` : ''}`
+      : html`<p class="faint small">${UI.icon('info')} ابحث عن الجهاز في الأعلى، أو اختر نوعه لتظهر البيانات الخاصة به.</p>`}
+  </div>`;
+  };
+  const v0 = vendors[0] || {};
+  return UI.modal({
+    title: `إرسال إلى ${XM.name()}`, icon: 'upload', size: 'xl',
+    body: html`<div class="xm-send">
+      <section class="xm-sec"><h3>${UI.icon('building')} الجهة المرسل إليها</h3><div class="form-grid">
+        <div class="field"><label>اسم الجهة<em>*</em></label><input name="vname" list="xmVendors" value="${preset.vendor || ''}" placeholder="مثال: الوكيل المعتمد لأجهزة HP" autocomplete="off"><datalist id="xmPrModels">${PrintCat.tree().flatMap(({ b, models }) => models.map((m) => html`<option value="${normalizeAr(m.name).startsWith(normalizeAr(b.name)) ? m.name : `${b.name} ${m.name}`}">`))}</datalist><datalist id="xmVendors">${vendors.map((v) => html`<option value="${v.name}">${XM_VENDOR_TYPES[v.type] || ''}</option>`)}</datalist></div>
+        ${UI.field({ name: 'vtype', label: 'نوع الجهة', type: 'select', placeholder: false, options: Object.entries(XM_VENDOR_TYPES).map(([value, label]) => ({ value, label })) }, 'agent')}
+        ${UI.field({ name: 'vcontact', label: 'الشخص المسؤول لدى الجهة', placeholder: 'الاسم' })}
+        ${UI.field({ name: 'vphone', label: 'هاتف الجهة', dir: 'ltr', inputmode: 'tel', placeholder: '9xxxxxxx' })}
+        ${UI.field({ name: 'vendorRef', label: 'رقم أمر العمل / الإيصال لدى الجهة', dir: 'ltr', placeholder: 'مثال: RMA-55821' })}
+        ${UI.field({ name: 'expectedAt', label: 'الموعد المتوقع للإرجاع', type: 'date' }, dateInput(now() + XM.overdueDays() * DAY))}
+        ${UI.field({ name: 'courier', label: 'سلّمه للجهة (المندوب أو الناقل)', placeholder: 'اسم من نقل الجهاز' })}
+        ${UI.field({ name: 'vendorReceiver', label: 'المستلم لدى الجهة', placeholder: 'اسم موظف الاستلام لدى الجهة' })}
+        ${UI.field({ name: 'ticketRef', label: 'مرتبط ببلاغ (اختياري)', dir: 'ltr', placeholder: 'رقم البلاغ' }, preset.ticketRef || '')}
+        ${UI.field({ name: 'note', label: 'ملاحظات عامة', placeholder: 'تظهر في سند الإرسال' })}
+      </div></section>
+      <section class="xm-sec"><h3>${UI.icon('box')} الأجهزة والأغراض المرسلة <span class="faint small" data-xcount></span></h3><div data-xlines></div>
+        <button type="button" class="btn btn-soft" data-xadd>${UI.icon('plus')} إضافة جهاز آخر لنفس الجهة</button></section>
+    </div>`,
+    onMount: (form) => {
+      const box = form.querySelector('[data-xlines]');
+      const sync = () => { $$('.xm-line', form).forEach((el) => { const l = lines[Number(el.dataset.li)]; if (!l) return;
+        $$('[data-lk]', el).forEach((inp) => { const k = inp.dataset.lk; if (k === 'model') { const val = inp.value.trim(), bm = [l.brand, l.model].filter(Boolean).join(' '); if (val !== bm) { l.brand = ''; l.model = val; } } else l[k] = inp.value; });
+        $$('[data-lx]', el).forEach((inp) => { l.extra = l.extra || {}; l.extra[inp.dataset.lx] = inp.value.trim(); });
+        $$('[data-ls]', el).forEach((inp) => { l.specs = l.specs || {}; if (inp.value) l.specs[inp.dataset.ls] = inp.value; else delete l.specs[inp.dataset.ls]; });
+        const multi = {}; $$('[data-lsm]', el).forEach((c) => { multi[c.dataset.lsm] = multi[c.dataset.lsm] || []; if (c.checked) multi[c.dataset.lsm].push(c.value); }); Object.entries(multi).forEach(([k, vals]) => { if (vals.length) l.specs[k] = vals.join('، '); else delete l.specs[k]; });
+        if ($$('[data-acc]', el).length) { const other = (($('[data-accother]', el) || {}).value || '').trim(); l.accessories = [...$$('[data-acc]', el).filter((c) => c.checked).map((c) => c.dataset.acc), ...(other ? [other] : [])]; }
+        if ($$('[data-flag]', el).length) l.dataFlags = Object.fromEntries($$('[data-flag]', el).map((c) => [c.dataset.flag, c.checked ? 1 : 0]));
+        const us = $('[data-xunit]', el); if (us) { const u = (l.units || []).find((x) => x.id === us.value); if (u) { l.assetId = u.id; l.serial = u.serial; l.where = u.where; } else if (l.assetId && (l.units || []).some((x) => x.id === l.assetId)) { delete l.assetId; l.serial = ''; l.where = ''; } }
+      }); };
+      const draw = () => { box.innerHTML = String(html`${lines.map(lineBox)}`); form.querySelector('[data-xcount]').textContent = `(${fmtNum(lines.length)})`; };
+      draw();
+      const vIn = form.querySelector('[name="vname"]');
+      const fillVendor = () => { const v = XM.vendors().find((x) => normalizeAr(x.name) === normalizeAr(vIn.value)); if (!v) return; const set = (n, val) => { const el = form.querySelector(`[name="${n}"]`); if (el && val && !el.value) el.value = val; }; form.querySelector('[name="vtype"]').value = v.type || 'company'; set('vcontact', v.contact); set('vphone', v.phone); };
+      vIn.addEventListener('change', fillVendor);
+      if (!preset.vendor && v0.name && vendors.length === 1) { vIn.value = v0.name; fillVendor(); }
+      const search = debounce(async (inp) => {
+        const i = Number(inp.dataset.xq), res = form.querySelector(`[data-xres="${i}"]`), q = inp.value.trim(); if (!res) return;
+        if (q.length < 2) { res.hidden = true; res.innerHTML = ''; return; }
+        const r = await XM.search(q);
+        res.innerHTML = String(r.assets.length || r.items.length ? html`${r.assets.map(({ a, it, where }) => html`<button type="button" class="xm-hit" data-xpick="${i}|a|${a.id}">${UI.illu(XM_TYPES[XM.typeOf(it)].il, 'mini')}<div class="grow"><b class="ltr">${a.serial}</b> <span>${it ? it.name : ''}</span><small>${where}${a.extId ? ' · لدى الصيانة الخارجية' : ''}</small></div></button>`)}${r.items.map((it) => html`<button type="button" class="xm-hit" data-xpick="${i}|i|${it.id}">${UI.illu(XM_TYPES[XM.typeOf(it)].il, 'mini')}<div class="grow"><b>${it.name}</b><small>${[[it.brand, it.model].filter(Boolean).join(' '), it.sku, 'صنف — اختر الوحدة بعد الاختيار'].filter(Boolean).join(' · ')}</small></div></button>`)}` : html`<p class="faint small" style="padding:8px">لم يُعثر على شيء — اختر النوع بالأسفل وأدخل البيانات يدوياً.</p>`);
+        res.hidden = false;
+      }, 220);
+      form.addEventListener('input', (e) => { if (e.target.matches('[data-xq]')) search(e.target); });
+      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-xq]')) { e.preventDefault(); e.stopPropagation(); const first = form.querySelector(`[data-xres="${e.target.dataset.xq}"] [data-xpick]`); if (first) first.click(); } });
+      UI.on(form, 'click', '[data-xpick]', async (e, b) => {
+        sync(); const [i, kind, id] = b.dataset.xpick.split('|'), n = Number(i);
+        if (kind === 'a') { const a = await DB.get('assets', id); if (!a) return; if (a.extId) { const cur = await DB.get('extmaint', a.extId); if (cur && !['delivered', 'closed'].includes(cur.status)) { UI.toast(`الوحدة لدى ${XM.name()} بالفعل (${cur.number})`, 'warn'); return; } } lines[n] = { ...(await fromAsset(a)), fault: lines[n].fault || '' }; }
+        else { const it = await DB.get('items', id); if (!it) return; lines[n] = { ...(await fromItem(it)), fault: lines[n].fault || '' }; }
+        draw(); UI.toast(`اختير: ${lines[n].itemName}`); const f = form.querySelector(`[data-li="${n}"] [data-lk="fault"]`); if (f) f.focus();
+      });
+      UI.on(form, 'click', '[data-xclear]', (e, b) => { sync(); const n = Number(b.dataset.xclear); lines[n] = { ...blank(), fault: lines[n].fault || '' }; draw(); const q = form.querySelector(`[data-xq="${n}"]`); if (q) q.focus(); });
+      UI.on(form, 'click', '[data-xtype]', (e, b) => { sync(); const [i, k] = b.dataset.xtype.split('|'), l = lines[Number(i)]; l.kind = k; if (!l.itemName && !l.itemId) l.itemName = XM_TYPES[k].l; draw(); });
+      UI.on(form, 'click', '[data-xf]', (e, b) => { const ta = b.closest('.field').querySelector('textarea'); const t = b.dataset.xf; if (!ta.value.includes(t)) ta.value = ta.value.trim() ? `${ta.value.trim()} — ${t}` : t; ta.dispatchEvent(new Event('input', { bubbles: true })); b.classList.add('on'); });
+      UI.on(form, 'click', '[data-xadd]', () => { sync(); lines.push(blank()); draw(); const ins = $$('.xm-line', form); const last = ins[ins.length - 1]; if (last) { last.scrollIntoView({ block: 'nearest' }); const s = last.querySelector('[data-xq]'); if (s) s.focus(); } });
+      UI.on(form, 'click', '[data-xrm]', (e, el) => { sync(); lines.splice(Number(el.dataset.xrm), 1); draw(); });
+      form.addEventListener('change', (e) => { if (e.target.matches('[data-xunit]')) { sync(); draw(); } });
+      form._xmSync = () => { sync(); lines.forEach((l) => { if (!l.kind && (l.itemName || l.serial)) l.kind = 'other'; }); };
+      const q0 = form.querySelector('[data-xq]'); if (q0) setTimeout(() => q0.focus(), 80);
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'soft', icon: 'check', handler: (form) => Pages.xmSubmit(form, lines, false) }, { label: 'حفظ وطباعة سند الإرسال', kind: 'primary', icon: 'print', submit: true, handler: (form) => Pages.xmSubmit(form, lines, true) }]
+  });
+};
+/* أزرار الإرسال المباشر للصيانة الخارجية */
+document.addEventListener('click', async (e) => {
+  const c = e.target.closest && e.target.closest('.ct [data-ctxm]'); if (!c) return;
+  e.preventDefault(); e.stopPropagation();
+  const [k, id] = c.dataset.lvl.split(':'), un = k === 'u' ? await DB.get('deptUnits', id) : null;
+  Pages.xmSendModal({ itemId: c.dataset.ctxm, departmentId: k === 'u' ? (un || {}).departmentId : id, unitId: k === 'u' ? id : '' });
+}, true);
+{
+  const aa0 = Pages.assetActs;
+  Pages.assetActs = (a) => html`${XM.on() && XM.canManage() && a.status !== 'retired' && !a.extId ? html`<button type="button" class="icon-btn" data-xmsend="${a.id}" title="إرسال إلى ${XM.name()}">${UI.icon('external')}</button>` : ''}${aa0(a)}`;
+}
+/* صنف جديد من جرد المكتب: الاسم المكتوب يُفكك إلى الماركة والموديل (أول كلمة لاتينية هي الماركة) */
+{
+  const im0 = Pages.itemModal;
+  Pages.itemModal = (id, preset = {}) => {
+    if (!id && preset.name && !preset.brand && !preset.model) {
+      let s = String(preset.name).trim(); const cn = preset.categoryId ? Data.nameOf('itemCategories', preset.categoryId, '') : '';
+      if (cn && s.startsWith(cn)) s = s.slice(cn.length).trim();
+      const m = s.match(/([A-Za-z][\w&.+-]*)(\s+[\s\S]*)?$/);
+      preset = { ...preset, ...(m ? { brand: m[1], model: String(m[2] || '').trim() } : { model: s }) };
+    }
+    return im0(id, preset);
+  };
+}
 boot();
 })();
