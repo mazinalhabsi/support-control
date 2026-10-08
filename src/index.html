@@ -4207,9 +4207,11 @@ Data.users = {
     if (!u) throw new AppError('المستخدم غير موجود');
     if (!isNew && u.id === Auth.user.id && input.active === 0) throw new AppError('لا يمكنك إيقاف حسابك');
     Object.assign(u, { username, name: String(input.name).trim(), role: input.role, departmentId: input.departmentId || '', rankId: input.rankId || '', militaryNo: String(input.militaryNo || '').trim(), phone: String(input.phone || '').trim(), email: String(input.email || '').trim(), locationId: input.locationId || '', office: String(input.office || '').trim(), active: input.active === 0 ? 0 : 1, updatedAt: now() });
-    if (password) { this.checkPolicy(password); u.pass = Crypto.makePassword(password); }
-    if (!u.pass) throw new AppError('حدد كلمة مرور مؤقتة للمستخدم الجديد');
+    const viaServer = !isNew && !!password && Sync.on && !!Sync.token;
+    if (password) { this.checkPolicy(password); if (!viaServer) u.pass = Crypto.makePassword(password); }
+    if (!u.pass && !viaServer && (isNew || !(Sync.on && Sync.token))) throw new AppError('حدد كلمة مرور مؤقتة للمستخدم الجديد');
     await DB.put('users', u); await Data.refresh('users');
+    if (viaServer) await Data.users.setPassword(u.id, password, u.mustChangePassword ? 1 : 0);
     await Data.log(isNew ? 'create' : 'update', 'user', u.id, `${isNew ? 'إضافة' : 'تعديل'} المستخدم ${u.username}`); Bus.emit('users'); return u;
   }
 };
@@ -6105,8 +6107,8 @@ Pages.profile = async (ctx) => {
         if (v.next !== v.confirm) throw new AppError('كلمتا المرور الجديدتان غير متطابقتين');
         if (v.next === v.current) throw new AppError('اختر كلمة مرور مختلفة عن الحالية');
         UI.busy(btn, true); await new Promise((r) => setTimeout(r, 40));
-        const rec = await DB.get('users', u.id); if (!(await Crypto.verifyPassword(v.current, rec.pass))) throw new AppError('كلمة المرور الحالية غير صحيحة');
-        const forced = u.mustChangePassword; await Data.users.setPassword(u.id, v.next, false); Auth.user = await DB.get('users', u.id);
+        const rec = await DB.get('users', u.id); if (!(Sync.on && Sync.token) && !(await Crypto.verifyPassword(v.current, rec.pass))) throw new AppError('كلمة المرور الحالية غير صحيحة');
+        const forced = u.mustChangePassword; await Data.users.setPassword(u.id, v.next, false, v.current); Auth.user = await DB.get('users', u.id);
         UI.toast('تم تحديث كلمة المرور بنجاح'); UI.confetti();
         if (forced) { Shell.unmount(); Router.go('/dashboard'); } else pwf.reset();
       } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
@@ -7731,12 +7733,12 @@ const Sync = {
   url: '', token: '', on: false, rev: 0, queue: [], flushing: false, applying: false, status: 'local', lastAt: 0, lastError: '', pullTimer: 0, head: 0,
   autoUrl() { const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
   defaultUrl() { const saved = localStorage.getItem('sq_api'); return saved || this.autoUrl(); },
-  async call(action, { body, form, query = '', timeout = 20000 } = {}) {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout);
+  async call(action, { body, form, query = '', timeout = 20000, token } = {}) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeout), tk = token === undefined ? this.token : token;
     try {
-      const res = await fetch(`${this.url}?a=${action}${query}`, { method: form || body ? 'POST' : 'GET', headers: { ...(this.token ? { 'X-Token': this.token } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: form || (body ? JSON.stringify(body) : undefined), signal: ctl.signal, cache: 'no-store' });
+      const res = await fetch(`${this.url}?a=${action}${query}`, { method: form || body ? 'POST' : 'GET', headers: { ...(tk ? { 'X-Token': tk } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: form || (body ? JSON.stringify(body) : undefined), signal: ctl.signal, cache: 'no-store' });
       let json = null; try { json = await res.json(); } catch (_) { /* استجابة غير نصية */ }
-      if (!res.ok) { const e = new AppError((json && json.error) || `تعذر الاتصال بالخادم (${res.status})`); e.status = res.status; throw e; }
+      if (!res.ok) { const e = new AppError((json && json.error) || `تعذر الاتصال بالخادم (${res.status})`); e.status = res.status; if (res.status === 401 && tk && tk === this.token && action !== 'login' && action !== 'logout') this.sessionEnded(); throw e; }
       return json;
     } finally { clearTimeout(t); }
   },
@@ -7800,6 +7802,13 @@ const Sync = {
 
   enqueue(ops) { if (!this.on) return; this.queue.push(...ops); this.saveQueue(); clearTimeout(this._fl); this._fl = setTimeout(() => this.flush(), 120); },
 
+  sessionEnded(quiet = false) {
+    if (this._ending) return; this._ending = true;
+    this.token = ''; try { localStorage.removeItem('sq_token'); sessionStorage.removeItem('sq_session'); } catch (_) { /* تجاهل */ }
+    const had = !!Auth.user; Auth.user = null;
+    if (had) { try { Shell.unmount(); } catch (_) { /* تجاهل */ } if (!quiet) UI.toast('انتهت جلستك أو سُجّل خروجك من جهاز أو تبويب آخر، سجّل الدخول من جديد', 'warn', 7000); Router.go('/login'); }
+    setTimeout(() => { this._ending = false; }, 1500);
+  },
   async waitIdle(ms = 15000) { const t0 = Date.now(); while ((this.flushing || this.queue.length) && Date.now() - t0 < ms) { await new Promise((r) => setTimeout(r, 120)); if (!this.flushing && this.queue.length) this.flush(); } },
   async flush() {
     if (!this.on || this.flushing || !this.queue.length || (!this.token && !this.serverEmpty)) return;
@@ -7927,8 +7936,10 @@ const Sync = {
     Auth.login = async (username, password) => {
       if (!this.on) return local.login(username, password);
       if (this.serverEmpty) { try { this.flush(); await this.waitIdle(); } catch (_) { /* يكمل */ } }
+      if (this._bye) await Promise.race([this._bye, new Promise((res) => setTimeout(res, 9000))]);
       const r = await this.call('login', { body: { username: String(username || '').trim(), password: String(password || '') } });
       this.token = r.token; localStorage.setItem('sq_token', r.token);
+      try { const owner = localStorage.getItem('sq_queue_owner'); if (owner && owner !== r.user.id && this.queue.length) { this.queue = []; this.saveQueue(); } localStorage.setItem('sq_queue_owner', r.user.id); } catch (_) { /* تجاهل */ }
       await this.pull(this.needFull());
       let u = await DB.get('users', r.user.id);
       if (!u) { await this.raw.put('users', r.user); u = r.user; }
@@ -7954,9 +7965,15 @@ const Sync = {
       }
     };
     Auth.logout = async () => {
-      /* إزالة التواجد قبل رفع التعديلات وإنهاء الجلسة، حتى يعلم الآخرون فوراً أن الفني خرج (ويُتاح استكمال بلاغاته) */
-      if (this.on && this.token) { try { if (Auth.user) await Presence.leave(Auth.user); await this.flush(); await this.call('logout'); } catch (_) { /* تجاهل */ } this.token = ''; localStorage.removeItem('sq_token'); }
-      return local.logout();
+      /* أولاً يُحذف من المتصفح كل ما يسمح بالدخول دون كلمة المرور، فلا يعود الحساب إن أُغلقت الصفحة أو حُدّثت قبل اكتمال الخروج،
+         ثم تُرفع التعديلات المعلقة وتُنهى الجلسة على الخادم في الخلفية بالرمز نفسه */
+      const tok = this.token;
+      try { localStorage.removeItem('sq_token'); sessionStorage.removeItem('sq_session'); } catch (_) { /* تجاهل */ }
+      if (!this.on || !tok) return local.logout();
+      const quick = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((res) => setTimeout(res, ms))]);
+      await quick(local.logout(), 2500);
+      this._bye = (async () => { this.flush(); await quick(this.waitIdle(6000), 6500); await quick(this.call('logout', { token: tok, timeout: 5000 }), 5500); if (this.token === tok) this.token = ''; })();
+      this._bye.then(() => { this._bye = null; });
     };
   },
 
@@ -11551,7 +11568,7 @@ Pages.monitor = async (ctx) => {
     if (track && track.dataset.text !== text) { track.dataset.text = text; track.innerHTML = `<span>${text.replace(/</g, '&lt;')}</span><span aria-hidden="true">${text.replace(/</g, '&lt;')}</span>`; track.style.animationDuration = `${Math.max(30, text.length / 6)}s`; }
     drawRows();
   };
-  UI.on(ctx.view, 'click', '[data-act="exit"]', () => { if (isMonitor) Auth.logout(); else Router.go('/dashboard'); });
+  UI.on(ctx.view, 'click', '[data-act="exit"]', () => { if (isMonitor) Shell.logout(); else Router.go('/dashboard'); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
   UI.on(ctx.view, 'click', '[data-act="sound"]', (e, el) => { st.sound = !st.sound; localStorage.setItem('sq_tv_sound', st.sound ? '1' : '0'); el.classList.toggle('off', !st.sound); if (st.sound) tvChime(); UI.toast(st.sound ? 'فُعّل التنبيه الصوتي للوارد الجديد' : 'أُوقف التنبيه الصوتي'); });
   const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { st.page++; drawRows(); }, 12000), iLoad = setInterval(load, 20000);
@@ -17894,6 +17911,31 @@ document.addEventListener('click', async (e) => {
     return im0(id, preset);
   };
 }
+/* ══════════ كلمة المرور والخروج ══════════
+   تغيير كلمة المرور يُحفظ على الخادم فوراً ويتحقق الخادم من الحالية؛ والنسخة المحلية لا تحمل كلمة مرور أبداً */
+{
+  const sp0 = Data.users.setPassword;
+  Data.users.setPassword = async (id, password, mustChange = 0, current) => {
+    if (!(Sync.on && Sync.token)) return sp0(id, password, mustChange);
+    const target = await DB.get('users', id); if (!target) throw new AppError('الحساب غير موجود');
+    const self = !!Auth.user && Auth.user.id === id;
+    if (!self && !canSetPassword(Auth.user, target)) throw new AppError('لا تملك صلاحية تغيير كلمة مرور هذا الحساب');
+    if (!self && isSysAccount(target) && Auth.user.role !== 'supervisor') throw new AppError('كلمة مرور الحسابات الأساسية ثابتة، ويغيّرها المشرف فقط');
+    const pw = self ? String(password || '') : String(password || '').trim();
+    if (self) Data.users.checkPolicy(pw); else if (pw.length < 6) throw new AppError('كلمة المرور 6 أحرف على الأقل');
+    const r = await Sync.call('passwd', { body: { userId: id, next: pw, ...(current != null ? { current: String(current) } : {}), mustChange: mustChange ? 1 : 0 } });
+    const rec = await DB.get('users', id);
+    if (rec) { delete rec.pass; rec.mustChangePassword = r.user ? Number(r.user.mustChangePassword) || 0 : (mustChange ? 1 : 0); rec.updatedAt = (r.user && r.user.updatedAt) || now(); rec.passChangedAt = (r.user && r.user.passChangedAt) || now(); rec._rev = r.rev; await Sync.raw.put('users', rec); }
+    await Data.refresh('users');
+    await Data.log('password', 'user', id, self ? 'تغيير كلمة المرور الشخصية' : `تعيين كلمة مرور لحساب ${target.name}`);
+    if (self) Auth.user = await DB.get('users', id);
+    else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: 'راجع من أصدرها لاستلامها، وسيُطلب منك تغييرها عند الدخول.', link: '/profile', kind: 'user' });
+    Bus.emit('users', {});
+    return true;
+  };
+}
+/* الخروج من تبويب يُخرج التبويبات الأخرى فوراً (الرمز نفسه انتهى على الخادم) */
+window.addEventListener('storage', (e) => { if (e.key === 'sq_token' && !e.newValue && Sync.on && Sync.token && Auth.user) Sync.sessionEnded(true); });
 boot();
 })();</script>
 </body>

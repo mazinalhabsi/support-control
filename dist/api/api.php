@@ -377,7 +377,7 @@ function can_set_password(array $actor, array $target): bool {
 }
 
 /** حقول لا يغيّرها صاحب الحساب بنفسه */
-const USER_PROTECTED = ['role', 'username', 'active', 'extraPerms', 'deniedPerms', 'categories', 'system', 'name', 'militaryNo', 'rankId', 'createdAt', 'imported', 'demo'];
+const USER_PROTECTED = ['role', 'username', 'active', 'extraPerms', 'deniedPerms', 'categories', 'system', 'name', 'militaryNo', 'rankId', 'createdAt', 'imported', 'demo', 'passChangedAt'];
 
 /**
  * يقرر مصير عملية كتابة واحدة: يعيد البيانات المسموح حفظها، أو null للرفض.
@@ -410,13 +410,9 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       $merged = $old;
       if (($old['id'] ?? '') === ($user['id'] ?? '')) {
         /* صاحب الحساب: الملف الشخصي وكلمة مروره فقط */
-        foreach ($data as $k => $v) if (!in_array($k, USER_PROTECTED, true) && $k !== 'mustChangePassword' && $k !== 'pass') $merged[$k] = $v;
-        $changedPass = isset($data['pass']) && is_array($data['pass']) && ($data['pass']['hash'] ?? '') !== (($old['pass'] ?? [])['hash'] ?? '');
-        if ($changedPass) { $merged['pass'] = $data['pass']; $merged['mustChangePassword'] = 0; }
+        foreach ($data as $k => $v) if (!in_array($k, USER_PROTECTED, true) && $k !== 'mustChangePassword' && $k !== 'pass' && $k !== 'passChangedAt') $merged[$k] = $v;
         return $merged;
       }
-      $changedPass = isset($data['pass']) && is_array($data['pass']) && ($data['pass']['hash'] ?? '') !== (($old['pass'] ?? [])['hash'] ?? '');
-      if ($changedPass && can_set_password($user, $old)) { $merged['pass'] = $data['pass']; $merged['mustChangePassword'] = (int) ($data['mustChangePassword'] ?? 1); $merged['updatedAt'] = $data['updatedAt'] ?? ($old['updatedAt'] ?? 0); return $merged; }
       /* تحديد مسؤولي الفئات من إدارة البلاغات */
       if (can_any($user, ['categories.manage', 'settings'])) { $merged['categories'] = $data['categories'] ?? ($old['categories'] ?? []); $merged['updatedAt'] = $data['updatedAt'] ?? ($old['updatedAt'] ?? 0); return $merged; }
       return null;
@@ -485,6 +481,17 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
   return $new;
 }
 
+function pw_len(string $s): int { return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen($s); }
+/** سياسة كلمة المرور الشخصية (مطابقة للواجهة): 8 أحرف على الأقل، حروف وأرقام */
+function pw_policy(string $pw): ?string {
+  if (pw_len($pw) < 8 || !preg_match('/\d/u', $pw) || !preg_match('/[A-Za-z\x{0600}-\x{06FF}]/u', $pw)) return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حروف وأرقام';
+  return null;
+}
+function make_pass(string $pw): array {
+  $salt = random_bytes(16);
+  return ['algo' => 'pbkdf2-sha256', 'iter' => 100000, 'salt' => bin2hex($salt), 'hash' => bin2hex(hash_pbkdf2('sha256', $pw, $salt, 100000, 32, true))];
+}
+function is_sys_account(array $u, string $id): bool { return !empty($u['system']) || strpos($id, 'u_sys_') === 0; }
 function verify_password(string $password, $pass): bool {
   if (!is_array($pass)) return false;
   $algo = $pass['algo'] ?? '';
@@ -557,6 +564,45 @@ case 'login': {
   db()->prepare("DELETE FROM sessions WHERE expires < ?")->execute([now_ms()]);
   $user['id'] = $uid;
   out(['token' => $token, 'user' => strip_user($user), 'rev' => current_rev()]);
+}
+
+/* تغيير كلمة المرور يُحفظ على الخادم فوراً (لا ينتظر المزامنة)، بعد التحقق من الحالية على الخادم نفسه،
+   وتنتهي جلسات الحساب الأخرى فلا يبقى دخول بكلمة المرور القديمة على أي جهاز */
+case 'passwd': {
+  $user = session_user();
+  $b = body();
+  $tid = (string) ($b['userId'] ?? '');
+  if ($tid === '') $tid = (string) $user['id'];
+  $doc = doc_get('users', $tid);
+  if (!$doc || (int) $doc['deleted']) fail('الحساب غير موجود', 404);
+  $target = json_decode((string) $doc['data'], true) ?: [];
+  $self = $tid === (string) $user['id'];
+  $next = (string) ($b['next'] ?? '');
+  if ($self) {
+    /* عند الإلزام بالتغيير (أول دخول) تكفي الجلسة التي فُتحت بكلمة المرور المؤقتة للتو */
+    if (empty($target['mustChangePassword']) && !verify_password((string) ($b['current'] ?? ''), $target['pass'] ?? null)) fail('كلمة المرور الحالية غير صحيحة', 403);
+    if (($e = pw_policy($next)) !== null) fail($e);
+    if (verify_password($next, $target['pass'] ?? null)) fail('اختر كلمة مرور مختلفة عن الحالية');
+    $must = 0;
+  } else {
+    $target['id'] = $tid;
+    if (is_sys_account($target, $tid) && !is_sup($user)) fail('كلمة مرور الحسابات الأساسية ثابتة، ويغيّرها المشرف فقط', 403);
+    if (!can_set_password($user, $target)) fail('لا تملك صلاحية تغيير كلمة مرور هذا الحساب', 403);
+    $next = trim($next);
+    if (pw_len($next) < 6) fail('كلمة المرور 6 أحرف على الأقل');
+    $must = !is_sys_account($target, $tid) && !empty($b['mustChange']) ? 1 : 0;
+  }
+  $t = now_ms();
+  $target['pass'] = make_pass($next); $target['mustChangePassword'] = $must; $target['updatedAt'] = $t; $target['passChangedAt'] = $t;
+  $pdo = db(); $pdo->beginTransaction();
+  try {
+    $rev = bump_rev();
+    $pdo->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?")->execute([$rev, $t, json_encode($target, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $tid]);
+    if ($self) $pdo->prepare("DELETE FROM sessions WHERE user_id = ? AND token <> ?")->execute([$tid, token_of()]);
+    else $pdo->prepare("DELETE FROM sessions WHERE user_id = ?")->execute([$tid]);
+    $pdo->commit();
+  } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
+  out(['ok' => true, 'rev' => $rev, 'user' => strip_user($target)]);
 }
 
 case 'me': {
@@ -690,7 +736,9 @@ case 'push': {
       $data = $op['data'] ?? null;
       if ($store === 'users' && is_array($data) && $cur) {
         $old = json_decode($cur['data'], true) ?: [];
-        if (!isset($data['pass']) && isset($old['pass'])) $data['pass'] = $old['pass'];
+        /* كلمة المرور لا تتغير إلا عبر passwd: نسخة قديمة محفوظة في متصفح ما لا تعيد كلمة مرور سابقة */
+        if (isset($old['pass'])) $data['pass'] = $old['pass']; else unset($data['pass']);
+        if (isset($old['passChangedAt'])) $data['passChangedAt'] = $old['passChangedAt'];
       }
       $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
       if ($json !== false && strlen($json) > max_doc_bytes()) { $conflicts[] = ['store' => $store, 'id' => $id, 'reason' => 'too_large', 'size' => strlen($json), 'max' => max_doc_bytes()]; continue; }
