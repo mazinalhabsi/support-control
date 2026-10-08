@@ -2509,7 +2509,7 @@ Pages.item = async (ctx) => {
           ${UI.panel({ title: 'التوزيع على المخازن', icon: 'warehouse', body: stock.some((s) => s.qty) ? UI.chart.hbars(stock.filter((s) => s.qty).map((s, i) => ({ label: Data.nameOf('warehouses', s.warehouseId), value: s.qty, tone: TONES[i % TONES.length] }))) : UI.noData('لا يوجد رصيد في أي مخزن') })}
           ${units.length ? UI.panel({ title: 'الوحدات في المخزن', icon: 'tag', sub: `${fmtNum(units.length)} وحدة متاحة`, tools: html`<button class="btn btn-ghost btn-sm" data-act="labels">${UI.icon('print')} ملصقات</button>`, flush: true, body: html`<div class="table-wrap"><table class="table"><thead><tr><th>الرقم التسلسلي</th><th>الحالة</th><th>الموقع أو الحائز</th></tr></thead><tbody>${units.slice(0, 60).map((a) => html`<tr><td class="t-num"><button type="button" class="link-sn" data-asset="${a.id}" title="التفاصيل الكاملة وسجل الصيانة">${a.serial} ${UI.icon('info')}</button>${a.host ? html`<div class="t-sub ltr">${a.host}</div>` : ''}</td><td>${UI.chip(ASSET_STATUS[a.status].tone, ASSET_STATUS[a.status].label, ASSET_STATUS[a.status].icon)}</td><td class="small">${a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId) : a.status === 'issued' ? Data.nameOf('departments', a.departmentId, a.holder || '—') : a.holder || '—'}</td></tr>`)}</tbody></table></div>` }) : ''}
           ${Object.keys(it.specs || {}).length ? UI.panel({ title: 'المواصفات', icon: 'info', body: html`<dl class="kv">${Object.entries(it.specs).filter(([, v2]) => String(v2 || '').trim()).map(([k, v2]) => html`<dt>${specLabel(it.categoryId, k)}</dt><dd>${v2}</dd>`)}</dl>` }) : ''}
-          ${await Pages.whereHTML(id)}${outside ? html`<p class="faint small">${UI.icon('info')} ${fmtNum(outside)} ${it.unit || 'وحدة'} خارج المخزن. <a href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}">${UI.icon('search')} البحث العام</a></p>` : ''}
+          ${outside ? UI.panel({ title: 'خارج المخزن', icon: 'pin', body: html`<p class="muted" style="margin:0 0 10px">${fmtNum(outside)} ${it.unit || 'وحدة'} لدى الإدارات أو مُعارة أو في الصيانة. لا تظهر تفاصيلها داخل المخزن.</p><a class="btn btn-soft btn-sm" href="#/inventory/search?q=${encodeURIComponent(it.model || it.name)}">${UI.icon('search')} أماكنها في البحث العام</a>` }) : ''}
           
           ${it.notes ? UI.panel({ title: 'ملاحظات', icon: 'info', body: html`<p class="article" style="font-size:14px">${it.notes}</p>` }) : ''}
         </div>
@@ -14049,31 +14049,39 @@ Data.inv.where = async (itemId) => {
   const byStatus = {}; assets.forEach((a) => { byStatus[a.status] = (byStatus[a.status] || 0) + 1; });
   return { st, deps, assets, byStatus, path, inStore: st.reduce((s, x) => s + x.qty, 0), inDept: deps.reduce((s, x) => s + x.qty, 0) };
 };
+/* حسب السياق، احتراماً لطلب سابق: داخل المخزن تظهر أرصدة المخازن فقط، وفي الإدارة هي ومكاتبها، والأماكن كلها في البحث العام */
 Pages.whereHTML = async (itemId, scope = {}) => {
-  const w = await Data.inv.where(itemId);
+  const w = await Data.inv.where(itemId), it = (await DB.get('items', itemId)) || {}, href = `#/inventory/search?q=${encodeURIComponent(it.model || it.name || '')}`;
+  const whRow = (s) => html`<div class="where-row"><span class="where-ic tone-teal">${UI.icon('warehouse')}</span><div class="grow"><b>${Data.nameOf('warehouses', s.wh)}</b><small>مخزن</small></div><b class="where-n">${fmtNum(s.qty)}</b></div>`;
+  const depRow = (d) => { const direct = d.qty - d.units.reduce((s, u) => s + u.qty, 0); return html`<div class="where-row${d.dep === scope.departmentId ? ' here' : ''}"><span class="where-ic tone-violet">${UI.icon('building')}</span><div class="grow"><b>${Data.nameOf('departments', d.dep, 'إدارة محذوفة')}${d.dep === scope.departmentId ? html` <span class="chip tone-sky">هنا</span>` : ''}</b><small>${[...d.units.map((u) => `${u.path} (${fmtNum(u.qty)})`), direct > 0 ? `لدى الإدارة مباشرة (${fmtNum(direct)})` : ''].filter(Boolean).join('، ')}</small></div><b class="where-n">${fmtNum(d.qty)}</b></div>`; };
+  const stat = (list) => { const by = {}; list.forEach((a) => { by[a.status] = (by[a.status] || 0) + 1; }); return Object.keys(by).length ? html`<div class="row mt" style="gap:6px;flex-wrap:wrap"><span class="faint small">الوحدات المسلسلة:</span>${Object.entries(by).map(([k, n]) => UI.chip((ASSET_STATUS[k] || {}).tone || 'slate', `${(ASSET_STATUS[k] || {}).label || k}: ${fmtNum(n)}`, (ASSET_STATUS[k] || {}).icon))}</div>` : ''; };
+  if (scope.store) return w.st.length ? html`<div class="u-sec mt where-sec"><h3>${UI.icon('warehouse')} الأرصدة في المخازن</h3><div class="where-grid">${w.st.map(whRow)}</div></div>` : '';
+  if (scope.departmentId) {
+    const mine = w.deps.filter((d) => d.dep === scope.departmentId), others = w.deps.filter((d) => d.dep !== scope.departmentId), oq = others.reduce((s, d) => s + d.qty, 0), here = mine.reduce((s, d) => s + d.qty, 0);
+    if (!w.st.length && !mine.length && !others.length) return '';
+    return html`<div class="u-sec mt where-sec"><h3>${UI.icon('pin')} أين يوجد <small class="faint">— في المخازن ${fmtNum(w.inStore)}، وفي ${Data.nameOf('departments', scope.departmentId)} ${fmtNum(here)}</small></h3><div class="where-grid">${mine.map(depRow)}${w.st.map(whRow)}</div>
+      ${others.length ? html`<p class="faint small mt">${UI.icon('info')} ${fmtNum(oq)} أخرى لدى ${fmtNum(others.length)} ${others.length === 1 ? 'إدارة أخرى' : 'إدارات أخرى'} — <a href="${href}" data-close-dev>أماكنها في البحث العام</a></p>` : ''}${stat(w.assets.filter((a) => a.departmentId === scope.departmentId))}</div>`;
+  }
   const head = html`<h3>${UI.icon('pin')} أين يوجد <small class="faint">— في المخازن ${fmtNum(w.inStore)}، ولدى الإدارات ${fmtNum(w.inDept)}</small></h3>`;
   if (!w.st.length && !w.deps.length) return html`<div class="u-sec mt where-sec">${head}<p class="faint small">لا يوجد رصيد لهذا الصنف في المخازن أو لدى الإدارات.</p></div>`;
-  return html`<div class="u-sec mt where-sec">${head}<div class="where-grid">
-    ${w.st.map((s) => html`<div class="where-row"><span class="where-ic tone-teal">${UI.icon('warehouse')}</span><div class="grow"><b>${Data.nameOf('warehouses', s.wh)}</b><small>مخزن</small></div><b class="where-n">${fmtNum(s.qty)}</b></div>`)}
-    ${w.deps.map((d) => { const direct = d.qty - d.units.reduce((s, u) => s + u.qty, 0); return html`<div class="where-row${d.dep === scope.departmentId ? ' here' : ''}"><span class="where-ic tone-violet">${UI.icon('building')}</span><div class="grow"><b>${Data.nameOf('departments', d.dep, 'إدارة محذوفة')}${d.dep === scope.departmentId ? html` <span class="chip tone-sky">هنا</span>` : ''}</b><small>${[...d.units.map((u) => `${u.path} (${fmtNum(u.qty)})`), direct > 0 ? `لدى الإدارة مباشرة (${fmtNum(direct)})` : ''].filter(Boolean).join('، ')}</small></div><b class="where-n">${fmtNum(d.qty)}</b></div>`; })}
-  </div>${Object.keys(w.byStatus).length ? html`<div class="row mt" style="gap:6px;flex-wrap:wrap"><span class="faint small">الوحدات المسلسلة:</span>${Object.entries(w.byStatus).map(([k, n]) => UI.chip((ASSET_STATUS[k] || {}).tone || 'slate', `${(ASSET_STATUS[k] || {}).label || k}: ${fmtNum(n)}`, (ASSET_STATUS[k] || {}).icon))}</div>` : ''}</div>`;
+  return html`<div class="u-sec mt where-sec">${head}<div class="where-grid">${w.st.map(whRow)}${w.deps.map(depRow)}</div>${stat(w.assets)}</div>`;
 };
 Pages.specsHTML = (it) => {
   const specs = Object.entries(it.specs || {}).filter(([, v]) => v !== '' && v != null);
   return specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${specLabel(it.categoryId, k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}</dd>`)}</dl></div>` : html`<p class="faint small mt">${UI.icon('info')} لا توجد مواصفات مسجلة لهذا الصنف${canUser(Auth.user, 'inventory.manage') ? ' — أضفها من «تعديل الصنف ومواصفاته»' : ''}.</p>`;
 };
 /* بطاقة الصنف: المواصفات وأماكن وجوده، من أي مكان في النظام */
-Pages.itemInfo = async (itemId) => {
+Pages.itemInfo = async (itemId, scope = {}) => {
   const it = await DB.get('items', itemId); if (!it) { UI.toast('الصنف غير موجود', 'warn'); return null; }
   const r = await UI.modal({ title: it.name, icon: 'box', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
-      ${Pages.specsHTML(it)}${it.notes ? html`<p class="muted small">${it.notes}</p>` : ''}${await Pages.whereHTML(itemId)}`,
+      ${Pages.specsHTML(it)}${it.notes ? html`<p class="muted small">${it.notes}</p>` : ''}${await Pages.whereHTML(itemId, scope)}`,
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(canUser(Auth.user, 'inventory.manage') ? [{ label: 'تعديل الصنف ومواصفاته', kind: 'soft', icon: 'edit', value: 'edit' }] : []), ...(Auth.can('inventory.read') ? [{ label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }] : [])] });
   if (r === 'edit') return Pages.itemModal(itemId);
   if (r === 'page') Router.go(`/inventory/items/${itemId}`);
   return r;
 };
-document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-iteminfo]'); if (!b) return; e.preventDefault(); e.stopPropagation(); Pages.itemInfo(b.dataset.iteminfo); }, true);
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-iteminfo]'); if (!b) return; e.preventDefault(); e.stopPropagation(); Pages.itemInfo(b.dataset.iteminfo, b.dataset.dep ? { departmentId: b.dataset.dep } : {}); }, true);
 
 /* ══════════ جرد المكتب: كل ما في الإدارة أو القسم أو المكتب في نافذة واحدة ══════════
    يظهر ما سُجل سابقاً قابلاً للتعديل (الكمية والأرقام التسلسلية والحذف)، وتحته أسطر لإضافة الجديد، ويُحفظ الكل بخطوة واحدة */
@@ -14122,7 +14130,7 @@ Pages.directCustodyModal = async (departmentId = '', unitId = '') => {
     ${cur.length ? html`<div class="bc-head cur"><span>الصنف</span><span>الكمية</span><span>الأرقام التسلسلية</span><span></span><span></span></div><div class="bc-rows cur">${cur.map((r) => html`<div class="bc-row cur" data-cur="${r.itemId}"><div class="bc-item"><b>${lab(r.item)}</b><small class="faint">${r.item.sku || ''}${isSerialItem(r.item) ? ' · مُسلسل' : ''}</small></div>
       <input class="input bc-q" type="number" min="0" max="9999" data-cq value="${Math.max(r.qty, r.serials.length)}" title="الكمية">
       <input class="input ltr bc-s" data-cs value="${r.serials.map((x) => x.serial).join('، ')}" placeholder="بلا أرقام تسلسلية — أضفها إن رغبت">
-      <div class="bc-acts"><button type="button" class="icon-btn" data-iteminfo="${r.itemId}" title="التفاصيل والمواصفات وأين يوجد">${UI.icon('info')}</button>${canUser(Auth.user, 'inventory.manage') ? html`<button type="button" class="icon-btn" data-bcedit="${r.itemId}" title="تعديل الصنف ومواصفاته">${UI.icon('edit')}</button>` : ''}</div>
+      <div class="bc-acts"><button type="button" class="icon-btn" data-iteminfo="${r.itemId}" data-dep="${r.dep || ''}" title="التفاصيل والمواصفات">${UI.icon('info')}</button>${canUser(Auth.user, 'inventory.manage') ? html`<button type="button" class="icon-btn" data-bcedit="${r.itemId}" title="تعديل الصنف ومواصفاته">${UI.icon('edit')}</button>` : ''}</div>
       ${locked ? html`<span></span>` : html`<button type="button" class="icon-btn danger" data-cdel title="حذف من هنا">${UI.icon('trash')}</button>`}</div>`)}</div>` : ''}</div>`;
   return UI.modal({ title: 'إضافة وتعديل الأجهزة والأغراض', icon: 'plus', size: 'xl',
     body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">اختر الإدارة ثم القسم أو المكتب: يظهر ما سُجل فيه سابقاً لتعدّله، وأضف تحته كل ما يوجد فيه فعلاً — ثم احفظ مرة واحدة. لا تتأثر أرصدة المخازن، وتُسجَّل كل إضافة أو تعديل في سجل الحركات.</div></div>
@@ -14144,13 +14152,13 @@ Pages.directCustodyModal = async (departmentId = '', unitId = '') => {
         if (!d) { curBox.innerHTML = ''; cur = []; form._curAt = ''; sum(); return; }
         const place = u ? (((await DB.get('deptUnits', u)) || {}).name || 'القسم') : `${Data.nameOf('departments', d)} (غير موزّع على الأقسام)`;
         const rows0 = await Data.custodyAt(d, u); if (t !== tok) return;
-        cur = rows0; form._curAt = `${d}|${u}`; curBox.innerHTML = String(curHTML(place));
+        cur = rows0.map((x) => ({ ...x, dep: d })); form._curAt = `${d}|${u}`; curBox.innerHTML = String(curHTML(place));
         $$('[data-bcrow]', rows).forEach(mark); sum();
       };
       const mark = async (r) => {
         const v = $('[data-bci]', r).value.trim(), it = v ? find(v) : null, nw = $('.bc-new', r), meta = $('[data-bcmeta]', r);
         nw.hidden = !v || !!it;
-        if (it) { const wl = await whereLine(it); if ($('[data-bci]', r).value.trim() !== v) return; meta.innerHTML = String(html`<button type="button" class="bc-info" data-iteminfo="${it.id}">${UI.icon('info')} ${wl}</button>${cur.some((c) => c.itemId === it.id) ? html`<span class="chip tone-amber">مسجل هنا — تُضاف الكمية إليه</span>` : ''}`); } else meta.innerHTML = '';
+        if (it) { const wl = await whereLine(it); if ($('[data-bci]', r).value.trim() !== v) return; meta.innerHTML = String(html`<button type="button" class="bc-info" data-iteminfo="${it.id}" data-dep="${dep.value}">${UI.icon('info')} ${wl}</button>${cur.some((c) => c.itemId === it.id) ? html`<span class="chip tone-amber">مسجل هنا — تُضاف الكمية إليه</span>` : ''}`); } else meta.innerHTML = '';
       };
       const sum = () => { let n = 0, q = 0; $$('[data-bcrow]', rows).forEach((r) => { if ($('[data-bci]', r).value.trim()) { n++; q += Math.max(Number($('[data-bcq]', r).value) || 0, snSplit($('[data-bcs]', r).value).length); } }); const ch = $$('[data-cur]', form).filter((r) => r.classList.contains('del') || r.dataset.dirty).length; $('[data-bcsum]', form).textContent = [n ? `إضافة ${fmtNum(n)} صنف — ${fmtNum(q)} وحدة` : '', ch ? `تعديل ${fmtNum(ch)} صنف` : ''].filter(Boolean).join(' · '); };
       const addRows = (k, data = []) => { for (let i = 0; i < k; i++) rows.insertAdjacentHTML('beforeend', String(row(data[i] || {}))); $$('[data-bcrow]', rows).forEach(mark); sum(); };
@@ -14328,7 +14336,7 @@ Pages.xmSendModal = async (preset = {}) => {
     const T = XM_TYPES[l.kind] || null, acc = T ? T.acc : XM_ACCESSORIES, src = l.assetId ? 'unit' : l.itemId ? 'item' : '';
     return html`<div class="xm-line" data-li="${i}">
     <div class="xm-lh"><span class="xm-ln">${fmtNum(i + 1)}</span><b>${l.itemName || 'جهاز أو غرض'}</b>${l.serial ? html`<span class="chip tone-slate ltr">${l.serial}</span>` : ''}${src === 'unit' ? UI.chip('teal', 'من سجلات المخزن', 'warehouse') : src === 'item' ? UI.chip('sky', 'صنف من المخزن', 'box') : UI.chip('slate', 'إدخال يدوي', 'edit')}<span class="grow"></span>${lines.length > 1 ? html`<button type="button" class="icon-btn" data-xrm="${i}" title="حذف السطر">${UI.icon('trash')}</button>` : ''}</div>
-    ${src ? html`<div class="xm-card">${UI.illu((XM_TYPES[l.kind] || XM_TYPES.other).il, 'mini')}<div class="grow"><b>${l.itemName}</b><small>${[[l.brand, l.model].filter(Boolean).join(' '), l.serial ? `الرقم ${l.serial}` : '', l.where || (l.departmentId ? `لدى ${Data.nameOf('departments', l.departmentId, '')}` : '')].filter(Boolean).join(' · ')}</small></div>${l.itemId ? html`<button type="button" class="btn btn-xs btn-ghost" data-iteminfo="${l.itemId}">${UI.icon('info')} التفاصيل</button>` : ''}<button type="button" class="btn btn-xs btn-ghost" data-xclear="${i}">${UI.icon('x')} جهاز آخر</button></div>`
+    ${src ? html`<div class="xm-card">${UI.illu((XM_TYPES[l.kind] || XM_TYPES.other).il, 'mini')}<div class="grow"><b>${l.itemName}</b><small>${[[l.brand, l.model].filter(Boolean).join(' '), l.serial ? `الرقم ${l.serial}` : '', l.where || (l.departmentId ? `لدى ${Data.nameOf('departments', l.departmentId, '')}` : '')].filter(Boolean).join(' · ')}</small></div>${l.itemId ? html`<button type="button" class="btn btn-xs btn-ghost" data-iteminfo="${l.itemId}" data-dep="${l.departmentId || ''}">${UI.icon('info')} التفاصيل</button>` : ''}<button type="button" class="btn btn-xs btn-ghost" data-xclear="${i}">${UI.icon('x')} جهاز آخر</button></div>`
       : html`<div class="xm-find"><div class="search-box">${UI.icon('search')}<input class="input" data-xq="${i}" placeholder="ابحث في المخزن والعهد: الرقم التسلسلي، رقم الأصل، اسم الجهاز على الشبكة، أو اسم الصنف" autocomplete="off"></div><div class="xm-res" data-xres="${i}" hidden></div></div>`}
     ${(l.units || []).length ? html`<div class="field"><label>الوحدة المرسلة <small class="faint">— ${fmtNum(l.units.length)} وحدة مسلسلة، اختر المرسلة منها</small></label><select data-xunit="${i}"><option value="">— غير محددة —</option>${l.units.map((u) => html`<option value="${u.id}"${u.id === l.assetId ? raw(' selected') : ''}>${u.serial} — ${u.where}</option>`)}</select></div>` : ''}
     ${T ? html`<details class="xm-typesw"><summary>${UI.icon('tag')} النوع: <b>${T.l}</b> <u>تغيير</u></summary>${typeStrip(l, i)}</details>` : html`<div class="xm-typeh">${UI.icon('tag')} اختر نوع الجهاز لتظهر بياناته الخاصة</div>${typeStrip(l, i)}`}
