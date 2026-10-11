@@ -531,7 +531,7 @@ const Data = {
   list(map) { return [...this.c[map].values()]; },
   nameOf(map, id, fb = '—') { const x = this.c[map].get(id); return x ? x.name : fb; },
   userName(id) { if (!id) return '—'; const u = this.c.users.get(id); return u ? u.name : 'مستخدم غير معروف'; },
-  async log(action, entity, entityId, summary) { try { await DB.put('activity', { id: uid('act'), at: now(), userId: Auth.user ? Auth.user.id : '', action, entity, entityId: entityId || '', summary: summary || '' }); } catch (e) { console.warn('activity', e); } },
+  async log(action, entity, entityId, summary, by = Auth.user) { if (by && by.role === 'monitor') return; try { await DB.put('activity', { id: uid('act'), at: now(), userId: by ? by.id : '', action, entity, entityId: entityId || '', summary: summary || '' }); } catch (e) { console.warn('activity', e); } },
   async notify(userIds, n) {
     const me = Auth.user && Auth.user.id, ids = [...new Set(userIds.filter((x) => x && x !== me))];
     if (!ids.length) return; const at = now();
@@ -844,7 +844,7 @@ const Auth = {
     this.user = u; sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + (Data.c.settings.sessionHours || 12) * HOUR }));
     await Data.refresh('users'); await Data.log('login', 'user', u.id, 'تسجيل دخول'); return u;
   },
-  async logout() { if (this.user) { await Data.log('logout', 'user', this.user.id, 'تسجيل خروج'); await Presence.leave(this.user); } this.user = null; sessionStorage.removeItem('sq_session'); },
+  async logout() { const u = this.user; this.user = null; sessionStorage.removeItem('sq_session'); if (u) { await Data.log('logout', 'user', u.id, 'تسجيل خروج', u); await Presence.leave(u); } },
   async setup({ name, username, password }) {
     if ((await DB.count('users')) > 0) throw new AppError('تم إعداد النظام مسبقاً');
     Data.users.checkPolicy(password);
@@ -1725,7 +1725,7 @@ const Shell = {
       await Data.notes.read(n.dataset.id); this.closePops(); this.refreshBell(); if (n.dataset.link) Router.go(n.dataset.link);
     };
   },
-  async logout() { await Auth.logout(); this.unmount(); Router.go('/login'); }
+  async logout() { await Auth.logout(); Auth.user = null; this.unmount(); Router.go('/login'); }
 };
 
 /* ── التوجيه ─────────────────────────────────────────────────── */
@@ -1740,7 +1740,7 @@ const Router = {
   async resolve() {
     const hash = location.hash.slice(1) || '/', qi = hash.indexOf('?'), path = decodeURIComponent(qi < 0 ? hash : hash.slice(0, qi)), query = Object.fromEntries(new URLSearchParams(qi < 0 ? '' : hash.slice(qi + 1)));
     this.cleanup(); const token = (this.token = {});
-    if (!Auth.user) { if (Shell.mounted) Shell.unmount(); return Pages.auth(); }
+    if (!Auth.user) { if (Shell.mounted) Shell.unmount(); document.title = Data.c.settings.systemName || document.title; return Pages.auth(); }
     const u = Auth.user;
     /* التحويلات تستبدل الخطوة الحالية ولا تضيف خطوة جديدة، حتى يرجع زر الرجوع خطوة واحدة فعلاً */
     if (u.role === 'monitor' && path !== '/monitor') return this.replace('/monitor');
@@ -4532,8 +4532,9 @@ const Sync = {
       try { localStorage.removeItem('sq_token'); sessionStorage.removeItem('sq_session'); } catch (_) { /* تجاهل */ }
       if (!this.on || !tok) return local.logout();
       const quick = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((res) => setTimeout(res, ms))]);
-      await quick(local.logout(), 2500);
-      this._bye = (async () => { this.flush(); await quick(this.waitIdle(6000), 6500); await quick(this.call('logout', { token: tok, timeout: 5000 }), 5500); if (this.token === tok) this.token = ''; })();
+      /* الحساب يُفرغ من الذاكرة فوراً فتظهر صفحة الدخول دون انتظار، والسجل وعلامة التواجد ورفع المعلق في الخلفية */
+      const lo = local.logout(); Auth.user = null;
+      this._bye = (async () => { await quick(lo, 2500); this.flush(); await quick(this.waitIdle(6000), 6500); await quick(this.call('logout', { token: tok, timeout: 5000 }), 5500); if (this.token === tok) this.token = ''; })();
       this._bye.then(() => { this._bye = null; });
     };
   },
@@ -8034,7 +8035,7 @@ Pages.monitor = async (ctx) => {
       <div class="tv2-ctrl">
         <button class="icon-btn${st.sound ? '' : ' off'}" data-act="sound" title="التنبيه الصوتي للوارد الجديد">${UI.icon('bell')}</button>
         <button class="icon-btn" data-act="full" title="ملء الشاشة">${UI.icon('grid')}</button>
-        <button class="icon-btn" data-act="exit" title="${isMonitor ? 'تسجيل الخروج' : 'العودة'}">${UI.icon(isMonitor ? 'logout' : 'x')}</button>
+        <button class="icon-btn${isMonitor ? ' tv2-exit' : ''}" data-act="exit" title="${isMonitor ? 'تسجيل الخروج' : 'العودة'}">${UI.icon(isMonitor ? 'logout' : 'x')}${isMonitor ? html`<span>خروج</span>` : ''}</button>
       </div>
     </header>
     <section class="tv2-kpis" data-kpis></section>
@@ -8125,7 +8126,7 @@ Pages.monitor = async (ctx) => {
     drawRows();
     TvSound.tick(st, { open, tickets, svcs, live });
   };
-  UI.on(ctx.view, 'click', '[data-act="exit"]', () => { if (isMonitor) Shell.logout(); else Router.go('/dashboard'); });
+  UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
   UI.on(ctx.view, 'click', '[data-act="sound"]', (e, el) => { st.sound = !st.sound; localStorage.setItem('sq_tv_sound', st.sound ? '1' : '0'); el.classList.toggle('off', !st.sound); if (st.sound) tvChime(); UI.toast(st.sound ? 'فُعّل التنبيه الصوتي للوارد الجديد' : 'أُوقف التنبيه الصوتي'); });
   const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { st.page++; drawRows(); }, 12000), iLoad = setInterval(load, 20000);

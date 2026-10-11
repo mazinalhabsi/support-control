@@ -73,6 +73,24 @@ const mkUser = async (sup, id, username, pw, extra = {}) => { const salt = crypt
   /* 7) تعديل مستخدم موجود من شاشة المستخدمين دون كلمة مرور لم يعد يرفض */
   const r7 = await q.evaluate(async () => { try { const u = await App.DB.get('users', 'u_pwtest'); await App.Data.users.save({ ...u, name: 'حساب اختبار معدّل', active: 1 }, ''); return 'ok'; } catch (e) { return e.message; } });
   ok('editing an existing user without a password works', r7 === 'ok', r7);
+  /* 8) حساب شاشة العرض: الخروج فوري حتى إن تأخر حفظ السجل على جهاز الشاشة (كان يعيد الشاشة إلى صفحتها) */
+  {
+    const salt = crypto.randomBytes(16), hash = crypto.pbkdf2Sync('Passw0rd!', salt, 1000, 32, 'sha256').toString('hex');
+    await api('push', { ops: [{ store: 'users', id: 'u_mon_lo', rev: -1, data: { id: 'u_mon_lo', username: 'mon_lo', name: 'شاشة اختبار الخروج', role: 'monitor', active: 1, mustChangePassword: 0, monitor: { categories: [], locations: [], sound: 1 }, pass: { algo: 'pbkdf2-sha256', iter: 1000, salt: salt.toString('hex'), hash }, createdAt: Date.now(), updatedAt: Date.now() } }] }, sup);
+    const cm = await newCtx(), m = await cm.newPage(); m.setDefaultTimeout(20000);
+    await login(m, 'mon_lo', 'Passw0rd!'); await m.waitForSelector('.tv2');
+    ok('display exit button is labelled', /خروج/.test(await m.textContent('[data-act="exit"]')));
+    await m.evaluate(() => { const l0 = App.Data.log.bind(App.Data); App.Data.log = async (...a) => { await new Promise((r) => setTimeout(r, 4000)); return l0(...a); }; });
+    await m.click('[data-act="exit"]'); await m.waitForTimeout(1500);
+    const s1 = await m.evaluate(() => ({ hash: location.hash, user: !!App.Auth.user, login: !!document.querySelector('[name="username"]'), tv: !!document.querySelector('.tv2'), title: document.title }));
+    ok('display logs out at once even when the device is slow', s1.hash === '#/login' && !s1.user && s1.login && !s1.tv, JSON.stringify(s1));
+    ok('tab title no longer names the display page', !/شاشة المراقبة/.test(s1.title), s1.title);
+    await m.waitForTimeout(3000); await m.reload(); await m.waitForTimeout(2500);
+    ok('display stays logged out after reload', await m.evaluate(() => !App.Auth.user && !!document.querySelector('[name="username"]')));
+    ok('display account writes no activity (the server would refuse it)', await m.evaluate(async () => (await App.DB.getAll('activity')).filter((a) => a.userId === 'u_mon_lo').length === 0 && !App.Sync.queue.some((o) => o.store === 'activity')));
+    await cm.close();
+    await api('push', { ops: [{ store: 'users', id: 'u_mon_lo', rev: -1, deleted: 1 }] }, sup);
+  }
   console.log(res.join('\n'));
   await b.close();
   await api('push', { ops: [{ store: 'users', id: 'u_pwtest', rev: -1, deleted: 1 }] }, sup);
