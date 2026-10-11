@@ -2,6 +2,7 @@
 # index.html لا يُحفظ حتى يصل كل تحديث فوراً
 AddType font/woff2 .woff2
 AddType application/manifest+json .webmanifest
+AddType image/x-icon .ico
 
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml
@@ -14,6 +15,9 @@ AddType application/manifest+json .webmanifest
   <FilesMatch "^index\.html$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
+  <Files "favicon.ico">
+    Header set Cache-Control "public, max-age=604800"
+  </Files>
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "same-origin"
   Header always set X-Frame-Options "SAMEORIGIN"

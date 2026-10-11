@@ -129,6 +129,7 @@ innodb_flush_log_at_trx_commit=2
 ملاحظات:
 - المتصفح يعامل `http` و`https` كموقعين منفصلين. لذلك يسجّل المستخدم دخوله في كل منهما مرة، ويحتفظ المتصفح بنسخة محلية لكل منهما، لكن البيانات واحدة على الخادم.
 - على `http` يستخدم النظام تشفيره الداخلي لكلمات المرور، لأن المتصفح لا يتيح أدوات التشفير الحديثة إلا على `https`. ويعمل النسخ إلى الحافظة بطريقة بديلة.
+- للبقاء على `http` مع تشغيل الكاميرا والمجلدات: القسم 12.
 - **التحويل الإجباري إلى https (موصى به بعد تثبيت الشهادة على كل الأجهزة):** في ملف `.htaccess` بمجلد النظام كتلة جاهزة معطّلة بعنوان «التحويل الإجباري إلى https». أزل علامة `#` من أسطرها الخمسة، فيُحوَّل كل من يفتح `http://` إلى `https://` تلقائياً، ولا تمر كلمات المرور ورموز الجلسات على الشبكة نصاً مقروءاً. يلزم أن يكون `mod_rewrite` مفعّلاً في `httpd.conf` (السطر `LoadModule rewrite_module modules/mod_rewrite.so` دون `#`). بعد التحويل يسجّل كل مستخدم دخوله مرة واحدة على `https`.
 
 ## 9. نسخ Chrome القديمة
@@ -258,6 +259,67 @@ innodb_flush_log_at_trx_commit=2
    - انسخ مجلد `files` إلى مكانه.
 
 نتيجة كل تشغيل في `backup.log` داخل مجلد النسخ. وتُظهر «جدولة المهام» رمزاً غير الصفر عند الفشل.
+
+## 12. البقاء على http دون شهادة
+
+النظام كله يعمل على `http`:
+- الدخول والمزامنة.
+- البلاغات والمخازن والتقارير والطباعة.
+- نسخ الخادم المجدولة.
+
+التحويل الإجباري إلى `https` في `.htaccess` يبقى معطّلاً.
+
+المتصفح وحده يقيّد على `http` ميزات يعدّها حساسة:
+
+| الميزة | على http | البديل دون تفعيل السياسة |
+|---|---|---|
+| الكاميرا: تصوير المستندات وقراءة الرموز | ممنوعة | قارئ الباركود USB، واختيار الصور من الجهاز |
+| مجلد النسخ التلقائي، ومجلد الماسح الضوئي | ممنوع | نسخ الخادم المجدولة (القسم 11)، واختيار ملفات الماسح يدوياً |
+| التخزين الدائم لبيانات المتصفح | ممنوع | البيانات الأصلية محفوظة على الخادم |
+| إبقاء شاشة العرض مضاءة | ممنوع | إعداد الطاقة في Windows على «أبداً» |
+| أزرار «نسخ» | تعمل | بطريقة بديلة |
+
+### رفع القيد مع البقاء على http
+
+السياسة `OverrideSecurityRestrictionsOnInsecureOrigin` في Chrome (69 فأحدث) وEdge تجعل المتصفح يعامل عناوين النظام كعناوين آمنة، فتعمل الميزات السابقة دون شهادة.
+
+1. **من النظام:** الإعدادات ← «العمل على http».
+   - أدخل كل عنوان يُفتح به النظام، مثل `http://it` و`http://192.168.12.100`.
+   - نزّل «ملف التفعيل (.reg)».
+   - الصفحة نفسها تبيّن حالة المتصفح الحالي وكل ميزة.
+2. **جهاز واحد:** انقر الملف نقراً مزدوجاً ← نعم (بصلاحية مسؤول)، ثم أغلق المتصفح وافتحه.
+3. **كل أجهزة النطاق (Group Policy):** Computer Configuration ← Preferences ← Windows Settings ← Registry ← New ← Registry Item:
+   - **Hive:** `HKEY_LOCAL_MACHINE`
+   - **Key Path:** `SOFTWARE\Policies\Google\Chrome\OverrideSecurityRestrictionsOnInsecureOrigin`
+   - **Value name:** `1`، **Value type:** `REG_SZ`، **Value data:** `http://it`
+   - كرر بالاسم `2` للعنوان `http://192.168.12.100`.
+   - كرر القيمتين في المفتاح `SOFTWARE\Policies\Microsoft\Edge\OverrideSecurityRestrictionsOnInsecureOrigin`.
+4. **متصفح واحد دون صلاحية مسؤول:** افتح `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (أو `edge://flags/#unsafely-treat-insecure-origin-as-secure`) ← أدخل العناوين مفصولة بفاصلة ← Enabled ← Relaunch.
+5. **التحقق:**
+   - `chrome://policy` يعرض السياسة.
+   - صفحة «العمل على http» تعرض «يعامل عنوان النظام كعنوان آمن».
+
+محتوى ملف التفعيل للعنوانين السابقين (يحذف القائمة القديمة ثم يكتب الجديدة):
+```
+Windows Registry Editor Version 5.00
+
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\OverrideSecurityRestrictionsOnInsecureOrigin]
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\OverrideSecurityRestrictionsOnInsecureOrigin]
+"1"="http://it"
+"2"="http://192.168.12.100"
+
+[-HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\OverrideSecurityRestrictionsOnInsecureOrigin]
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\OverrideSecurityRestrictionsOnInsecureOrigin]
+"1"="http://it"
+"2"="http://192.168.12.100"
+```
+
+ملاحظات:
+- العنوان يُكتب بلا مسار: `http://192.168.12.100` وليس `http://192.168.12.100/IT/`. وإن كان للخادم منفذ غير 80 يُكتب معه، مثل `http://it:8080`.
+- السياسة لا تشفّر الاتصال: كلمات المرور تمر داخل الشبكة كما هي على `http`. التشفير يحتاج `https` (القسم 8).
+- Chrome الأقدم من 69 لا يدعم السياسة، ويبقى النظام يعمل عليه بالبدائل.
 
 ## ما تم قياسه
 

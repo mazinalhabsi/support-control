@@ -7,13 +7,14 @@
   dist/assets/app.<hash>.css       التنسيقات
   dist/assets/fonts/*.woff2        الخطوط كملفات حقيقية (بدل base64 داخل CSS: أصغر بالثلث ولا تُحلَّل في كل فتح)
   dist/assets/forms/*.pdf          الاستمارات الرسمية، تُنزّل فقط عند الحاجة إليها (مرة واحدة لمن يدير النماذج)
-  dist/assets/icon.png, manifest   الأيقونة وملف التطبيق
+  dist/assets/icon.*.png, manifest أيقونات التبويب (16/32/48) وأيقونات التطبيق وملفه، والشعار الرسمي logo.*.png
+  dist/favicon.ico                 أيقونة التبويب لمن يطلبها من جذر الموقع (اختصارات Windows وبعض الأدوات)
   dist/.htaccess                   ضغط وتخزين مؤقت طويل للملفات ذات البصمة (hash)
   dist/api/api.php                 خادم المزامنة (انسخ config.php بجانبه)
 
 الاستخدام:  python3 tools/build.py   [المصدر]  [مجلد الإخراج]
 """
-import base64, hashlib, json, os, re, shutil, sys
+import base64, hashlib, json, os, re, shutil, struct, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'src', 'index.html')
@@ -54,8 +55,56 @@ def extract_uri(mime, b64, folder='assets', prefix='a'):
 # 1) <head>: الأيقونات وملف التطبيق
 head_end = html.index('</head>')
 head = html[:head_end]
-head = re.sub(r'href="data:(image/png|application/manifest\+json);base64,([A-Za-z0-9+/=]+)"',
-              lambda m: f'href="{extract_uri(m.group(1), m.group(2), prefix="icon" if "png" in m.group(1) else "manifest")}"', head)
+ico_png = {}
+
+
+def manifest_file(b64):
+    """ملف التطبيق: صوره المضمّنة تُكتب ملفات بجانبه بدل base64 داخل JSON"""
+    man = json.loads(base64.b64decode(b64))
+    # الملف يُكتب داخل assets/ والعناوين النسبية فيه تُحسب منه، فيُرجَع بها إلى مجلد النظام
+    # (وإلا فتح «إنشاء اختصار» مجلد assets بدل صفحة النظام)
+    for k in ('start_url', 'scope'):
+        v = man.get(k)
+        if isinstance(v, str) and not re.match(r'^([a-z][a-z0-9+.-]*:|/)', v):
+            man[k] = '../' + (v[2:] if v.startswith('./') else v)
+    for ic in man.get('icons', []):
+        mm = re.match(r'data:(image/png);base64,([A-Za-z0-9+/=]+)$', ic.get('src', ''))
+        if mm:
+            ic['src'] = extract_uri(mm.group(1), mm.group(2), prefix='icon')[len('assets/'):]
+    raw = json.dumps(man, ensure_ascii=False).encode('utf-8')
+    return write(f'assets/manifest.{h8(raw)}.webmanifest', raw)
+
+
+def link_repl(m):
+    tag = m.group(0)
+    mm = re.search(r'href="data:(image/png|application/manifest\+json);base64,([A-Za-z0-9+/=]+)"', tag)
+    if not mm:
+        return tag
+    if 'manifest' in mm.group(1):
+        rel = manifest_file(mm.group(2))
+    else:
+        rel = extract_uri(mm.group(1), mm.group(2), prefix='logo' if 'id="sqLogo"' in tag else 'icon')
+        sz = re.search(r'rel="icon"[^>]*sizes="(\d+)x\1"', tag)
+        if sz:
+            ico_png[int(sz.group(1))] = base64.b64decode(mm.group(2))
+    return tag.replace(mm.group(0), f'href="{rel}"')
+
+
+head = re.sub(r'<link\b[^>]*>', link_repl, head)
+
+
+def ico(pngs):
+    """favicon.ico يضم صور PNG كما هي (يقرؤه Windows Vista فأحدث وكل المتصفحات)"""
+    sizes = sorted(pngs)
+    out, data, off = struct.pack('<HHH', 0, 1, len(sizes)), b'', 6 + 16 * len(sizes)
+    for n in sizes:
+        out += struct.pack('<BBBBHHII', n % 256, n % 256, 0, 0, 1, 32, len(pngs[n]), off + len(data))
+        data += pngs[n]
+    return out + data
+
+
+if ico_png:
+    write('favicon.ico', ico(ico_png))
 
 # 2) أنماط CSS: الخطوط إلى ملفات woff2، وكل التنسيقات في ملف واحد
 styles = re.findall(r'<style>(.*?)</style>', head, re.S)
@@ -146,6 +195,7 @@ write('.htaccess', """# ملفات assets تحمل بصمة (hash) في اسمه
 # index.html لا يُحفظ حتى يصل كل تحديث فوراً
 AddType font/woff2 .woff2
 AddType application/manifest+json .webmanifest
+AddType image/x-icon .ico
 
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json application/manifest+json image/svg+xml
@@ -158,6 +208,9 @@ AddType application/manifest+json .webmanifest
   <FilesMatch "^index\\.html$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
+  <Files "favicon.ico">
+    Header set Cache-Control "public, max-age=604800"
+  </Files>
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "same-origin"
   Header always set X-Frame-Options "SAMEORIGIN"

@@ -131,10 +131,17 @@ const readText = (file) => new Promise((res, rej) => { const r = new FileReader(
 const blobToDataURL = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
 function dataURLToBlob(url) { const i = url.indexOf(','); const meta = url.slice(0, i), b64 = url.slice(i + 1); const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream'; const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j); return new Blob([arr], { type: mime }); }
 function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
-  const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); } finally { ta.remove(); } return Promise.resolve();
+  /* على http لا يتيح المتصفح navigator.clipboard، فيُنسخ النص عبر حقل مؤقت داخل النافذة المفتوحة (خارجها لا يُحدَّد النص) */
+  const legacy = () => {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0';
+    (document.querySelector('dialog[open]') || document.body).appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) { /* تجاهل */ } ta.remove(); return ok;
+  };
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).then(() => true, () => legacy());
+  return Promise.resolve(legacy());
 }
+/* رسالة موحدة للميزات التي يمنعها المتصفح على http */
+const httpBlocked = (what) => `${what} لا تعمل على http قبل تفعيل سياسة المتصفح (الإعدادات ← العمل على http)`;
 const fmtBytes = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
 /* ── ناقل الأحداث (يشمل التبويبات الأخرى عبر BroadcastChannel) ── */
@@ -2840,7 +2847,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
+  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -6073,7 +6080,7 @@ Pages.scanModal = ({ title = 'مسح الرمز', hint = 'وجّه الكامي�
   return UI.modal({
     title, icon: 'search', size: 'lg',
     body: html`<div class="scan-wrap">
-        <div class="scan-view" data-scanview>${scanSupported() ? html`<video id="scanVideo" playsinline muted></video><div class="scan-frame"></div>` : html`<div class="scan-off">${UI.icon('alert')}<b>الكاميرا غير مدعومة في هذا المتصفح</b><span>استخدم قارئ الشفرات أو اكتب الرقم يدوياً</span></div>`}</div>
+        <div class="scan-view" data-scanview>${scanSupported() ? html`<video id="scanVideo" playsinline muted></video><div class="scan-frame"></div>` : html`<div class="scan-off">${UI.icon('alert')}<b>${window.isSecureContext ? 'الكاميرا غير مدعومة في هذا المتصفح' : 'الكاميرا لا تعمل على http'}</b><span>${window.isSecureContext ? 'استخدم قارئ الشفرات أو اكتب الرقم يدوياً' : 'يمنعها المتصفح حتى تُفعَّل سياسته (الإعدادات ← العمل على http). استخدم قارئ الشفرات أو اكتب الرقم يدوياً'}</span></div>`}</div>
         <p class="hint">${hint}</p>
       </div>
       <div class="field mt"><label for="scanIn">قارئ الشفرات أو إدخال يدوي</label><div class="combo"><input id="scanIn" name="code" dir="ltr" placeholder="امسح بالقارئ أو اكتب الرقم ثم اضغط Enter" autocomplete="off"><button type="button" class="combo-btn" data-scan="cam" title="تشغيل الكاميرا">${UI.icon('eye')}</button></div><small class="hint">قارئ الشفرات USB يعمل مباشرة: ضع المؤشر في الخانة وامسح.</small></div>
@@ -6085,7 +6092,7 @@ Pages.scanModal = ({ title = 'مسح الرمز', hint = 'وجّه الكامي�
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) done(input.value); } });
       setTimeout(() => input.focus(), 120);
       const startCam = async () => {
-        if (!scanSupported()) { say('المتصفح لا يدعم قراءة الرموز بالكاميرا، استخدم القارئ أو الإدخال اليدوي', 'amber'); return; }
+        if (!scanSupported()) { say(window.isSecureContext ? 'المتصفح لا يدعم قراءة الرموز بالكاميرا، استخدم القارئ أو الإدخال اليدوي' : `${httpBlocked('قراءة الرموز بالكاميرا')}. استخدم القارئ أو الإدخال اليدوي`, 'amber'); return; }
         try {
           detector = new window.BarcodeDetector({ formats: SCAN_FORMATS.filter((f) => true) });
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
@@ -7260,7 +7267,7 @@ Data.backup = {
   },
   async persist() {
     try { if (navigator.storage && navigator.storage.persist) { const ok = await navigator.storage.persist(); UI.toast(ok ? 'فُعِّل التخزين الدائم، لن يحذف المتصفح البيانات تلقائياً' : 'رفض المتصفح تفعيل التخزين الدائم، جرّب بعد استخدام النظام فترة', ok ? 'ok' : 'warn'); return ok; } } catch (_) { /* تجاهل */ }
-    UI.toast('المتصفح لا يدعم التخزين الدائم', 'warn'); return false;
+    UI.toast(window.isSecureContext ? 'المتصفح لا يدعم التخزين الدائم' : httpBlocked('التخزين الدائم'), 'warn'); return false;
   },
   stores: () => Object.keys(DB.SCHEMA).filter((s) => s !== 'sessions'),
   async create({ scope = 'full', from = 0, to = now(), note = '', compress = true } = {}) {
@@ -7301,7 +7308,7 @@ Data.backup = {
     return 'download';
   },
   async pickFolder() {
-    if (!dirSupported()) { UI.toast('المتصفح لا يدعم اختيار مجلد، استخدم الحفظ اليدوي', 'warn'); return null; }
+    if (!dirSupported()) { UI.toast(window.isSecureContext ? 'المتصفح لا يدعم اختيار مجلد، استخدم الحفظ اليدوي' : `${httpBlocked('الحفظ في مجلد')}، استخدم الحفظ اليدوي`, 'warn'); return null; }
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
       await DB.put('handles', { key: 'backupDir', handle, name: handle.name, at: now() });
@@ -7408,7 +7415,7 @@ Pages.backup = async (ctx) => {
               ${UI.field({ name: 'every', label: 'التكرار', type: 'select', placeholder: false, options: [{ value: 'daily', label: 'يومياً' }, { value: 'weekly', label: 'أسبوعياً' }, { value: 'monthly', label: 'شهرياً' }], value: plan.every })}
               ${UI.field({ name: 'hour', label: 'بعد الساعة', type: 'number', min: 0, max: 23, value: plan.hour })}
             </div>
-            <div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً'}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
+            <div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : window.isSecureContext ? 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً' : `${httpBlocked('الحفظ التلقائي في مجلد')}. ستصلك تذكيرات لحفظ النسخة يدوياً، ونسخ الخادم المجدولة تعمل دائماً`}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
             <button class="btn btn-primary btn-block mt" data-act="saveplan">${UI.icon('check')} حفظ الجدولة</button>
             ${plan.lastAt ? html`<p class="hint mt">آخر نسخة تلقائية: ${timeAgo(plan.lastAt)}</p>` : ''}` })}
           ${UI.panel({ title: 'سجل النسخ والاسترداد', icon: 'pulse', flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>العملية</th><th>الملف</th><th>الحجم</th><th>السجلات</th><th>التاريخ</th></tr></thead><tbody>${rows.map((r) => html`<tr><td>${r.kind === 'restore' ? UI.chip('violet', 'استرداد', 'upload') : r.kind === 'auto' ? UI.chip('teal', 'تلقائية', 'clock') : UI.chip('sky', 'يدوية', 'download')}</td><td class="small ltr" style="text-align:start">${r.name || '—'}</td><td class="nowrap">${r.size ? fmtBytes(r.size) : '—'}</td><td>${fmtNum(r.rows || 0)}</td><td class="faint nowrap">${fmtDateTime(r.at)}</td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لم تؤخذ نسخ بعد')}</div>` })}
@@ -7867,13 +7874,13 @@ Pages.scanDocModal = () => {
       };
       const dirRec = await DB.get('handles', 'scanDir');
       const nameEl = form.querySelector('[data-scandirname]');
-      if (nameEl) nameEl.textContent = dirRec ? `مجلد الماسح: ${dirRec.name}` : ('showDirectoryPicker' in window ? 'لم يُحدد مجلد الماسح بعد.' : 'المتصفح لا يدعم قراءة المجلدات، استخدم «اختيار ملفات الماسح يدوياً».');
+      if (nameEl) nameEl.textContent = dirRec ? `مجلد الماسح: ${dirRec.name}` : ('showDirectoryPicker' in window ? 'لم يُحدد مجلد الماسح بعد.' : window.isSecureContext ? 'المتصفح لا يدعم قراءة المجلدات، استخدم «اختيار ملفات الماسح يدوياً».' : `${httpBlocked('قراءة مجلد الماسح')}، استخدم «اختيار ملفات الماسح يدوياً».`);
       UI.on(form, 'change', 'input[name="stab"]', async (e, el) => {
         form.querySelector('[data-pane="folder"]').hidden = el.value !== 'folder';
         form.querySelector('[data-pane="cam"]').hidden = el.value !== 'cam';
         if (el.value === 'cam' && !stream) {
-          try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } } }); const v = form.querySelector('[data-camv]'); v.srcObject = stream; await v.play(); }
-          catch (_) { UI.toast('تعذر فتح الكاميرا، تأكد من الإذن أو استخدم الماسح', 'warn'); }
+          try { if (!navigator.mediaDevices) throw new Error('http'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } } }); const v = form.querySelector('[data-camv]'); v.srcObject = stream; await v.play(); }
+          catch (_) { UI.toast(window.isSecureContext ? 'تعذر فتح الكاميرا، تأكد من الإذن أو استخدم الماسح' : httpBlocked('الكاميرا'), 'warn'); }
         }
         if (el.value !== 'cam') stop();
       });
@@ -7883,7 +7890,7 @@ Pages.scanDocModal = () => {
         pages.push({ kind: 'img', name: `صفحة ${pages.length + 1}`, src: cv.toDataURL('image/jpeg', 0.9), sel: true }); UI.sound('success'); draw();
       });
       UI.on(form, 'click', '[data-scandir]', async () => {
-        if (!('showDirectoryPicker' in window)) { UI.toast('المتصفح لا يدعم اختيار المجلدات', 'warn'); return; }
+        if (!('showDirectoryPicker' in window)) { UI.toast(window.isSecureContext ? 'المتصفح لا يدعم اختيار المجلدات' : httpBlocked('قراءة المجلدات'), 'warn'); return; }
         try { const h = await window.showDirectoryPicker({ mode: 'read' }); await DB.put('handles', { key: 'scanDir', handle: h, name: h.name, at: now() }); if (nameEl) nameEl.textContent = `مجلد الماسح: ${h.name}`; UI.toast('حُفظ مجلد الماسح'); } catch (_) { /* أُلغي */ }
       });
       UI.on(form, 'click', '[data-scanfetch]', async () => {
@@ -8676,7 +8683,7 @@ Pages.bulkCredsModal = (r) => UI.modal({
     <div class="table-wrap mt"><table class="table"><thead><tr><th>#</th><th>الاسم</th><th>الرتبة</th><th>اسم المستخدم</th><th>كلمة المرور</th></tr></thead><tbody>${r.creds.map((c, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${c.name}</td><td>${c.rank}</td><td class="ltr">${c.username}</td><td class="ltr"><code>${c.pw}</code></td></tr>`)}</tbody></table></div>`,
   actions: [{ label: 'طباعة بطاقات الدخول', kind: 'soft', icon: 'print', handler: () => { UI.print(html`<h2 style="text-align:center">بيانات الدخول إلى نظام قسم تقنية المعلومات</h2><p style="text-align:center">${r.dep}${r.where ? ` — ${r.where}` : ''}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.creds.map((c) => html`<div style="border:1px dashed #888;border-radius:8px;padding:10px 12px;break-inside:avoid"><b>${c.rank ? `${c.rank} / ` : ''}${c.name}</b><div>اسم المستخدم: <b dir="ltr">${c.username}</b></div><div>كلمة المرور: <b dir="ltr">${c.pw}</b></div>${r.mustChange ? html`<small>غيّر كلمة المرور عند أول دخول</small>` : ''}</div>`)}</div>`, 'بيانات الدخول'); return false; } },
     { label: 'تنزيل Excel', kind: 'soft', icon: 'download', handler: () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [30, 16, 16, 18, 16], rows: [['الاسم', 'الرتبة', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور'], ...r.creds.map((c) => [c.name, c.rank, c.militaryNo, c.username, c.pw])] }]), 'حسابات-جديدة.xlsx'); return false; } },
-    { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { try { await navigator.clipboard.writeText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n')); UI.toast('نُسخت البيانات'); } catch (_) { UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); } return false; } },
+    { label: 'نسخ', kind: 'ghost', icon: 'copy', handler: async () => { if (await copyText(r.creds.map((c) => `${c.name}\t${c.username}\t${c.pw}`).join('\n'))) UI.toast('نُسخت البيانات'); else UI.toast('تعذر النسخ، استخدم Excel أو الطباعة', 'warn'); return false; } },
     { label: 'تم', kind: 'primary', icon: 'check', value: true }]
 });
 document.addEventListener('click', (e) => { if (e.target.closest('[data-act="bulkadd"]')) { e.preventDefault(); Pages.bulkAddUsers(); } });
@@ -11648,7 +11655,7 @@ const VAULT = {
   }
 };
 const vaultCopy = async (text) => {
-  try { await navigator.clipboard.writeText(text); return true; } catch (_) {
+  try { if (!navigator.clipboard) throw new Error('http'); await navigator.clipboard.writeText(text); return true; } catch (_) {
     const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; (document.querySelector('dialog[open]') || document.body).appendChild(ta); ta.select();
     let ok = false; try { ok = document.execCommand('copy'); } catch (__) { /* تجاهل */ } ta.remove(); return ok;
   }
@@ -14493,5 +14500,273 @@ document.addEventListener('click', async (e) => {
 }
 /* الخروج من تبويب يُخرج التبويبات الأخرى فوراً (الرمز نفسه انتهى على الخادم) */
 window.addEventListener('storage', (e) => { if (e.key === 'sq_token' && !e.newValue && Sync.on && Sync.token && Auth.user) Sync.sessionEnded(true); });
+/* ══════════ الجولة 23: أيقونة تبويب المتصفح، والعمل على http ══════════ */
+
+/* ── أيقونة التبويب: رمز يدل على النظام، يُختار من الإعدادات، ويعرض عدد الإشعارات غير المقروءة ── */
+const FAV_DEF = { style: 'it', text: 'IT', bg: '#0B1628', fg: '#D9B45A', plate: 1, badge: 1, img: '' };
+const FAV_STYLES = [['it', 'IT', 'تقنية المعلومات (الافتراضية)'], ['headset', 'سماعة الدعم', 'رمز الدعم الفني'], ['text', 'حروف من اختيارك', 'حتى 4 أحرف'], ['crest', 'شعار الجهة', 'الشعار الرسمي'], ['custom', 'صورة مخصصة', 'ترفعها بنفسك']];
+const FAV_SWATCHES = [['#0B1628', '#D9B45A', 'كحلي وذهبي'], ['#0B1628', '#FFFFFF', 'كحلي وأبيض'], ['#0F5132', '#FFFFFF', 'أخضر'], ['#7A1F2B', '#F3D58A', 'عنابي'], ['#1D4ED8', '#FFFFFF', 'أزرق'], ['#111827', '#34D399', 'أسود وأخضر'], ['#FFFFFF', '#0B1628', 'أبيض']];
+/* رسم أيقونة التبويب على canvas بأي مقاس (يُستخدم في النظام ولتوليد الملفات الثابتة) */
+function favDraw(cv, S, c, img, n, mask) {
+  cv.width = cv.height = S;
+  const x = cv.getContext('2d'), u = S / 16;
+  x.clearRect(0, 0, S, S);
+  const hex = (h) => { h = String(h || '').replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); const v = parseInt(h, 16); return isNaN(v) ? [11, 22, 40] : [v >> 16 & 255, v >> 8 & 255, v & 255]; };
+  const rgba = (h, a) => `rgba(${hex(h).join(',')},${a})`;
+  const rr = (X, Y, W, H, R) => { x.beginPath(); x.moveTo(X + R, Y); x.arcTo(X + W, Y, X + W, Y + H, R); x.arcTo(X + W, Y + H, X, Y + H, R); x.arcTo(X, Y + H, X, Y, R); x.arcTo(X, Y, X + W, Y, R); x.closePath(); };
+  const glyph = c.style !== 'crest' && c.style !== 'custom';
+  if (mask) { /* أيقونة كاملة الحواف (التطبيق على الهاتف وأيقونة آبل): الخلفية تملأ المربع والرمز داخل المنطقة الآمنة */
+    x.fillStyle = c.plate === 0 && !glyph ? '#ffffff' : c.bg; x.fillRect(0, 0, S, S);
+    const k = mask === true ? 0.7 : mask; x.translate(S * (1 - k) / 2, S * (1 - k) / 2); x.scale(k, k);
+  } else if (glyph || c.plate !== 0) {
+    rr(0, 0, S, S, S * 0.22);
+    x.fillStyle = c.bg; x.fill();
+    if (S >= 48 && glyph) { const i = S / 18; rr(i, i, S - 2 * i, S - 2 * i, S * 0.22 - i * 0.8); x.lineWidth = Math.max(1, S / 64); x.strokeStyle = rgba(c.fg, 0.38); x.stroke(); }
+  }
+  x.fillStyle = c.fg; x.strokeStyle = c.fg; x.lineCap = 'round'; x.lineJoin = 'round';
+  const word = String(c.text == null ? 'IT' : c.text).trim();
+  if (c.style === 'it' || (c.style === 'text' && word.toUpperCase() === 'IT')) {
+    x.fillRect(3 * u, 3 * u, 2 * u, 10 * u);
+    x.fillRect(7 * u, 3 * u, 6 * u, 2 * u);
+    x.fillRect(9 * u, 3 * u, 2 * u, 10 * u);
+  } else if (c.style === 'headset') {
+    const k = S / 24; x.save(); x.scale(k, k);
+    x.lineWidth = 2.3; x.beginPath(); x.moveTo(5.2, 13.2); x.lineTo(5.2, 11.6); x.arc(12, 11.6, 6.8, Math.PI, 0); x.lineTo(18.8, 13.2); x.stroke();
+    rr(3, 11.8, 4.6, 7.4, 1.8); x.fill(); rr(16.4, 11.8, 4.6, 7.4, 1.8); x.fill();
+    x.lineWidth = 1.7; x.beginPath(); x.moveTo(18.7, 19); x.quadraticCurveTo(18.7, 21.6, 15.6, 21.6); x.lineTo(13.6, 21.6); x.stroke();
+    rr(10.6, 20.3, 3.6, 2.6, 1.3); x.fill();
+    x.restore();
+  } else if (c.style === 'text') {
+    const fam = '"IBM Plex Sans Arabic", Tahoma, Arial, sans-serif';
+    let fs = S * 0.62; x.font = `700 ${fs}px ${fam}`;
+    const w = x.measureText(word || '?').width, max = S * 0.8; if (w > max) { fs *= max / w; x.font = `700 ${fs}px ${fam}`; }
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(word || '?', S / 2, S * 0.53);
+  } else if (img && img.width) {
+    let sx = 0, sy = 0, sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+    try { /* قص الحواف الفارغة حتى يملأ الشعار المربع */
+      const t = document.createElement('canvas'); t.width = sw; t.height = sh; const tx = t.getContext('2d'); tx.drawImage(img, 0, 0);
+      const d = tx.getImageData(0, 0, sw, sh).data; let x0 = sw, y0 = sh, x1 = -1, y1 = -1;
+      for (let yy = 0; yy < sh; yy++) for (let xx = 0; xx < sw; xx++) { const p = (yy * sw + xx) * 4; if (d[p + 3] > 24 && !(d[p] > 244 && d[p + 1] > 244 && d[p + 2] > 244)) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; } }
+      if (x1 > x0 && y1 > y0) { sx = x0; sy = y0; sw = x1 - x0 + 1; sh = y1 - y0 + 1; }
+    } catch (_) { /* صورة من مصدر آخر: تُرسم كاملة */ }
+    const pad = c.plate !== 0 ? S * 0.1 : 0, box = S - 2 * pad, r = Math.min(box / sw, box / sh), dw = sw * r, dh = sh * r;
+    x.imageSmoothingEnabled = true; if ('imageSmoothingQuality' in x) x.imageSmoothingQuality = 'high';
+    x.drawImage(img, sx, sy, sw, sh, (S - dw) / 2, (S - dh) / 2, dw, dh);
+  }
+  if (n > 0) { /* عدد الإشعارات غير المقروءة: دائرة حمراء في الزاوية */
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    const t = n > 9 ? '9+' : String(n), R = S * (t.length > 1 ? 0.31 : 0.28), cx = S - R, cy = R;
+    x.beginPath(); x.arc(cx, cy, R + S / 20, 0, Math.PI * 2); x.fillStyle = c.bg; x.fill();
+    x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fillStyle = '#E5484D'; x.fill();
+    x.fillStyle = '#ffffff'; x.font = `700 ${R * (t.length > 1 ? 1.2 : 1.6)}px Tahoma, Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, cx, cy + R * 0.08);
+  }
+  return cv;
+}
+const Fav = {
+  n: 0, ready: false, _key: '', _tok: 0, _img: null, _src: '',
+  cfg(over) { const s = (Data.c && Data.c.settings) || {}; return { ...FAV_DEF, ...(s.favicon || {}), ...(over || {}) }; },
+  isDefault(c) { return c.style === 'it' && String(c.bg).toLowerCase() === FAV_DEF.bg.toLowerCase() && String(c.fg).toLowerCase() === FAV_DEF.fg.toLowerCase(); },
+  async image(c) {
+    const src = c.style === 'crest' ? ASSETS.logo : c.style === 'custom' ? c.img : '';
+    if (!src) return null;
+    if (src === this._src && this._img) return this._img;
+    const im = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+    if (im) { this._img = im; this._src = src; }
+    return im;
+  },
+  async font() { try { if (document.fonts && document.fonts.load) await Promise.race([document.fonts.load('700 24px "IBM Plex Sans Arabic"', 'IT دعم'), new Promise((r) => setTimeout(r, 1500))]); } catch (_) { /* تجاهل */ } },
+  async render(S, c, n, mask) { if (c.style === 'text') await this.font(); return favDraw(document.createElement('canvas'), S, c, await this.image(c), n || 0, mask); },
+  /* الأيقونات الثابتة في رأس الصفحة تبقى كما هي وتُعطَّل مؤقتاً، وتُضاف أيقونة مرسومة بدلها */
+  set(url) {
+    const old = document.getElementById('sqFav'); if (old) old.remove();
+    if (!url) { document.querySelectorAll('link[rel="sq-icon"]').forEach((l) => { l.rel = 'icon'; }); return; }
+    document.querySelectorAll('link[rel="icon"]').forEach((l) => { l.rel = 'sq-icon'; });
+    const l = document.createElement('link'); l.id = 'sqFav'; l.rel = 'icon'; l.type = 'image/png'; l.href = url; document.head.appendChild(l);
+  },
+  shown() { return this.cfg().badge !== 0 && Auth.user ? this.n : 0; },
+  count(n) { n = Math.max(0, Number(n) || 0); if (n === this.n) return; this.n = n; this.apply(); },
+  async apply() {
+    this.title();
+    if (!this.ready) return; /* قبل تحميل الإعدادات تبقى الأيقونة المحفوظة من الفتح السابق */
+    const c = this.cfg(), n = this.shown();
+    const key = JSON.stringify([c.style, c.text, c.bg, c.fg, c.plate, c.style === 'custom' ? `${String(c.img || '').length}${String(c.img || '').slice(-40)}` : '', n]);
+    if (key === this._key) return;
+    this._key = key; const tok = ++this._tok, def = this.isDefault(c);
+    let url = null, plain = null;
+    try {
+      if (!def || n) url = (await this.render(32, c, n)).toDataURL('image/png');
+      if (!def) plain = n ? (await this.render(32, c, 0)).toDataURL('image/png') : url;
+    } catch (e) { url = null; plain = null; }
+    if (tok !== this._tok) return;
+    this.set(url);
+    /* تُحفظ في المتصفح لتظهر من أول لحظة في الفتح التالي (قبل تحميل الإعدادات) */
+    try { if (plain) localStorage.setItem('sq_favicon', plain); else localStorage.removeItem('sq_favicon'); } catch (_) { /* تجاهل */ }
+  },
+  /* العدد في بداية عنوان التبويب: (3) الرئيسية | قسم تقنية المعلومات
+     ولا يظهر أثناء الطباعة، لأن المتصفح يسمّي ملف PDF بعنوان الصفحة */
+  _print: false,
+  title() {
+    const printing = this._print || (document.body && document.body.classList.contains('printing'));
+    const n = printing ? 0 : this.shown(), base = document.title.replace(/^\(\d+\+?\) /, ''), want = n ? `(${n > 99 ? '99+' : n}) ${base}` : base;
+    if (document.title !== want) document.title = want;
+  }
+};
+{
+  const t = document.querySelector('title');
+  if (t && window.MutationObserver) new MutationObserver(() => Fav.title()).observe(t, { childList: true, characterData: true, subtree: true });
+  window.addEventListener('beforeprint', () => { Fav._print = true; Fav.title(); });
+  window.addEventListener('afterprint', () => { Fav._print = false; setTimeout(() => Fav.title(), 500); });
+  const rb = Shell.refreshBell;
+  Shell.refreshBell = async function (...a) { const r = await rb.apply(this, a); Fav.count(this.mounted && Auth.user ? this._bellN || 0 : 0); return r; };
+  const um = Shell.unmount;
+  Shell.unmount = function (...a) { const r = um.apply(this, a); Fav.count(0); return r; };
+  const rf = Data.refresh.bind(Data);
+  Data.refresh = async (which) => { const r = await rf(which); if (!which || which === 'settings') { Fav.ready = true; Fav.apply(); } return r; };
+  Bus.on('settings', () => Fav.apply());
+}
+
+Pages.ccFavicon = (ctx) => {
+  const st = { c: Fav.cfg(), tok: 0 };
+  const sysName = Data.c.settings.systemName || 'النظام';
+  const tab = (cls, kind, label) => html`<div class="fv-tab ${cls}"><canvas data-fvp="${kind}" style="width:16px;height:16px"></canvas><span>${label}</span><i>${UI.icon('x')}</i></div>`;
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'أيقونة المتصفح', sub: 'الرمز الذي يظهر على تبويب المتصفح وفي المفضلة، ويعرض عدد الإشعارات غير المقروءة', illu: 'display' })}
+    <div class="grid g-main">
+      ${UI.panel({ title: 'التصميم', icon: 'photo', body: html`
+        <div class="fv-styles">${FAV_STYLES.map(([k, l, d]) => html`<label class="fv-style"><input type="radio" name="fvstyle" value="${k}"><canvas data-fvs="${k}" style="width:44px;height:44px"></canvas><b>${l}</b><small>${d}</small></label>`)}</div>
+        <div class="fv-opts">
+          <div class="field" data-fvshow="text"><label for="fvText">الحروف</label><input id="fvText" name="fvtext" maxlength="4" autocomplete="off" placeholder="مثال: IT أو دعم"></div>
+          <div class="field" data-fvshow="custom"><label>الصورة</label><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-soft btn-sm" data-act="fvimg">${UI.icon('photo')} اختيار صورة</button><small class="muted">PNG أو JPG، وتُصغَّر تلقائياً</small></div></div>
+          <div class="field" data-fvshow="crest custom"><label class="switch"><input type="checkbox" name="fvplate"><i></i><span>خلفية ملوّنة خلف الصورة</span></label></div>
+          <div class="field"><label>الألوان</label>
+            <div class="fv-sw">${FAV_SWATCHES.map(([b, f, n]) => html`<button type="button" class="fv-swb" data-sw="${b}|${f}" title="${n}" aria-label="${n}" style="background:${b};color:${f}">IT</button>`)}</div>
+            <div class="fv-colors"><label>الخلفية <input type="color" name="fvbg"></label><label>الرمز <input type="color" name="fvfg"></label></div>
+          </div>
+          <div class="field"><label class="switch"><input type="checkbox" name="fvbadge"><i></i><span>عدد الإشعارات غير المقروءة على الأيقونة وفي عنوان التبويب</span></label></div>
+        </div>
+        <div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-act="fvsave">${UI.icon('check')} حفظ وتطبيق على كل الأجهزة</button><button type="button" class="btn btn-ghost" data-act="fvreset">${UI.icon('undo')} التصميم الافتراضي</button></div>` })}
+      ${UI.panel({ title: 'المعاينة', icon: 'eye', body: html`
+        <div class="fv-tabs">${tab('light', 'tab', `الرئيسية | ${sysName}`)}${tab('dark', 'tab', `الرئيسية | ${sysName}`)}${tab('light', 'badge', `(3) البلاغات | ${sysName}`)}</div>
+        <div class="fv-sizes">${[16, 32, 64, 128].map((n) => html`<figure><canvas data-fvp="${n}" style="width:${n}px;height:${n}px"></canvas><figcaption>${n}</figcaption></figure>`)}</div>
+        <p class="hint">تُحفظ الأيقونة مع إعدادات النظام فتظهر على كل الأجهزة. اختصار سطح المكتب (قائمة المتصفح ← حفظ ومشاركة ← إنشاء اختصار) يستخدم أيقونة IT الافتراضية.</p>` })}
+    </div>`);
+  const q = (s) => ctx.view.querySelector(s);
+  const copy = (src, cv) => { cv.width = src.width; cv.height = src.height; cv.getContext('2d').drawImage(src, 0, 0); };
+  const dpr = () => Math.min(3, Math.max(1, Math.round(window.devicePixelRatio || 1)));
+  const paint = async () => {
+    const tok = ++st.tok, c = st.c;
+    for (const cv of ctx.view.querySelectorAll('[data-fvs]')) {
+      const k = cv.dataset.fvs, cc = k === 'custom' && !c.img ? { ...c, style: 'text', text: '+' } : { ...c, style: k };
+      const src = await Fav.render(44 * dpr(), cc, 0); if (tok !== st.tok) return; copy(src, cv);
+    }
+    for (const cv of ctx.view.querySelectorAll('[data-fvp]')) {
+      const k = cv.dataset.fvp, S = k === 'tab' || k === 'badge' ? 16 * dpr() : Number(k) * dpr();
+      const src = await Fav.render(S, c, k === 'badge' ? 3 : 0); if (tok !== st.tok) return; copy(src, cv);
+    }
+  };
+  const sync = () => {
+    const c = st.c;
+    ctx.view.querySelectorAll('[name="fvstyle"]').forEach((r) => { r.checked = r.value === c.style; r.closest('.fv-style').classList.toggle('on', r.checked); });
+    ctx.view.querySelectorAll('[data-fvshow]').forEach((f) => { f.hidden = !f.dataset.fvshow.split(' ').includes(c.style); });
+    const t = q('[name="fvtext"]'); if (document.activeElement !== t) t.value = c.text || '';
+    q('[name="fvplate"]').checked = c.plate !== 0; q('[name="fvbadge"]').checked = c.badge !== 0;
+    q('[name="fvbg"]').value = /^#[0-9a-f]{6}$/i.test(c.bg) ? c.bg : FAV_DEF.bg; q('[name="fvfg"]').value = /^#[0-9a-f]{6}$/i.test(c.fg) ? c.fg : FAV_DEF.fg;
+    ctx.view.querySelectorAll('[data-sw]').forEach((b) => { const [bg, fg] = b.dataset.sw.split('|'); b.classList.toggle('on', bg.toLowerCase() === String(c.bg).toLowerCase() && fg.toLowerCase() === String(c.fg).toLowerCase()); });
+    paint();
+  };
+  UI.on(ctx.view, 'change', '[name="fvstyle"]', (e, el) => { st.c.style = el.value; if (el.value === 'text' && !String(st.c.text || '').trim()) st.c.text = 'IT'; sync(); if (el.value === 'custom' && !st.c.img) q('[data-act="fvimg"]').focus(); });
+  UI.on(ctx.view, 'input', '[name="fvtext"]', (e, el) => { st.c.text = el.value.slice(0, 4); paint(); });
+  UI.on(ctx.view, 'change', '[name="fvplate"]', (e, el) => { st.c.plate = el.checked ? 1 : 0; paint(); });
+  UI.on(ctx.view, 'change', '[name="fvbadge"]', (e, el) => { st.c.badge = el.checked ? 1 : 0; });
+  UI.on(ctx.view, 'input', '[name="fvbg"],[name="fvfg"]', (e, el) => { st.c[el.name === 'fvbg' ? 'bg' : 'fg'] = el.value; sync(); });
+  UI.on(ctx.view, 'click', '[data-sw]', (e, el) => { const [bg, fg] = el.dataset.sw.split('|'); st.c.bg = bg; st.c.fg = fg; sync(); });
+  UI.on(ctx.view, 'click', '[data-act="fvimg"]', async () => {
+    const [f] = await UI.pickFiles({ accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: false }); if (!f) return;
+    if (f.size > 8 * 1048576) { UI.toast('الصورة أكبر من 8 ميجابايت', 'warn'); return; }
+    const im = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); blobToDataURL(f).then((u) => { i.src = u; }, () => res(null)); });
+    if (!im || !im.width) { UI.toast('تعذر قراءة الصورة', 'warn'); return; }
+    const k = Math.min(1, 96 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(im.width * k)); cv.height = Math.max(1, Math.round(im.height * k));
+    const x = cv.getContext('2d'); if ('imageSmoothingQuality' in x) x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, cv.width, cv.height);
+    st.c.img = cv.toDataURL('image/png'); st.c.style = 'custom'; sync();
+  });
+  UI.on(ctx.view, 'click', '[data-act="fvreset"]', () => { st.c = { ...FAV_DEF }; sync(); UI.toast('أُعيد التصميم الافتراضي، اضغط «حفظ» لتطبيقه'); });
+  UI.on(ctx.view, 'click', '[data-act="fvsave"]', async (e, btn) => {
+    const c = st.c, text = String(c.text || '').trim().slice(0, 4);
+    if (c.style === 'custom' && !c.img) { UI.toast('اختر الصورة أولاً', 'warn'); return; }
+    if (c.style === 'text' && !text) { UI.toast('اكتب الحروف أولاً', 'warn'); q('[name="fvtext"]').focus(); return; }
+    const color = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v).toUpperCase() : d);
+    const favicon = { style: c.style, text: text || 'IT', bg: color(c.bg, FAV_DEF.bg), fg: color(c.fg, FAV_DEF.fg), plate: c.plate !== 0 ? 1 : 0, badge: c.badge !== 0 ? 1 : 0, img: c.style === 'custom' ? c.img : '' };
+    UI.busy(btn, true);
+    try { await Data.saveSettings({ favicon }); UI.toast('حُفظت الأيقونة، وتظهر على بقية الأجهزة مع المزامنة'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+  });
+  sync();
+};
+
+/* ── العمل على http: ما يعمل، وما يمنعه المتصفح، وملف سياسة يعامل عنوان النظام كعنوان آمن دون شهادة ── */
+const HTTP_POLICY_KEYS = ['HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin'];
+const httpOrigin = (line) => {
+  let s = String(line || '').trim(); if (!s) return '';
+  if (!/^[a-z]+:\/\//i.test(s)) s = `http://${s}`;
+  try { const u = new URL(s); return u.protocol === 'http:' && /^[a-z0-9.\-[\]:]+$/i.test(u.host) ? u.origin : ''; } catch (_) { return ''; }
+};
+const httpRegFile = (origins, remove) => {
+  const lines = ['Windows Registry Editor Version 5.00', ''];
+  for (const k of HTTP_POLICY_KEYS) { lines.push(`[-${k}]`, ''); if (!remove) lines.push(`[${k}]`, ...origins.map((o, i) => `"${i + 1}"="${o}"`), ''); }
+  const text = lines.join('\r\n'), buf = new Uint8Array(2 + text.length * 2); buf[0] = 0xff; buf[1] = 0xfe;
+  for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); buf[2 + i * 2] = c & 255; buf[3 + i * 2] = c >> 8; }
+  return new Blob([buf], { type: 'application/octet-stream' });
+};
+const httpBrowser = () => { const ua = navigator.userAgent, m = ua.match(/Edg\/(\d+)/), c = ua.match(/Chrome\/(\d+)/); return m ? { name: 'Edge', v: Number(m[1]) } : c ? { name: 'Chrome', v: Number(c[1]) } : { name: '', v: 0 }; };
+Pages.ccHttp = (ctx) => {
+  const sec = !!window.isSecureContext, br = httpBrowser(), isHttp = location.protocol === 'http:';
+  const saved = (Data.c.settings.httpOrigins || []).map(httpOrigin).filter(Boolean);
+  const list0 = [...new Set([isHttp ? location.origin : '', ...saved].filter(Boolean))];
+  const feats = [
+    ['النظام كاملاً: الدخول والمزامنة والبلاغات والمخازن والتقارير والطباعة', true, 'يعمل على http و https'],
+    ['أزرار «نسخ» إلى الحافظة', true, sec ? '' : 'تعمل بطريقة بديلة على http'],
+    ['الكاميرا: تصوير المستندات من الماسح', sec && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia), sec ? 'لا توجد كاميرا متاحة في هذا المتصفح' : 'يمنعها المتصفح على http'],
+    ['قراءة الباركود بالكاميرا', 'BarcodeDetector' in window, sec ? 'غير متوفرة في Chrome على Windows؛ قارئ الباركود USB يعمل دائماً' : 'يمنعها المتصفح على http؛ قارئ الباركود USB يعمل دائماً'],
+    ['الحفظ التلقائي للنسخ في مجلد، ومجلد الماسح الضوئي', 'showDirectoryPicker' in window, sec ? 'تحتاج Chrome أو Edge 86 فأحدث' : 'يمنعها المتصفح على http؛ البديل: نسخ الخادم المجدولة واختيار ملفات الماسح يدوياً'],
+    ['التخزين الدائم لبيانات المتصفح', !!(navigator.storage && navigator.storage.persist), sec ? '' : 'يمنعه المتصفح على http؛ البيانات الأصلية محفوظة على الخادم'],
+    ['إبقاء شاشة العرض مضاءة', 'wakeLock' in navigator, sec ? 'تحتاج Chrome أو Edge 84 فأحدث' : 'يمنعه المتصفح على http؛ اضبط الطاقة في Windows على «أبداً»']
+  ];
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'العمل على http', sub: 'النظام يعمل على http دون شهادة. المتصفح وحده يقيّد بعض ميزاته، ويمكن رفع القيد بسياسة على الأجهزة', illu: 'network' })}
+    <div class="banner tone-${sec ? 'teal' : 'amber'} hp-state">${UI.icon(sec ? 'check' : 'alert')}<div class="grow"><b>${sec ? (isHttp ? 'هذا المتصفح يعامل عنوان النظام كعنوان آمن (السياسة مفعّلة)' : 'اتصال آمن https') : 'هذا المتصفح يعامل عنوان النظام كعنوان غير آمن'}</b><div class="t-sub ltr">${location.origin} · ${br.name ? `${br.name} ${br.v}` : navigator.userAgent.slice(0, 40)}</div></div></div>
+    <div class="grid g-main mt">
+      ${UI.panel({ title: 'رفع القيد مع البقاء على http', icon: 'shield', body: html`
+        <p class="muted">سياسة <code class="hp-code in">OverrideSecurityRestrictionsOnInsecureOrigin</code> في Chrome و Edge تجعل المتصفح يعامل العناوين المحددة كعناوين آمنة، فتعمل الكاميرا والمجلدات والتخزين الدائم على http. ${br.v && br.v < 69 ? html`<b style="color:rgb(var(--red))">هذا المتصفح (${br.name} ${br.v}) أقدم من أن يدعمها، تحتاج 69 فأحدث.</b>` : ''}</p>
+        <div class="field mt"><label for="hpOrigins">عناوين النظام (عنوان في كل سطر، بلا مسار)</label><textarea id="hpOrigins" name="origins" rows="4" dir="ltr" placeholder="http://it&#10;http://192.168.12.100">${list0.join('\n')}</textarea><small class="hint">أضف كل عنوان يُفتح به النظام: الاسم والـ IP، مثل http://it و http://192.168.12.100</small></div>
+        <div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-act="hpreg">${UI.icon('download')} تنزيل ملف التفعيل (.reg)</button><button type="button" class="btn btn-ghost" data-act="hpunreg">${UI.icon('undo')} ملف الإلغاء</button></div>
+        <ol class="hp-steps">
+          <li><b>جهاز واحد:</b> انسخ الملف إليه، وانقر عليه مرتين ← نعم (بصلاحية مسؤول)، ثم أغلق المتصفح وافتحه.</li>
+          <li><b>كل أجهزة النطاق:</b> في Group Policy Management افتح Computer Configuration ← Preferences ← Windows Settings ← Registry، وأضف لكل عنوان قيمة من النوع REG_SZ اسمها 1 ثم 2… في المفتاحين:<code class="hp-code">HKLM\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin
+HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin</code></li>
+          <li><b>متصفح واحد دون صلاحية مسؤول:</b> افتح العنوان التالي، وأدخل العناوين مفصولة بفاصلة، ثم Enabled ← Relaunch:<code class="hp-code">chrome://flags/#unsafely-treat-insecure-origin-as-secure
+edge://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
+          <li><b>التحقق:</b> افتح <code class="hp-code in">chrome://policy</code> لترى السياسة، ثم هذه الصفحة: يظهر في أعلاها «يعامل عنوان النظام كعنوان آمن».</li>
+        </ol>
+        <p class="hint">السياسة لا تشفّر الاتصال: كلمات المرور تمر داخل الشبكة دون تشفير كما هي على http. التشفير يحتاج https (docs/XAMPP-TUNING.md، القسم 8).</p>` })}
+      ${UI.panel({ title: 'الميزات في هذا المتصفح', icon: 'list', flush: true, body: html`<div class="hp-feats">${feats.map(([l, ok, why]) => html`<div class="hp-f ${ok ? 'ok' : 'off'}">${UI.icon(ok ? 'check' : 'lock')}<div><b>${l}</b>${why ? html`<small>${why}</small>` : ''}</div></div>`)}</div>` })}
+    </div>`);
+  const read = () => { const raw0 = ctx.view.querySelector('[name="origins"]').value.split(/[\n,،\s]+/).filter(Boolean); const ok = [...new Set(raw0.map(httpOrigin).filter(Boolean))]; return { ok, bad: raw0.filter((l) => !httpOrigin(l)) }; };
+  UI.on(ctx.view, 'click', '[data-act="hpreg"]', async () => {
+    const { ok, bad } = read();
+    if (bad.length) { UI.toast(`عنوان غير صالح: ${bad[0]} (اكتب http:// ثم الاسم أو الـ IP)`, 'warn'); return; }
+    if (!ok.length) { UI.toast('أدخل عنوان النظام أولاً', 'warn'); return; }
+    downloadBlob(httpRegFile(ok, false), 'sqapa-http-features.reg');
+    if (canUser(Auth.user, 'settings') && JSON.stringify(ok) !== JSON.stringify(saved)) { try { await Data.saveSettings({ httpOrigins: ok }); } catch (_) { /* تجاهل */ } }
+    UI.toast('نُزّل ملف التفعيل، شغّله على كل جهاز ثم أعد تشغيل المتصفح');
+  });
+  UI.on(ctx.view, 'click', '[data-act="hpunreg"]', () => { downloadBlob(httpRegFile([], true), 'sqapa-http-features-remove.reg'); UI.toast('نُزّل ملف الإلغاء'); });
+};
+{
+  const sys = (CC_GROUPS.find((g) => g[0] === 'النظام') || CC_GROUPS[0])[2];
+  const add = [
+    ['favicon', 'أيقونة المتصفح', 'photo', 'settings', 'رمز تبويب المتصفح وألوانه، وعدد الإشعارات غير المقروءة', '', (c) => Pages.ccFavicon(c)],
+    ['http', 'العمل على http', 'shield', 'settings', 'ما يعمل على http وما يمنعه المتصفح، وملف تفعيل الكاميرا والمجلدات دون شهادة', '', (c) => Pages.ccHttp(c)]
+  ];
+  sys.splice(1, 0, ...add); CC_ALL.push(...add);
+}
+Fav.apply();
 boot();
 })();
