@@ -113,6 +113,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const regPath = await dl.path(), raw = fs.readFileSync(regPath), txt = raw.slice(2).toString('utf16le');
   ok('policy file is UTF-16 with BOM (regedit format)', raw[0] === 0xff && raw[1] === 0xfe && txt.startsWith('Windows Registry Editor Version 5.00\r\n'), dl.suggestedFilename());
   ok('policy file lists Chrome and Edge keys with both addresses', /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin\]\r\n"1"="http:\/\/it"\r\n"2"="http:\/\/192\.168\.12\.100"\r\n/.test(txt) && /Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin\]\r\n"1"="http:\/\/it"/.test(txt) && !/"3"=/.test(txt), JSON.stringify(txt.slice(0, 400)));
+  ok('policy file also lets display screens play sound without a tap', /Google\\Chrome\\AutoplayAllowlist\]\r\n"1"="http:\/\/it"\r\n"2"="http:\/\/192\.168\.12\.100"/.test(txt) && /Microsoft\\Edge\\AutoplayAllowlist\]\r\n"1"="http:\/\/it"/.test(txt));
   await p.waitForTimeout(800);
   ok('addresses remembered in settings', JSON.stringify(await p.evaluate(() => App.Data.c.settings.httpOrigins)) === JSON.stringify(['http://it', 'http://192.168.12.100']));
   const [dl2] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="hpunreg"]')]);

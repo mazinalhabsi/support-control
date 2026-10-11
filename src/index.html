@@ -3484,6 +3484,23 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .hp-state .ltr{direction:ltr;unicode-bidi:embed}
 .hp-code{display:block;direction:ltr;text-align:left;margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);font:12px/1.7 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;color:var(--ink)}
 .hp-code.in{display:inline;margin:0;padding:1px 6px;white-space:normal}
+/* ── الجولة 24: الأصوات ── */
+.snd-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.snd-grid{grid-template-columns:1fr}}
+.snd-tests{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.snd-tests>.faint{width:100%;font-size:12.5px}
+.snd-tests>.hint{width:100%;margin:4px 0 0}
+.snd-vol label{display:flex;justify-content:space-between;align-items:center}
+.snd-vol label b{font:700 12.5px var(--f-body);color:rgb(var(--accent-ink))}
+.snd-vol input[type=range]{width:100%;height:28px;margin:0;accent-color:rgb(var(--accent));cursor:pointer}
+.tv2-title .tv2-scope{display:flex;align-items:center;gap:6px;margin:4px 0 0;color:#E6C27A;font-size:13px}
+.tv2-scope .ic{width:14px;height:14px}
+.tv-unmute{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:14px;padding:14px 22px;border-radius:16px;border:1px solid rgba(230,194,122,.55);background:rgba(11,22,40,.95);color:#F5EBD3;font:inherit;text-align:right;cursor:pointer;box-shadow:0 18px 50px rgba(0,0,0,.55);animation:tvUnmute 1.8s ease-in-out infinite}
+.tv-unmute .ic{width:30px;height:30px;flex:none;color:#E6C27A}
+.tv-unmute b{display:block;font-size:18px}
+.tv-unmute small{display:block;font-size:12.5px;color:#B9C6D8}
+@keyframes tvUnmute{0%,100%{box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 0 rgba(230,194,122,.45)}50%{box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 12px rgba(230,194,122,0)}}
+[data-motion=off] .tv-unmute{animation:none}
 </style>
 </head>
 <body>
@@ -4032,7 +4049,7 @@ const Data = {
   async notify(userIds, n) {
     const me = Auth.user && Auth.user.id, ids = [...new Set(userIds.filter((x) => x && x !== me))];
     if (!ids.length) return; const at = now();
-    await DB.bulkPut('notifications', ids.map((userId) => ({ id: uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info' })));
+    await DB.bulkPut('notifications', ids.map((userId) => ({ id: uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '' })));
     Bus.emit('notifications');
   },
   async saveSettings(patch) { const s = { ...this.c.settings, ...patch }; await DB.put('meta', { key: 'settings', value: s }); this.c.settings = s; await this.log('update', 'settings', '', 'تحديث إعدادات النظام'); Bus.emit('settings'); },
@@ -4070,7 +4087,7 @@ Data.tickets = {
       await T.put('ticketEvents', { id: uid('ev'), ticketId: t.id, type: 'created', at: t0, userId: u.id, text: '' });
       for (const f of files) await T.put('attachments', { id: uid('att'), ticketId: t.id, name: f.name, type: f.type, size: f.size, blob: f, at: t0, userId: u.id });
     });
-    await Data.notify(this.staffIds(), { title: `بلاغ جديد ${t.number}`, body: title, link: `/tickets/${t.id}`, kind: 'ticket' });
+    await Data.notify(this.staffIds(), { title: `بلاغ جديد ${t.number}`, body: title, link: `/tickets/${t.id}`, kind: 'ticket', tone: t.priority === 'urgent' ? 'urgent' : 'ticket' });
     await Data.log('create', 'ticket', t.id, `إنشاء البلاغ ${t.number}`);
     Bus.emit('tickets'); return t;
   },
@@ -4964,11 +4981,9 @@ UI.confetti = (x = innerWidth / 2, y = innerHeight / 3) => {
   requestAnimationFrame(frame); UI.sound('success');
 };
 UI.sound = (kind = 'notify', force = false) => {
-  if (!force && localStorage.getItem('sq_sound') !== 'on') return;
-  try {
-    const A = UI._ac || (UI._ac = new (window.AudioContext || window.webkitAudioContext)()), notes = { success: [523.25, 659.25, 783.99], error: [311.13, 233.08], notify: [880, 1174.66], alert: [659.25, 880, 1318.51, 880, 1318.51] }[kind] || [880];
-    notes.forEach((f, i) => { const o = A.createOscillator(), g = A.createGain(), t = A.currentTime + i * 0.11; o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34); o.connect(g).connect(A.destination); o.start(t); o.stop(t + 0.38); });
-  } catch (_) { /* الصوت غير مدعوم */ }
+  /* أصوات العمليات (الحفظ والمسح والأخطاء)، وتنبيهات الإشعارات لها إعدادها المستقل في Snd */
+  if (!force && !Snd.pref().ui) return;
+  Snd.play(kind === 'alert' ? 'urgent' : kind);
 };
 UI.theme = {
   apply() { const h = document.documentElement; h.dataset.theme = localStorage.getItem('sq_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); h.dataset.accent = localStorage.getItem('sq_accent') || 'brass'; h.dataset.motion = localStorage.getItem('sq_motion') || (UI.theme.weak() ? 'off' : 'on'); h.dataset.lite = h.dataset.motion === 'off' ? '1' : ''; },
@@ -5211,7 +5226,7 @@ const Shell = {
     if (!this.mounted || !Auth.user) return;
     const n = await DB.count('notifications', 'user_read', KR([Auth.user.id, 0])), b = $('#bellCount'); if (!b) return;
     b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n);
-    if (this._bellN != null && n > this._bellN) { const btn = $('#bellBtn'); btn.classList.remove('ring-bell'); void btn.offsetWidth; btn.classList.add('ring-bell'); UI.sound('notify'); }
+    if (this._bellN != null && n > this._bellN) { const btn = $('#bellBtn'); btn.classList.remove('ring-bell'); void btn.offsetWidth; btn.classList.add('ring-bell'); Snd.bell(n - this._bellN); }
     this._bellN = n;
   },
   async renderBell() {
@@ -6147,7 +6162,7 @@ Pages.profile = async (ctx) => {
           <div class="field"><label>المظهر</label><div class="seg">${[['dark', 'داكن', 'moon'], ['light', 'فاتح', 'sun'], ['auto', 'حسب الجهاز', 'monitor']].map(([k, l, ic]) => html`<label><input type="radio" name="theme" value="${k}"${theme === k ? raw(' checked') : ''}><span>${UI.icon(ic)}${l}</span></label>`)}</div></div>
           <div class="field"><label>لون التمييز</label><div class="swatches">${[['brass', 'نحاسي'], ['teal', 'فيروزي'], ['sky', 'سماوي'], ['violet', 'بنفسجي'], ['red', 'قرمزي']].map(([k, l]) => html`<button class="swatch tone-${k} ${accent === k ? 'active' : ''}" data-accent="${k}" title="${l}" aria-label="${l}"></button>`)}</div></div>
           <div class="field"><label>لون الصورة الرمزية</label><div class="hues">${[210, 250, 280, 330, 0, 25, 45, 150, 175, 195].map((h) => html`<button style="--h:${h}" class="${h === hue ? 'active' : ''}" data-hue="${h}" aria-label="لون ${h}"></button>`)}</div></div>
-          <div class="row" style="gap:22px">${UI.field({ name: 'motion', type: 'switch', text: 'الحركات والمؤثرات' }, document.documentElement.dataset.motion !== 'off')}${UI.field({ name: 'sound', type: 'switch', text: 'أصوات التنبيه' }, localStorage.getItem('sq_sound') === 'on')}</div>
+          <div class="row" style="gap:22px">${UI.field({ name: 'motion', type: 'switch', text: 'الحركات والمؤثرات' }, document.documentElement.dataset.motion !== 'off')}</div>
           ${u.photo ? html`<button class="btn btn-ghost btn-sm" data-act="nophoto" style="align-self:flex-start">${UI.icon('trash')} حذف الصورة الشخصية</button>` : ''}
         </div>` })}
         ${isSysAccount(u) && u.role !== 'supervisor' ? UI.panel({ title: 'كلمة المرور', icon: 'lock', body: html`<div class="banner tone-brass" style="margin:0">${UI.icon('shield')}<div class="grow"><b>حساب أساسي ثابت</b><div class="small muted">اسم المستخدم وكلمة المرور لهذا الحساب ثابتان، ولا يغيّرهما إلا المشرف. يمكنك تخصيص المظهر والصورة من هذه الصفحة.</div></div></div>` }) : UI.panel({ title: 'تغيير كلمة المرور', icon: 'lock', body: html`<form id="pwForm" class="stack" style="gap:14px" novalidate>${UI.field({ name: 'current', label: 'كلمة المرور الحالية', type: 'password', autocomplete: 'current-password', required: true })}${UI.field({ name: 'next', label: 'كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<div class="strength" id="pwStr"><i></i><i></i><i></i><i></i></div>${UI.field({ name: 'confirm', label: 'تأكيد كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<button class="btn btn-primary" type="submit">${UI.icon('check')} تحديث كلمة المرور</button></form>` })}
@@ -6174,7 +6189,6 @@ Pages.profile = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-accent]', (e, el) => { UI.theme.set('accent', el.dataset.accent); $$('[data-accent]', ctx.view).forEach((b) => b.classList.toggle('active', b === el)); UI.sound('notify'); });
   UI.on(ctx.view, 'click', '[data-hue]', (e, el) => saveUser({ prefs: { ...(Auth.user.prefs || {}), hue: Number(el.dataset.hue) } }));
   UI.on(ctx.view, 'change', 'input[name="motion"]', (e, el) => UI.theme.set('motion', el.checked ? 'on' : 'off'));
-  UI.on(ctx.view, 'change', 'input[name="sound"]', (e, el) => { localStorage.setItem('sq_sound', el.checked ? 'on' : 'off'); UI.sound('success'); });
   UI.on(ctx.view, 'click', '[data-act="photo"]', async () => { const [f] = await UI.pickFiles({ accept: 'image/*', multiple: false }); if (!f) return; try { await saveUser({ photo: await UI.resizeImage(f, 180) }); UI.toast('تم تحديث الصورة الشخصية'); } catch (ex) { UI.error(ex); } });
   UI.on(ctx.view, 'click', '[data-act="nophoto"]', () => saveUser({ photo: '' }));
   await draw();
@@ -6344,7 +6358,7 @@ async function boot() {
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
   setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
+  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -6596,7 +6610,7 @@ Pages.userModal = async (id) => {
     const defaults = new Set(roleDefaults(role)), all = role === 'supervisor';
     return html`<h3>${UI.icon('key')} الصلاحيات ${sup ? html`<small class="faint">فعّل أي صلاحية إضافية لهذا المستخدم أو اسحب صلاحية من دوره</small>` : html`<small class="faint">(يعدّلها المشرف فقط)</small>`}</h3>${all ? html`<div class="banner tone-brass">${UI.icon('key')}<div class="grow">المشرف يملك كل الصلاحيات دون استثناء.</div></div>` : ''}${sup && role !== 'supervisor' ? html`<div class="perm-presets"><span class="faint small">حزم جاهزة:</span>${PERM_PRESETS.map((p) => html`<button type="button" class="qchip" data-preset="${p.id}">${UI.icon(p.icon)}${p.label}</button>`)}</div>` : ''}<div class="perm-groups">${PERM_GROUPS.map((g) => html`<div class="perm-group"><div class="pg-head">${UI.icon(g.icon)}${g.title}</div>${g.items.map(([k, label, hint]) => { const on = all || perms.has(k), isDef = defaults.has(k); return html`<label class="perm${all ? '' : isDef && !on ? ' x-off' : !isDef && on ? ' x-mod' : ''}"><input type="checkbox" data-perm="${k}"${on ? raw(' checked') : ''}${all || !sup ? raw(' disabled') : ''}><i></i><span><b>${label}</b>${hint ? html`<small>${hint}</small>` : ''}</span>${all ? '' : isDef ? (on ? html`<em class="perm-tag">من الدور</em>` : html`<em class="perm-tag off">مسحوبة</em>`) : on ? html`<em class="perm-tag extra">إضافية</em>` : ''}</label>`; })}</div>`)}</div>`;
   };
-  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والمواقع التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>المواقع</label><div class="chip-pick">${Data.list('locations').map((l) => html`<label><input type="checkbox" data-mloc="${l.id}"${mcfg.locations.includes(l.id) ? raw(' checked') : ''}><span>${l.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'تنبيه صوتي عند وصول بلاغ جديد' }, mcfg.sound !== 0)}</div>`;
+  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والمواقع التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>المواقع</label><div class="chip-pick">${Data.list('locations').map((l) => html`<label><input type="checkbox" data-mloc="${l.id}"${mcfg.locations.includes(l.id) ? raw(' checked') : ''}><span>${l.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div>`;
   const body = html`<div class="umodal">
     <div class="u-sec"><h3>${UI.icon('user')} البيانات الأساسية</h3>${UI.fields([{ name: 'name', label: 'الاسم الكامل', required: true }, { name: 'username', label: 'اسم المستخدم للدخول', required: true, dir: 'ltr', autocomplete: 'off' }, { name: 'militaryNo', label: 'الرقم العسكري', dir: 'ltr' }, { name: 'rankId', label: 'الرتبة', type: 'select', options: UI.opts('ranks') }, { name: 'phone', label: 'الهاتف', type: 'tel', dir: 'ltr' }, { name: 'email', label: 'البريد الإلكتروني', type: 'email', dir: 'ltr' }], u)}</div>
     <div class="u-sec"><h3>${UI.icon('pin')} الانتماء والموقع</h3>${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments') }, { name: 'unitId', label: 'القسم / الشعبة / المكتب', type: 'select', options: [] }, { name: 'locationId', label: 'الموقع / المبنى', type: 'select', options: UI.opts('locations') }, { name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214 - الطابق الثاني', wide: true }], u)}</div>
@@ -7141,7 +7155,7 @@ Data.tickets.create = async function (input, files = []) {
         await T.put('ticketEvents', { id: uid('ev'), ticketId: t.id, type: 'assigned', at: now(), userId: '', from: '', to: owner, text: '' });
         t = rec;
       });
-      await Data.notify([owner], { title: `أُسند إليك بلاغ ${t.number}`, body: `${Data.nameOf('categories', t.categoryId, '')} — ${t.title}`, link: `/tickets/${t.id}`, kind: 'ticket' });
+      await Data.notify([owner], { title: `أُسند إليك بلاغ ${t.number}`, body: `${Data.nameOf('categories', t.categoryId, '')} — ${t.title}`, link: `/tickets/${t.id}`, kind: 'ticket', tone: t.priority === 'urgent' ? 'urgent' : 'ticket' });
       Bus.emit('tickets', { id: t.id });
     }
   } catch (e) { console.warn('auto assign', e); }
@@ -7826,7 +7840,7 @@ const Sync = {
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.pull(); });
       window.addEventListener('online', () => { this.pull(); this.flush(); });
       /* سحب متكيّف: كل 5 ثوانٍ مع وجود تغييرات، ويتباطأ تدريجياً حتى 15 ثانية حين لا جديد، ويعود سريعاً عند تفاعل المستخدم */
-      const loop = async () => { let n = 0; try { if (!document.hidden && Auth.user) n = await this.pull(); } finally { this._idle = n ? 0 : Math.min((this._idle || 0) + 1, 8); this.pullTimer = setTimeout(loop, 5000 + this._idle * 1250); } };
+      const loop = async () => { let n = 0; try { if (Auth.user && (!document.hidden || this.bgDue())) n = await this.pull(); } finally { this._idle = n ? 0 : Math.min((this._idle || 0) + 1, 8); this.pullTimer = setTimeout(loop, 5000 + this._idle * 1250); } };
       this.pullTimer = setTimeout(loop, 5000);
       ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => { if (this._idle > 2) { this._idle = 0; clearTimeout(this.pullTimer); this.pullTimer = setTimeout(loop, 300); } }, { passive: true, capture: true }));
     } catch (e) { this.on = false; this.setStatus('local'); }
@@ -7909,7 +7923,7 @@ const Sync = {
     const work = Auth.can('tickets.work'), answer = Auth.can('chat.answer'), since = this.bootAt - MIN;
     for (const d of docs) {
       if (d.deleted || !d.data || this.seen.has(`${d.store}:${d.id}`)) continue;
-      if (work && d.store === 'tickets' && d.data.status === 'new' && d.data.requesterId !== u.id && d.data.createdAt > since) { this.seen.add(`tickets:${d.id}`); out.push({ kind: 'ticket', id: d.data.id, title: d.data.title, by: d.data.requesterId }); }
+      if (work && d.store === 'tickets' && d.data.status === 'new' && d.data.requesterId !== u.id && d.data.createdAt > since) { this.seen.add(`tickets:${d.id}`); out.push({ kind: 'ticket', id: d.data.id, title: d.data.title, by: d.data.requesterId, urgent: d.data.priority === 'urgent' }); }
       if (answer && d.store === 'chats' && d.data.userId !== u.id && d.data.createdAt > since) { this.seen.add(`chats:${d.id}`); out.push({ kind: 'chat', id: d.data.id, title: d.data.subject, by: d.data.userId }); }
     }
     return out;
@@ -7917,7 +7931,7 @@ const Sync = {
   announce(list) {
     const one = list.length === 1 ? list[0] : null, tickets = list.filter((x) => x.kind === 'ticket').length, chats = list.length - tickets;
     const msg = one ? `${one.kind === 'ticket' ? 'بلاغ جديد' : 'استفسار جديد'}: ${one.title} — ${Data.userName(one.by)}` : `وصل ${[tickets ? arCount(tickets, AR.ticket) : '', chats ? `${fmtNum(chats)} استفسار` : ''].filter(Boolean).join(' و')} جديد`;
-    UI.toast(msg, 'info', 10000); UI.sound('notify');
+    UI.toast(msg, 'info', 10000); Snd.alert(list.some((x) => x.urgent) ? 'urgent' : tickets ? 'ticket' : 'message');
     const el = $('#toasts') && $('#toasts').lastElementChild;
     if (el) { el.classList.add('toast-link'); el.title = 'اضغط للفتح'; el.addEventListener('click', (e) => { if (e.target.closest('.toast-x')) return; Router.go(one ? (one.kind === 'ticket' ? `/tickets/${one.id}` : `/chat/${one.id}`) : tickets ? '/tickets?scope=unassigned' : '/chat'); el.remove(); }); }
   },
@@ -11513,13 +11527,7 @@ ChatPurge.run = async () => {
 /* شاشة المراقبة */
 const TV_KIND = { notice: ['إشعار', 'bell', 'sky'], article: ['مقالة', 'book', 'violet'], message: ['رسالة', 'mail', 'teal'], guide: ['توضيح', 'info', 'amber'], service: ['حالة خدمة', 'pulse', 'red'] };
 const tvTimeAgo = (t) => { const m = Math.max(0, Math.floor((now() - t) / MIN)); if (m < 1) return 'الآن'; if (m < 60) return `${m} د`; const h = Math.floor(m / 60); if (h < 24) return `${h} س ${m % 60 ? `${m % 60} د` : ''}`.trim(); return `${Math.floor(h / 24)} يوم`; };
-const tvChime = () => {
-  try {
-    const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
-    const ctx = tvChime.ctx || (tvChime.ctx = new A());
-    [[880, 0], [1320, 0.16]].forEach(([f, d]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; o.type = 'sine'; g.gain.setValueAtTime(0.0001, ctx.currentTime + d); g.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d + 0.38); o.connect(g).connect(ctx.destination); o.start(ctx.currentTime + d); o.stop(ctx.currentTime + d + 0.4); });
-  } catch (_) { /* تجاهل */ }
-};
+const tvChime = () => { Snd.play('ticket', TvSound.opts()); };
 const tvHijri = () => { try { return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()); } catch (_) { return ''; } };
 const tvGreg = () => { try { return new Intl.DateTimeFormat('ar-OM-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()); } catch (_) { return UI.longDate(now()); } };
 
@@ -11530,7 +11538,7 @@ Pages.monitor = async (ctx) => {
   let wake = null;
   try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (_) { /* تجاهل */ }
   ctx.onCleanup(() => { try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
-  const st = { page: 0, seen: null, sound: localStorage.getItem('sq_tv_sound') === '1', rows: [], flash: new Set() };
+  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set() };
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
@@ -11583,7 +11591,8 @@ Pages.monitor = async (ctx) => {
     })}`) : String(html`<div class="tv2-empty">${UI.illu('headset')}<b>لا توجد بلاغات أو استفسارات في الانتظار</b><span>كل الطلبات مستلمة ✓</span></div>`);
   };
   const load = async () => {
-    const [tickets, chats, svcs, anns] = await Promise.all([DB.getAll('tickets'), DB.getAll('chats'), Data.svc.list(), DB.getAll('announcements')]);
+    const [allT, allC, svcs, anns] = await Promise.all([DB.getAll('tickets'), DB.getAll('chats'), Data.svc.list(), DB.getAll('announcements')]);
+    const tickets = allT.filter(MonScope.ticket), chats = allC.filter(MonScope.chat);
     if (!ctx.alive()) return;
     const t0 = startOfDay();
     const open = tickets.filter((t) => OPEN.includes(t.status));
@@ -11592,7 +11601,7 @@ Pages.monitor = async (ctx) => {
       ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, cat: Data.nameOf('categories', t.categoryId, ''), dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
       ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', cat: 'استفسار', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
-    if (st.seen) { const fresh = rows.filter((r) => !st.seen.has(r.key)); if (fresh.length) { fresh.forEach((r) => st.flash.add(r.key)); if (st.sound) tvChime(); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); } }
+    st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
     st.rows = rows;
     const overdue = open.filter((t) => t.dueAt && t.dueAt < now()).length;
@@ -11628,6 +11637,7 @@ Pages.monitor = async (ctx) => {
     const text = items.length ? items.join('   •   ') : 'لا توجد مستجدات مهمة حالياً';
     if (track && track.dataset.text !== text) { track.dataset.text = text; track.innerHTML = `<span>${text.replace(/</g, '&lt;')}</span><span aria-hidden="true">${text.replace(/</g, '&lt;')}</span>`; track.style.animationDuration = `${Math.max(30, text.length / 6)}s`; }
     drawRows();
+    TvSound.tick(st, { open, tickets, svcs, live });
   };
   UI.on(ctx.view, 'click', '[data-act="exit"]', () => { if (isMonitor) Shell.logout(); else Router.go('/dashboard'); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
@@ -18200,7 +18210,9 @@ Pages.ccFavicon = (ctx) => {
 };
 
 /* ── العمل على http: ما يعمل، وما يمنعه المتصفح، وملف سياسة يعامل عنوان النظام كعنوان آمن دون شهادة ── */
-const HTTP_POLICY_KEYS = ['HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin'];
+const HTTP_POLICY_KEYS = ['HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin',
+  /* تشغيل الأصوات دون نقرة على عناوين النظام (شاشات العرض). AutoplayWhitelist اسمها في Chrome قبل 86 */
+  'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoplayAllowlist', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoplayWhitelist', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoplayAllowlist'];
 const httpOrigin = (line) => {
   let s = String(line || '').trim(); if (!s) return '';
   if (!/^[a-z]+:\/\//i.test(s)) s = `http://${s}`;
@@ -18231,7 +18243,7 @@ Pages.ccHttp = (ctx) => {
     <div class="banner tone-${sec ? 'teal' : 'amber'} hp-state">${UI.icon(sec ? 'check' : 'alert')}<div class="grow"><b>${sec ? (isHttp ? 'هذا المتصفح يعامل عنوان النظام كعنوان آمن (السياسة مفعّلة)' : 'اتصال آمن https') : 'هذا المتصفح يعامل عنوان النظام كعنوان غير آمن'}</b><div class="t-sub ltr">${location.origin} · ${br.name ? `${br.name} ${br.v}` : navigator.userAgent.slice(0, 40)}</div></div></div>
     <div class="grid g-main mt">
       ${UI.panel({ title: 'رفع القيد مع البقاء على http', icon: 'shield', body: html`
-        <p class="muted">سياسة <code class="hp-code in">OverrideSecurityRestrictionsOnInsecureOrigin</code> في Chrome و Edge تجعل المتصفح يعامل العناوين المحددة كعناوين آمنة، فتعمل الكاميرا والمجلدات والتخزين الدائم على http. ${br.v && br.v < 69 ? html`<b style="color:rgb(var(--red))">هذا المتصفح (${br.name} ${br.v}) أقدم من أن يدعمها، تحتاج 69 فأحدث.</b>` : ''}</p>
+        <p class="muted">سياسة <code class="hp-code in">OverrideSecurityRestrictionsOnInsecureOrigin</code> في Chrome و Edge تجعل المتصفح يعامل العناوين المحددة كعناوين آمنة، فتعمل الكاميرا والمجلدات والتخزين الدائم على http. ويتضمن الملف أيضاً سياسة <code class="hp-code in">AutoplayAllowlist</code> لتعمل أصوات شاشات العرض دون نقرة. ${br.v && br.v < 69 ? html`<b style="color:rgb(var(--red))">هذا المتصفح (${br.name} ${br.v}) أقدم من أن يدعمها، تحتاج 69 فأحدث.</b>` : ''}</p>
         <div class="field mt"><label for="hpOrigins">عناوين النظام (عنوان في كل سطر، بلا مسار)</label><textarea id="hpOrigins" name="origins" rows="4" dir="ltr" placeholder="http://it&#10;http://192.168.12.100">${list0.join('\n')}</textarea><small class="hint">أضف كل عنوان يُفتح به النظام: الاسم والـ IP، مثل http://it و http://192.168.12.100</small></div>
         <div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-act="hpreg">${UI.icon('download')} تنزيل ملف التفعيل (.reg)</button><button type="button" class="btn btn-ghost" data-act="hpunreg">${UI.icon('undo')} ملف الإلغاء</button></div>
         <ol class="hp-steps">
@@ -18265,6 +18277,279 @@ edge://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
   sys.splice(1, 0, ...add); CC_ALL.push(...add);
 }
 Fav.apply();
+/* ══════════ الجولة 24: أصوات الإشعارات وشاشة العرض ══════════ */
+
+/* ── محرك الأصوات: نغمات تُولَّد داخل المتصفح (لا ملفات صوت)، بأربعة أنماط ومستوى صوت ── */
+const SND_STYLES = [['chime', 'جرس ناعم'], ['bell', 'جرس كلاسيكي'], ['marimba', 'خشبية دافئة'], ['digital', 'رقمية واضحة']];
+const SND_EVENTS = {
+  success: { label: 'إنجاز', rank: 0, n: [[523.25, 0], [659.25, 0.1], [783.99, 0.2]] },
+  error: { label: 'خطأ', rank: 0, n: [[311.13, 0], [233.08, 0.14]] },
+  notify: { label: 'إشعار', rank: 1, n: [[880, 0], [1174.66, 0.12]] },
+  message: { label: 'رسالة أو استفسار', rank: 2, n: [[987.77, 0], [1318.51, 0.09]] },
+  ticket: { label: 'بلاغ جديد', rank: 3, n: [[659.25, 0], [880, 0.13], [1318.51, 0.26]] },
+  warn: { label: 'تأخر أو تنبيه', rank: 4, n: [[880, 0], [622.25, 0.2], [880, 0.4], [622.25, 0.6]] },
+  urgent: { label: 'عاجل', rank: 5, n: [[987.77, 0], [739.99, 0.15], [987.77, 0.3], [739.99, 0.45], [987.77, 0.6], [739.99, 0.75]] }
+};
+const SND_TIMBRE = {
+  chime: { w: 'sine', h: [[2, 0.18]], dec: 0.7, pk: 0.32 },
+  bell: { w: 'sine', h: [[2.76, 0.42], [5.4, 0.16]], dec: 1.3, pk: 0.3 },
+  marimba: { w: 'sine', h: [[4, 0.08]], dec: 0.32, pk: 0.45 },
+  digital: { w: 'square', h: [], dec: 0.15, pk: 0.1, flat: 1, lp: 2600 }
+};
+const SND_TV_DEF = { on: 1, ticket: 1, urgent: 1, chat: 1, late: 1, service: 1, ann: 1, done: 0, remind: 10, speak: 0, vol: 85, style: 'bell' };
+const SND_DEF = { on: 1, style: 'chime', vol: 70 };
+const Snd = {
+  _ctx: null, _last: 0, _lastRank: -1, played: [],
+  central() { const s = (Data.c && Data.c.settings && Data.c.settings.sounds) || {}; return { ...SND_DEF, ...s, tv: { ...SND_TV_DEF, ...(s.tv || {}) } }; },
+  ls(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  /* إعداد هذا الجهاز: اختيار المستخدم إن وُجد، وإلا إعداد النظام */
+  pref() {
+    const c = this.central(), on = this.ls('sq_sound'), style = this.ls('sq_sstyle'), vol = this.ls('sq_svol'), ui = this.ls('sq_uisound');
+    return { on: on != null ? on === 'on' : c.on !== 0, style: style || c.style, vol: vol != null ? clamp(Number(vol) || 0, 0, 100) : c.vol, ui: ui != null ? ui === 'on' : on === 'on', custom: on != null || style != null || vol != null || ui != null };
+  },
+  ctx() {
+    if (this._ctx) return this._ctx;
+    const A = window.AudioContext || window.webkitAudioContext; if (!A) return null;
+    try { this._ctx = new A(); this._ctx.onstatechange = () => Bus.emit('snd:state', { state: this._ctx.state }); } catch (_) { return null; }
+    return this._ctx;
+  },
+  state() { const c = this.ctx(); return c ? c.state : 'none'; },
+  /* المتصفح لا يسمح بالصوت قبل أول نقرة أو ضغطة زر في الصفحة */
+  unlock() { const c = this._ctx; if (c && c.state === 'suspended') { try { const p = c.resume(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* تجاهل */ } } },
+  play(ev, o = {}) {
+    const E = SND_EVENTS[ev] || SND_EVENTS.notify, A = this.ctx(); if (!A) return false;
+    if (A.state === 'suspended') this.unlock();
+    const p = this.pref(), style = SND_TIMBRE[o.style] ? o.style : SND_TIMBRE[p.style] ? p.style : 'chime', vol = (o.vol != null ? o.vol : p.vol) / 100;
+    this.played.push({ ev, style, vol: Math.round(vol * 100), at: Date.now(), state: A.state }); if (this.played.length > 30) this.played.shift();
+    if (vol <= 0) return false;
+    const out = A.createGain(); out.gain.value = Math.pow(vol, 1.6); out.connect(A.destination);
+    const reps = Math.max(1, o.repeat || 1), span = E.n[E.n.length - 1][1] + SND_TIMBRE[style].dec + 0.2;
+    for (let r = 0; r < reps; r++) E.n.forEach(([f, d]) => this.note(A, out, style, f, A.currentTime + 0.03 + r * span + d));
+    return true;
+  },
+  note(A, out, style, f, t) {
+    const P = SND_TIMBRE[style], g = A.createGain();
+    let dest = out;
+    if (P.lp) { const lp = A.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = P.lp; lp.connect(out); dest = lp; }
+    g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(P.pk, t + 0.012);
+    if (P.flat) { g.gain.setValueAtTime(P.pk, t + P.dec); g.gain.exponentialRampToValueAtTime(0.0001, t + P.dec + 0.05); } else g.gain.exponentialRampToValueAtTime(0.0001, t + P.dec);
+    const end = t + P.dec + 0.08;
+    [[1, 1], ...P.h].forEach(([m, a]) => { const o = A.createOscillator(), og = A.createGain(); o.type = m === 1 ? P.w : 'sine'; o.frequency.value = f * m; og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(end); });
+  },
+  /* تنبيه: ما يصل معاً يُدمج في صوت واحد، والأهم يغلب */
+  alert(ev, o = {}) {
+    if (!o.force && !this.pref().on) return false;
+    const E = SND_EVENTS[ev] || SND_EVENTS.notify, t = Date.now();
+    if (t - this._last < 1500 && E.rank <= this._lastRank) return false;
+    this._last = t; this._lastRank = E.rank;
+    return this.play(ev, { repeat: ev === 'urgent' ? 2 : 1, ...o });
+  },
+  /* نغمة الإشعار حسب نوعه ومحتواه */
+  toneOf(n) {
+    if (n && n.tone && SND_EVENTS[n.tone]) return n.tone;
+    const t = String((n && n.title) || '');
+    if (/^عاجل|متوقفة|عطل حرج/.test(t)) return 'urgent';
+    if (/تأخر|تجاوز|منخفض|متأثر|^تنبيه/.test(t)) return 'warn';
+    if (n && n.kind === 'chat') return 'message';
+    if (n && (n.kind === 'ticket' || n.kind === 'work') && /بلاغ جديد|أُسند إليك/.test(t)) return 'ticket';
+    if (/تعمل بشكل طبيعي/.test(t)) return 'success';
+    return 'notify';
+  },
+  async bell(k) {
+    if (!Auth.user || !this.pref().on) return;
+    let tone = 'notify';
+    try {
+      const rows = await DB.getAll('notifications', 'user_read', KR([Auth.user.id, 0]));
+      rows.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, Math.max(1, k || 1)).forEach((n) => { const x = this.toneOf(n); if (SND_EVENTS[x].rank > SND_EVENTS[tone].rank) tone = x; });
+    } catch (_) { /* تجاهل */ }
+    this.alert(tone);
+  }
+};
+['pointerdown', 'keydown', 'touchstart'].forEach((t) => window.addEventListener(t, () => Snd.unlock(), true));
+/* التبويب في الخلفية: سحب كل 30 ثانية ليصل الإشعار وصوته (التبويب الظاهر يسحب كل 5 إلى 15 ثانية كما هو) */
+Sync.bgDue = function () { if (!Snd.pref().on) return false; const t = Date.now(); if (t - (this._bgAt || 0) < 30000) return false; this._bgAt = t; return true; };
+
+/* ── شاشة العرض: نطاقها (الفئات والمواقع المحددة في حسابها) ── */
+const MonScope = {
+  cfg() { const u = Auth.user; return u && u.role === 'monitor' ? (u.monitor || {}) : {}; },
+  ticket(t) { const c = MonScope.cfg(), cats = c.categories || [], locs = c.locations || []; return (!cats.length || cats.includes(t.categoryId)) && (!locs.length || locs.includes(t.locationId)); },
+  chat(ch) { const locs = MonScope.cfg().locations || []; if (!locs.length) return true; const u = Data.c.users.get(ch.userId); return !u || locs.includes(u.locationId); },
+  label() { const c = MonScope.cfg(), cats = (c.categories || []).map((id) => Data.nameOf('categories', id, '')).filter(Boolean), locs = (c.locations || []).map((id) => Data.nameOf('locations', id, '')).filter(Boolean); return [cats.join('، '), locs.join('، ')].filter(Boolean).join(' · '); }
+};
+
+/* ── شاشة العرض: الأحداث الصوتية ── */
+const TvSound = {
+  st: null,
+  cfg() { return Snd.central().tv; },
+  opts() { const c = this.cfg(); return { style: c.style, vol: c.vol }; },
+  enabled() {
+    const l = Snd.ls('sq_tv_sound'); if (l === '1') return true; if (l === '0') return false;
+    const u = Auth.user, c = this.cfg();
+    return c.on !== 0 && !(u && u.role === 'monitor' && (u.monitor || {}).sound === 0);
+  },
+  voice() { try { const vs = (window.speechSynthesis && speechSynthesis.getVoices()) || []; return vs.find((v) => /^ar/i.test(v.lang) && v.localService) || vs.find((v) => /^ar/i.test(v.lang)) || null; } catch (_) { return null; } },
+  say(text, delay) {
+    const v = this.voice(); if (!v || !text) return;
+    setTimeout(() => { try { const u = new SpeechSynthesisUtterance(text); u.voice = v; u.lang = v.lang; u.rate = 0.95; u.volume = Math.min(1, this.cfg().vol / 100); speechSynthesis.speak(u); } catch (_) { /* تجاهل */ } }, delay);
+  },
+  /* يُستدعى بعد كل تحديث للشاشة (كل 20 ثانية وعند وصول جديد) */
+  tick(st, d) {
+    this.st = st;
+    const c = this.cfg(), t = now(), first = !st.snd;
+    if (first) st.snd = { late: new Set(), svc: {}, ann: new Set(), open: new Set(), remindAt: t };
+    const S = st.snd, ev = [];
+    const lateNow = d.open.filter((x) => x.dueAt && x.dueAt < t), svcNow = {}, annNow = d.live.map((a) => a.id), openNow = new Set(d.open.map((x) => x.id));
+    d.svcs.forEach((x) => { svcNow[x.id] = x.status; });
+    if (!first && st.sound) {
+      const dep = (r) => (r.dep ? ` من ${r.dep}` : '');
+      for (const r of st.fresh || []) {
+        if (r.kind === 'chat') { if (c.chat) ev.push(['message', `استفسار جديد${dep(r)}: ${r.title}`]); }
+        else if (r.priority === 'urgent') { if (c.urgent) ev.push(['urgent', `بلاغ عاجل${dep(r)}: ${r.title}`]); else if (c.ticket) ev.push(['ticket', `بلاغ جديد${dep(r)}: ${r.title}`]); }
+        else if (c.ticket) ev.push(['ticket', `بلاغ جديد${dep(r)}: ${r.title}`]);
+      }
+      if (c.late) { const nl = lateNow.filter((x) => !S.late.has(x.id)); if (nl.length) ev.push(['warn', nl.length === 1 ? `تجاوز الموعد: ${nl[0].title}` : `${arCount(nl.length, AR.ticket)} تجاوزت الموعد`]); }
+      if (c.service) d.svcs.forEach((x) => { const was = S.svc[x.id]; if (was === undefined || was === x.status) return; if (x.status === 'down') ev.push(['urgent', `${x.name} متوقفة`]); else if (x.status === 'degraded') ev.push(['warn', `${x.name}: أداء متأثر`]); else if (x.status === 'up') ev.push(['success', `${x.name} عادت للعمل`]); });
+      if (c.ann) d.live.filter((a) => !S.ann.has(a.id)).forEach((a) => ev.push([a.level === 'critical' ? 'urgent' : 'notify', `${a.level === 'critical' ? 'تعميم عاجل' : 'تعميم'}: ${a.title}`]));
+      if (c.done) { const done = d.tickets.filter((x) => S.open.has(x.id) && !openNow.has(x.id) && ['resolved', 'closed'].includes(x.status)); if (done.length) ev.push(['success', done.length === 1 ? `تم حل: ${done[0].title}` : `تم حل ${arCount(done.length, AR.ticket)}`]); }
+      if (Number(c.remind) > 0) {
+        const gap = Number(c.remind) * MIN, waiting = d.open.filter((x) => x.status === 'new' && t - x.createdAt >= gap);
+        if (waiting.length && t - S.remindAt >= gap) { ev.push(['ticket', `${arCount(waiting.length, AR.ticket)} بانتظار الاستلام`]); S.remindAt = t; }
+        if (!waiting.length) S.remindAt = t;
+      }
+    }
+    S.late = new Set(lateNow.map((x) => x.id)); S.svc = svcNow; S.ann = new Set(annNow); S.open = openNow;
+    if (ev.length) {
+      const top = ev.reduce((a, b) => (SND_EVENTS[b[0]].rank > SND_EVENTS[a[0]].rank ? b : a));
+      Snd.play(top[0], { ...this.opts(), repeat: top[0] === 'urgent' ? 2 : 1 });
+      if (c.speak) this.say(ev.filter((x) => x[0] !== 'success' || ev.length === 1).slice(0, 2).map((x) => x[1]).join('. '), top[0] === 'urgent' ? 3200 : 1400);
+    }
+    this.banner(); this.scope();
+  },
+  /* نطاق الشاشة تحت عنوانها، ويتحدث إن غيّره المشرف من حسابها */
+  scope() {
+    const title = document.querySelector('.tv2-title'); if (!title) return;
+    const lab = MonScope.label(); let el = title.querySelector('.tv2-scope');
+    if (!lab) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('p'); el.className = 'tv2-scope'; title.appendChild(el); }
+    if (el.dataset.l !== lab) { el.dataset.l = lab; el.innerHTML = String(html`${UI.icon('filter')} نطاق الشاشة: ${lab}`); }
+  },
+  /* زر «تفعيل الصوت» حين يمنع المتصفح الصوت قبل أول نقرة */
+  banner() {
+    const need = !!(this.st && this.st.sound) && Snd.state() === 'suspended' && document.body.classList.contains('tv-mode');
+    let b = document.getElementById('tvUnmute');
+    if (!need) { if (b) b.remove(); return; }
+    if (b) return;
+    b = document.createElement('button'); b.id = 'tvUnmute'; b.type = 'button'; b.className = 'tv-unmute';
+    b.innerHTML = String(html`${UI.icon('sound')}<span><b>اضغط لتفعيل الصوت</b><small>المتصفح يمنع التنبيهات الصوتية حتى أول نقرة على الشاشة</small></span>`);
+    b.addEventListener('click', () => { Snd.unlock(); setTimeout(() => { Snd.play('success', this.opts()); this.banner(); }, 250); });
+    document.body.appendChild(b);
+  }
+};
+{
+  const mon0 = Pages.monitor;
+  Pages.monitor = async (ctx) => {
+    Snd.ctx(); /* يُنشأ مبكراً ليُعرف إن كان المتصفح يسمح بالصوت دون نقرة */
+    await mon0(ctx); if (!ctx.alive()) return;
+    ctx.onCleanup(Bus.on('snd:state', () => TvSound.banner()));
+    UI.on(ctx.view, 'click', '[data-act="sound"]', () => setTimeout(() => TvSound.banner(), 300));
+    const tb = setTimeout(() => TvSound.banner(), 700);
+    ctx.onCleanup(() => { clearTimeout(tb); TvSound.st = null; const b = document.getElementById('tvUnmute'); if (b) b.remove(); try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (_) { /* تجاهل */ } });
+  };
+}
+
+/* ── الملف الشخصي: أصوات هذا الجهاز ── */
+{
+  const pf0 = Pages.profile;
+  Pages.profile = async (ctx) => {
+    await pf0(ctx); if (!ctx.alive()) return;
+    const gridOf = () => { const h = [...ctx.view.querySelectorAll('.panel-head h2')].find((x) => /تخصيص المظهر/.test(x.textContent)); return h && h.closest('.grid'); };
+    if (!gridOf()) return;
+    const draw = () => {
+      const p = Snd.pref(), old = ctx.view.querySelector('.snd-panel'), grid = old ? null : gridOf();
+      if (!old && !grid) return;
+      const el = document.createElement('div');
+      el.innerHTML = String(UI.panel({ title: 'الأصوات', icon: 'sound', cls: 'mt snd-panel', tools: p.custom ? html`<button type="button" class="btn btn-ghost btn-sm" data-snd="reset">${UI.icon('undo')} إعداد النظام</button>` : '', body: html`
+        <div class="snd-grid">
+          <div class="stack" style="gap:14px">
+            ${UI.field({ name: 'snd_on', type: 'switch', text: 'أصوات التنبيه: الإشعارات والبلاغات الجديدة والرسائل' }, p.on)}
+            ${UI.field({ name: 'snd_ui', type: 'switch', text: 'أصوات العمليات: الحفظ والمسح والأخطاء' }, p.ui)}
+            <div class="field"><label>النغمة</label><div class="seg">${SND_STYLES.map(([k, l]) => html`<label><input type="radio" name="snd_style" value="${k}"${p.style === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+            <div class="field snd-vol"><label>مستوى الصوت <b data-sndv>${p.vol}%</b></label><input type="range" name="snd_vol" min="0" max="100" step="5" value="${p.vol}"></div>
+          </div>
+          <div class="snd-tests"><span class="faint">تجربة:</span>${['notify', 'ticket', 'message', 'warn', 'urgent'].map((k) => html`<button type="button" class="btn btn-soft btn-sm" data-sndtest="${k}">${UI.icon('play')} ${SND_EVENTS[k].label}</button>`)}<p class="hint">الإعداد لهذا الجهاز فقط. إن لم تسمع شيئاً فتحقق من مستوى صوت Windows والسماعات.</p></div>
+        </div>` }));
+      const node = el.firstElementChild;
+      if (old) old.replaceWith(node); else grid.insertAdjacentElement('afterend', node);
+    };
+    draw();
+    const mo = new MutationObserver(() => { if (!ctx.view.querySelector('.snd-panel')) draw(); });
+    mo.observe(ctx.view, { childList: true }); ctx.onCleanup(() => mo.disconnect());
+    const set = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (_) { /* تجاهل */ } };
+    UI.on(ctx.view, 'change', '[name="snd_on"]', (e, el) => { set('sq_sound', el.checked ? 'on' : 'off'); if (el.checked) Snd.play('notify'); draw(); });
+    UI.on(ctx.view, 'change', '[name="snd_ui"]', (e, el) => { set('sq_uisound', el.checked ? 'on' : 'off'); if (el.checked) Snd.play('success'); draw(); });
+    UI.on(ctx.view, 'change', '[name="snd_style"]', (e, el) => { set('sq_sstyle', el.value); Snd.play('ticket'); draw(); });
+    UI.on(ctx.view, 'input', '[name="snd_vol"]', (e, el) => { const b = ctx.view.querySelector('[data-sndv]'); if (b) b.textContent = `${el.value}%`; });
+    UI.on(ctx.view, 'change', '[name="snd_vol"]', (e, el) => { set('sq_svol', el.value); Snd.play('notify'); draw(); });
+    UI.on(ctx.view, 'click', '[data-sndtest]', (e, el) => Snd.play(el.dataset.sndtest, { repeat: el.dataset.sndtest === 'urgent' ? 2 : 1 }));
+    UI.on(ctx.view, 'click', '[data-snd="reset"]', () => { ['sq_sound', 'sq_sstyle', 'sq_svol', 'sq_uisound'].forEach((k) => set(k, null)); draw(); UI.toast('عاد هذا الجهاز لإعداد النظام'); });
+  };
+}
+
+/* ── الإعدادات ← «الأصوات والتنبيهات»: الافتراضي لكل المستخدمين، وأحداث شاشات العرض ── */
+const TV_EVENTS = [['ticket', 'بلاغ جديد', 'ticket'], ['urgent', 'بلاغ عاجل (إنذار مكرر)', 'urgent'], ['chat', 'استفسار جديد', 'message'], ['late', 'بلاغ تجاوز موعده', 'warn'], ['service', 'توقف خدمة أو عودتها', 'urgent'], ['ann', 'تعميم جديد', 'notify'], ['done', 'حل بلاغ', 'success']];
+Pages.ccSounds = (ctx) => {
+  const st = { c: Snd.central() };
+  const styleSeg = (name, cur) => html`<div class="seg">${SND_STYLES.map(([k, l]) => html`<label><input type="radio" name="${name}" value="${k}"${cur === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>`;
+  const draw = () => {
+    const c = st.c, tv = c.tv, voice = TvSound.voice();
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الأصوات والتنبيهات', sub: 'أصوات الإشعارات لكل المستخدمين، وتنبيهات شاشات العرض الصوتية', illu: 'bell' })}
+      <div class="grid g-2">
+        ${UI.panel({ title: 'إشعارات المستخدمين', icon: 'bell', body: html`<div class="stack" style="gap:14px">
+          ${UI.field({ name: 'u_on', type: 'switch', text: 'تشغيل أصوات الإشعارات لكل المستخدمين' }, c.on !== 0)}
+          <div class="field"><label>النغمة</label>${styleSeg('u_style', c.style)}</div>
+          <div class="field snd-vol"><label>مستوى الصوت <b data-v="u">${c.vol}%</b></label><input type="range" name="u_vol" min="0" max="100" step="5" value="${c.vol}"></div>
+          <div class="snd-tests">${['notify', 'ticket', 'message', 'warn', 'urgent'].map((k) => html`<button type="button" class="btn btn-soft btn-sm" data-t="u:${k}">${UI.icon('play')} ${SND_EVENTS[k].label}</button>`)}</div>
+          <p class="hint">لكل نوع إشعار نغمته: البلاغ الجديد والإسناد، الرسائل، التأخر، والعاجل (إنذار مكرر). ويستطيع كل مستخدم تغيير الإعداد لجهازه من «الملف الشخصي ← الأصوات».</p></div>` })}
+        ${UI.panel({ title: 'شاشات العرض', icon: 'monitor', body: html`<div class="stack" style="gap:14px">
+          ${UI.field({ name: 'tv_on', type: 'switch', text: 'تنبيهات صوتية على شاشات العرض' }, tv.on !== 0)}
+          <div class="field"><label>الأحداث التي تُصدر صوتاً</label><div class="chip-pick">${TV_EVENTS.map(([k, l]) => html`<label><input type="checkbox" data-ev="${k}"${tv[k] ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+          ${UI.field({ name: 'tv_remind', label: 'تذكير صوتي بالبلاغات غير المستلمة', type: 'select', placeholder: false, options: [{ value: '0', label: 'إيقاف' }, ...[5, 10, 15, 30].map((m) => ({ value: String(m), label: `كل ${m} دقائق` }))], value: String(tv.remind || 0) })}
+          <div>${UI.field({ name: 'tv_speak', type: 'switch', text: 'قراءة البلاغ الجديد بصوت عربي بعد النغمة' }, !!tv.speak)}<small class="hint">${voice ? `الصوت المتاح على هذا الجهاز: ${voice.name}` : 'لا يوجد صوت عربي على هذا الجهاز. يعمل على شاشة العرض إن ثُبّتت عليها اللغة العربية بميزة «تحويل النص إلى كلام» في Windows.'}</small></div>
+          <div class="field"><label>النغمة</label>${styleSeg('tv_style', tv.style)}</div>
+          <div class="field snd-vol"><label>مستوى الصوت <b data-v="tv">${tv.vol}%</b></label><input type="range" name="tv_vol" min="0" max="100" step="5" value="${tv.vol}"></div>
+          <div class="snd-tests">${TV_EVENTS.filter(([k]) => k !== 'service').map(([k, l, ev]) => html`<button type="button" class="btn btn-soft btn-sm" data-t="tv:${ev}">${UI.icon('play')} ${l.replace(' (إنذار مكرر)', '')}</button>`)}</div>
+          <p class="hint">يُوقف الصوت لشاشة بعينها من حسابها في «المستخدمون»، أو من زر الجرس على الشاشة نفسها.</p></div>` })}
+      </div>
+      ${UI.panel({ title: 'تشغيل الصوت على شاشة العرض دون نقرة', icon: 'sound', cls: 'mt', body: html`
+        <p class="muted">المتصفح يمنع أي صوت في الصفحة حتى ينقر أحد عليها مرة. فإذا أُعيد تشغيل شاشة العرض ولم يلمسها أحد، يظهر عليها زر «اضغط لتفعيل الصوت». لتعمل الأصوات دون أي نقرة:</p>
+        <ol class="hp-steps">
+          <li><b>ملف التفعيل:</b> من «العمل على http» نزّل ملف التفعيل وشغّله على جهاز الشاشة. يتضمن سياسة <code class="hp-code in">AutoplayAllowlist</code> لعناوين النظام في Chrome و Edge.</li>
+          <li><b>أو اختصار المتصفح على جهاز الشاشة:</b><code class="hp-code">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk --autoplay-policy=no-user-gesture-required http://it/</code></li>
+        </ol>` })}
+      <div class="row mt"><button type="button" class="btn btn-primary" data-act="sndsave">${UI.icon('check')} حفظ الإعدادات</button></div>`);
+  };
+  const read = () => {
+    const q = (s) => ctx.view.querySelector(s), r = (n) => (q(`[name="${n}"]:checked`) || {}).value;
+    const tv = { on: q('[name="tv_on"]').checked ? 1 : 0, remind: Number(q('[name="tv_remind"]').value) || 0, speak: q('[name="tv_speak"]').checked ? 1 : 0, vol: Number(q('[name="tv_vol"]').value), style: r('tv_style') || SND_TV_DEF.style };
+    TV_EVENTS.forEach(([k]) => { tv[k] = q(`[data-ev="${k}"]`).checked ? 1 : 0; });
+    return { on: q('[name="u_on"]').checked ? 1 : 0, style: r('u_style') || SND_DEF.style, vol: Number(q('[name="u_vol"]').value), tv };
+  };
+  UI.on(ctx.view, 'input', 'input[type="range"]', (e, el) => { const b = ctx.view.querySelector(`[data-v="${el.name === 'u_vol' ? 'u' : 'tv'}"]`); if (b) b.textContent = `${el.value}%`; });
+  UI.on(ctx.view, 'click', '[data-t]', (e, el) => { const [who, ev] = el.dataset.t.split(':'), v = read(), o = who === 'tv' ? v.tv : v; Snd.play(ev, { style: o.style, vol: o.vol, repeat: ev === 'urgent' ? 2 : 1 }); });
+  UI.on(ctx.view, 'click', '[data-act="sndsave"]', async (e, btn) => {
+    UI.busy(btn, true);
+    try { st.c = read(); await Data.saveSettings({ sounds: st.c }); UI.toast('حُفظت إعدادات الأصوات، وتصل كل الأجهزة مع المزامنة'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+  });
+  draw();
+  if (window.speechSynthesis && !TvSound.voice()) { const h = () => { if (ctx.alive() && TvSound.voice()) { st.c = read(); draw(); } }; try { speechSynthesis.addEventListener('voiceschanged', h); ctx.onCleanup(() => speechSynthesis.removeEventListener('voiceschanged', h)); } catch (_) { /* تجاهل */ } }
+};
+{
+  const sys = (CC_GROUPS.find((g) => g[0] === 'النظام') || CC_GROUPS[0])[2];
+  const add = ['sounds', 'الأصوات والتنبيهات', 'sound', 'settings', 'نغمات الإشعارات لكل المستخدمين، وتنبيهات شاشات العرض الصوتية', '', (c) => Pages.ccSounds(c)];
+  const i = sys.findIndex((x) => x[0] === 'favicon'); sys.splice(i >= 0 ? i + 1 : sys.length, 0, add); CC_ALL.push(add);
+}
 boot();
 })();</script>
 </body>
