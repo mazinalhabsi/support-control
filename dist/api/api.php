@@ -439,7 +439,48 @@ function keep_fields(array $merged, ?array $old, array $keys): array {
   return $merged;
 }
 
+/** مفتاح الرقم العسكري الموحّد (مطابق لواجهة النظام): أرقام لاتينية، بلا مسافات، أحرف صغيرة */
+function mil_key(string $s): string {
+  $map = ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+          '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9'];
+  return lc(preg_replace('/\s+/', '', strtr($s, $map)));
+}
+/** تعبير SQL يحوّل الرقم العسكري المخزّن إلى الصيغة الموحّدة نفسها (أرقام عربية-هندية + إزالة المسافة + أحرف صغيرة) */
+function mil_sql(string $col): string {
+  $expr = "JSON_UNQUOTE(JSON_EXTRACT($col, '$.militaryNo'))";
+  foreach (['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9'] as $a => $b) $expr = "REPLACE($expr, '$a', '$b')";
+  return "LOWER(REPLACE($expr, ' ', ''))";
+}
+/** هل يوجد مستخدم آخر (غير $id) باسم الدخول نفسه أو الرقم العسكري نفسه؟ تفرُّد يفرضه الخادم لا المتصفح وحده */
+function user_dup_exists(string $id, string $username, string $milk): bool {
+  if ($username === '' && $milk === '') return false;
+  $conds = []; $args = [$id];
+  if ($username !== '') { $conds[] = "LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.username'))) = ?"; $args[] = $username; }
+  if ($milk !== '') { $conds[] = mil_sql('data') . ' = ?'; $args[] = $milk; }
+  try {
+    $st = db()->prepare("SELECT 1 FROM docs WHERE store = 'users' AND deleted = 0 AND doc_id <> ? AND (" . implode(' OR ', $conds) . ') LIMIT 1');
+    $st->execute($args);
+    return (bool) $st->fetchColumn();
+  } catch (Throwable $e) {
+    /* MySQL قديم بلا دوال JSON: مسح في PHP (كتابات المستخدمين قليلة) */
+    try {
+      foreach (db()->query("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0")->fetchAll() as $r) {
+        if ((string) $r['doc_id'] === $id) continue;
+        $d = json_decode((string) $r['data'], true); if (!is_array($d)) continue;
+        if ($username !== '' && lc(trim((string) ($d['username'] ?? ''))) === $username) return true;
+        if ($milk !== '' && mil_key((string) ($d['militaryNo'] ?? '')) === $milk) return true;
+      }
+    } catch (Throwable $e2) { /* تعذّر الفحص: لا نمنع الكتابة حتى لا نعطّل النظام */ }
+    return false;
+  }
+}
+
 function authorize(array $user, string $store, ?array $old, $new, bool $deleted) {
+  /* تفرُّد اسم الدخول والرقم العسكري: يُفرض على الخادم لكل الأدوار (المشرف أيضاً)، فلا يُسجَّل حساب يصطدم بآخر حتى لو تجاوز أحدٌ المتصفح */
+  if ($store === 'users' && !$deleted && is_array($new)) {
+    $uid = (string) ($new['id'] ?? ($old['id'] ?? ''));
+    if (user_dup_exists($uid, lc(trim((string) ($new['username'] ?? ''))), mil_key((string) ($new['militaryNo'] ?? '')))) return null;
+  }
   if ($deleted && in_array($store, ['items', 'assets'], true) && inv_del_locked()) return null;
   if ($store === 'meta') {
     $lk = (string) ((is_array($new) ? ($new['key'] ?? '') : '') ?: ($old['key'] ?? ''));

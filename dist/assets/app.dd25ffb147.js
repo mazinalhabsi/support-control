@@ -103,6 +103,10 @@ const dateInput = (ts) => { if (!ts) return ''; const d = new Date(ts); return `
 const fromDateInput = (s, end) => { if (!s) return 0; const [y, m, d] = s.split('-').map(Number); return end ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime() : new Date(y, m - 1, d).getTime(); };
 const startOfDay = (ts = now()) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const normalizeAr = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\u064B-\u065F\u0670]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+const latinDigits = (s) => String(s == null ? '' : s).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+/* مفتاح الرقم العسكري الموحّد: أرقام لاتينية، بلا مسافات، أحرف صغيرة — لكشف التكرار في النموذج والاستيراد */
+const milKey = (v) => latinDigits(v).replace(/\s+/g, '').toLowerCase();
+const userKey = (v) => String(v == null ? '' : v).trim().toLowerCase();
 const uid = (p) => { const b = new Uint8Array(5); crypto.getRandomValues(b); return `${p}_${now().toString(36)}${Array.from(b, (x) => pad(x.toString(36))).join('')}`; };
 const AR_COLL = new Intl.Collator('ar');
 const debounce = (fn, ms = 250) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
@@ -761,6 +765,8 @@ Data.users = {
     if (Auth.user.role !== 'supervisor' && ['supervisor', 'support_manager'].includes(input.role)) throw new AppError('إنشاء حسابات المشرف والإداري من صلاحية المشرف فقط');
     const dup = (await DB.getAll('users', 'username', KR(username)))[0];
     if (dup && dup.id !== input.id) throw new AppError('اسم المستخدم مستخدم مسبقاً');
+    const mil = String(input.militaryNo || '').trim(), mk = milKey(mil);
+    if (mk) { const mdup = Data.list('users').find((x) => x.id !== input.id && milKey(x.militaryNo) === mk); if (mdup) throw new AppError(`الرقم العسكري «${mil}» مسجّل مسبقاً للمستخدم «${mdup.name}»`); }
     const isNew = !input.id, u = isNew ? { id: uid('u'), createdAt: now(), lastLoginAt: 0, pass: null } : await DB.get('users', input.id);
     if (!u) throw new AppError('المستخدم غير موجود');
     if (!isNew && u.id === Auth.user.id && input.active === 0) throw new AppError('لا يمكنك إيقاف حسابك');
@@ -3279,7 +3285,6 @@ const XL = (() => {
   return { read, write };
 })();
 AR.user = ['مستخدم واحد', 'مستخدمين اثنين', 'مستخدمين', 'مستخدماً', 'مستخدم'];
-const latinDigits = (s) => String(s == null ? '' : s).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 const headKey = (h) => normalizeAr(h).replace(/[\s_\-.:()/\\]/g, '');
 const IMPORT_COLS = { name: ['الاسم', 'الاسمالكامل', 'اسمالموظف', 'الاسمالرباعي', 'name', 'fullname'], militaryNo: ['الرقمالعسكري', 'رقمعسكري', 'الرقم', 'militaryno', 'militarynumber', 'serviceno'], role: ['الدور', 'الصلاحيه', 'نوعالحساب', 'role'], department: ['الاداره', 'القسم', 'الادارهالقسم', 'department'], location: ['المبني', 'الموقع', 'المبنيالموقع', 'building', 'location'], office: ['المكتب', 'الغرفه', 'office'], phone: ['الهاتف', 'رقمالهاتف', 'الجوال', 'phone', 'mobile'], rank: ['الرتبه', 'rank'] };
 const ROLE_NORM = new Map(Object.entries({ 'موظف': 'department', 'موظفه': 'department', 'مستخدم': 'department', 'فني': 'technician', 'فنيه': 'technician', 'اداري': 'support_manager', 'اداريه': 'support_manager', 'مشرف': 'supervisor', 'مشرفه': 'supervisor', 'شاشهمراقبه': 'monitor', 'شاشه': 'monitor', employee: 'department', user: 'department', technician: 'technician', tech: 'technician', admin: 'support_manager', administrator: 'support_manager', manager: 'support_manager', supervisor: 'supervisor', monitor: 'monitor' }));
@@ -3289,9 +3294,9 @@ Pages.analyzeImport = (sheets, fileName) => {
   let sheet = null, hi = -1, map = null;
   for (const s of sheets) { for (let r = 0; r < Math.min(10, s.rows.length); r++) { const m = headerMap(s.rows[r]); if (m.name != null && m.militaryNo != null) { sheet = s; hi = r; map = m; break; } } if (sheet) break; }
   if (!sheet) throw new AppError('لم أجد عمودي «الاسم» و«الرقم العسكري» في الملف. نزّل القالب الجاهز واستخدمه.');
-  const users = Data.list('users'), byMil = new Map(users.filter((u) => u.militaryNo).map((u) => [latinDigits(u.militaryNo).toLowerCase(), u]));
+  const users = Data.list('users'), byMil = new Map(users.filter((u) => u.militaryNo).map((u) => [milKey(u.militaryNo), u])), byUser = new Set(users.map((u) => userKey(u.username)));
   const depBy = new Set(Data.list('departments').map((d) => normalizeAr(d.name))), locBy = new Set(Data.list('locations').map((l) => normalizeAr(l.name)));
-  const sup = Auth.user.role === 'supervisor', seen = new Set(), rows = [], newDeps = new Map(), newLocs = new Map();
+  const sup = Auth.user.role === 'supervisor', seen = new Set(), claimed = new Set(), rows = [], newDeps = new Map(), newLocs = new Map();
   sheet.rows.slice(hi + 1).forEach((r, i) => {
     const cell = (k) => (map[k] != null ? String(r[map[k]] || '').replace(/\s+/g, ' ').trim() : '');
     const name = cell('name'), mil = latinDigits(cell('militaryNo')).replace(/\s+/g, ''), roleRaw = cell('role');
@@ -3301,8 +3306,15 @@ Pages.analyzeImport = (sheets, fileName) => {
     if (name.length < 3) row.issues.push('الاسم ناقص');
     if (!mil) row.issues.push('الرقم العسكري مفقود'); else if (!/^[\p{L}\p{N}-]{2,20}$/u.test(mil)) row.issues.push('رقم عسكري غير صالح');
     if (!role) row.issues.push(`دور غير معروف «${roleRaw}»`); else if (!sup && ['supervisor', 'support_manager'].includes(role)) row.issues.push('إضافة المشرف والإداري من صلاحية المشرف فقط');
-    const key = mil.toLowerCase(); if (mil && seen.has(key)) row.issues.push('رقم عسكري مكرر في الملف'); if (mil) seen.add(key);
+    const key = milKey(mil); if (mil && seen.has(key)) row.issues.push('رقم عسكري مكرر في الملف'); if (mil) seen.add(key);
     row.existing = byMil.get(key) || null;
+    /* اسم الدخول = الرقم العسكري. المستخدم الجديد الذي يصطدم اسمه باسم موجود (أو بصف سابق في الملف) يُتجاوز وحده، ويُسجَّل الباقي */
+    if (!row.existing && mil && !row.issues.length) {
+      let un = userKey(mil); if (un.length < 3) un = `u${un}`;
+      row.username = un;
+      if (byUser.has(un) || claimed.has(un)) row.issues.push(`اسم المستخدم «${un}» مستخدم مسبقاً — يُتجاوز هذا الصف وحده`);
+      else claimed.add(un);
+    }
     if (row.existing && row.existing.id === Auth.user.id && role !== Auth.user.role) row.note = 'حسابك الحالي: لن يتغير دورك';
     if (!roleRaw && !row.issues.length) row.note = 'بلا دور: سيُسجَّل موظفاً';
     if (!row.issues.length) { if (row.department && !depBy.has(normalizeAr(row.department))) newDeps.set(normalizeAr(row.department), row.department); if (row.location && !locBy.has(normalizeAr(row.location))) newLocs.set(normalizeAr(row.location), row.location); }
@@ -3319,25 +3331,30 @@ Pages.runImport = async (a, { mode = 'random', update = true } = {}, onProgress)
   const usedDeps = new Set(ok.map((r) => normalizeAr(r.department))), usedLocs = new Set(ok.map((r) => normalizeAr(r.location)));
   await addLookups('departments', a.newDeps.filter((n) => usedDeps.has(normalizeAr(n)))); await addLookups('locations', a.newLocs.filter((n) => usedLocs.has(normalizeAr(n))));
   const idOf = (store) => new Map(Data.list(store).map((x) => [normalizeAr(x.name), x.id])), depBy = idOf('departments'), locBy = idOf('locations'), rankBy = idOf('ranks');
-  const taken = new Set(Data.list('users').map((u) => u.username)), creds = [], batch = []; let created = 0, updated = 0;
+  const taken = new Set(Data.list('users').map((u) => userKey(u.username))), creds = [], batch = []; let created = 0, updated = 0, skippedDup = 0;
   for (let i = 0; i < ok.length; i++) {
     const r = ok[i], depId = r.department ? depBy.get(normalizeAr(r.department)) || '' : '', locId = r.location ? locBy.get(normalizeAr(r.location)) || '' : '', rankId = r.rank ? rankBy.get(normalizeAr(r.rank)) || '' : '';
     if (r.existing) {
       const u = await DB.get('users', r.existing.id);
       if (u) { u.name = r.name; if (u.id !== me.id) u.role = r.role; if (depId) u.departmentId = depId; if (locId) u.locationId = locId; if (r.office) u.office = r.office; if (r.phone) u.phone = r.phone; if (rankId) u.rankId = rankId; u.militaryNo = r.militaryNo; u.updatedAt = t; batch.push(u); updated += 1; }
     } else {
-      let username = r.militaryNo.toLowerCase(); if (username.length < 3) username = `u${username}`; while (taken.has(username)) username = `${username}_1`; taken.add(username);
-      const pw = mode === 'military' ? r.militaryNo : Crypto.tempPassword(), salt = Crypto.randomHex(16);
-      /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
-      const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
-      batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 1, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
-      creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], Data.nameOf('departments', depId, ''), Data.nameOf('locations', locId, '')]); created += 1;
+      let username = r.username || userKey(r.militaryNo); if (username.length < 3) username = `u${username}`;
+      /* اسم الدخول مستخدم مسبقاً (تغيّر منذ المعاينة): يُتجاوز هذا الصف وحده دون إيقاف الباقي، ولا يُعاد تسميته */
+      if (taken.has(username)) { skippedDup += 1; }
+      else {
+        taken.add(username);
+        const pw = mode === 'military' ? r.militaryNo : Crypto.tempPassword(), salt = Crypto.randomHex(16);
+        /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
+        const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
+        batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 1, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
+        creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], Data.nameOf('departments', depId, ''), Data.nameOf('locations', locId, '')]); created += 1;
+      }
     }
     if (batch.length >= 150 || i === ok.length - 1) { await DB.bulkPut('users', batch.splice(0)); if (onProgress) onProgress(i + 1, ok.length); await new Promise((res) => setTimeout(res, 0)); }
   }
   await Data.refresh('users');
   await Data.log('import', 'user', '', `استيراد من Excel (${a.fileName}): ${created} جديد، ${updated} تحديث`); Bus.emit('users');
-  return { created, updated, skipped: a.rows.length - ok.length, creds, mode };
+  return { created, updated, skipped: a.rows.length - ok.length + skippedDup, creds, mode };
 };
 
 Pages.usersTemplate = () => {
@@ -3347,7 +3364,7 @@ Pages.usersTemplate = () => {
     { name: 'المستخدمون', widths: [32, 16, 12, 28, 26, 22, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', locs[1] || '', 'مكتب 214', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '']],
       validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }, { sqref: 'H2:H10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }] },
     { name: 'القوائم', widths: [34, 30, 22], rows: lists },
-    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارات والمباني غير الموجودة في النظام تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. من لم يُحدد مبناه يختاره بنفسه عند أول دخول، ويُطلب من الجميع تغيير كلمة المرور الأولية.']] }
+    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارات والمباني غير الموجودة في النظام تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. من لم يُحدد مبناه يختاره بنفسه عند أول دخول، ويُطلب من الجميع تغيير كلمة المرور الأولية.']] }
   ]);
   downloadBlob(blob, 'قالب-استيراد-المستخدمين.xlsx');
 };
@@ -3361,7 +3378,7 @@ Pages.exportUsers = () => {
 Pages.importUsers = () => new Promise((resolve) => {
   let analysis = null, result = null, filter = 'all';
   const steps = (n) => html`<div class="imp-steps">${['جهّز الملف', 'راجع البيانات', 'تم الاستيراد'].map((l, i) => html`<div class="imp-step ${n === i + 1 ? 'on' : n > i + 1 ? 'done' : ''}"><i>${n > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
-  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>، ويُلزم بتغيير كلمة المرور الأولية.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('pin')}<span>من لم يُحدد مبناه <b>يختاره بنفسه</b> عند أول دخول.</span></div></div>`;
+  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>، ويُلزم بتغيير كلمة المرور الأولية.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>من لم يُحدد مبناه <b>يختاره بنفسه</b> عند أول دخول.</span></div></div>`;
   const reviewView = () => {
     const a = analysis, c = { new: 0, update: 0, error: 0 }; a.rows.forEach((r) => { c[r.status] += 1; });
     const roles = {}; a.rows.filter((r) => r.status !== 'error').forEach((r) => { roles[r.role] = (roles[r.role] || 0) + 1; });
