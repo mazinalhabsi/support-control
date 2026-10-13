@@ -6842,7 +6842,7 @@ Pages.analyzeImport = (sheets, fileName) => {
   return { fileName, sheet: sheet.name, rows, newDeps: [...newDeps.values()], newLocs: [...newLocs.values()] };
 };
 
-Pages.runImport = async (a, { mode = 'random', update = true } = {}, onProgress) => {
+Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = {}, onProgress) => {
   const t = now(), me = Auth.user, ok = a.rows.filter((r) => r.status === 'new' || (r.status === 'update' && update));
   const addLookups = async (store, names) => { if (!names.length) return; const base = await DB.count(store); await DB.bulkPut(store, names.map((name, i) => ({ id: uid(store === 'departments' ? 'dep' : 'loc'), name, description: '', order: base + i, createdAt: t, updatedAt: t }))); await Data.refresh(store); };
   const usedDeps = new Set(ok.map((r) => normalizeAr(r.department))), usedLocs = new Set(ok.map((r) => normalizeAr(r.location)));
@@ -6860,7 +6860,7 @@ Pages.runImport = async (a, { mode = 'random', update = true } = {}, onProgress)
       if (taken.has(username)) { skippedDup += 1; }
       else {
         taken.add(username);
-        const pw = mode === 'military' ? r.militaryNo : Crypto.tempPassword(), salt = Crypto.randomHex(16);
+        const pw = mode === 'military' ? r.militaryNo : mode === 'shared' ? sharedPw : Crypto.tempPassword(), salt = Crypto.randomHex(16);
         /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
         const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
         batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 1, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
@@ -6894,6 +6894,7 @@ Pages.exportUsers = () => {
 
 Pages.importUsers = () => new Promise((resolve) => {
   let analysis = null, result = null, filter = 'all';
+  const impPw = { mode: 'random', val: '' };
   const steps = (n) => html`<div class="imp-steps">${['جهّز الملف', 'راجع البيانات', 'تم الاستيراد'].map((l, i) => html`<div class="imp-step ${n === i + 1 ? 'on' : n > i + 1 ? 'done' : ''}"><i>${n > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
   const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>، ويُلزم بتغيير كلمة المرور الأولية.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>من لم يُحدد مبناه <b>يختاره بنفسه</b> عند أول دخول.</span></div></div>`;
   const reviewView = () => {
@@ -6903,12 +6904,12 @@ Pages.importUsers = () => new Promise((resolve) => {
     return html`${steps(2)}<div class="imp-summary">${UI.chip('slate', `${a.fileName} — ${a.sheet}`, 'file')}${UI.chip('teal', `جديد: ${fmtNum(c.new)}`, 'user-plus')}${UI.chip('sky', `تحديث: ${fmtNum(c.update)}`, 'refresh')}${c.error ? UI.chip('red', `أخطاء: ${fmtNum(c.error)}`, 'alert') : ''}${Object.entries(roles).map(([k, n]) => UI.chip(ROLE_INFO[k] ? ROLE_INFO[k].tone : 'slate', `${ROLES[k]}: ${fmtNum(n)}`))}</div>
       ${a.newDeps.length ? html`<div class="banner tone-violet">${UI.icon('building')}<div class="grow"><b>إدارات جديدة ستُضاف تلقائياً (${fmtNum(a.newDeps.length)})</b><div class="small muted">${a.newDeps.join('، ')}</div></div></div>` : ''}
       ${a.newLocs.length ? html`<div class="banner tone-sky">${UI.icon('pin')}<div class="grow"><b>مبانٍ جديدة ستُضاف تلقائياً (${fmtNum(a.newLocs.length)})</b><div class="small muted">${a.newLocs.join('، ')}</div></div></div>` : ''}
-      <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random" checked><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"><span>${UI.icon('shield')} الرقم العسكري</span></label></div><small class="hint">في الحالتين يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small></div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+      <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random"${(impPw.mode || 'random') === 'random' ? raw(' checked') : ''}><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"${impPw.mode === 'military' ? raw(' checked') : ''}><span>${UI.icon('shield')} الرقم العسكري</span></label><label><input type="radio" name="pwmode" value="shared"${impPw.mode === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} موحّدة للجميع</span></label></div><div id="sharedPwRow" class="mt"${impPw.mode === 'shared' ? '' : raw(' hidden')}><input name="sharedpw" dir="ltr" class="input" placeholder="كلمة المرور الموحّدة (6 أحرف على الأقل)" value="${impPw.val || ''}" style="max-width:280px"></div><small class="hint">في كل الحالات يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small></div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
       <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الإدارة</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td class="small">${r.department || html`<span class="faint">—</span>`}</td><td class="small">${r.location || html`<span class="faint">يختاره عند الدخول</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
       <div class="imp-progress" hidden><div class="progress"><i style="width:0%"></i></div><span>جارٍ الاستيراد...</span></div>
       <div class="row imp-actions"><button type="button" class="btn btn-ghost" data-imp="again">${UI.icon('upload')} اختيار ملف آخر</button><button type="button" class="btn btn-primary btn-lg" data-imp="run"${c.new + c.update ? '' : raw(' disabled')}>${UI.icon('check')} استيراد ${arCount(c.new + c.update, AR.user)}</button></div>`;
   };
-  const doneView = () => html`${steps(3)}<div class="success" style="padding:20px 10px"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:23px">تم الاستيراد بنجاح</h2><div class="imp-summary" style="justify-content:center">${UI.chip('teal', `حسابات جديدة: ${fmtNum(result.created)}`, 'user-plus')}${UI.chip('sky', `حُدّثت: ${fmtNum(result.updated)}`, 'refresh')}${result.skipped ? UI.chip('slate', `تُخطيت: ${fmtNum(result.skipped)}`, 'x') : ''}</div>${result.created ? html`<p class="muted" style="max-width:560px">${result.mode === 'military' ? 'كلمة المرور الأولية لكل مستخدم هي رقمه العسكري.' : 'نزّل ملف كلمات المرور الأولية ووزّعه بطريقة آمنة ثم احذفه.'} يدخل كل مستخدم برقمه العسكري، ويُطلب منه تعيين كلمة مرور خاصة واختيار مبناه.</p><button type="button" class="btn btn-primary btn-lg" data-imp="creds">${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}</div>`;
+  const doneView = () => html`${steps(3)}<div class="success" style="padding:20px 10px"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:23px">تم الاستيراد بنجاح</h2><div class="imp-summary" style="justify-content:center">${UI.chip('teal', `حسابات جديدة: ${fmtNum(result.created)}`, 'user-plus')}${UI.chip('sky', `حُدّثت: ${fmtNum(result.updated)}`, 'refresh')}${result.skipped ? UI.chip('slate', `تُخطيت: ${fmtNum(result.skipped)}`, 'x') : ''}</div>${result.created ? html`<p class="muted" style="max-width:560px">${result.mode === 'military' ? 'كلمة المرور الأولية لكل مستخدم هي رقمه العسكري.' : result.mode === 'shared' ? 'كلمة المرور الأولية موحّدة لكل المستخدمين — سلّمها لهم بطريقة آمنة.' : 'نزّل ملف كلمات المرور الأولية ووزّعه بطريقة آمنة ثم احذفه.'} يدخل كل مستخدم برقمه العسكري، ويُطلب منه تعيين كلمة مرور خاصة واختيار مبناه.</p><button type="button" class="btn btn-primary btn-lg" data-imp="creds">${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}</div>`;
   UI.modal({
     title: 'استيراد المستخدمين من Excel', icon: 'upload', size: 'xl', body: html`<div id="impBox">${pickView()}</div>`, actions: [{ label: 'إغلاق', kind: 'ghost', value: null }],
     onMount: (form) => {
@@ -6930,13 +6931,19 @@ Pages.importUsers = () => new Promise((resolve) => {
         else if (act === 'run') {
           const v = UI.formValues(form), prog = $('.imp-progress', box), bar = $('.imp-progress i', box), txt = $('.imp-progress span', box);
           prog.hidden = false; $$('[data-imp]', box).forEach((b) => { b.disabled = true; });
-          try { result = await Pages.runImport(analysis, { mode: v.pwmode || 'random', update: Number(v.update) === 1 }, (d, t) => { bar.style.width = `${Math.round((d / t) * 100)}%`; txt.textContent = `تمت معالجة ${fmtNum(d)} من ${fmtNum(t)}`; }); render(doneView()); UI.confetti(); }
+          const mode = v.pwmode || 'random', sharedPw = String(v.sharedpw || '').trim();
+          if (mode === 'shared' && sharedPw.length < 6) { UI.error(new AppError('اكتب كلمة المرور الموحّدة (6 أحرف على الأقل)')); $$('[data-imp]', box).forEach((b) => { b.disabled = false; }); prog.hidden = true; return; }
+          try { result = await Pages.runImport(analysis, { mode, update: Number(v.update) === 1, sharedPw }, (d, t) => { bar.style.width = `${Math.round((d / t) * 100)}%`; txt.textContent = `تمت معالجة ${fmtNum(d)} من ${fmtNum(t)}`; }); render(doneView()); UI.confetti(); }
           catch (ex) { UI.error(ex); $$('[data-imp]', box).forEach((b) => { b.disabled = false; }); prog.hidden = true; }
         } else if (act === 'creds' && result) {
           downloadBlob(XL.write([{ name: 'الحسابات', widths: [32, 16, 16, 18, 12, 28, 26], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور الأولية', 'الدور', 'الإدارة', 'المبنى'], ...result.creds] }]), `حسابات-المستخدمين-${dateInput(now())}.xlsx`);
         }
       });
-      UI.on(form, 'change', 'input[name="impfilter"]', (e, el) => { filter = el.value; const mode = (form.querySelector('input[name="pwmode"]:checked') || {}).value, upd = form.querySelector('input[name="update"]'), keepUpd = upd ? upd.checked : true; render(reviewView()); const m = form.querySelector(`input[name="pwmode"][value="${mode}"]`); if (m) m.checked = true; const u2 = form.querySelector('input[name="update"]'); if (u2) u2.checked = keepUpd; });
+      /* حفظ اختيار كلمة المرور الموحّدة وإظهار/إخفاء خانتها */
+      const snapPw = () => { const m = form.querySelector('input[name="pwmode"]:checked'), s = form.querySelector('[name="sharedpw"]'); if (m) impPw.mode = m.value; if (s) impPw.val = s.value; };
+      UI.on(form, 'change', 'input[name="pwmode"]', () => { snapPw(); const row = $('#sharedPwRow', box); if (row) { row.hidden = impPw.mode !== 'shared'; if (impPw.mode === 'shared') { const s = row.querySelector('[name="sharedpw"]'); if (s) s.focus(); } } });
+      UI.on(form, 'input', '[name="sharedpw"]', (e, el) => { impPw.val = el.value; });
+      UI.on(form, 'change', 'input[name="impfilter"]', (e, el) => { filter = el.value; snapPw(); const upd = form.querySelector('input[name="update"]'), keepUpd = upd ? upd.checked : true; render(reviewView()); const u2 = form.querySelector('input[name="update"]'); if (u2) u2.checked = keepUpd; });
       const drop = () => $('[data-imp="pick"]', box);
       box.addEventListener('dragover', (e) => { const d = drop(); if (d) { e.preventDefault(); d.classList.add('over'); } });
       box.addEventListener('dragleave', () => { const d = drop(); if (d) d.classList.remove('over'); });
@@ -9358,17 +9365,41 @@ Data.users.setPassword = async (id, password, mustChange = 0) => {
 };
 
 Pages.passwords = async (ctx) => {
-  const st = { q: '' };
+  const st = { q: '', role: '', dep: '' };
+  const picked = new Set();
+  const me = Auth.user;
+  const selectable = () => Data.list('users').filter((u) => u.active && canSetPassword(me, u));
+  const curRows = () => { const qn = normalizeAr(st.q); return selectable().filter((u) => (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!qn || normalizeAr(`${u.name} ${u.username} ${u.militaryNo || ''} ${Data.nameOf('departments', u.departmentId, '')}`).includes(qn))); };
+  const renderBulk = () => { const b = $('#pwBulk', ctx.view); if (!b) return; b.hidden = !picked.size; if (!picked.size) return; b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}</b><button class="btn btn-sm btn-primary" data-bulkpw>${UI.icon('key')} تعيين كلمة مرور للمحدد</button><button class="btn btn-sm btn-ghost" data-pwclear>${UI.icon('x')} إلغاء التحديد</button>`); };
   const draw = async () => {
-    const me = Auth.user, all = Data.list('users').filter((u) => u.active && canSetPassword(me, u));
-    const qn = normalizeAr(st.q), rows = all.filter((u) => !qn || normalizeAr(`${u.name} ${u.username} ${u.militaryNo || ''} ${Data.nameOf('departments', u.departmentId, '')}`).includes(qn));
+    const roleSet = new Set(selectable().map((u) => u.role)), rows = curRows();
     if (!ctx.alive()) return;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'كلمات مرور الحسابات', sub: me.role === 'technician' ? 'يمكنك إصدار كلمة مرور لحسابات الموظفين' : me.role === 'support_manager' ? 'يمكنك إصدار كلمة مرور للموظفين والفنيين' : 'يمكنك إصدار كلمة مرور لجميع الحسابات', illu: 'card', actions: html`<a class="btn btn-ghost" href="#/users">${UI.icon('users')} المستخدمون</a>` })}
-      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="pq" type="search" placeholder="ابحث بالاسم أو الرقم العسكري أو الإدارة" value="${st.q}"></div><span class="faint small">${arCount(rows.length, AR.item).replace('صنف', 'حساب').replace('أصناف', 'حسابات')}</span></div>
-      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الحساب</th><th>الدور</th><th>الإدارة</th><th>آخر دخول</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((u) => html`<tr><td><div class="t-title">${UI.avatar(u, 'av-sm')}<div><div>${u.name}</div><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td>${UI.chip(ROLE_TONE[u.role] || 'slate', ROLES[u.role] || u.role)}</td><td class="small">${Data.nameOf('departments', u.departmentId)}</td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</td><td class="nowrap"><button class="btn btn-sm btn-soft" data-pw="${u.id}">${UI.icon('key')} كلمة مرور</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'card', title: 'لا توجد حسابات ضمن صلاحيتك', text: 'تظهر هنا الحسابات التي يمكنك إصدار كلمة مرور لها.' })}</div>`}</section>`);
+    const opt = (v, l, cur) => `<option value="${esc(v)}"${cur === v ? ' selected' : ''}>${esc(l)}</option>`;
+    const roleSel = `<select id="prole" class="input"><option value="">كل الأدوار</option>${Object.entries(ROLE_INFO).filter(([k]) => roleSet.has(k)).map(([k, r]) => opt(k, r.label, st.role)).join('')}</select>`;
+    const depSel = `<select id="pdep" class="input"><option value="">كل الإدارات</option>${UI.opts('departments').map((o) => opt(o.value, o.label, st.dep)).join('')}</select>`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'كلمات مرور الحسابات', sub: me.role === 'technician' ? 'يمكنك إصدار كلمة مرور لحسابات الموظفين — فردياً أو جماعياً' : me.role === 'support_manager' ? 'يمكنك إصدار كلمة مرور للموظفين والفنيين — فردياً أو جماعياً' : 'يمكنك إصدار كلمة مرور لجميع الحسابات — فردياً أو جماعياً', illu: 'card', actions: html`<a class="btn btn-ghost" href="#/users">${UI.icon('users')} المستخدمون</a>` })}
+      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="pq" type="search" placeholder="ابحث بالاسم أو الرقم العسكري أو الإدارة" value="${st.q}"></div>${raw(roleSel)}${raw(depSel)}<span class="faint small" style="margin-inline-start:auto">${arCount(rows.length, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}</span></div>
+      <div class="bulk-bar" id="pwBulk" hidden></div>
+      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-pselall aria-label="تحديد الكل"></th><th>الحساب</th><th>الدور</th><th>الإدارة</th><th>آخر دخول</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 300).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}"><td class="sel-col"><input type="checkbox" data-psel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="t-title">${UI.avatar(u, 'av-sm')}<div><div>${u.name}</div><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td>${UI.chip(ROLE_TONE[u.role] || 'slate', ROLES[u.role] || u.role)}</td><td class="small">${Data.nameOf('departments', u.departmentId)}</td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</td><td class="nowrap"><button class="btn btn-sm btn-soft" data-pw="${u.id}">${UI.icon('key')} كلمة مرور</button></td></tr>`)}</tbody></table></div>${rows.length > 300 ? html`<p class="hint mt">يُعرض أول 300 حساب من ${fmtNum(rows.length)} — ضيّق البحث أو التصفية لتحديدها كلها.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'card', title: 'لا توجد حسابات ضمن صلاحيتك', text: 'تظهر هنا الحسابات التي يمكنك إصدار كلمة مرور لها.' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
     $('#pq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
+    $('#prole', ctx.view).addEventListener('change', (e) => { st.role = e.target.value; picked.clear(); draw(); });
+    $('#pdep', ctx.view).addEventListener('change', (e) => { st.dep = e.target.value; picked.clear(); draw(); });
+    renderBulk();
   };
+  UI.on(ctx.view, 'change', '[data-psel]', (e, el) => { if (el.checked) picked.add(el.dataset.psel); else picked.delete(el.dataset.psel); const tr = el.closest('tr'); if (tr) tr.classList.toggle('selected', el.checked); renderBulk(); });
+  UI.on(ctx.view, 'change', '[data-pselall]', (e, el) => { $$('[data-psel]', ctx.view).forEach((c) => { c.checked = el.checked; if (el.checked) picked.add(c.dataset.psel); else picked.delete(c.dataset.psel); const tr = c.closest('tr'); if (tr) tr.classList.toggle('selected', el.checked); }); renderBulk(); });
+  UI.on(ctx.view, 'click', '[data-pwclear]', () => { picked.clear(); draw(); });
+  UI.on(ctx.view, 'click', '[data-bulkpw]', async () => {
+    const res = await Pages.bulkPassword([...picked]);
+    if (!res) return;
+    picked.clear();
+    await UI.modal({ title: 'تم تعيين كلمة المرور', icon: 'key', size: 'sm',
+      body: html`<div class="imp-summary" style="justify-content:center">${UI.chip('teal', `نجح: ${fmtNum(res.ok)}`, 'check')}${res.fail ? UI.chip('red', `تعذّر: ${fmtNum(res.fail)}`, 'alert') : ''}</div>${res.mode === 'shared' && res.ok ? html`<p class="muted mt">كلمة المرور الموحّدة (سلّمها لأصحابها):</p><div class="pw-show ltr">${res.shared}</div>` : res.ok ? html`<p class="muted mt">نزّل ملف كلمات المرور ووزّعه بأمان ثم احذفه.</p>` : ''}${res.creds.length ? html`<button type="button" class="btn btn-soft btn-block mt" data-dlcreds>${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}`,
+      actions: [{ label: 'تم', kind: 'primary' }],
+      onMount: (f) => { UI.on(f, 'click', '[data-dlcreds]', () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [32, 16, 16, 18, 12, 28], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'الإدارة'], ...res.creds] }]), `كلمات-المرور-${dateInput(now())}.xlsx`); }); } });
+    draw();
+  });
   UI.on(ctx.view, 'click', '[data-pw]', async (e, el) => {
     const u = Data.c.users.get(el.dataset.pw); if (!u) return;
     const res = await UI.modal({
@@ -9388,6 +9419,30 @@ Pages.passwords = async (ctx) => {
   });
   ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive()) draw(); }, 500)));
   await draw();
+};
+
+/* تغيير جماعي لكلمة المرور: كلمة موحّدة للجميع أو عشوائية لكل مستخدم. الخادم يتحقق من الصلاحية لكل حساب على حدة */
+Pages.bulkPassword = (ids) => {
+  const me = Auth.user;
+  const list = ids.map((id) => Data.c.users.get(id)).filter((u) => u && canSetPassword(me, u) && !(isSysAccount(u) && me.role !== 'supervisor'));
+  if (!list.length) { UI.toast('لا توجد حسابات ضمن صلاحيتك في التحديد', 'warn'); return Promise.resolve(false); }
+  return UI.modal({
+    title: `تعيين كلمة مرور — ${arCount(list.length, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}`, icon: 'key', size: 'lg',
+    body: html`<div class="banner tone-amber">${UI.icon('shield')}<div class="grow">سيُطلب من كل مستخدم تغيير كلمة المرور عند أول دخول. تُعرض كلمة المرور مرة واحدة بعد التنفيذ.</div></div>
+      <p class="muted mt" style="line-height:1.8">${list.slice(0, 6).map((u) => u.name).join('، ')}${list.length > 6 ? ` و${fmtNum(list.length - 6)} آخرين` : ''}</p>
+      <div class="field mt"><label>طريقة الإصدار</label><div class="seg">${[['shared', 'كلمة موحّدة للجميع', 'users'], ['random', 'عشوائية لكل مستخدم', 'refresh']].map(([k, l, ic]) => html`<label><input type="radio" name="mode" value="${k}"${k === 'shared' ? raw(' checked') : ''}><span>${UI.icon(ic)}${l}</span></label>`)}</div></div>
+      <div id="bpwRow">${UI.field({ name: 'pw', label: 'كلمة المرور الموحّدة (6 أحرف على الأقل)', dir: 'ltr', wide: true })}</div>
+      ${UI.field({ name: 'must', type: 'switch', text: 'إلزامهم بتغييرها عند الدخول' }, 1)}`,
+    onMount: (form) => { const row = form.querySelector('#bpwRow'), sync = () => { const m = (form.querySelector('input[name="mode"]:checked') || {}).value; row.hidden = m !== 'shared'; }; UI.on(form, 'change', 'input[name="mode"]', sync); sync(); },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تنفيذ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), mode = v.mode || 'shared', must = Number(v.must) ? 1 : 0, shared = String(v.pw || '').trim();
+      if (mode === 'shared' && shared.length < 6) throw new AppError('كلمة المرور 6 أحرف على الأقل');
+      let ok = 0, fail = 0; const creds = [];
+      for (const u of list) { const pw = mode === 'shared' ? shared : randomPw(); try { await Data.users.setPassword(u.id, pw, must); ok += 1; creds.push([u.name, u.militaryNo || '', u.username, pw, ROLES[u.role] || u.role, Data.nameOf('departments', u.departmentId, '')]); } catch (e) { fail += 1; } }
+      if (!ok) throw new AppError('تعذّر تعيين كلمة المرور لأي حساب' + (fail ? ` (${fmtNum(fail)} فشل)` : ''));
+      return { ok, fail, creds, mode, shared };
+    } }]
+  });
 };
 
 /* مسار البلاغ خطوة بخطوة */
