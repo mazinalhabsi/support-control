@@ -232,10 +232,10 @@ Options -Indexes
 if os.path.isfile(API):
     os.makedirs(os.path.join(OUT, 'api'), exist_ok=True)
     shutil.copyfile(API, os.path.join(OUT, 'api', 'api.php'))
-    write('api/.htaccess', """# config.php يحوي كلمة مرور قاعدة البيانات: لا يُفتح من المتصفح
-<Files "config.php">
+    write('api/.htaccess', """# config.php و config.local.php يحويان كلمة مرور قاعدة البيانات: لا يُفتحان من المتصفح
+<FilesMatch "^config(\\.local)?\\.php$">
   Require all denied
-</Files>
+</FilesMatch>
 Options -Indexes
 """)
 
