@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import { PLACEMENT } from '../content/placement';
@@ -9,6 +9,9 @@ import { hashString, rng, shuffle, cx } from '../lib/util';
 import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { En, LevelTag, ProgressBar } from '../components/ui';
+import { confetti } from '../components/fx/Celebrate';
+import { gsap } from '../motion/core';
+import { useReducedMotion } from '../motion/MotionProvider';
 
 export function Placement() {
   const { t, rich, num } = useT();
@@ -23,6 +26,12 @@ export function Placement() {
   const [q, setQ] = useState(0);
   const [stageCorrect, setStageCorrect] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
+  const qRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  useLayoutEffect(() => {
+    if (reduced || !qRef.current) return;
+    gsap.fromTo(qRef.current, { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, clearProps: 'transform,opacity' });
+  }, [q, stage, phase, reduced]);
 
   const questions = useMemo(() => questionsFor(stage, PLACEMENT), [stage]);
   const question = questions[q];
@@ -54,6 +63,7 @@ export function Placement() {
       updateProfile({ startLevel: level });
       addXp(20);
       setPhase('result');
+      setTimeout(() => confetti(undefined, 80), 250);
     }
   };
 
@@ -121,7 +131,7 @@ export function Placement() {
           {t('question')} {num(answeredSoFar + 1)}
         </span>
       </div>
-      <div className="card" style={{ padding: 24 }}>
+      <div className="card" style={{ padding: 24 }} ref={qRef}>
         <En className="ex-prompt" as="div">
           {question.prompt}
         </En>

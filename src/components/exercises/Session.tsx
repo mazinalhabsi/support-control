@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, X } from 'lucide-react';
 import type { PracticeItem } from '../../lib/practice';
 import { hashString, cx } from '../../lib/util';
@@ -7,6 +7,10 @@ import { useT } from '../../i18n';
 import { useProgress } from '../../store/progress';
 import { ExerciseView, type ExerciseResult } from './Exercises';
 import { ConfirmButton, ProgressBar } from '../ui';
+import { gsap, haptic } from '../../motion/core';
+import { scrollToElement, scrollToTop, useReducedMotion } from '../../motion/MotionProvider';
+import { shake } from '../../motion/hooks';
+import { sparkAt } from '../fx/Celebrate';
 
 export interface SessionStats {
   total: number;
@@ -24,7 +28,7 @@ const XP_RETRY = 5;
  * finishes having produced the right answer.
  */
 export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; onFinish: (s: SessionStats) => void; onQuit: () => void }) {
-  const { t, rich } = useT();
+  const { t, rich, lang } = useT();
   const recordAnswer = useProgress((s) => s.recordAnswer);
   const addXp = useProgress((s) => s.addXp);
   const sounds = useProgress((s) => s.settings.sounds);
@@ -38,6 +42,8 @@ export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; on
   const started = useRef(Date.now());
   const resultAt = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const exRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
 
   const item = queue[idx];
 
@@ -59,7 +65,18 @@ export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; on
       setQueue((q) => [...q, item]);
     }
     if (sounds && !r.skipped) (r.correct ? sfx.correct : sfx.wrong)();
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50);
+    if (!r.skipped) {
+      if (r.correct) {
+        // The control that submitted the answer is focused; burst from it (or the exercise).
+        const origin = document.activeElement && exRef.current?.contains(document.activeElement) ? document.activeElement : exRef.current;
+        sparkAt(origin, { count: 12 });
+        haptic(12);
+      } else {
+        shake(exRef.current);
+        haptic([30, 40, 30]);
+      }
+    }
+    setTimeout(() => scrollToElement(bottomRef.current), 50);
   };
 
   const next = () => {
@@ -76,8 +93,18 @@ export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; on
     }
     setResult(null);
     setIdx((i) => i + 1);
-    window.scrollTo({ top: 0 });
+    scrollToTop();
   };
+
+  // Each new exercise slides in from the reading direction.
+  useLayoutEffect(() => {
+    if (reduced || !exRef.current) return;
+    const from = lang === 'ar' ? -36 : 36;
+    const tween = gsap.fromTo(exRef.current, { x: from, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'power3.out', clearProps: 'transform,opacity' });
+    return () => {
+      tween.kill();
+    };
+  }, [idx, reduced, lang]);
 
   useEffect(() => {
     if (!result) return;
@@ -115,7 +142,9 @@ export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; on
         </span>
       </div>
 
-      <ExerciseView key={`${item.key}-${idx}`} ex={ex} seed={hashString(item.key) + idx} locked={!!result} onResult={handleResult} />
+      <div ref={exRef}>
+        <ExerciseView key={`${item.key}-${idx}`} ex={ex} seed={hashString(item.key) + idx} locked={!!result} onResult={handleResult} />
+      </div>
 
       {result && !result.skipped && (
         <div className={cx('feedback', verdict)} role="status" aria-live="polite">

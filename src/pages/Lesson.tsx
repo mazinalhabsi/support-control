@@ -10,6 +10,10 @@ import { Session, type SessionStats } from '../components/exercises/Session';
 import { SpeakPractice } from '../components/exercises/Exercises';
 import { Dialogue, GrammarCard, VocabCard } from '../components/LessonParts';
 import { En, LevelTag } from '../components/ui';
+import { CountUp } from '../components/fx/CountUp';
+import { confetti } from '../components/fx/Celebrate';
+import { scrollToTop } from '../motion/MotionProvider';
+import { useStaggerIn } from '../motion/hooks';
 
 type Step = 'learn' | 'practice' | 'produce' | 'done';
 const STEPS: Step[] = ['learn', 'practice', 'produce', 'done'];
@@ -23,7 +27,7 @@ export function LessonPage() {
 }
 
 function LessonFlow({ lessonId }: { lessonId: string }) {
-  const { t, rich, num, pct, lang } = useT();
+  const { t, rich, num, lang } = useT();
   const navigate = useNavigate();
   const ref = getLesson(lessonId)!;
   const { lesson, unit, level } = ref;
@@ -54,8 +58,12 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
     addXp(b);
     completeLesson(lesson.id, score, lesson.vocab.map((v) => v.id));
     setStep('done');
-    window.scrollTo({ top: 0 });
+    scrollToTop();
+    setTimeout(() => confetti(undefined, score >= 0.7 ? 90 : 40), 300);
   };
+
+  const pageRef = useRef<HTMLDivElement>(null);
+  useStaggerIn(pageRef, '.page-head, .card, .feedback', [step]);
 
   const stepIdx = STEPS.indexOf(step);
   const stepLabels = [t('stepLearn'), t('stepPractice'), t('stepProduce'), t('stepDone')];
@@ -69,7 +77,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
           onFinish={(s) => {
             setStats(s);
             setStep('produce');
-            window.scrollTo({ top: 0 });
+            scrollToTop();
           }}
         />
       </div>
@@ -77,7 +85,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
   }
 
   return (
-    <div className="page page-narrow">
+    <div className="page page-narrow" ref={pageRef}>
       <div className="stepper" aria-label="progress">
         {STEPS.map((s, i) => (
           <div key={s} className={cx('step', i < stepIdx && 'done', i === stepIdx && 'current')}>
@@ -155,7 +163,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
                 onClick={() => {
                   setSessionSeed(Date.now());
                   setStep('practice');
-                  window.scrollTo({ top: 0 });
+                  scrollToTop();
                 }}
               >
                 {t('startPractice')} <Arrow size={18} />
@@ -249,19 +257,19 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
             <div className="result-stat" style={{ borderColor: 'var(--success)' }}>
               <div className="tiny faint">{t('accuracy')}</div>
               <div className="v" style={{ color: 'var(--success)' }}>
-                {pct(score)}
+                <CountUp to={Math.round(score * 100)} trigger="mount" suffix={lang === 'ar' ? '٪' : '%'} />
               </div>
             </div>
             <div className="result-stat" style={{ borderColor: 'var(--accent)' }}>
               <div className="tiny faint">{t('xpEarned')}</div>
               <div className="v" style={{ color: 'var(--accent)' }}>
-                +{num(stats.xp + bonus)}
+                <CountUp to={stats.xp + bonus} trigger="mount" prefix="+" />
               </div>
             </div>
             <div className="result-stat" style={{ borderColor: 'var(--primary)' }}>
               <div className="tiny faint">{t('wordsAdded')}</div>
               <div className="v" style={{ color: 'var(--primary)' }}>
-                {num(newWords.current)}
+                <CountUp to={newWords.current} trigger="mount" />
               </div>
             </div>
           </div>

@@ -22,6 +22,20 @@ Talaqa is a complete, offline-capable web app: a CEFR-aligned curriculum, a mode
 | **Reference** | searchable grammar reference and vocabulary bank with review status |
 | **Motivation** | XP, daily goal, streaks, 14 achievements, weekly activity, per-skill accuracy |
 | **Platform** | bilingual UI (Arabic RTL / English LTR), light/dark themes, mobile-first, installable PWA with offline support, backup export/import |
+| **Landing page** | public front door at `#/start`: WebGL aurora hero, a live mini-exercise, a pinned A1→C2 scroll journey, scroll-revealed Arabic-speaker mistakes, method timeline, feature bento |
+| **Motion** | GSAP for every animation (page & exercise transitions, flashcard flip, count-ups, confetti, sparks), Lenis smooth scrolling synced to ScrollTrigger, haptics on phones — all switchable via *Profile → Motion* and the OS reduced-motion setting |
+
+### Motion design · الحركة
+
+Animation here serves feedback, not decoration:
+
+- **One engine**: GSAP everywhere (`src/motion/`), with Lenis driven by GSAP's ticker so smooth scroll and ScrollTrigger never disagree.
+- **Feedback you can feel**: correct answers burst sparks from the button you pressed and tick a light haptic; wrong answers shake; XP floats up into the counter; lessons end with confetti and counted-up results.
+- **Arabic-safe text effects**: Arabic is cursive, so animated headlines split Arabic by *word* (never by letter, which would break letter joining) and fade with blur instead of masks that would clip diacritics.
+- **Respectful**: *Profile → Motion* offers System / Reduced / Full. Reduced turns off smooth scroll, every GSAP effect and every CSS animation; pages still render complete.
+- **Fast first load**: every page is a lazy route; the landing page and the app shell load without the lesson engine.
+
+Effects in `src/components/fx/` are adapted from [React Bits](https://github.com/DavidHDev/react-bits) — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### The pedagogy · المنهجية
 
@@ -65,7 +79,9 @@ src/
     speech.ts         # TTS + speech recognition wrappers
   store/progress.ts   # zustand store persisted to localStorage (crash-safe)
   components/         # UI kit, lesson parts, exercise engine (Exercises.tsx, Session.tsx)
-  pages/              # Dashboard, Course, Lesson, Review, Practice, Pronunciation, Library…
+    fx/               # Aurora, SplitText, ScrollReveal, CountUp, RotatingText, Spotlight/Magnet, sparks & confetti
+  motion/             # GSAP registration, Lenis smooth scroll, reduced-motion switch, motion hooks
+  pages/              # Landing, Dashboard, Course, Lesson, Review, Practice, Pronunciation, Library…
   i18n/               # Arabic/English strings, bidi-safe mixed-script rendering
 tests/                # FSRS, answer checking, logic, and validation of every exercise
 ```
@@ -101,4 +117,5 @@ What this version deliberately does **not** do yet — and what would come next:
 
 - Curriculum, texts and exercises: original content written for this project.
 - Spaced repetition: [FSRS](https://github.com/open-spaced-repetition/fsrs4anki) algorithm (v4.5 default parameters).
-- Icons: [Lucide](https://lucide.dev). Fonts: IBM Plex Sans Arabic, Inter.
+- Animation: [GSAP](https://gsap.com) and [Lenis](https://lenis.dev); effects adapted from [React Bits](https://reactbits.dev) (MIT + Commons Clause © David Haz). Details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Icons: [Lucide](https://lucide.dev). Fonts: IBM Plex Sans Arabic, Inter, Readex Pro.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Compass, Sprout, Languages } from 'lucide-react';
 import { CEFR_LEVELS, type CEFR } from '../content/types';
@@ -8,6 +8,11 @@ import type { StringKey } from '../i18n/strings';
 import { useProgress, type Goal } from '../store/progress';
 import { LevelTag } from '../components/ui';
 import { cx } from '../lib/util';
+import { Aurora } from '../components/fx/Aurora';
+import { SplitText } from '../components/fx/SplitText';
+import { gsap } from '../motion/core';
+import { useReducedMotion } from '../motion/MotionProvider';
+import { useIsDark } from '../motion/useIsDark';
 
 const GOALS: { id: Goal; icon: string }[] = [
   { id: 'general', icon: '🌱' },
@@ -34,6 +39,21 @@ export function Onboarding() {
   const [name, setName] = useState(existing?.name ?? '');
   const [goal, setGoal] = useState<Goal>('general');
   const [daily, setDaily] = useState(40);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  const dark = useIsDark();
+
+  // Steps slide in from the reading direction; choices cascade after them.
+  useLayoutEffect(() => {
+    if (reduced || !cardRef.current) return;
+    const tl = gsap.timeline();
+    tl.fromTo(cardRef.current, { x: lang === 'ar' ? -30 : 30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, clearProps: 'transform,opacity' });
+    const items = cardRef.current.querySelectorAll('.choice, .feature-list li, .chip');
+    if (items.length) tl.from(items, { y: 12, opacity: 0, stagger: 0.04, duration: 0.35, clearProps: 'transform,opacity' }, '-=0.2');
+    return () => {
+      tl.kill();
+    };
+  }, [step, reduced, lang]);
 
   const finish = (startLevel: CEFR, thenPlacement: boolean) => {
     complete({ name: name.trim() || (lang === 'ar' ? 'صديقي' : 'Friend'), goal, dailyGoal: daily, startLevel });
@@ -42,6 +62,9 @@ export function Onboarding() {
 
   return (
     <div className="onboard">
+      <div className="onboard-bg" aria-hidden="true">
+        <Aurora colorStops={['#0d9488', '#5048e5', '#db2777']} amplitude={0.9} blend={0.6} height={0.42} lightMode={!dark} layers={2} />
+      </div>
       <div className="onboard-card">
         <div className="row spread" style={{ marginBottom: 16 }}>
           <div className="brand" style={{ padding: 0 }}>
@@ -56,10 +79,10 @@ export function Onboarding() {
           </button>
         </div>
 
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card" style={{ padding: 28 }} ref={cardRef}>
           {step === 0 && (
             <>
-              <h1>{t('welcomeTitle')}</h1>
+              <SplitText as="h1" text={t('welcomeTitle')} />
               <p className="muted">{t('welcomeSub')}</p>
               <ul className="feature-list">
                 {(['feature1', 'feature2', 'feature3', 'feature4'] as StringKey[]).map((k) => (

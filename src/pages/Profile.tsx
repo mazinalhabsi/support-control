@@ -6,7 +6,7 @@ import { isMastered } from '../lib/srs/fsrs';
 import { englishVoices } from '../lib/speech';
 import { useSpeak } from '../hooks/useSpeech';
 import { useT } from '../i18n';
-import { exportData, useProgress, type Theme } from '../store/progress';
+import { exportData, useProgress, type MotionPref, type Theme } from '../store/progress';
 import { COURSE_STATS } from '../content';
 import { ConfirmButton, LevelTag, Segmented, Switch } from '../components/ui';
 import { cx } from '../lib/util';
@@ -156,6 +156,18 @@ export function Profile() {
             />
           </div>
           <div className="toggle-row">
+            <span>{t('motion')}</span>
+            <Segmented<MotionPref>
+              value={s.settings.motion}
+              onChange={(v) => s.setSettings({ motion: v })}
+              options={[
+                { value: 'system', label: t('motionSystem') },
+                { value: 'reduced', label: t('motionReduced') },
+                { value: 'full', label: t('motionFull') },
+              ]}
+            />
+          </div>
+          <div className="toggle-row">
             <span>{t('showIPA')}</span>
             <Switch checked={s.settings.showIPA} onChange={(v) => s.setSettings({ showIPA: v })} label={t('showIPA')} />
           </div>
@@ -244,6 +256,9 @@ export function Profile() {
         <p className="small muted" style={{ margin: 0 }}>
           {t('aboutText')} · {num(COURSE_STATS.lessons)} {t('lessons')} · {num(COURSE_STATS.words)} {t('words')}
         </p>
+        <Link to="/start" className="btn btn-soft btn-sm" style={{ marginTop: 12 }}>
+          {t('aboutPage')}
+        </Link>
       </div>
     </div>
   );

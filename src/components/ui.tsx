@@ -46,7 +46,12 @@ export function Ring({
 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const v = Math.max(0, Math.min(1, value));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const v = mounted ? Math.max(0, Math.min(1, value)) : 0;
   return (
     <div style={{ position: 'relative', width: size, height: size, flex: 'none' }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
@@ -61,7 +66,7 @@ export function Ring({
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - v)}
-          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(.2,.7,.2,1)' }}
+          style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1)' }}
         />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }} className="ring-label">
@@ -193,6 +198,14 @@ export function EmptyState({ icon, title, children }: { icon: ReactNode; title: 
       <div style={{ fontSize: '2.6rem', marginBottom: 8 }}>{icon}</div>
       <h3>{title}</h3>
       {children}
+    </div>
+  );
+}
+
+export function RouteLoading() {
+  return (
+    <div className="route-loading" role="progressbar" aria-label="Loading">
+      <span />
     </div>
   );
 }

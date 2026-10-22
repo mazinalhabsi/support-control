@@ -8,6 +8,7 @@ import { useSpeak } from '../hooks/useSpeech';
 import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { En, LevelTag } from '../components/ui';
+import { confetti } from '../components/fx/Celebrate';
 
 export function LibraryList() {
   const { t, rich, pct } = useT();
@@ -132,6 +133,7 @@ function ReadingView({ reading }: { reading: Reading }) {
     const correct = reading.questions.filter((_, i) => isCorrect(i)).length;
     reading.questions.forEach((_, i) => recordAnswer(`${reading.id}#q${i}`, 'reading', isCorrect(i)));
     completeReading(reading.id, correct / reading.questions.length);
+    if (correct === reading.questions.length) confetti(undefined, 70);
     addXp(10 + correct * 3);
   };
 

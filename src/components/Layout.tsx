@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -21,6 +21,11 @@ import { activeStreak, useProgress } from '../store/progress';
 import { isDue } from '../lib/srs/fsrs';
 import { dateKey, cx } from '../lib/util';
 import { achievementById } from '../lib/achievements';
+import { gsap } from '../motion/core';
+import { scrollToTop, useReducedMotion } from '../motion/MotionProvider';
+import { sparkAt } from './fx/Celebrate';
+import { CountUp } from './fx/CountUp';
+import { RouteLoading } from './ui';
 
 interface NavItem {
   to: string;
@@ -74,10 +79,19 @@ function AchievementToast() {
     const id = setTimeout(dismiss, 4200);
     return () => clearTimeout(id);
   }, [current, dismiss]);
+  const ref = useRef<HTMLButtonElement>(null);
+  const reduced = useReducedMotion();
+  useLayoutEffect(() => {
+    if (!current || reduced || !ref.current) return;
+    gsap.from(ref.current, { y: -36, scale: 0.85, opacity: 0, duration: 0.7, ease: 'back.out(2.2)' });
+    const icon = ref.current.querySelector('.icon');
+    const id = setTimeout(() => sparkAt(icon, { count: 12 }), 250);
+    return () => clearTimeout(id);
+  }, [current, reduced]);
   if (!current) return null;
   return (
     <div className="toast-wrap">
-      <button className="toast" onClick={dismiss}>
+      <button ref={ref} className="toast" onClick={dismiss}>
         <span className="icon">{current.icon}</span>
         <span style={{ textAlign: 'start' }}>
           <span className="tiny faint bold">{t('newAchievement')}</span>
@@ -86,6 +100,50 @@ function AchievementToast() {
         </span>
       </button>
     </div>
+  );
+}
+
+/** Fades each page in and resets the scroll position on navigation. */
+function PageTransition({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const ref = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  useLayoutEffect(() => {
+    scrollToTop();
+    if (reduced || !ref.current) return;
+    const tween = gsap.fromTo(ref.current, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', clearProps: 'transform,opacity' });
+    return () => {
+      tween.kill();
+    };
+  }, [pathname, reduced]);
+  return (
+    <div ref={ref} className="page-transition">
+      {children}
+    </div>
+  );
+}
+
+/** XP counter that ticks up and shows a small "+N" whenever XP is earned. */
+function XpPill({ value, title }: { value: number; title: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const initial = useRef(value);
+  const prev = useRef(value);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    const diff = value - prev.current;
+    prev.current = value;
+    if (diff <= 0 || reduced || !ref.current) return;
+    const float = document.createElement('span');
+    float.className = 'xp-float en';
+    float.textContent = `+${diff}`;
+    ref.current.appendChild(float);
+    gsap.fromTo(float, { xPercent: -50, y: 0, opacity: 1 }, { y: 28, opacity: 0, duration: 1.1, ease: 'power2.out', onComplete: () => float.remove() });
+    gsap.fromTo(ref.current, { scale: 1.14 }, { scale: 1, duration: 0.55, ease: 'back.out(3)', clearProps: 'transform' });
+  }, [value, reduced]);
+  return (
+    <span ref={ref} className="stat-pill xp" title={title}>
+      <Zap size={18} /> <CountUp to={value} from={initial.current} trigger="mount" duration={0.8} />
+    </span>
   );
 }
 
@@ -123,15 +181,13 @@ export function Layout() {
         <header className="topbar">
           <Brand />
           <div className="topbar-stats">
-            <span className="stat-pill streak" title={t('dayStreak')}>
+            <span className={cx('stat-pill streak', goalPct >= 1 && streakNow > 0 && 'lit')} title={t('dayStreak')}>
               <Flame size={18} fill={streakNow > 0 ? 'currentColor' : 'none'} /> {num(streakNow)}
             </span>
             <span className="stat-pill goal" title={t('dailyGoal')} style={{ color: goalPct >= 1 ? 'var(--success)' : 'var(--text-2)' }}>
               <Target size={18} /> {num(todayXp)}/{num(dailyGoal)}
             </span>
-            <span className="stat-pill xp" title={t('totalXp')}>
-              <Zap size={18} /> {num(totalXp)}
-            </span>
+            <XpPill value={totalXp} title={t('totalXp')} />
             <button
               className="icon-btn"
               title={t('interfaceLanguage')}
@@ -143,7 +199,11 @@ export function Layout() {
           </div>
         </header>
         <AchievementToast />
-        <Outlet />
+        <Suspense fallback={<RouteLoading />}>
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
+        </Suspense>
       </div>
 
       <nav className="bottombar">

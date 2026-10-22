@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Check, Clock } from 'lucide-react';
 import { LEVELS, getLevel, lessonsOfLevel, nextLesson } from '../content';
@@ -6,6 +7,7 @@ import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { LevelTag, ProgressBar, Stars } from '../components/ui';
 import { cx } from '../lib/util';
+import { useStaggerIn } from '../motion/hooks';
 
 export function Course() {
   const { t, rich, num } = useT();
@@ -17,9 +19,11 @@ export function Course() {
   const levelId: CEFR = param && CEFR_LEVELS.includes(param) ? param : (next?.level.id ?? startLevel);
   const level = getLevel(levelId);
   let n = 0;
+  const root = useRef<HTMLDivElement>(null);
+  useStaggerIn(root, '.unit-head, .lesson-row', [levelId], { stagger: 0.03 });
 
   return (
-    <div className="page">
+    <div className="page" ref={root}>
       <div className="page-head">
         <h1>{t('courseTitle')}</h1>
         <p>{t('courseSub')}</p>
@@ -85,7 +89,7 @@ export function Course() {
               const rec = lessons[lesson.id];
               const isNext = next?.lesson.id === lesson.id;
               return (
-                <Link key={lesson.id} to={`/lesson/${lesson.id}`} className={cx('lesson-row', isNext && 'next')}>
+                <Link key={lesson.id} to={`/lesson/${lesson.id}`} className={cx('lesson-row', isNext && 'next glow-border')}>
                   <div className={cx('lesson-icon', rec && 'done', isNext && 'next')}>{rec ? <Check size={22} /> : num(n)}</div>
                   <div className="grow">
                     <div className="bold">{rich(lesson.title)}</div>

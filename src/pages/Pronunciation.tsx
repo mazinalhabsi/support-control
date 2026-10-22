@@ -11,6 +11,9 @@ import { useProgress } from '../store/progress';
 import { SpeakPractice } from '../components/exercises/Exercises';
 import { En, ProgressBar } from '../components/ui';
 import { cx } from '../lib/util';
+import { sparkAt } from '../components/fx/Celebrate';
+import { haptic } from '../motion/core';
+import { shake } from '../motion/hooks';
 
 export function PronunciationList() {
   const { t, pct } = useT();
@@ -156,11 +159,18 @@ function EarTraining({ topic }: { topic: PronunciationTopic }) {
     if (n < ROUNDS) setTimeout(() => speak(rounds[n].target), 150);
   };
 
-  const choose = (w: string) => {
+  const choose = (w: string, el?: Element) => {
     if (chosen) return;
     setChosen(w);
     const ok = w === current.target;
     if (sounds) (ok ? sfx.correct : sfx.wrong)();
+    if (ok) {
+      sparkAt(el, { count: 10 });
+      haptic(10);
+    } else {
+      shake(el ?? null);
+      haptic([30, 40, 30]);
+    }
     const newScore = score + (ok ? 1 : 0);
     setScore(newScore);
     if (round + 1 >= ROUNDS) {
@@ -218,7 +228,7 @@ function EarTraining({ topic }: { topic: PronunciationTopic }) {
             {(current.flip ? [current.pair.b, current.pair.a] : [current.pair.a, current.pair.b]).map((w) => {
               const state = chosen ? (w === current.target ? 'correct' : w === chosen ? 'wrong' : '') : '';
               return (
-                <button key={w} className={cx('option', state)} style={{ justifyContent: 'center' }} onClick={() => choose(w)} disabled={!!chosen}>
+                <button key={w} className={cx('option', state)} style={{ justifyContent: 'center' }} onClick={(e) => choose(w, e.currentTarget)} disabled={!!chosen}>
                   <En>{w}</En>
                 </button>
               );

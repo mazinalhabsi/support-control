@@ -11,6 +11,7 @@ import type { StageResult } from '../lib/placement';
 export type Goal = 'general' | 'travel' | 'work' | 'study' | 'exam';
 export type UiLang = 'ar' | 'en';
 export type Theme = 'system' | 'light' | 'dark';
+export type MotionPref = 'system' | 'reduced' | 'full';
 
 export interface Profile {
   name: string;
@@ -31,6 +32,8 @@ export interface Settings {
   /** Show Arabic translations of English sentences by default. */
   showTranslations: boolean;
   sounds: boolean;
+  /** Animation level: follow the OS, always reduce, or always animate. */
+  motion: MotionPref;
 }
 
 export interface LessonRecord {
@@ -102,6 +105,7 @@ export const initialData = (): ProgressData => ({
     showIPA: true,
     showTranslations: true,
     sounds: true,
+    motion: 'system',
   },
   lessons: {},
   srs: {},

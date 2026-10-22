@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Repeat, Compass, Zap, Mic, Library, BookMarked, Layers, Flame } from 'lucide-react';
 import { LEVELS, lessonsOfLevel, nextLesson } from '../content';
@@ -8,6 +9,10 @@ import { isMastered } from '../lib/srs/fsrs';
 import { dateKey, lastNDays } from '../lib/util';
 import { useDueCount } from '../components/Layout';
 import { LevelTag, ProgressBar, Ring } from '../components/ui';
+import { CountUp } from '../components/fx/CountUp';
+import { useStaggerIn } from '../motion/hooks';
+import { gsap, useGSAP } from '../motion/core';
+import { useReducedMotion } from '../motion/MotionProvider';
 
 export function Dashboard() {
   const { t, rich, num, pct, lang } = useT();
@@ -20,6 +25,16 @@ export function Dashboard() {
   const placement = useProgress((s) => s.placement);
   const mistakes = useProgress((s) => s.mistakes);
   const due = useDueCount();
+  const root = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  useStaggerIn(root, '.card, .tile-link');
+  useGSAP(
+    () => {
+      if (reduced) return;
+      gsap.from('.week .bar', { scaleY: 0, transformOrigin: '50% 100%', duration: 0.7, stagger: 0.05, delay: 0.25, ease: 'back.out(1.7)' });
+    },
+    { scope: root, dependencies: [reduced] },
+  );
 
   const next = nextLesson(lessons, profile.startLevel);
   const todayXp = xpByDay[dateKey()] ?? 0;
@@ -36,7 +51,7 @@ export function Dashboard() {
     new Date(`${d}T12:00:00`).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { weekday: 'short' });
 
   return (
-    <div className="page">
+    <div className="page" ref={root}>
       <div className="page-head">
         <h1>
           {hour < 12 ? t('greetingMorning') : t('greetingEvening')}
@@ -84,7 +99,7 @@ export function Dashboard() {
           <div className="row">
             <Flame size={28} color="var(--accent)" fill={streakNow ? 'var(--accent)' : 'none'} />
             <div>
-              <div className="big-number">{num(streakNow)}</div>
+              <CountUp to={streakNow} trigger="mount" className="big-number" />
               <div className="faint small">{t('dayStreak')}</div>
             </div>
           </div>
@@ -99,7 +114,7 @@ export function Dashboard() {
           {due > 0 ? (
             <>
               <div>
-                <span className="big-number">{num(due)}</span> <span className="muted small">{t('reviewsDue')}</span>
+                <CountUp to={due} trigger="mount" className="big-number" /> <span className="muted small">{t('reviewsDue')}</span>
               </div>
               <Link to="/review" className="btn btn-primary">
                 {t('reviewNow')}
@@ -142,7 +157,7 @@ export function Dashboard() {
               <Layers size={20} color="var(--lvl-C1)" /> {t('navVocabulary')}
             </div>
             <div>
-              <span className="big-number">{num(deckSize)}</span> <span className="muted small">{t('wordsLearned')}</span>
+              <CountUp to={deckSize} trigger="mount" className="big-number" /> <span className="muted small">{t('wordsLearned')}</span>
             </div>
             <div className="small muted">
               {num(mastered)} {t('wordsMastered')}

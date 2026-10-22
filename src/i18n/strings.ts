@@ -304,6 +304,11 @@ export const STRINGS = {
   showIPA: ['إظهار الرموز الصوتية (IPA)', 'Show phonetic symbols (IPA)'],
   showTranslations: ['إظهار الترجمة العربية افتراضيًا', 'Show Arabic translations by default'],
   soundEffects: ['المؤثرات الصوتية', 'Sound effects'],
+  motion: ['الحركة والمؤثرات', 'Motion & effects'],
+  motionSystem: ['حسب الجهاز', 'System'],
+  motionReduced: ['مخفّفة', 'Reduced'],
+  motionFull: ['كاملة', 'Full'],
+  aboutPage: ['صفحة التعريف بالمنصة', 'About Talaqa'],
   data: ['البيانات', 'Data'],
   dataNote: [
     'يُحفظ تقدّمك على هذا الجهاز فقط. صدّر نسخة احتياطية لنقلها إلى جهاز آخر.',

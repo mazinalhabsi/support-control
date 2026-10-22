@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Repeat, PartyPopper } from 'lucide-react';
 import { getVocab } from '../content';
@@ -8,6 +8,10 @@ import { useSpeak } from '../hooks/useSpeech';
 import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { AudioButton, En, EmptyState, LevelTag, ProgressBar } from '../components/ui';
+import { gsap, haptic } from '../motion/core';
+import { useReducedMotion } from '../motion/MotionProvider';
+import { shake } from '../motion/hooks';
+import { sparkAt } from '../components/fx/Celebrate';
 
 const SESSION_LIMIT = 60;
 const MAX_REPEATS = 3;
@@ -158,14 +162,39 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
   const card = id ? srs[id] : undefined;
   // Alternate directions: recognise the English word, then recall it from Arabic.
   const reverse = !!card && card.reps % 2 === 1;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+
+  // New card slides in from the reading direction.
+  useLayoutEffect(() => {
+    if (reduced || !cardRef.current) return;
+    gsap.fromTo(cardRef.current, { x: lang === 'ar' ? -40 : 40, opacity: 0, rotationY: 0 }, { x: 0, opacity: 1, duration: 0.4, clearProps: 'transform,opacity' });
+  }, [i, reduced, lang]);
+
+  /** Flip the card over to show the answer. */
+  const reveal = () => {
+    if (ref && reverse) speak(ref.item.word);
+    if (reduced || !cardRef.current) {
+      setRevealed(true);
+      return;
+    }
+    gsap
+      .timeline()
+      .to(cardRef.current, { rotationY: 90, transformPerspective: 1100, duration: 0.17, ease: 'power2.in', onComplete: () => setRevealed(true) })
+      .fromTo(cardRef.current, { rotationY: -90 }, { rotationY: 0, duration: 0.28, ease: 'power2.out', clearProps: 'transform' });
+  };
 
   useEffect(() => {
     if (ref && !reverse) speak(ref.item.word);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const rate = (g: Rating) => {
+  const rate = (g: Rating, from?: Element | null) => {
     if (!id) return;
+    if (g >= GOOD) {
+      sparkAt(from ?? cardRef.current, { count: g === EASY ? 14 : 10 });
+      haptic(10);
+    } else if (g === AGAIN) shake(cardRef.current);
     reviewCard(id, g);
     setCount((c) => c + 1);
     let q = queue;
@@ -183,8 +212,7 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
     const h = (e: KeyboardEvent) => {
       if (!revealed && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
-        setRevealed(true);
-        if (ref && reverse) speak(ref.item.word);
+        reveal();
       } else if (revealed && ['1', '2', '3', '4'].includes(e.key)) {
         rate(Number(e.key) as Rating);
       }
@@ -218,7 +246,7 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
         </span>
       </div>
 
-      <div className="card flashcard">
+      <div className="card flashcard" ref={cardRef}>
         <div className="row">
           <LevelTag level={ref.level} />
           <span className="faint small">{reverse ? t('recallWord') : t('recallMeaning')}</span>
@@ -266,17 +294,14 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
         {!revealed ? (
           <button
             className="btn btn-primary btn-lg btn-block"
-            onClick={() => {
-              setRevealed(true);
-              if (reverse) speak(item.word);
-            }}
+            onClick={reveal}
           >
             {t('showAnswer')}
           </button>
         ) : (
           <div className="rate-grid">
             {buttons.map((b, k) => (
-              <button key={b.g} className={`rate-btn ${b.key}`} onClick={() => rate(b.g)}>
+              <button key={b.g} className={`rate-btn ${b.key}`} onClick={(e) => rate(b.g, e.currentTarget)}>
                 {t(b.key)}
                 <small>{formatInterval(preview[b.g], lang)}</small>
                 <small className="faint">{k + 1}</small>
