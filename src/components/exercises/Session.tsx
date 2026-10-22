@@ -6,7 +6,7 @@ import { sfx } from '../../lib/sfx';
 import { useT } from '../../i18n';
 import { useProgress } from '../../store/progress';
 import { ExerciseView, type ExerciseResult } from './Exercises';
-import { ProgressBar } from '../ui';
+import { ConfirmButton, ProgressBar } from '../ui';
 
 export interface SessionStats {
   total: number;
@@ -100,15 +100,15 @@ export function Session({ items, onFinish, onQuit }: { items: PracticeItem[]; on
   return (
     <div className="session">
       <div className="session-top">
-        <button
-          className="icon-btn"
-          aria-label={t('quit')}
-          onClick={() => {
-            if (idx === 0 || window.confirm(t('quitConfirm'))) onQuit();
-          }}
-        >
-          <X size={20} />
-        </button>
+        {idx === 0 ? (
+          <button className="icon-btn" aria-label={t('quit')} onClick={onQuit}>
+            <X size={20} />
+          </button>
+        ) : (
+          <ConfirmButton className="icon-btn" ariaLabel={t('quit')} onConfirm={onQuit} confirmLabel={<span className="tiny bold">{t('quitConfirm')}</span>}>
+            <X size={20} />
+          </ConfirmButton>
+        )}
         <ProgressBar value={(idx + (result ? 1 : 0)) / queue.length} variant="success" />
         <span className="faint small en nowrap">
           {Math.min(idx + 1, queue.length)}/{queue.length}

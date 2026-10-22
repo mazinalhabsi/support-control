@@ -205,7 +205,7 @@ export const STRINGS = {
   matchedAll: ['أحسنت! طابقت الكل', 'Well done — all matched!'],
   progressCount: ['{done} / {total}', '{done} / {total}'],
   quit: ['خروج', 'Quit'],
-  quitConfirm: ['هل تريد الخروج؟ سيضيع تقدّمك في هذه الجلسة.', 'Quit? Progress in this session will be lost.'],
+  quitConfirm: ['اضغط مجددًا للخروج', 'Tap again to quit'],
 
   // Review
   reviewTitle: ['المراجعة المتباعدة', 'Spaced review'],
@@ -314,7 +314,7 @@ export const STRINGS = {
   importOk: ['تم استيراد بياناتك بنجاح', 'Your data was imported'],
   importFail: ['الملف غير صالح', 'Invalid file'],
   resetData: ['حذف كل التقدّم', 'Reset all progress'],
-  resetConfirm: ['هل أنت متأكد؟ سيُحذف كل تقدّمك نهائيًا.', 'Are you sure? All progress will be permanently deleted.'],
+  resetConfirm: ['اضغط مجددًا لحذف كل تقدّمك نهائيًا', 'Tap again to permanently delete all progress'],
   retakePlacement: ['أعد اختبار تحديد المستوى', 'Retake placement test'],
   editName: ['الاسم', 'Name'],
   memberSince: ['عضو منذ', 'Member since'],

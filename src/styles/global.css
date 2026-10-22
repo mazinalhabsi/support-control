@@ -117,6 +117,16 @@ html {
   text-size-adjust: 100%;
 }
 
+/* Paint the status-bar band so content never shows through above the sticky header. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 16;
+  background: var(--bg);
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -300,7 +310,7 @@ select {
 }
 .topbar {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 15;
   height: var(--topbar-h);
   display: flex;
@@ -368,13 +378,17 @@ select {
     margin-inline-start: 0;
   }
   .topbar {
-    padding: 0 16px;
+    padding-block: 0;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   .topbar .brand {
     display: flex;
   }
   .page {
-    padding: 20px 16px calc(var(--bottombar-h) + 32px);
+    padding-block: 20px calc(var(--bottombar-h) + 32px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   .bottombar {
     position: fixed;
@@ -385,6 +399,8 @@ select {
     justify-content: space-around;
     height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     background: var(--surface);
     border-top: 1px solid var(--border);
   }
@@ -603,6 +619,17 @@ select {
   width: 32px;
   height: 32px;
   border-radius: 9px;
+}
+.icon-btn.armed {
+  width: auto;
+  padding: 0 10px;
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.btn.armed {
+  background: var(--danger);
+  color: #fff;
 }
 .icon-btn.playing {
   color: var(--primary);

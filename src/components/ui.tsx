@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Volume2, Turtle } from 'lucide-react';
 import type { CEFR } from '../content/types';
 import { useSpeak } from '../hooks/useSpeech';
@@ -134,6 +134,46 @@ export function AudioButton({ text, slow = false, size = 'md', id }: { text: str
         </button>
       )}
     </span>
+  );
+}
+
+/**
+ * Two-step button for destructive actions: the first tap arms it, the second
+ * confirms. Works everywhere (window.confirm is blocked in embedded frames).
+ */
+export function ConfirmButton({
+  onConfirm,
+  children,
+  confirmLabel,
+  className,
+  ariaLabel,
+}: {
+  onConfirm: () => void;
+  children: ReactNode;
+  confirmLabel: ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 3500);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      className={cx(className, armed && 'armed')}
+      aria-label={ariaLabel}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : children}
+    </button>
   );
 }
 

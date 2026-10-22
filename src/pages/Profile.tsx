@@ -8,7 +8,7 @@ import { useSpeak } from '../hooks/useSpeech';
 import { useT } from '../i18n';
 import { exportData, useProgress, type Theme } from '../store/progress';
 import { COURSE_STATS } from '../content';
-import { LevelTag, Segmented, Switch } from '../components/ui';
+import { ConfirmButton, LevelTag, Segmented, Switch } from '../components/ui';
 import { cx } from '../lib/util';
 
 function useVoices() {
@@ -231,15 +231,11 @@ export function Profile() {
             </Link>
           </div>
           {msg && <p className="small" style={{ marginTop: 8 }}>{msg}</p>}
-          <button
-            className="btn btn-danger btn-sm"
-            style={{ marginTop: 14 }}
-            onClick={() => {
-              if (window.confirm(t('resetConfirm'))) s.resetAll();
-            }}
-          >
-            <Trash2 size={16} /> {t('resetData')}
-          </button>
+          <div style={{ marginTop: 14 }}>
+            <ConfirmButton className="btn btn-danger btn-sm" onConfirm={s.resetAll} confirmLabel={<>⚠ {t('resetConfirm')}</>}>
+              <Trash2 size={16} /> {t('resetData')}
+            </ConfirmButton>
+          </div>
         </div>
       </div>
 

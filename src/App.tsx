@@ -15,6 +15,9 @@ import { GrammarReference } from './pages/Grammar';
 import { Vocabulary } from './pages/Vocabulary';
 import { Profile } from './pages/Profile';
 
+// A host (e.g. an embedding viewer) may already set data-theme; "system" restores it.
+const hostTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
+
 /** Keep <html lang/dir> and the colour theme in sync with settings. */
 function useDocumentSettings() {
   const uiLang = useProgress((s) => s.settings.uiLang);
@@ -23,8 +26,9 @@ function useDocumentSettings() {
     const html = document.documentElement;
     html.lang = uiLang;
     html.dir = uiLang === 'ar' ? 'rtl' : 'ltr';
-    if (theme === 'system') html.removeAttribute('data-theme');
-    else html.setAttribute('data-theme', theme);
+    if (theme !== 'system') html.setAttribute('data-theme', theme);
+    else if (hostTheme) html.setAttribute('data-theme', hostTheme);
+    else html.removeAttribute('data-theme');
   }, [uiLang, theme]);
 }
 
