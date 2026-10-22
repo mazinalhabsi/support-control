@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, Check, Languages, Mic, PenLine, Repeat, Volume2, Zap, Compass, Library, WifiOff, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, Languages, Volume2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { COURSE_STATS, LESSONS, LEVELS, lessonsOfLevel } from '../content';
+import { CEFR_LEVELS } from '../content/types';
 import { PRONUNCIATION } from '../content/pronunciation';
 import { READINGS } from '../content/readings';
 import { allItemsForLesson } from '../lib/practice';
@@ -10,8 +11,6 @@ import { useProgress } from '../store/progress';
 import { useSpeak } from '../hooks/useSpeech';
 import { gsap, haptic, ScrollTrigger, useGSAP } from '../motion/core';
 import { scrollToElement, useReducedMotion } from '../motion/MotionProvider';
-import { useIsDark } from '../motion/useIsDark';
-import { Aurora } from '../components/fx/Aurora';
 import { SplitText } from '../components/fx/SplitText';
 import { RotatingText } from '../components/fx/RotatingText';
 import { ScrollReveal } from '../components/fx/ScrollReveal';
@@ -19,8 +18,12 @@ import { CountUp } from '../components/fx/CountUp';
 import { Magnet, Reveal, SpotlightCard } from '../components/fx/Interactive';
 import { sparkAt } from '../components/fx/Celebrate';
 import { En, LevelTag } from '../components/ui';
+import { Icon3D, type IconName } from '../components/Icon3D';
 import { cx } from '../lib/util';
 import '../styles/landing.css';
+
+// three.js only downloads for the landing hero, after first paint.
+const GemOrbit = lazy(() => import('../components/fx/GemOrbit'));
 
 type Copy = readonly [string, string];
 const C = {
@@ -33,10 +36,16 @@ const C = {
   proof1: ['دون حساب أو اشتراك', 'No account, no subscription'],
   proof2: ['يعمل دون إنترنت', 'Works offline'],
   proof3: ['واجهة عربية وإنجليزية', 'Arabic & English interface'],
+  orbitCaption: ['ستة مستويات، ستة أحجار. كلما ارتقيت ازدادت أوجه حجرك.', 'Six levels, six stones. The higher you climb, the more facets yours has.'],
   tryLabel: ['جرّب سؤالًا الآن', 'Try a question now'],
   tryQ: ['اختر الكلمة الصحيحة', 'Choose the correct word'],
-  tryOk: ['صحيح! «she» مفرد غائب، لذلك نقول is. هكذا تشرح لك التمارين كل إجابة.', 'Correct! "She" is third person singular, so it takes "is". Every exercise explains itself like this.'],
+  tryOk: [
+    'صحيح! «she» مفرد غائب، لذلك نقول is. هكذا تشرح لك التمارين كل إجابة.',
+    'Correct! "She" is third person singular, so it takes "is". Every exercise explains itself like this.',
+  ],
   tryBad: ['ليست صحيحة. فكّر: she مفرد غائب، فأي صيغة من be تناسبه؟', 'Not quite. "She" is third person singular: which form of "be" goes with it?'],
+  numbersEyebrow: ['المنهج بالأرقام', 'The course in numbers'],
+  numbersTitle: ['كل كلمة وكل تمرين كُتب لهذا المنهج.', 'Every word and exercise written for this course.'],
   statLessons: ['درسًا', 'lessons'],
   statWords: ['كلمة وعبارة', 'words & phrases'],
   statExercises: ['تمرينًا', 'exercises'],
@@ -48,6 +57,7 @@ const C = {
     'يتبع المنهج الإطار الأوروبي المرجعي للغات (CEFR)، المعيار الدولي لقياس إتقان اللغة. كل مستوى يحدد بدقة ما ستستطيع فعله.',
     'The course follows the CEFR, the international standard for language ability. Each level states exactly what you will be able to do.',
   ],
+  facets: ['وجهًا', 'facets'],
   lessonsWord: ['درسًا', 'lessons'],
   hoursWord: ['ساعة تعلّم للوصول', 'guided hours to reach'],
   youWill: ['ستتمكن من:', "You'll be able to:"],
@@ -58,14 +68,20 @@ const C = {
   ],
   methodEyebrow: ['المنهجية', 'The method'],
   methodTitle: ['كل درس يمر بأربع مراحل', 'Every lesson moves through four stages'],
+  waysEyebrow: ['الاستوديو', 'The studio'],
+  waysTitle: ['كل طريقة للتعلّم، في مكان واحد', 'Every way to learn, in one place'],
+  waysLead: [
+    'اقرأ، واستمع، وتحدّث، واكتب، والعب. كل وضع يدرّب مهارة مختلفة بكلماتك وحواراتك.',
+    'Read, listen, speak, write and play. Each mode trains a different skill with your own words and dialogues.',
+  ],
   featuresEyebrow: ['داخل المنصة', 'Inside'],
   featuresTitle: ['كل ما تحتاجه في مكان واحد', 'Everything in one place'],
   ctaTitle: ['ابدأ اليوم بخمس دقائق فقط.', 'Start today with just five minutes.'],
   ctaLead: ['اختر هدفك اليومي، وحدّد مستواك، وتابع تقدّمك يومًا بعد يوم.', 'Pick a daily goal, find your level, and watch your progress grow day by day.'],
   ctaPlacement: ['حدّد مستواك أولًا', 'Find my level first'],
   credits: [
-    'مبنيّ بـ GSAP و Lenis، وبعض المؤثرات مقتبسة من React Bits (MIT + Commons Clause © David Haz)، والمراجعة بخوارزمية FSRS.',
-    'Built with GSAP and Lenis; some effects adapted from React Bits (MIT + Commons Clause © David Haz); reviews scheduled with FSRS.',
+    'الرسوم ثلاثية الأبعاد مصمَّمة ومولّدة بـ three.js داخل المشروع. الحركة بـ GSAP و Lenis و Motion، وبعض المؤثرات مقتبسة من React Bits (MIT + Commons Clause © David Haz)، والمراجعة بخوارزمية FSRS.',
+    'The 3D objects are modelled and rendered with three.js inside this project. Motion by GSAP, Lenis and Motion; some effects adapted from React Bits (MIT + Commons Clause © David Haz); reviews scheduled with FSRS.',
   ],
 } as const satisfies Record<string, Copy>;
 
@@ -74,18 +90,92 @@ const GOALS: [string[], string[]] = [
   ['for travel', 'for work', 'for study', 'for IELTS', 'for yourself'],
 ];
 
+/** Faces on each level's stone: the five Platonic solids, then a brilliant cut. */
+const FACETS: Record<string, number> = {
+  A1: 4,
+  A2: 6,
+  B1: 8,
+  B2: 12,
+  C1: 20,
+  C2: 57,
+};
+
 const MISTAKES = [
-  { wrong: 'I student.', right: 'I am a student.', why: ['الجملة الاسمية العربية بلا فعل («أنا طالب»)، والإنجليزية تحتاج am.', 'Arabic nominal sentences have no verb; English needs "am".'] },
-  { wrong: 'He suggested me to go.', right: 'He suggested going.', why: ['ترجمة حرفية لـ«اقترح عليّ أن»، وهو من أشهر أخطاء كتابة IELTS.', 'A literal translation of the Arabic, and one of the most common IELTS errors.'] },
-  { wrong: 'I live here since 2019.', right: "I've lived here since 2019.", why: ['«أعيش هنا منذ» بالمضارع في العربية، وبالمضارع التام في الإنجليزية.', 'Arabic uses the present here; English needs the present perfect.'] },
+  {
+    wrong: 'I student.',
+    right: 'I am a student.',
+    why: ['الجملة الاسمية العربية بلا فعل («أنا طالب»)، والإنجليزية تحتاج am.', 'Arabic nominal sentences have no verb; English needs "am".'],
+  },
+  {
+    wrong: 'He suggested me to go.',
+    right: 'He suggested going.',
+    why: ['ترجمة حرفية لـ«اقترح عليّ أن»، وهو من أشهر أخطاء كتابة IELTS.', 'A literal translation of the Arabic, and one of the most common IELTS errors.'],
+  },
+  {
+    wrong: 'I live here since 2019.',
+    right: "I've lived here since 2019.",
+    why: ['«أعيش هنا منذ» بالمضارع في العربية، وبالمضارع التام في الإنجليزية.', 'Arabic uses the present here; English needs the present perfect.'],
+  },
 ];
 
-const STEPS = [
-  { icon: <BookOpen />, title: ['تعلّم', 'Learn'], text: ['حوار حقيقي، ومفردات بنطقها، وقاعدة مشروحة بالعربية مع ملاحظة عن أخطاء المتحدث العربي.', 'A real dialogue, vocabulary with audio, and grammar explained in Arabic with a note on typical errors.'] },
-  { icon: <Zap />, title: ['تدرّب', 'Practise'], text: ['تمارين تتدرج من التعرّف إلى الإنتاج، والخطأ يعود إليك حتى تتقنه.', 'Exercises move from recognising to producing, and every mistake comes back until you get it right.'] },
-  { icon: <Mic />, title: ['تحدّث واكتب', 'Speak & write'], text: ['قل الجمل بصوتك ويستمع إليك المتصفح، ثم اكتب نصًا قصيرًا وقارنه بنموذج.', 'Say sentences aloud while the browser listens, then write a short text and compare it with a model.'] },
-  { icon: <Repeat />, title: ['راجع', 'Review'], text: ['تنتقل الكلمات إلى بطاقات تجدولها خوارزمية FSRS قبل أن تنساها بالضبط.', 'Words move into flashcards that FSRS schedules just before you would forget them.'] },
-] as const;
+const STEPS: { icon: IconName; title: Copy; text: Copy }[] = [
+  {
+    icon: 'learn',
+    title: ['تعلّم', 'Learn'],
+    text: [
+      'حوار حقيقي، ومفردات بنطقها، وقاعدة مشروحة بالعربية مع ملاحظة عن أخطاء المتحدث العربي.',
+      'A real dialogue, vocabulary with audio, and grammar explained in Arabic with a note on typical errors.',
+    ],
+  },
+  {
+    icon: 'practice',
+    title: ['تدرّب', 'Practise'],
+    text: [
+      'تمارين تتدرج من التعرّف إلى الإنتاج، والخطأ يعود إليك حتى تتقنه.',
+      'Exercises move from recognising to producing, and every mistake comes back until you get it right.',
+    ],
+  },
+  {
+    icon: 'pronunciation',
+    title: ['تحدّث واكتب', 'Speak & write'],
+    text: [
+      'قل الجمل بصوتك ويستمع إليك المتصفح، ثم اكتب نصًا قصيرًا وقارنه بنموذج.',
+      'Say sentences aloud while the browser listens, then write a short text and compare it with a model.',
+    ],
+  },
+  {
+    icon: 'review',
+    title: ['راجع', 'Review'],
+    text: [
+      'تنتقل الكلمات إلى بطاقات تجدولها خوارزمية FSRS قبل أن تنساها بالضبط.',
+      'Words move into flashcards that FSRS schedules just before you would forget them.',
+    ],
+  },
+];
+
+const WAYS: { icon: IconName; label: Copy }[] = [
+  { icon: 'roleplay', label: ['تقمّص الأدوار', 'Role-play'] },
+  { icon: 'shadowing', label: ['المحاكاة الصوتية', 'Shadowing'] },
+  { icon: 'listening', label: ['استماع بلا يدين', 'Hands-free listening'] },
+  { icon: 'sprint', label: ['سباق الكلمات', 'Word sprint'] },
+  { icon: 'spelling', label: ['تحدّي الإملاء', 'Spelling bee'] },
+  { icon: 'pronunciation', label: ['مختبر النطق', 'Pronunciation lab'] },
+  { icon: 'library', label: ['مكتبة القراءة', 'Graded library'] },
+  { icon: 'review', label: ['بطاقات المراجعة', 'Flashcards'] },
+  { icon: 'grammar', label: ['مرجع القواعد', 'Grammar reference'] },
+  { icon: 'placement', label: ['تحديد المستوى', 'Placement test'] },
+];
+
+/** Static stand-in for the live orbit (loading, no WebGL, or reduced data). */
+function OrbitStill() {
+  return (
+    <div className="orbit-still" aria-hidden="true">
+      {CEFR_LEVELS.map((l, i) => (
+        <Icon3D key={l} name={`level-${l}`} size={120} eager className={`os os-${i}`} />
+      ))}
+    </div>
+  );
+}
 
 export function Landing() {
   const { lang, pick, num } = useT();
@@ -93,7 +183,6 @@ export function Landing() {
   const setSettings = useProgress((s) => s.setSettings);
   const onboarded = useProgress((s) => !!s.profile?.onboarded);
   const reduced = useReducedMotion();
-  const dark = useIsDark();
   const rtl = lang === 'ar';
   const Arrow = rtl ? ArrowLeft : ArrowRight;
 
@@ -103,19 +192,43 @@ export function Landing() {
   const pin = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(false);
+  const [live3d] = useState(() => {
+    try {
+      const c = document.createElement('canvas');
+      return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    } catch {
+      return false;
+    }
+  });
 
   const exerciseTotal = useMemo(() => LESSONS.reduce((n, r) => n + allItemsForLesson(r.lesson).length, 0), []);
   const primaryTo = onboarded ? '/' : '/welcome';
 
   useGSAP(
     () => {
-      // Header gains a surface once the page scrolls.
+      // Header gains a surface once the page scrolls past the stage.
       ScrollTrigger.create({
         start: 40,
         end: 'max',
         onToggle: (self) => header.current?.classList.toggle('scrolled', self.isActive),
       });
       if (reduced) return;
+
+      gsap.from('.lp-hero-copy > *', {
+        y: 26,
+        opacity: 0,
+        stagger: 0.08,
+        duration: 0.9,
+        ease: 'expo.out',
+        delay: 0.1,
+      });
+      gsap.from('.lp-orbit', {
+        scale: 0.85,
+        opacity: 0,
+        duration: 1.6,
+        ease: 'expo.out',
+        delay: 0.2,
+      });
 
       const mm = gsap.matchMedia();
       // Desktop: pin the journey and move the level track sideways with the scroll.
@@ -124,32 +237,101 @@ export function Landing() {
         const p = pin.current!;
         const distance = () => Math.max(0, t.scrollWidth - p.clientWidth);
         setPinned(true);
-        const st = { trigger: p, start: 'top top+=76', end: () => `+=${distance()}`, scrub: 0.8, pin: true, invalidateOnRefresh: true };
-        gsap.to(t, { x: () => (rtl ? 1 : -1) * distance(), ease: 'none', scrollTrigger: st });
-        gsap.fromTo('.lp-journey-progress span', { scaleX: 0 }, { scaleX: 1, ease: 'none', scrollTrigger: { ...st, pin: false, scrub: true } });
+        const st = {
+          trigger: p,
+          start: 'top top+=76',
+          end: () => `+=${distance()}`,
+          scrub: 0.8,
+          pin: true,
+          invalidateOnRefresh: true,
+        };
+        gsap.to(t, {
+          x: () => (rtl ? 1 : -1) * distance(),
+          ease: 'none',
+          scrollTrigger: st,
+        });
+        gsap.fromTo(
+          '.lp-journey-progress span',
+          { scaleX: 0 },
+          {
+            scaleX: 1,
+            ease: 'none',
+            scrollTrigger: { ...st, pin: false, scrub: true },
+          },
+        );
+        // each stone turns as its card travels through the viewport
+        gsap.to('.lp-level .ico3d', {
+          rotate: 360,
+          ease: 'none',
+          scrollTrigger: { ...st, pin: false, scrub: 1.2 },
+        });
         return () => setPinned(false);
       });
       mm.add('(max-width: 899px)', () => {
-        gsap.from('.lp-level', { y: 40, opacity: 0, stagger: 0.08, duration: 0.7, scrollTrigger: { trigger: track.current, start: 'top 85%', once: true } });
+        gsap.from('.lp-level', {
+          y: 40,
+          opacity: 0,
+          stagger: 0.08,
+          duration: 0.7,
+          scrollTrigger: {
+            trigger: track.current,
+            start: 'top 85%',
+            once: true,
+          },
+        });
       });
 
       // Mistake cards: strike the wrong form, then bring in the right one.
       gsap.utils.toArray<HTMLElement>('.lp-mistake').forEach((card) => {
         gsap
-          .timeline({ scrollTrigger: { trigger: card, start: 'top 82%', once: true } })
+          .timeline({
+            scrollTrigger: { trigger: card, start: 'top 82%', once: true },
+          })
           .from(card, { y: 30, opacity: 0, duration: 0.6 })
           .fromTo(card.querySelector('.lp-strike'), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'power2.inOut' })
           .to(card.querySelector('.lp-wrong'), { opacity: 0.45, duration: 0.3 }, '<0.2')
-          .from(card.querySelector('.lp-right'), { y: 14, opacity: 0, duration: 0.5 });
+          .from(card.querySelector('.lp-right'), {
+            y: 14,
+            opacity: 0,
+            duration: 0.5,
+          });
       });
 
       // Method: the connecting line draws as you scroll through the steps.
       gsap.fromTo(
         '.lp-steps-line span',
         { scaleX: 0 },
-        { scaleX: 1, ease: 'none', scrollTrigger: { trigger: '.lp-steps', start: 'top 75%', end: 'bottom 60%', scrub: true } },
+        {
+          scaleX: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '.lp-steps',
+            start: 'top 75%',
+            end: 'bottom 60%',
+            scrub: true,
+          },
+        },
       );
-      gsap.from('.lp-forecast i', { scaleY: 0, stagger: 0.06, duration: 0.7, ease: 'back.out(1.6)', scrollTrigger: { trigger: '.lp-forecast', start: 'top 90%', once: true } });
+      gsap.from('.lp-step .ico3d', {
+        y: 30,
+        rotate: -20,
+        opacity: 0,
+        stagger: 0.12,
+        duration: 1.1,
+        ease: 'elastic.out(1, 0.6)',
+        scrollTrigger: { trigger: '.lp-steps', start: 'top 80%', once: true },
+      });
+      gsap.from('.lp-forecast i', {
+        scaleY: 0,
+        stagger: 0.06,
+        duration: 0.7,
+        ease: 'back.out(1.6)',
+        scrollTrigger: {
+          trigger: '.lp-forecast',
+          start: 'top 90%',
+          once: true,
+        },
+      });
 
       return () => mm.revert();
     },
@@ -160,41 +342,35 @@ export function Landing() {
     <div ref={root} className="lp">
       <header ref={header} className="lp-header">
         <div className="lp-wrap lp-header-row">
-          <Link to="/start" className="brand" style={{ padding: 0 }}>
-            <div className="brand-mark">ط</div>
-            <div>
-              <div className="brand-name">{lang === 'ar' ? 'طلاقة' : 'Talaqa'}</div>
-              <div className="brand-sub en">Talaqa · English</div>
-            </div>
+          <Link to="/start" className="brand">
+            <span className="brand-word">طلاقة</span>
+            <span className="brand-latin en">Talaqa</span>
           </Link>
           <div className="row">
             <button className="btn btn-ghost btn-sm" onClick={() => setSettings({ uiLang: rtl ? 'en' : 'ar' })}>
               <Languages size={16} /> {rtl ? 'English' : 'العربية'}
             </button>
-            <Link to={primaryTo} className="btn btn-primary btn-sm">
+            <Link to={primaryTo} className="btn btn-brass btn-sm">
               {onboarded ? L(C.toDashboard) : L(C.start)}
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ------------------------------------------------------------ Hero */}
-      <section className="lp-hero">
-        <div className="lp-hero-bg" aria-hidden="true">
-          <Aurora colorStops={['#0d9488', '#5048e5', '#db2777']} amplitude={1.1} blend={0.6} height={0.5} lightMode={!dark} layers={2} />
-        </div>
+      {/* ------------------------------------------------------------ Hero: the night stage */}
+      <section className="lp-stage">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
             <span className="lp-eyebrow">
-              <span className="shiny-text en">A1 → C2</span> · {L(C.free)}
+              <span className="en">A1 → C2</span> · {L(C.free)}
             </span>
             <SplitText as="h1" className="lp-title display" text={L(C.heroTitle)} />
             <p className="lp-lead">
               {L(C.heroLead)} <RotatingText words={GOALS[rtl ? 0 : 1]} />
             </p>
-            <div className="lp-ctas">
+            <div className="lp-ctas on-night">
               <Magnet>
-                <Link to={primaryTo} className="btn btn-primary btn-lg">
+                <Link to={primaryTo} className="btn btn-brass btn-lg">
                   {onboarded ? L(C.toDashboard) : L(C.start)} <Arrow size={18} />
                 </Link>
               </Magnet>
@@ -210,26 +386,40 @@ export function Landing() {
               ))}
             </ul>
           </div>
-          <TryCard label={L(C.tryLabel)} question={L(C.tryQ)} ok={L(C.tryOk)} bad={L(C.tryBad)} />
+          <figure className="lp-orbit-wrap">
+            {live3d ? (
+              <Suspense fallback={<OrbitStill />}>
+                <GemOrbit className="lp-orbit" />
+              </Suspense>
+            ) : (
+              <OrbitStill />
+            )}
+            <figcaption className="lp-orbit-caption">{L(C.orbitCaption)}</figcaption>
+          </figure>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ Numbers */}
-      <section className="lp-wrap">
-        <Reveal className="lp-stats" stagger={0.08}>
-          {[
-            [COURSE_STATS.lessons, C.statLessons],
-            [COURSE_STATS.words, C.statWords],
-            [exerciseTotal, C.statExercises],
-            [PRONUNCIATION.length, C.statSounds],
-            [READINGS.length, C.statReaders],
-          ].map(([v, label]) => (
-            <div key={(label as Copy)[1]} className="lp-stat">
-              <CountUp to={v as number} className="lp-stat-num display" />
-              <span>{L(label as Copy)}</span>
-            </div>
-          ))}
-        </Reveal>
+      {/* ------------------------------------------------------------ Try it + numbers */}
+      <section className="lp-wrap lp-try-row">
+        <TryCard label={L(C.tryLabel)} question={L(C.tryQ)} ok={L(C.tryOk)} bad={L(C.tryBad)} />
+        <div className="lp-numbers">
+          <span className="lp-eyebrow">{L(C.numbersEyebrow)}</span>
+          <h2 className="lp-h2 display">{L(C.numbersTitle)}</h2>
+          <Reveal className="lp-stats" stagger={0.08}>
+            {[
+              [COURSE_STATS.lessons, C.statLessons],
+              [COURSE_STATS.words, C.statWords],
+              [exerciseTotal, C.statExercises],
+              [PRONUNCIATION.length, C.statSounds],
+              [READINGS.length, C.statReaders],
+            ].map(([v, label]) => (
+              <div key={(label as Copy)[1]} className="lp-stat">
+                <CountUp to={v as number} className="lp-stat-num" />
+                <span>{L(label as Copy)}</span>
+              </div>
+            ))}
+          </Reveal>
+        </div>
       </section>
 
       {/* ------------------------------------------------------------ Journey */}
@@ -252,6 +442,13 @@ export function Landing() {
                 const sample = l.units[0]?.lessons[0]?.objectives[0];
                 return (
                   <article key={l.id} className="lp-level" style={{ '--lvl': `var(--lvl-${l.id})` } as React.CSSProperties}>
+                    <div className="lp-level-top">
+                      <Icon3D name={`level-${l.id}`} size={120} />
+                      <div className="lp-facets">
+                        <b className="num">{num(FACETS[l.id])}</b>
+                        <span>{L(C.facets)}</span>
+                      </div>
+                    </div>
                     <div className="row spread">
                       <LevelTag level={l.id} />
                       <span className="faint small">
@@ -267,7 +464,7 @@ export function Landing() {
                       </div>
                     )}
                     <div className="lp-level-foot">
-                      <b>{num(count)}</b> {L(C.lessonsWord)}
+                      <b className="num">{num(count)}</b> {L(C.lessonsWord)}
                     </div>
                   </article>
                 );
@@ -307,16 +504,39 @@ export function Landing() {
           <div className="lp-steps-line" aria-hidden="true">
             <span />
           </div>
-          <Reveal className="lp-steps-grid" stagger={0.12}>
+          <div className="lp-steps-grid">
             {STEPS.map((s, i) => (
               <div key={s.title[1]} className="lp-step">
-                <div className="lp-step-icon">{s.icon}</div>
-                <div className="faint tiny">{num(i + 1)}</div>
-                <h3>{rtl ? s.title[0] : s.title[1]}</h3>
-                <p className="small muted">{rtl ? s.text[0] : s.text[1]}</p>
+                <Icon3D name={s.icon} size={110} />
+                <div className="lp-step-num num">{String(i + 1).padStart(2, '0')}</div>
+                <h3>{L(s.title)}</h3>
+                <p className="small muted">{L(s.text)}</p>
               </div>
             ))}
-          </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------ Every way to learn */}
+      <section className="lp-section lp-ways">
+        <div className="lp-wrap lp-section-head">
+          <span className="lp-eyebrow">{L(C.waysEyebrow)}</span>
+          <SplitText as="h2" className="lp-h2 display" text={L(C.waysTitle)} trigger="view" />
+          <p className="lp-lead">{L(C.waysLead)}</p>
+        </div>
+        <div className={cx('lp-marquee', reduced && 'still')}>
+          <div className="lp-marquee-track">
+            {[0, 1].map((copy) => (
+              <ul key={copy} className="lp-marquee-row" aria-hidden={copy === 1}>
+                {WAYS.map((w) => (
+                  <li key={w.icon}>
+                    <Icon3D name={w.icon} size={96} />
+                    <span>{L(w.label)}</span>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -332,17 +552,18 @@ export function Landing() {
       {/* ------------------------------------------------------------ CTA */}
       <section className="lp-section lp-wrap">
         <div className="lp-cta">
+          <Icon3D name="level-C2" size={170} className="lp-cta-gem" />
           <SplitText as="h2" className="lp-h2 display" text={L(C.ctaTitle)} trigger="view" />
           <p className="lp-lead">{L(C.ctaLead)}</p>
-          <div className="lp-ctas" style={{ justifyContent: 'center' }}>
+          <div className="lp-ctas on-night" style={{ justifyContent: 'center' }}>
             <Magnet>
-              <Link to={primaryTo} className="btn btn-primary btn-lg">
+              <Link to={primaryTo} className="btn btn-brass btn-lg">
                 {onboarded ? L(C.toDashboard) : L(C.start)} <Arrow size={18} />
               </Link>
             </Magnet>
             {!onboarded && (
               <Link to="/welcome" className="btn btn-lg">
-                <Compass size={18} /> {L(C.ctaPlacement)}
+                {L(C.ctaPlacement)}
               </Link>
             )}
           </div>
@@ -350,12 +571,12 @@ export function Landing() {
       </section>
 
       <footer className="lp-footer">
-        <div className="lp-wrap row spread row-wrap">
-          <div className="brand" style={{ padding: 0 }}>
-            <div className="brand-mark">ط</div>
-            <div className="brand-name">{lang === 'ar' ? 'طلاقة' : 'Talaqa'}</div>
+        <div className="lp-wrap lp-footer-row">
+          <div className="brand">
+            <span className="brand-word">طلاقة</span>
+            <span className="brand-latin en">Talaqa</span>
           </div>
-          <p className="tiny faint" style={{ maxWidth: 560, margin: 0 }}>
+          <p className="tiny faint" style={{ maxWidth: 620, margin: 0 }}>
             {L(C.credits)}
           </p>
         </div>
@@ -377,9 +598,23 @@ function TryCard({ label, question, ok, bad }: { label: string; question: string
   useGSAP(
     () => {
       if (reduced) return;
-      gsap.from(card.current, { y: 40, opacity: 0, rotate: 2, duration: 1, delay: 0.3 });
+      gsap.from(card.current, {
+        y: 50,
+        opacity: 0,
+        rotate: -2,
+        duration: 1.1,
+        delay: 0.45,
+        ease: 'expo.out',
+      });
       gsap.utils.toArray<HTMLElement>('.lp-float').forEach((el, i) => {
-        gsap.to(el, { y: i % 2 ? 10 : -10, duration: 2.4 + i * 0.5, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+        gsap.to(el, {
+          y: i % 2 ? 10 : -10,
+          rotate: i % 2 ? 4 : -4,
+          duration: 2.4 + i * 0.5,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+        });
       });
     },
     { scope: card, dependencies: [reduced] },
@@ -400,16 +635,15 @@ function TryCard({ label, question, ok, bad }: { label: string; question: string
 
   return (
     <div ref={card} className="lp-try">
-      <span className="lp-float lp-float-a">🔥 7</span>
-      <span className="lp-float lp-float-b en">+10 XP</span>
-      <span className="lp-float lp-float-c">
-        <LevelTag level="A1" />
+      <span className="lp-float lp-float-a">
+        <Icon3D name="streak" size={64} eager />
+      </span>
+      <span className="lp-float lp-float-b">
+        <Icon3D name="xp" size={58} eager />
       </span>
       <div className="lp-try-card card">
         <div className="row spread small faint">
-          <span className="bold" style={{ color: 'var(--primary)' }}>
-            {label}
-          </span>
+          <span className="eyebrow">{label}</span>
           <span className="en">1/12</span>
         </div>
         <div className="progress thin" style={{ margin: '10px 0 18px' }}>
@@ -425,13 +659,14 @@ function TryCard({ label, question, ok, bad }: { label: string; question: string
           </button>
         </div>
         <div className="options">
-          {options.map((o) => (
+          {options.map((o, i) => (
             <button
               key={o}
               className={cx('option', picked === o && (o === 'is' ? 'correct' : 'wrong'))}
               onClick={(e) => choose(o, e.currentTarget)}
               disabled={correct}
             >
+              <span className="key">{i + 1}</span>
               <En>{o}</En>
             </button>
           ))}
@@ -460,7 +695,7 @@ function Features({ rtl }: { rtl: boolean }) {
   return (
     <div className="lp-bento">
       <SpotlightCard className="lp-feature lp-feature-wide card">
-        <Repeat className="lp-feature-icon" />
+        <Icon3D name="review" size={104} className="lp-feature-obj" />
         <h3>{T('مراجعة متباعدة ذكية', 'Smart spaced review')}</h3>
         <p className="small muted">
           {T(
@@ -474,10 +709,15 @@ function Features({ rtl }: { rtl: boolean }) {
           ))}
         </div>
       </SpotlightCard>
-      <SpotlightCard className="lp-feature card" color="color-mix(in srgb, var(--lvl-C2) 22%, transparent)">
-        <Mic className="lp-feature-icon" />
+      <SpotlightCard className="lp-feature card">
+        <Icon3D name="pronunciation" size={96} className="lp-feature-obj" />
         <h3>{T('مختبر النطق', 'Pronunciation lab')}</h3>
-        <p className="small muted">{T('الأصوات التي تصعب على العرب، مع لعبة لتدريب الأذن. اضغط لتسمع الفرق:', 'The sounds Arabic speakers find hardest, with an ear-training game. Tap to hear the difference:')}</p>
+        <p className="small muted">
+          {T(
+            'الأصوات التي تصعب على العرب، مع لعبة لتدريب الأذن. اضغط لتسمع الفرق:',
+            'The sounds Arabic speakers find hardest, with an ear-training game. Tap to hear the difference:',
+          )}
+        </p>
         <div className="row row-wrap" style={{ gap: 6 }}>
           {pairs.flat().map((w) => (
             <button key={w} className={cx('chip en', playing === `lp-${w}` && 'active')} onClick={() => speak(w, { id: `lp-${w}` })}>
@@ -486,25 +726,31 @@ function Features({ rtl }: { rtl: boolean }) {
           ))}
         </div>
       </SpotlightCard>
-      <SpotlightCard className="lp-feature card" color="color-mix(in srgb, var(--accent) 24%, transparent)">
-        <Zap className="lp-feature-icon" />
+      <SpotlightCard className="lp-feature card">
+        <Icon3D name="practice" size={96} className="lp-feature-obj" />
         <h3>{T('تدريب يعرف نقاط ضعفك', 'Practice that knows your weak spots')}</h3>
-        <p className="small muted">{T('جلسات مختلطة تبدأ بأخطائك السابقة وتركّز على مهارتك الأضعف.', 'Mixed sessions start with your past mistakes and focus on your weakest skill.')}</p>
+        <p className="small muted">
+          {T('جلسات مختلطة تبدأ بأخطائك السابقة وتركّز على مهارتك الأضعف.', 'Mixed sessions start with your past mistakes and focus on your weakest skill.')}
+        </p>
       </SpotlightCard>
-      <SpotlightCard className="lp-feature card" color="color-mix(in srgb, var(--lvl-A2) 22%, transparent)">
-        <Library className="lp-feature-icon" />
+      <SpotlightCard className="lp-feature card">
+        <Icon3D name="library" size={96} className="lp-feature-obj" />
         <h3>{T('مكتبة قراءة متدرّجة', 'Graded library')}</h3>
-        <p className="small muted">{T('نصوص أصلية لكل مستوى، مع قراءة صوتية ومعجم بلمسة.', 'Original texts for every level, read aloud, with a tap-to-translate glossary.')}</p>
+        <p className="small muted">
+          {T('نصوص أصلية لكل مستوى، مع قراءة صوتية ومعجم بلمسة.', 'Original texts for every level, read aloud, with a tap-to-translate glossary.')}
+        </p>
       </SpotlightCard>
-      <SpotlightCard className="lp-feature card" color="color-mix(in srgb, var(--lvl-B1) 22%, transparent)">
-        <PenLine className="lp-feature-icon" />
+      <SpotlightCard className="lp-feature card">
+        <Icon3D name="placement" size={96} className="lp-feature-obj" />
         <h3>{T('اختبار تحديد المستوى', 'Placement test')}</h3>
-        <p className="small muted">{T('يبدأ سهلًا ويرتفع مستوى بعد مستوى حتى يجد مكانك المناسب.', 'Starts easy and climbs one level at a time until it finds where you belong.')}</p>
+        <p className="small muted">
+          {T('يبدأ سهلًا ويرتفع مستوى بعد مستوى حتى يجد مكانك المناسب.', 'Starts easy and climbs one level at a time until it finds where you belong.')}
+        </p>
       </SpotlightCard>
-      <SpotlightCard className="lp-feature card" color="color-mix(in srgb, var(--lvl-C1) 22%, transparent)">
-        <WifiOff className="lp-feature-icon" />
-        <h3>{T('على هاتفك ودون إنترنت', 'On your phone, offline')}</h3>
-        <p className="small muted">{T('ثبّتها كتطبيق، وتقدّمك محفوظ على جهازك.', 'Install it like an app; your progress stays on your device.')}</p>
+      <SpotlightCard className="lp-feature lp-feature-full card">
+        <Icon3D name="lock" size={96} className="lp-feature-obj" />
+        <h3>{T('خاص، وعلى هاتفك دون إنترنت', 'Private, and offline on your phone')}</h3>
+        <p className="small muted">{T('ثبّتها كتطبيق، وتقدّمك محفوظ على جهازك وحدك.', 'Install it like an app; your progress stays on your device alone.')}</p>
       </SpotlightCard>
     </div>
   );

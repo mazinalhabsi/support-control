@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Upload, Trash2, Volume2, Compass } from 'lucide-react';
+import { Icon3D } from '../components/Icon3D';
 import { ACHIEVEMENTS } from '../lib/achievements';
 import { isMastered } from '../lib/srs/fsrs';
 import { englishVoices } from '../lib/speech';
@@ -69,9 +70,7 @@ export function Profile() {
   return (
     <div className="page">
       <div className="page-head row" style={{ alignItems: 'center' }}>
-        <div className="brand-mark" style={{ width: 56, height: 56, fontSize: '1.6rem', borderRadius: 18 }}>
-          {profile.name.slice(0, 1).toUpperCase()}
-        </div>
+        <Icon3D name="profile" size={88} eager />
         <div>
           <h1 style={{ margin: 0 }}>{profile.name}</h1>
           <div className="faint small row">
@@ -108,7 +107,9 @@ export function Profile() {
             const got = s.achievements[a.id];
             return (
               <div key={a.id} className={cx('ach', !got && 'locked')} title={pick(a.description)}>
-                <div className="icon">{a.icon}</div>
+                <div className="medal">
+                  <Icon3D name={a.icon} size={62} />
+                </div>
                 <div className="bold small">{pick(a.title)}</div>
                 <div className="tiny faint">{pick(a.description)}</div>
               </div>
@@ -242,7 +243,11 @@ export function Profile() {
               <Compass size={16} /> {t('retakePlacement')}
             </Link>
           </div>
-          {msg && <p className="small" style={{ marginTop: 8 }}>{msg}</p>}
+          {msg && (
+            <p className="small" style={{ marginTop: 8 }}>
+              {msg}
+            </p>
+          )}
           <div style={{ marginTop: 14 }}>
             <ConfirmButton className="btn btn-danger btn-sm" onConfirm={s.resetAll} confirmLabel={<>⚠ {t('resetConfirm')}</>}>
               <Trash2 size={16} /> {t('resetData')}

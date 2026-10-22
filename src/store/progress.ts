@@ -68,6 +68,8 @@ export interface ProgressData {
   readings: Record<string, { score: number; completedAt: number }>;
   pronunciation: Record<string, { best: number; attempts: number }>;
   reviewsByDay: Record<string, number>;
+  /** Studio modes (role-play, shadowing, games…): best score and sessions played. */
+  studio: Record<string, { best: number; plays: number }>;
   /** Achievements unlocked since the UI last showed them. */
   newAchievements: string[];
 }
@@ -84,6 +86,7 @@ interface Actions {
   savePlacement(level: CEFR, results: StageResult[]): void;
   completeReading(id: string, score: number): void;
   recordPronunciation(id: string, score: number): void;
+  recordStudio(mode: string, score: number): void;
   dismissAchievements(): void;
   importData(data: unknown): boolean;
   resetAll(): void;
@@ -91,8 +94,7 @@ interface Actions {
 
 export type ProgressState = ProgressData & Actions;
 
-const emptySkills = (): Record<Skill, SkillStat> =>
-  Object.fromEntries(SKILLS.map((s) => [s, { correct: 0, total: 0 }])) as Record<Skill, SkillStat>;
+const emptySkills = (): Record<Skill, SkillStat> => Object.fromEntries(SKILLS.map((s) => [s, { correct: 0, total: 0 }])) as Record<Skill, SkillStat>;
 
 export const initialData = (): ProgressData => ({
   profile: null,
@@ -119,6 +121,7 @@ export const initialData = (): ProgressData => ({
   readings: {},
   pronunciation: {},
   reviewsByDay: {},
+  studio: {},
   newAchievements: [],
 });
 
@@ -279,6 +282,12 @@ export const useProgress = create<ProgressState>()(
             },
           }),
         );
+      },
+
+      recordStudio(mode, score) {
+        const st = get();
+        const prev = st.studio[mode];
+        set({ studio: { ...st.studio, [mode]: { best: Math.max(prev?.best ?? 0, score), plays: (prev?.plays ?? 0) + 1 } } });
       },
 
       dismissAchievements() {

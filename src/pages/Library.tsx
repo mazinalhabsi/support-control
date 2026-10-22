@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BookOpen, CheckCircle2, Play, Square, XCircle } from 'lucide-react';
+import { CheckCircle2, Play, Square, XCircle } from 'lucide-react';
 import { READINGS } from '../content/readings';
 import { CEFR_LEVELS, type Reading } from '../content/types';
 import { hashString, rng, shuffle, cx } from '../lib/util';
@@ -9,44 +9,43 @@ import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { En, LevelTag } from '../components/ui';
 import { confetti } from '../components/fx/Celebrate';
+import { Icon3D } from '../components/Icon3D';
 
 export function LibraryList() {
   const { t, rich, pct } = useT();
   const records = useProgress((s) => s.readings);
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('libraryTitle')}</h1>
         <p>{t('librarySub')}</p>
+        <Icon3D name="library" size={108} eager />
       </div>
       {CEFR_LEVELS.map((lvl) => {
         const items = READINGS.filter((r) => r.level === lvl);
         if (!items.length) return null;
         return (
           <section key={lvl} style={{ marginBottom: 22 }}>
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="shelf-head">
               <LevelTag level={lvl} />
+              <span className="shelf-rule" aria-hidden="true" />
             </div>
-            <div className="grid grid-auto">
+            <div className="book-grid">
               {items.map((r) => {
                 const rec = records[r.id];
                 return (
-                  <Link key={r.id} to={`/library/${r.id}`} className="tile-link" style={{ alignItems: 'flex-start' }}>
-                    <span className="tile-icon" style={{ background: `color-mix(in srgb, var(--lvl-${lvl}) 15%, transparent)`, color: `var(--lvl-${lvl})` }}>
-                      <BookOpen />
-                    </span>
-                    <span className="grow">
-                      <En className="bold" as="div">
+                  <Link key={r.id} to={`/library/${r.id}`} className="book" style={{ ['--book' as string]: `var(--lvl-${lvl})` }}>
+                    <span className="book-cover">
+                      <span className="book-level en">{lvl}</span>
+                      <En className="book-title" as="span">
                         {r.title}
                       </En>
-                      <span className="small muted" style={{ display: 'block' }}>
-                        {r.titleAr} · {rich(r.topic)}
-                      </span>
-                      {rec && (
-                        <span className="small" style={{ color: 'var(--success)', fontWeight: 700 }}>
-                          ✓ {pct(rec.score)}
-                        </span>
-                      )}
+                      <span className="book-rule" aria-hidden="true" />
+                      <span className="book-title-ar">{r.titleAr}</span>
+                    </span>
+                    <span className="book-meta">
+                      <span className="small muted">{rich(r.topic)}</span>
+                      {rec && <span className="small book-score">✓ {pct(rec.score)}</span>}
                     </span>
                   </Link>
                 );
@@ -110,7 +109,15 @@ function ReadingView({ reading }: { reading: Reading }) {
   const [checked, setChecked] = useState(false);
 
   const orders = useMemo(
-    () => reading.questions.map((q, i) => (q.type === 'mcq' ? shuffle(q.options.map((_, j) => j), rng(hashString(reading.id) + i)) : [])),
+    () =>
+      reading.questions.map((q, i) =>
+        q.type === 'mcq'
+          ? shuffle(
+              q.options.map((_, j) => j),
+              rng(hashString(reading.id) + i),
+            )
+          : [],
+      ),
     [reading],
   );
 
@@ -209,7 +216,13 @@ function ReadingView({ reading }: { reading: Reading }) {
                   ? orders[i].map((oi) => {
                       const state = checked ? (oi === q.answer ? 'correct' : answers[i] === oi ? 'wrong' : '') : answers[i] === oi ? 'selected' : '';
                       return (
-                        <button key={oi} className={cx('option', state)} style={{ minHeight: 46 }} disabled={checked} onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}>
+                        <button
+                          key={oi}
+                          className={cx('option', state)}
+                          style={{ minHeight: 46 }}
+                          disabled={checked}
+                          onClick={() => setAnswers((a) => ({ ...a, [i]: oi }))}
+                        >
                           <En>{q.options[oi]}</En>
                         </button>
                       );
@@ -217,13 +230,23 @@ function ReadingView({ reading }: { reading: Reading }) {
                   : [true, false].map((v) => {
                       const state = checked ? (v === q.answer ? 'correct' : answers[i] === v ? 'wrong' : '') : answers[i] === v ? 'selected' : '';
                       return (
-                        <button key={String(v)} className={cx('option', state)} style={{ minHeight: 46 }} disabled={checked} onClick={() => setAnswers((a) => ({ ...a, [i]: v }))}>
+                        <button
+                          key={String(v)}
+                          className={cx('option', state)}
+                          style={{ minHeight: 46 }}
+                          disabled={checked}
+                          onClick={() => setAnswers((a) => ({ ...a, [i]: v }))}
+                        >
                           {v ? t('true') : t('false')}
                         </button>
                       );
                     })}
               </div>
-              {checked && q.explain && <div className="small muted" style={{ marginTop: 6 }}>{rich(q.explain)}</div>}
+              {checked && q.explain && (
+                <div className="small muted" style={{ marginTop: 6 }}>
+                  {rich(q.explain)}
+                </div>
+              )}
             </div>
           ))}
         </div>

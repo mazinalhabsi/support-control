@@ -1,10 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5048e5"/>
-      <stop offset="1" stop-color="#9b5de5"/>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0d79f"/>
+      <stop offset=".55" stop-color="#d4ad62"/>
+      <stop offset="1" stop-color="#a97d38"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#g)"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="34" font-weight="700" fill="#fff">ط</text>
+  <rect width="64" height="64" rx="15" fill="#0d1729"/>
+  <rect x="3.5" y="3.5" width="57" height="57" rx="12" fill="none" stroke="#d4ad62" stroke-opacity=".35"/>
+  <path d="M24.93 43.25L24.93 39.23L41.34 39.23Q42.47 39.23 43.13 38.98Q43.79 38.72 44.09 38.29Q44.39 37.86 44.39 37.29L44.39 37.29Q44.39 36.48 44.02 35.74Q43.66 35.00 43.17 34.51L43.17 34.51L45.14 34.67Q44.01 34.94 43.20 35.08Q42.39 35.21 41.70 35.27Q41.01 35.32 40.18 35.32L40.18 35.32L25.17 35.32L26.71 31.30L41.01 31.30Q42.28 31.30 43.52 31.23Q44.76 31.17 45.57 30.98L45.57 30.98L45.90 30.98Q46.60 31.65 47.30 32.68Q48.00 33.70 48.50 34.90Q49 36.10 49 37.37L49 37.37Q49 38.56 48.64 39.61Q48.27 40.66 47.45 41.49Q46.63 42.31 45.26 42.78Q43.90 43.25 41.90 43.25L41.90 43.25L24.93 43.25ZM28.60 43.25L15 43.25L15 42.96L16.38 39.23L22.99 39.23L21.40 39.96Q21.10 39.64 20.96 38.87Q20.83 38.10 20.83 36.97L20.83 36.97L20.83 23.23L25.31 22.75L25.58 22.75L25.58 41.20L23.66 39.23L29.14 39.23L29.14 42.71L28.60 43.25Z" fill="url(#b)"/>
 </svg>

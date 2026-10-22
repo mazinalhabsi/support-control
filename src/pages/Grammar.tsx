@@ -6,6 +6,7 @@ import { CEFR_LEVELS, type CEFR } from '../content/types';
 import { useT } from '../i18n';
 import { GrammarCard } from '../components/LessonParts';
 import { LevelTag, Segmented } from '../components/ui';
+import { Icon3D } from '../components/Icon3D';
 
 export function GrammarReference() {
   const { t, rich } = useT();
@@ -27,9 +28,10 @@ export function GrammarReference() {
 
   return (
     <div className="page page-narrow">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('grammarTitle')}</h1>
         <p>{t('grammarSub')}</p>
+        <Icon3D name="grammar" size={108} eager />
       </div>
       <div className="stack" style={{ marginBottom: 18 }}>
         <input className="input" placeholder={t('search')} value={query} onChange={(e) => setQuery(e.target.value)} />

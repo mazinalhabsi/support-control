@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Talaqa 3D studio</title>
+<script type="importmap">
+{ "imports": {
+  "three": "/node_modules/three/build/three.module.js",
+  "three/addons/": "/node_modules/three/examples/jsm/"
+} }
+</script>
+<style>body{margin:0;background:#888}canvas{display:none}</style>
+</head>
+<body>
+<script type="module">
+  import { init, shoot, encode } from './lib.js';
+  import { ICONS } from './icons.js';
+  window.studio = {
+    ready: init().then(() => Object.keys(ICONS)),
+    render(name, out = 384, size = 768) {
+      const { obj, view } = ICONS[name]();
+      return encode(shoot(obj, { size, ...view }), out);
+    },
+  };
+</script>
+</body>
+</html>

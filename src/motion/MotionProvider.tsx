@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import Lenis from 'lenis';
+import { LazyMotion, MotionConfig, domMax } from 'motion/react';
 import 'lenis/dist/lenis.css';
 import { useProgress } from '../store/progress';
 import { gsap, ScrollTrigger, setMotionReduced, systemPrefersReducedMotion } from './core';
@@ -29,7 +30,9 @@ export function scrollToElement(el: HTMLElement | null, offset = 0): void {
 /**
  * Resolves the motion preference (setting + OS) and runs Lenis smooth
  * scrolling in sync with GSAP's ticker so ScrollTrigger and Lenis never
- * disagree about the scroll position.
+ * disagree about the scroll position. GSAP drives timelines and scroll;
+ * Motion (motion.dev) drives springs, gestures and layout transitions, and
+ * both obey the same switch.
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   const pref = useProgress((s) => s.settings.motion);
@@ -66,5 +69,13 @@ export function MotionProvider({ children }: { children: ReactNode }) {
     };
   }, [reduced]);
 
-  return <MotionContext.Provider value={reduced}>{children}</MotionContext.Provider>;
+  return (
+    <MotionContext.Provider value={reduced}>
+      <LazyMotion features={domMax} strict>
+        <MotionConfig reducedMotion={reduced ? 'always' : 'never'} transition={{ type: 'spring', stiffness: 420, damping: 34 }}>
+          {children}
+        </MotionConfig>
+      </LazyMotion>
+    </MotionContext.Provider>
+  );
 }

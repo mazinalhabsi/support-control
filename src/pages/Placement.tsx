@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Icon3D } from '../components/Icon3D';
 import { PLACEMENT } from '../content/placement';
 import { getLevel } from '../content';
 import { CEFR_LEVELS, type CEFR } from '../content/types';
@@ -36,7 +36,13 @@ export function Placement() {
   const questions = useMemo(() => questionsFor(stage, PLACEMENT), [stage]);
   const question = questions[q];
   const order = useMemo(
-    () => (question ? shuffle(question.options.map((_, i) => i), rng(hashString(question.prompt))) : []),
+    () =>
+      question
+        ? shuffle(
+            question.options.map((_, i) => i),
+            rng(hashString(question.prompt)),
+          )
+        : [],
     [question],
   );
   const answeredSoFar = results.reduce((n, r) => n + r.total, 0) + q;
@@ -71,7 +77,7 @@ export function Placement() {
     return (
       <div className="page page-narrow">
         <div className="card" style={{ padding: 28 }}>
-          <Compass size={40} color="var(--primary)" />
+          <Icon3D name="placement" size={130} eager />
           <h1 style={{ marginTop: 10 }}>{t('placementTitle')}</h1>
           <p className="muted">{t('placementIntro')}</p>
           <div className="row row-wrap" style={{ margin: '14px 0 22px' }}>
@@ -92,7 +98,9 @@ export function Placement() {
     return (
       <div className="page page-narrow">
         <div className="card celebrate">
-          <div className="emoji">🎯</div>
+          <div className="emoji">
+            <Icon3D name={`level-${final}`} size={170} eager />
+          </div>
           <div className="muted">{t('yourLevel')}</div>
           <div className="row" style={{ justifyContent: 'center', margin: '10px 0' }}>
             <LevelTag level={final} className="btn-lg" />

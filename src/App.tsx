@@ -22,6 +22,12 @@ const ReadingPage = lazy(() => import('./pages/Library').then((m) => ({ default:
 const GrammarReference = lazy(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarReference })));
 const Vocabulary = lazy(() => import('./pages/Vocabulary').then((m) => ({ default: m.Vocabulary })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
+const StudioHome = lazy(() => import('./pages/studio/StudioHome').then((m) => ({ default: m.StudioHome })));
+const RolePlay = lazy(() => import('./pages/studio/RolePlay').then((m) => ({ default: m.RolePlay })));
+const Shadowing = lazy(() => import('./pages/studio/Shadowing').then((m) => ({ default: m.Shadowing })));
+const Listening = lazy(() => import('./pages/studio/Listening').then((m) => ({ default: m.Listening })));
+const Sprint = lazy(() => import('./pages/studio/Sprint').then((m) => ({ default: m.Sprint })));
+const Spelling = lazy(() => import('./pages/studio/Spelling').then((m) => ({ default: m.Spelling })));
 
 // A host (e.g. an embedding viewer) may already set data-theme; "system" restores it.
 const hostTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
@@ -74,6 +80,12 @@ export default function App() {
               <Route path="grammar" element={<GrammarReference />} />
               <Route path="vocabulary" element={<Vocabulary />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="studio" element={<StudioHome />} />
+              <Route path="studio/roleplay" element={<RolePlay />} />
+              <Route path="studio/shadowing" element={<Shadowing />} />
+              <Route path="studio/listening" element={<Listening />} />
+              <Route path="studio/sprint" element={<Sprint />} />
+              <Route path="studio/spelling" element={<Spelling />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

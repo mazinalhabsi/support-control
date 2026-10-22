@@ -21,7 +21,8 @@ interface Spark {
 const SPARK_MS = 520;
 let pushSparks: ((s: Spark[]) => void) | null = null;
 
-const PALETTE = ['#5048e5', '#16a34a', '#f59e0b', '#db2777', '#0d9488', '#9333ea'];
+// gold leaf first, then the level enamels
+const PALETTE = ['#e8c886', '#d4ad62', '#f3e3bb', '#1f8a5f', '#2b55b8', '#9e2a48', '#137f7b'];
 
 type Origin = { x: number; y: number } | Element | null | undefined;
 

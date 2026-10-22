@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, MessageCircle, Target, PenLine, Mic, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Icon3D } from '../components/Icon3D';
 import { LESSONS, getLesson } from '../content';
 import { buildLessonSession } from '../lib/practice';
 import { wordCount, cx } from '../lib/util';
@@ -56,7 +57,11 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
     if (lesson.writing && wordCount(writing) >= lesson.writing.minWords) b += 15;
     setBonus(b);
     addXp(b);
-    completeLesson(lesson.id, score, lesson.vocab.map((v) => v.id));
+    completeLesson(
+      lesson.id,
+      score,
+      lesson.vocab.map((v) => v.id),
+    );
     setStep('done');
     scrollToTop();
     setTimeout(() => confetti(undefined, score >= 0.7 ? 90 : 40), 300);
@@ -114,7 +119,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
 
           <div className="card">
             <div className="card-title">
-              <Target size={20} color="var(--primary)" /> {t('objectives')}
+              <Icon3D name="accuracy" size={34} /> {t('objectives')}
             </div>
             <ul className="rule-list">
               {lesson.objectives.map((o, i) => (
@@ -126,7 +131,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
           {lesson.dialogue && (
             <div className="card">
               <div className="card-title">
-                <MessageCircle size={20} color="var(--lvl-A2)" /> {t('dialogue')}
+                <Icon3D name="roleplay" size={34} /> {t('dialogue')}
               </div>
               <Dialogue lines={lesson.dialogue} />
             </div>
@@ -134,8 +139,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
 
           <div className="card">
             <div className="card-title">
-              <BookOpen size={20} color="var(--lvl-C1)" /> {t('vocabulary')}{' '}
-              <span className="badge neutral">{num(lesson.vocab.length)}</span>
+              <Icon3D name="vocabulary" size={34} /> {t('vocabulary')} <span className="badge neutral">{num(lesson.vocab.length)}</span>
             </div>
             <div className="vocab-grid">
               {lesson.vocab.map((v) => (
@@ -147,7 +151,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
           {lesson.grammar && (
             <div className="card">
               <div className="card-title">
-                <PenLine size={20} color="var(--lvl-B1)" /> {t('grammar')}
+                <Icon3D name="grammar" size={34} /> {t('grammar')}
               </div>
               <GrammarCard grammar={lesson.grammar} />
             </div>
@@ -155,9 +159,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
 
           <div className="feedback" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
             <div className="row spread">
-              <span className="muted small">
-                {t('exercisesCount', { count: num(items.length) })}
-              </span>
+              <span className="muted small">{t('exercisesCount', { count: num(items.length) })}</span>
               <button
                 className="btn btn-primary btn-lg"
                 onClick={() => {
@@ -177,7 +179,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
         <>
           <div className="card">
             <div className="card-title">
-              <Mic size={20} color="var(--lvl-C2)" /> {t('speakingTitle')}
+              <Icon3D name="pronunciation" size={34} /> {t('speakingTitle')}
             </div>
             <p className="muted small">{t('speakingHint')}</p>
             <div className="stack" style={{ gap: 18 }}>
@@ -200,7 +202,7 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
           {lesson.writing && (
             <div className="card">
               <div className="card-title">
-                <PenLine size={20} color="var(--lvl-B2)" /> {t('writingTitle')}
+                <Icon3D name="spelling" size={34} /> {t('writingTitle')}
               </div>
               <p className="bold">{rich(lesson.writing.prompt)}</p>
               <textarea
@@ -250,30 +252,36 @@ function LessonFlow({ lessonId }: { lessonId: string }) {
 
       {step === 'done' && stats && (
         <div className="card celebrate">
-          <div className="emoji">{score >= 0.9 ? '🏆' : score >= 0.7 ? '🎉' : '💪'}</div>
+          <div className="emoji">
+            <Icon3D name={score >= 0.9 ? 'trophy' : score >= 0.7 ? `level-${level.id}` : 'practice'} size={150} eager />
+          </div>
           <h1>{t('lessonComplete')}</h1>
           <div className="muted">{rich(lesson.title)}</div>
           <div className="result-stats">
-            <div className="result-stat" style={{ borderColor: 'var(--success)' }}>
+            <div className="result-stat">
               <div className="tiny faint">{t('accuracy')}</div>
               <div className="v" style={{ color: 'var(--success)' }}>
                 <CountUp to={Math.round(score * 100)} trigger="mount" suffix={lang === 'ar' ? '٪' : '%'} />
               </div>
             </div>
-            <div className="result-stat" style={{ borderColor: 'var(--accent)' }}>
+            <div className="result-stat">
               <div className="tiny faint">{t('xpEarned')}</div>
-              <div className="v" style={{ color: 'var(--accent)' }}>
+              <div className="v" style={{ color: 'var(--accent-text)' }}>
                 <CountUp to={stats.xp + bonus} trigger="mount" prefix="+" />
               </div>
             </div>
-            <div className="result-stat" style={{ borderColor: 'var(--primary)' }}>
+            <div className="result-stat">
               <div className="tiny faint">{t('wordsAdded')}</div>
               <div className="v" style={{ color: 'var(--primary)' }}>
                 <CountUp to={newWords.current} trigger="mount" />
               </div>
             </div>
           </div>
-          {score >= 0.999 && <p className="bold" style={{ color: 'var(--success)' }}>{t('perfectLesson')}</p>}
+          {score >= 0.999 && (
+            <p className="bold" style={{ color: 'var(--success)' }}>
+              {t('perfectLesson')}
+            </p>
+          )}
           <div className="row row-wrap" style={{ justifyContent: 'center' }}>
             <Link to={`/learn?level=${level.id}`} className="btn">
               {t('backToCourse')}

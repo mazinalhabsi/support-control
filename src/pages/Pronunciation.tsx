@@ -14,24 +14,24 @@ import { cx } from '../lib/util';
 import { sparkAt } from '../components/fx/Celebrate';
 import { haptic } from '../motion/core';
 import { shake } from '../motion/hooks';
+import { Icon3D } from '../components/Icon3D';
 
 export function PronunciationList() {
   const { t, pct } = useT();
   const records = useProgress((s) => s.pronunciation);
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('pronTitle')}</h1>
         <p>{t('pronSub')}</p>
+        <Icon3D name="pronunciation" size={108} eager />
       </div>
       <div className="grid grid-auto">
         {PRONUNCIATION.map((p) => {
           const rec = records[p.id];
           return (
             <Link key={p.id} to={`/pronunciation/${p.id}`} className="tile-link" style={{ alignItems: 'flex-start' }}>
-              <span className="tile-icon en" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 800, width: 'auto', padding: '0 10px', fontSize: '0.9rem' }}>
-                {p.sounds.join(' ')}
-              </span>
+              <span className="phoneme">{p.sounds.join(' ')}</span>
               <span className="grow">
                 <span className="bold" style={{ display: 'block' }}>
                   {p.titleAr}
@@ -91,7 +91,11 @@ function TopicView({ topic }: { topic: PronunciationTopic }) {
         <div className="card-title">
           <Volume2 size={20} color="var(--lvl-A2)" /> {t('minimalPairs')}
         </div>
-        {topic.homophones && <div className="note info small" style={{ marginBottom: 12 }}>{t('homophonesNote')}</div>}
+        {topic.homophones && (
+          <div className="note info small" style={{ marginBottom: 12 }}>
+            {t('homophonesNote')}
+          </div>
+        )}
         <div className="grid grid-2" style={{ gap: 10 }}>
           {topic.pairs.map((p, i) => (
             <div key={i} className="row" style={{ gap: 8 }}>
@@ -228,7 +232,13 @@ function EarTraining({ topic }: { topic: PronunciationTopic }) {
             {(current.flip ? [current.pair.b, current.pair.a] : [current.pair.a, current.pair.b]).map((w) => {
               const state = chosen ? (w === current.target ? 'correct' : w === chosen ? 'wrong' : '') : '';
               return (
-                <button key={w} className={cx('option', state)} style={{ justifyContent: 'center' }} onClick={(e) => choose(w, e.currentTarget)} disabled={!!chosen}>
+                <button
+                  key={w}
+                  className={cx('option', state)}
+                  style={{ justifyContent: 'center' }}
+                  onClick={(e) => choose(w, e.currentTarget)}
+                  disabled={!!chosen}
+                >
                   <En>{w}</En>
                 </button>
               );

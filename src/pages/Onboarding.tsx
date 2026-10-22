@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Compass, Sprout, Languages } from 'lucide-react';
+import { Check, Languages } from 'lucide-react';
 import { CEFR_LEVELS, type CEFR } from '../content/types';
 import { getLevel } from '../content';
 import { useT } from '../i18n';
@@ -8,18 +8,17 @@ import type { StringKey } from '../i18n/strings';
 import { useProgress, type Goal } from '../store/progress';
 import { LevelTag } from '../components/ui';
 import { cx } from '../lib/util';
-import { Aurora } from '../components/fx/Aurora';
+import { Icon3D, type IconName } from '../components/Icon3D';
 import { SplitText } from '../components/fx/SplitText';
 import { gsap } from '../motion/core';
 import { useReducedMotion } from '../motion/MotionProvider';
-import { useIsDark } from '../motion/useIsDark';
 
-const GOALS: { id: Goal; icon: string }[] = [
-  { id: 'general', icon: '🌱' },
-  { id: 'travel', icon: '✈️' },
-  { id: 'work', icon: '💼' },
-  { id: 'study', icon: '🎓' },
-  { id: 'exam', icon: '📝' },
+const GOALS: { id: Goal; icon: IconName }[] = [
+  { id: 'general', icon: 'goal-general' },
+  { id: 'travel', icon: 'goal-travel' },
+  { id: 'work', icon: 'goal-work' },
+  { id: 'study', icon: 'goal-study' },
+  { id: 'exam', icon: 'goal-exam' },
 ];
 
 const DAILY: { xp: number; key: StringKey; mins: number }[] = [
@@ -41,7 +40,6 @@ export function Onboarding() {
   const [daily, setDaily] = useState(40);
   const cardRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
-  const dark = useIsDark();
 
   // Steps slide in from the reading direction; choices cascade after them.
   useLayoutEffect(() => {
@@ -62,24 +60,23 @@ export function Onboarding() {
 
   return (
     <div className="onboard">
-      <div className="onboard-bg" aria-hidden="true">
-        <Aurora colorStops={['#0d9488', '#5048e5', '#db2777']} amplitude={0.9} blend={0.6} height={0.42} lightMode={!dark} layers={2} />
+      <div className="onboard-gems" aria-hidden="true">
+        {CEFR_LEVELS.map((l, i) => (
+          <Icon3D key={l} name={`level-${l}`} size={120} eager className={`og og-${i}`} />
+        ))}
       </div>
       <div className="onboard-card">
         <div className="row spread" style={{ marginBottom: 16 }}>
-          <div className="brand" style={{ padding: 0 }}>
-            <div className="brand-mark">ط</div>
-            <div>
-              <div className="brand-name">{t('appName')}</div>
-              <div className="brand-sub en">Talaqa · English</div>
-            </div>
+          <div className="brand">
+            <span className="brand-word">طلاقة</span>
+            <span className="brand-latin en">Talaqa</span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={() => setSettings({ uiLang: lang === 'ar' ? 'en' : 'ar' })}>
             <Languages size={16} /> {lang === 'ar' ? 'English' : 'العربية'}
           </button>
         </div>
 
-        <div className="card" style={{ padding: 28 }} ref={cardRef}>
+        <div className="card onboard-panel" ref={cardRef}>
           {step === 0 && (
             <>
               <SplitText as="h1" text={t('welcomeTitle')} />
@@ -87,7 +84,7 @@ export function Onboarding() {
               <ul className="feature-list">
                 {(['feature1', 'feature2', 'feature3', 'feature4'] as StringKey[]).map((k) => (
                   <li key={k}>
-                    <CheckCircle2 size={20} /> {t(k)}
+                    <Check size={18} /> {t(k)}
                   </li>
                 ))}
               </ul>
@@ -112,10 +109,12 @@ export function Onboarding() {
           {step === 1 && (
             <>
               <h2>{t('whyLearn')}</h2>
-              <div className="choice-grid">
+              <div className="choice-grid goals">
                 {GOALS.map((g) => (
                   <button key={g.id} className={cx('choice', goal === g.id && 'active')} onClick={() => setGoal(g.id)}>
-                    <span className="ico">{g.icon}</span>
+                    <span className="ico">
+                      <Icon3D name={g.icon} size={76} eager />
+                    </span>
                     <span className="bold">{t(`goal_${g.id}` as StringKey)}</span>
                   </button>
                 ))}
@@ -148,7 +147,7 @@ export function Onboarding() {
               <div className="choice-grid">
                 <button className="choice" onClick={() => finish('A1', true)}>
                   <span className="ico">
-                    <Compass color="var(--primary)" />
+                    <Icon3D name="placement" size={64} eager />
                   </span>
                   <span>
                     <span className="bold">{t('startPlacement')}</span>
@@ -158,7 +157,7 @@ export function Onboarding() {
                 </button>
                 <button className="choice" onClick={() => finish('A1', false)}>
                   <span className="ico">
-                    <Sprout color="var(--success)" />
+                    <Icon3D name="goal-general" size={64} eager />
                   </span>
                   <span>
                     <span className="bold">{t('startZero')}</span>

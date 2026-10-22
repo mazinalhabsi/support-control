@@ -7,7 +7,8 @@ import { useProgress } from '../store/progress';
 import { cx } from '../lib/util';
 import { AudioButton, En } from './ui';
 
-const AVATAR_COLORS = ['#5048e5', '#db2777', '#0d9488', '#d97706', '#2563eb', '#9333ea'];
+// the level enamels, so speakers match the gems
+const AVATAR_COLORS = ['#1f8a5f', '#2b55b8', '#9e2a48', '#137f7b', '#5a45b0', '#94702f'];
 
 export function Dialogue({ lines }: { lines: DialogueLine[] }) {
   const { t } = useT();

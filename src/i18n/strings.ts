@@ -4,7 +4,7 @@ export const STRINGS = {
   tagline: ['من الصفر إلى الاحتراف في الإنجليزية', 'English from zero to mastery'],
 
   // Navigation
-  navHome: ['الرئيسية', 'Home'],
+  navHome: ['اليوم', 'Today'],
   navLearn: ['المسار', 'Course'],
   navReview: ['المراجعة', 'Review'],
   navPractice: ['التدريب الذكي', 'Smart practice'],
@@ -13,6 +13,7 @@ export const STRINGS = {
   navGrammar: ['مرجع القواعد', 'Grammar'],
   navVocabulary: ['مفرداتي', 'My words'],
   navProfile: ['حسابي', 'Profile'],
+  navStudio: ['الاستوديو', 'Studio'],
   more: ['المزيد', 'More'],
 
   // Common
@@ -119,7 +120,7 @@ export const STRINGS = {
   placementTitle: ['اختبار تحديد المستوى', 'Placement test'],
   placementIntro: [
     'يبدأ الاختبار بأسئلة سهلة ويرتفع مستوى بعد مستوى. سيتوقف عندما يصل إلى حدود مستواك. لا تخمّن عشوائيًا — اختر «لا أعرف» إن لم تكن متأكدًا.',
-    'The test starts easy and climbs one level at a time. It stops when it reaches your limit. Don\'t guess randomly — choose "I don\'t know" if you\'re not sure.',
+    "The test starts easy and climbs one level at a time. It stops when it reaches your limit. Don't guess randomly — choose \"I don't know\" if you're not sure.",
   ],
   dontKnow: ['لا أعرف', "I don't know"],
   question: ['سؤال', 'Question'],
@@ -266,7 +267,10 @@ export const STRINGS = {
 
   // Library
   libraryTitle: ['مكتبة القراءة', 'Reading library'],
-  librarySub: ['نصوص أصلية متدرّجة لكل مستوى، مع قراءة صوتية ومعجم وأسئلة فهم.', 'Original graded texts for every level, with audio, glossary and comprehension questions.'],
+  librarySub: [
+    'نصوص أصلية متدرّجة لكل مستوى، مع قراءة صوتية ومعجم وأسئلة فهم.',
+    'Original graded texts for every level, with audio, glossary and comprehension questions.',
+  ],
   readAloud: ['اقرأ لي النص', 'Read aloud'],
   stop: ['إيقاف', 'Stop'],
   glossary: ['المعجم', 'Glossary'],
@@ -329,6 +333,83 @@ export const STRINGS = {
     'طلاقة منصة مفتوحة المصدر. المحتوى أصلي ومبني على الإطار الأوروبي المرجعي للغات (CEFR)، وخوارزمية المراجعة FSRS‑4.5.',
     'Talaqa is open source. Content is original and aligned to the CEFR; reviews are scheduled with FSRS‑4.5.',
   ],
+
+  // Today
+  moreWays: ['طرق أخرى للتعلّم', 'More ways to learn'],
+  modePronDesc: ['أصوات يصعب نطقها على العرب', 'Sounds Arabic speakers find hard'],
+  modeLibraryDesc: ['قصص متدرّجة مع صوت ومعجم', 'Graded stories with audio and glossary'],
+
+  // Studio
+  studioTitle: ['استوديو التعلّم', 'Learning studio'],
+  studioTagline: ['تكلّم، استمع، والعب', 'Speak, listen and play'],
+  studioSub: [
+    'كل طريقة هنا تدرّب مهارة مختلفة باستخدام كلماتك وحواراتك من الدروس.',
+    'Each mode trains a different skill with the words and dialogues from your lessons.',
+  ],
+  modeRoleplay: ['تقمّص الأدوار', 'Role-play'],
+  modeRoleplayDesc: ['أدِّ دورًا في حوار حقيقي', 'Take a part in a real dialogue'],
+  modeShadowing: ['المحاكاة الصوتية', 'Shadowing'],
+  modeShadowingDesc: ['استمع وكرّر بالإيقاع نفسه', 'Listen and echo the rhythm'],
+  modeListening: ['استماع بلا يدين', 'Hands-free listening'],
+  modeListeningDesc: ['راجع كلماتك صوتيًا أثناء التنقّل', 'Review your words by ear on the go'],
+  modeSprint: ['سباق الكلمات', 'Word sprint'],
+  modeSprintDesc: ['٦٠ ثانية من القرارات السريعة', '60 seconds of quick decisions'],
+  modeSpelling: ['تحدّي الإملاء', 'Spelling bee'],
+  modeSpellingDesc: ['اسمع الكلمة واكتبها بدقة', 'Hear the word, spell it exactly'],
+  played: ['مرات اللعب', 'Played'],
+  restart: ['من البداية', 'Start over'],
+  backToStudio: ['العودة إلى الاستوديو', 'Back to studio'],
+  sessionScore: ['النتيجة', 'Score'],
+  earnedXp: ['+{xp} نقطة خبرة', '+{xp} XP'],
+  fromYourLessons: ['من دروسك المكتملة', 'From your completed lessons'],
+  fromCourse: ['من المنهج', 'From the course'],
+
+  pickDialogue: ['اختر حوارًا', 'Choose a dialogue'],
+  pickRole: ['اختر دورك', 'Choose your part'],
+  playAs: ['أدِّ دور {name}', 'Play {name}'],
+  hintLevel: ['التلميح', 'Hint'],
+  hintFull: ['النص كاملًا', 'Full text'],
+  hintInitials: ['الحروف الأولى', 'First letters'],
+  hintNone: ['بدون', 'None'],
+  yourTurn: ['دورك: قل جملتك', 'Your turn: say your line'],
+  theirTurn: ['يتحدث {name}…', '{name} is speaking…'],
+  typeInstead: ['اكتبها بدلًا من ذلك', 'Type it instead'],
+  showLine: ['أظهر الجملة', 'Show the line'],
+  dialogueDone: ['انتهى الحوار', 'Dialogue complete'],
+  lineOf: ['الجملة {i} من {n}', 'Line {i} of {n}'],
+
+  shadowIntro: [
+    'استمع إلى الجملة، ثم كرّرها فورًا بالسرعة والتنغيم نفسيهما. هذه من أسرع الطرق لتحسين الطلاقة.',
+    'Listen to a line, then repeat it straight away with the same speed and melody. One of the fastest routes to fluency.',
+  ],
+  listenFirst: ['استمع أولًا', 'Listen first'],
+
+  listeningIntro: [
+    'تُقرأ كلمة بالإنجليزية، ثم مهلة لتتذكّر معناها، ثم المعنى ومثال. مناسب للمشي أو المواصلات.',
+    'An English word is read, you get a pause to recall it, then the meaning and an example. Made for walks and commutes.',
+  ],
+  play: ['تشغيل', 'Play'],
+  pause: ['إيقاف مؤقت', 'Pause'],
+  recallPause: ['مهلة التذكّر', 'Recall pause'],
+  seconds: ['ث', 's'],
+  sourceDeck: ['بطاقاتي', 'My deck'],
+  sourceLevel: ['مستواي الحالي', 'My level'],
+
+  sprintIntro: [
+    'تظهر كلمة مع ترجمة. هل الترجمة صحيحة؟ أجب بأسرع ما يمكن خلال ٦٠ ثانية. الإجابات المتتالية تضاعف النقاط.',
+    'A word appears with a translation. Is it right? Answer as fast as you can for 60 seconds. Streaks multiply your points.',
+  ],
+  sprintGo: ['انطلق', 'Go'],
+  isRight: ['صحيحة', 'Right'],
+  isWrong: ['خاطئة', 'Wrong'],
+  combo: ['سلسلة', 'Combo'],
+  timeUp: ['انتهى الوقت', "Time's up"],
+  newBest: ['رقم قياسي جديد!', 'New best!'],
+  keysHint: ['استخدم ← و → في لوحة المفاتيح', 'Use ← and → on your keyboard'],
+
+  spellingIntro: ['استمع إلى الكلمة واكتبها بالضبط. عشر كلمات في كل جولة.', 'Listen to the word and type it exactly. Ten words a round.'],
+  typeTheWord: ['اكتب الكلمة', 'Type the word'],
+  correctSpelling: ['التهجئة الصحيحة', 'Correct spelling'],
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type StringKey = keyof typeof STRINGS;

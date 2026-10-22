@@ -6,6 +6,7 @@ import { CEFR_LEVELS, type CEFR } from '../content/types';
 import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { LevelTag, ProgressBar, Stars } from '../components/ui';
+import { Icon3D } from '../components/Icon3D';
 import { cx } from '../lib/util';
 import { useStaggerIn } from '../motion/hooks';
 
@@ -24,9 +25,10 @@ export function Course() {
 
   return (
     <div className="page" ref={root}>
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('courseTitle')}</h1>
         <p>{t('courseSub')}</p>
+        <Icon3D name="learn" size={108} eager />
       </div>
 
       <div className="level-tabs" role="tablist">
@@ -42,6 +44,7 @@ export function Course() {
               style={{ color: `var(--lvl-${l.id})` }}
               onClick={() => setParams({ level: l.id })}
             >
+              <Icon3D name={`level-${l.id}`} size={54} eager className={done || l.id === levelId ? undefined : 'muted3d'} />
               <span className="code">{l.id}</span>
               <span className="name">{rich(l.title)}</span>
               <span className="tiny faint en">
@@ -52,10 +55,11 @@ export function Course() {
         })}
       </div>
 
-      <div className="card" style={{ marginBottom: 22 }}>
-        <div className="row" style={{ alignItems: 'flex-start' }}>
-          <LevelTag level={level.id} />
-          <div className="grow">
+      <div className="card level-intro" style={{ marginBottom: 26, color: `var(--lvl-${level.id})` }}>
+        <div className="row" style={{ alignItems: 'center', gap: 18 }}>
+          <Icon3D name={`level-${level.id}`} size={96} eager />
+          <div className="grow" style={{ color: 'var(--text)' }}>
+            <LevelTag level={level.id} className="level-intro-tag" />
             <h2 style={{ marginBottom: 4 }}>{rich(level.title)}</h2>
             <p className="muted" style={{ marginBottom: 6 }}>
               {rich(level.description)}
@@ -71,17 +75,19 @@ export function Course() {
         const done = unit.lessons.filter((l) => lessons[l.id]).length;
         return (
           <section key={unit.id} className="unit-block">
-            <div className="unit-head" style={{ background: `linear-gradient(135deg, var(--lvl-${level.id}), color-mix(in srgb, var(--lvl-${level.id}) 65%, #000))` }}>
+            <div className="unit-head" style={{ ['--unit-color' as string]: `var(--lvl-${level.id})` }}>
+              <span className="unit-num">{String(ui + 1).padStart(2, '0')}</span>
               <div className="grow">
-                <div className="tiny" style={{ opacity: 0.85 }}>
-                  {t('unit')} {num(ui + 1)}
-                </div>
-                <div className="bold" style={{ fontSize: '1.1rem' }}>
+                <div className="tiny faint">{t('unit')}</div>
+                <div className="bold" style={{ fontSize: '1.12rem' }}>
                   {rich(unit.title)}
                 </div>
               </div>
-              <div style={{ width: 90 }}>
+              <div style={{ width: 96 }}>
                 <ProgressBar value={done / unit.lessons.length} thin />
+                <div className="tiny faint" style={{ textAlign: 'end', marginTop: 4 }}>
+                  {num(done)}/{num(unit.lessons.length)}
+                </div>
               </div>
             </div>
             {unit.lessons.map((lesson) => {

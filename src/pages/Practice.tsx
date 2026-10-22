@@ -7,6 +7,7 @@ import { useT } from '../i18n';
 import { useProgress, weakestSkill } from '../store/progress';
 import { Session, type SessionStats } from '../components/exercises/Session';
 import { EmptyState } from '../components/ui';
+import { Icon3D } from '../components/Icon3D';
 
 export function Practice() {
   const { t, num, pct } = useT();
@@ -44,14 +45,17 @@ export function Practice() {
 
   return (
     <div className="page page-narrow">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('practiceTitle')}</h1>
         <p>{t('practiceSub')}</p>
+        <Icon3D name="practice" size={108} eager />
       </div>
 
       {result && (
         <div className="card celebrate" style={{ marginBottom: 16 }}>
-          <div className="emoji">⚡</div>
+          <div className="emoji">
+            <Icon3D name="xp" size={130} eager />
+          </div>
           <h2>{t('sessionComplete')}</h2>
           <div className="result-stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="result-stat">
@@ -62,7 +66,7 @@ export function Practice() {
             </div>
             <div className="result-stat">
               <div className="tiny faint">{t('xpEarned')}</div>
-              <div className="v" style={{ color: 'var(--accent)' }}>
+              <div className="v" style={{ color: 'var(--accent-text)' }}>
                 +{num(result.xp)}
               </div>
             </div>
@@ -71,7 +75,7 @@ export function Practice() {
       )}
 
       {done.length === 0 ? (
-        <EmptyState icon="🔒" title={t('needLessons')}>
+        <EmptyState icon="lock" title={t('needLessons')}>
           <Link to="/learn" className="btn btn-primary" style={{ marginTop: 10 }}>
             {t('navLearn')}
           </Link>

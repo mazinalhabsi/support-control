@@ -6,6 +6,7 @@ import { useT } from '../i18n';
 import { useProgress } from '../store/progress';
 import { AudioButton, En, LevelTag, Segmented } from '../components/ui';
 import type { StringKey } from '../i18n/strings';
+import { Icon3D } from '../components/Icon3D';
 
 type Status = 'all' | 'notInDeck' | 'learning' | 'mastered';
 const PAGE = 60;
@@ -48,9 +49,10 @@ export function Vocabulary() {
 
   return (
     <div className="page">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('vocabTitle')}</h1>
         <p>{t('vocabSub', { count: num(VOCAB.length) })}</p>
+        <Icon3D name="vocabulary" size={108} eager />
       </div>
       <div className="stack" style={{ marginBottom: 18 }}>
         <input className="input" placeholder={t('search')} value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -77,7 +79,11 @@ export function Vocabulary() {
       </div>
 
       <div className="card" style={{ padding: 0 }}>
-        {rows.length === 0 && <p className="muted center" style={{ padding: 20 }}>{t('noResults')}</p>}
+        {rows.length === 0 && (
+          <p className="muted center" style={{ padding: 20 }}>
+            {t('noResults')}
+          </p>
+        )}
         {rows.slice(0, limit).map(({ item, level: lvl }) => {
           const st = statusOf(srs[item.id]);
           return (

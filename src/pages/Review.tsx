@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Repeat, PartyPopper } from 'lucide-react';
 import { getVocab } from '../content';
 import { AGAIN, EASY, GOOD, HARD, formatInterval, isDue, isMastered, previewIntervals, type Rating } from '../lib/srs/fsrs';
 import { addDays, dateKey } from '../lib/util';
@@ -12,6 +11,7 @@ import { gsap, haptic } from '../motion/core';
 import { useReducedMotion } from '../motion/MotionProvider';
 import { shake } from '../motion/hooks';
 import { sparkAt } from '../components/fx/Celebrate';
+import { Icon3D } from '../components/Icon3D';
 
 const SESSION_LIMIT = 60;
 const MAX_REPEATS = 3;
@@ -44,15 +44,16 @@ export function Review() {
 
   return (
     <div className="page page-narrow">
-      <div className="page-head">
+      <div className="page-head with-object">
         <h1>{t('reviewTitle')}</h1>
         <p>{t('reviewSub')}</p>
+        <Icon3D name="review" size={108} eager />
       </div>
 
       {reviewed > 0 && (
         <div className="card celebrate" style={{ marginBottom: 16 }}>
           <div className="emoji">
-            <PartyPopper size={56} color="var(--accent)" />
+            <Icon3D name="review" size={130} eager />
           </div>
           <h2>{t('sessionDone')}</h2>
           <p className="muted">{t('reviewed', { count: num(reviewed) })}</p>
@@ -60,7 +61,7 @@ export function Review() {
       )}
 
       {Object.keys(srs).length === 0 ? (
-        <EmptyState icon="🗂️" title={t('emptyDeck')}>
+        <EmptyState icon="review" title={t('emptyDeck')}>
           <Link to="/learn" className="btn btn-primary" style={{ marginTop: 10 }}>
             {t('navLearn')}
           </Link>
@@ -69,7 +70,7 @@ export function Review() {
         <>
           <div className="card row spread" style={{ flexWrap: 'wrap' }}>
             <div className="row">
-              <Repeat size={28} color="var(--primary)" />
+              <Icon3D name="goal" size={56} />
               <div>
                 <div className="big-number">{num(dueIds.length)}</div>
                 <div className="faint small">{t('reviewsDue')}</div>
@@ -99,11 +100,12 @@ function DeckStats() {
   const learning = cards.length - mastered - fresh;
   const today = dateKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
-  const counts = days.map((d, i) =>
-    cards.filter((c) => {
-      const k = dateKey(new Date(c.due));
-      return i === 0 ? k <= d : k === d;
-    }).length,
+  const counts = days.map(
+    (d, i) =>
+      cards.filter((c) => {
+        const k = dateKey(new Date(c.due));
+        return i === 0 ? k <= d : k === d;
+      }).length,
   );
   const max = Math.max(1, ...counts);
   const label = (d: string, i: number) =>
@@ -168,7 +170,11 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
   // New card slides in from the reading direction.
   useLayoutEffect(() => {
     if (reduced || !cardRef.current) return;
-    gsap.fromTo(cardRef.current, { x: lang === 'ar' ? -40 : 40, opacity: 0, rotationY: 0 }, { x: 0, opacity: 1, duration: 0.4, clearProps: 'transform,opacity' });
+    gsap.fromTo(
+      cardRef.current,
+      { x: lang === 'ar' ? -40 : 40, opacity: 0, rotationY: 0 },
+      { x: 0, opacity: 1, duration: 0.4, clearProps: 'transform,opacity' },
+    );
   }, [i, reduced, lang]);
 
   /** Flip the card over to show the answer. */
@@ -292,10 +298,7 @@ function ReviewSession({ ids, onDone }: { ids: string[]; onDone: (reviewed: numb
 
       <div style={{ marginTop: 16 }}>
         {!revealed ? (
-          <button
-            className="btn btn-primary btn-lg btn-block"
-            onClick={reveal}
-          >
+          <button className="btn btn-primary btn-lg btn-block" onClick={reveal}>
             {t('showAnswer')}
           </button>
         ) : (
