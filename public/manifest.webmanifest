@@ -1,0 +1,13 @@
+{
+  "name": "Talaqa — English from zero to mastery",
+  "short_name": "Talaqa",
+  "description": "Learn English from A1 to C2, designed for Arabic speakers.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6fb",
+  "theme_color": "#5048e5",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
