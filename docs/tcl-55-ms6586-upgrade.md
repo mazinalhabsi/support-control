@@ -33,3 +33,20 @@
 ## بديل أرخص (ليس Apple)
 
 - Google TV Streamer أو Fire TV Stick 4K: واجهة عصرية وتطبيقات حديثة، لكن بلا AirPlay أصلي وبلا تجربة Apple.
+
+## مسار تعديل النظام نفسه: تحليل الجدوى أولاً
+
+قبل أي تعديل على ملف النظام، نحدد إن كان ممكناً أصلاً. الأداة `tools/firmware/analyze_fw.py` تقرأ الملف فقط ولا تثبّت شيئاً على الشاشة، وتجيب عن ثلاثة أسئلة:
+
+1. هل الحزمة موقّعة/مشفّرة؟ إذا كانت أجزاء الواجهة موقّعة بمفتاح TCL الخاص، فأي تعديل سيرفضه التلفاز وينتهي المسار هنا.
+2. بماذا تُرسم الواجهة (HTML/JS، Qt، DirectFB...)؟ إذا كانت HTML/JS فالتعديل أسهل بكثير.
+3. هل يوجد نظام عرض شاشة (Miracast/DLNA/AirPlay)؟ هذا يحدد إن كان عرض شاشة الآيفون ممكناً من داخل التلفاز.
+
+```
+git clone https://github.com/dipcore/mstar-bin-tool tools/firmware/mstar-bin-tool
+pip install PySquashfsImage
+python3 tools/firmware/analyze_fw.py V8-S586T02-LF1Vxxx.bin out/
+# التقرير: out/REPORT.md
+```
+
+الملف المطلوب: أي نسخة `V8-S586T02-LF1V*.bin`، ويُفضَّل `LF1V371` المطابقة للشاشة.
