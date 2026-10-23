@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>المعامل والتمارين — Support Control</title>
+  <meta name="description" content="معامل وتمارين الاختراق الأخلاقي القانونية، ودليل بناء معمل منزلي معزول للتدريب الآمن." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='18' font-size='18'>🛡️</text></svg>" />
+</head>
+<body dir="rtl" data-page="labs">
+  <div id="nav"></div>
+
+  <header class="section-sm" style="padding-top:56px;padding-bottom:20px">
+    <div class="container">
+      <span class="eyebrow">تعلّم باليد</span>
+      <h1 style="font-size:clamp(2rem,4.5vw,3rem)">المعامل و<span class="gradient-text">التمارين</span></h1>
+      <p class="lead" style="color:var(--text-soft);max-width:720px">القراءة وحدها لا تصنع مختبِرًا. هنا منصّات التدريب القانونية التي تطبّق فيها ما تتعلّمه في بيئات مصمّمة خصيصًا لذلك — بأمان وقانونية تامّة.</p>
+    </div>
+  </header>
+
+  <!-- منصّات قانونية -->
+  <section class="section" style="padding-top:12px">
+    <div class="container">
+      <div class="section-head">
+        <h2 style="font-size:1.7rem">منصّات التدريب القانونية</h2>
+        <p>هذه المنصّات توفّر أهدافًا مصمّمة ليُتدرَّب عليها — لا تختبر أبدًا خارجها دون تفويض.</p>
+      </div>
+      <div class="grid grid-auto" id="labGrid"></div>
+    </div>
+  </section>
+
+  <!-- بناء معمل منزلي -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head">
+        <h2 style="font-size:1.7rem">ابنِ معملك المنزلي المعزول</h2>
+        <p>أفضل بيئة تدريب هي التي تملكها بالكامل. إليك الهيكل الأساسي لمعمل آمن ومعزول عن الإنترنت.</p>
+      </div>
+      <div class="prose" style="max-width:860px">
+        <div class="callout callout-danger" id="isoCallout"></div>
+        <h3>المكوّنات الأساسية</h3>
+        <ol>
+          <li><strong>برنامج المحاكاة (Hypervisor):</strong> مثل VirtualBox (مجاني) أو VMware — لتشغيل عدّة أنظمة على جهازك.</li>
+          <li><strong>آلة المهاجم:</strong> توزيعة Kali Linux كآلة افتراضية.</li>
+          <li><strong>آلات الأهداف:</strong> أنظمة ضعيفة <em>مصمّمة للتدريب</em> مثل Metasploitable أو آلات VulnHub.</li>
+          <li><strong>شبكة معزولة:</strong> اضبط الشبكة على وضع «Host-Only» أو «Internal» بحيث لا تصل الآلات للإنترنت أو لشبكتك الحقيقية.</li>
+        </ol>
+        <div class="callout callout-ok" id="okCallout"></div>
+        <h3>سير تدريب مقترح</h3>
+        <ul>
+          <li>ابدأ بـ <strong>OverTheWire</strong> لإتقان الطرفية وأساسيات لينُكس.</li>
+          <li>انتقل إلى مسارات <strong>TryHackMe</strong> الموجّهة للمبتدئين.</li>
+          <li>طبّق ثغرات الويب على <strong>PortSwigger Web Security Academy</strong>.</li>
+          <li>تحدَّ نفسك بآلات <strong>Hack The Box</strong> المتدرّجة.</li>
+          <li>ابنِ معملك الخاص بـ <strong>VulnHub</strong> لتجربة بلا قيود زمنية.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var I = window.ICONS;
+      document.getElementById("isoCallout").innerHTML = I.alert +
+        '<div><strong>العزل أولًا:</strong> آلات التدريب الضعيفة خطرة إن اتصلت بالإنترنت أو بشبكتك. اعزلها دائمًا في شبكة داخلية مغلقة قبل تشغيلها.</div>';
+      document.getElementById("okCallout").innerHTML = I.check +
+        '<div>مع هذا المعمل تستطيع تطبيق كل مراحل المنهج — من الفحص حتى ما بعد الاستغلال — دون أي خطر قانوني أو تقني.</div>';
+    });
+  </script>
+</body>
+</html>

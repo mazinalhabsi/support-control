@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Control — أكاديمية الاختراق الأخلاقي</title>
+  <meta name="description" content="منصّة تعليمية متخصّصة في الاختراق الأخلاقي والأمن الهجومي، من الصفر إلى الاحتراف: دروس مفصّلة، أدوات، معامل، وتمارين عملية بإطار أخلاقي وقانوني." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='18' font-size='18'>🛡️</text></svg>" />
+</head>
+<body dir="rtl" data-page="home">
+  <div id="nav"></div>
+
+  <!-- ======================= HERO ======================= -->
+  <header class="hero">
+    <div class="container hero-grid">
+      <div>
+        <span class="eyebrow">من الصفر إلى الاحتراف</span>
+        <h1>أتقن <span class="gradient-text">الاختراق الأخلاقي</span> كما يفعله المحترفون</h1>
+        <p class="lead">منصّة تعليمية متكاملة تبني مهاراتك في الأمن الهجومي خطوة بخطوة — بمنهج متدرّج، دروس مفصّلة، أدوات حقيقية، ومعامل تطبيقية، ضمن إطار أخلاقي وقانوني صارم.</p>
+        <div class="hero-actions">
+          <a href="curriculum.html" class="btn btn-primary btn-lg" id="ctaStart"></a>
+          <a href="lessons.html" class="btn btn-ghost btn-lg" id="ctaLessons"></a>
+        </div>
+        <div class="hero-stats" id="homeStats"></div>
+      </div>
+      <div>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="ttl">support-control — zsh</span>
+          </div>
+          <div class="terminal-body" id="termBody"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================= ETHICS BANNER ======================= -->
+  <section class="container">
+    <div class="callout callout-warn" style="align-items:center">
+      <span id="ethIcon"></span>
+      <div>
+        <strong>تعهّد أخلاقي:</strong> كل ما تتعلّمه هنا مخصّص للاختبار المصرّح به قانونيًا والدفاع السيبراني. اختبار أي نظام لا تملكه دون تفويض مكتوب جريمة — نعلّمك المهارة والمسؤولية معًا.
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= WHY US ======================= -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head text-center" style="margin-inline:auto">
+        <span class="eyebrow" id="why-eyebrow">لماذا هذه المنصّة</span>
+        <h2>تعليم مبني على <span class="gradient-text">المنهجية</span>، لا على الحيل</h2>
+        <p>لا نبيعك «اختراق واي فاي في 5 دقائق». نبني أساسًا هندسيًا متينًا يجعلك مختبِرًا يُعتمد عليه.</p>
+      </div>
+      <div class="grid grid-3" id="whyGrid"></div>
+    </div>
+  </section>
+
+  <!-- ======================= ROADMAP PREVIEW ======================= -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">خريطة التعلّم</span>
+        <h2>مسار متدرّج من <span class="gradient-text">11 مرحلة</span></h2>
+        <p>كل مرحلة تبني على ما قبلها — تبدأ من أساسيات الحاسوب وتنتهي عند احتراف كتابة التقارير والشهادات العالمية.</p>
+      </div>
+      <div class="grid grid-3" id="homePhases"></div>
+      <div class="text-center" style="margin-top:36px">
+        <a href="curriculum.html" class="btn btn-outline btn-lg" id="ctaRoadmap"></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= METHODS ======================= -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head text-center" style="margin-inline:auto">
+        <span class="eyebrow">طرق التعلّم</span>
+        <h2>كل وسيلة تعلّم ممكنة في <span class="gradient-text">مكان واحد</span></h2>
+      </div>
+      <div class="grid grid-4" id="methodsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ======================= CTA ======================= -->
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="cta-band reveal">
+        <h2>جاهز لتبدأ رحلتك؟</h2>
+        <p>ابدأ من المرحلة صفر اليوم. لا حاجة لخبرة سابقة — فقط فضول والتزام بالأخلاقيات.</p>
+        <a href="curriculum.html" class="btn btn-primary btn-lg" id="ctaFinal"></a>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer"></div>
+
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    // محتوى خاص بالصفحة الرئيسية يحتاج ICONS، يُحقن بعد تحميل السكربتات
+    document.addEventListener("DOMContentLoaded", function () {
+      var I = window.ICONS;
+      document.querySelector(".eyebrow").innerHTML = I.zap + " من الصفر إلى الاحتراف";
+      document.getElementById("ctaStart").innerHTML = I.rocket + " ابدأ المنهج";
+      document.getElementById("ctaLessons").innerHTML = I.book + " تصفّح الدروس";
+      document.getElementById("ctaRoadmap").innerHTML = "استعرض المنهج الكامل " + I.chevron;
+      document.getElementById("ctaFinal").innerHTML = I.rocket + " ادخل المرحلة صفر";
+      document.getElementById("ethIcon").innerHTML = I.scale;
+      document.getElementById("why-eyebrow").innerHTML = I.shieldCheck + " لماذا هذه المنصّة";
+
+      var why = [
+        { i: "route", t: "منهج متدرّج", d: "11 مرحلة متسلسلة تأخذ بيدك من أساسيات الشبكات حتى الاحتراف، دون قفزات أو فجوات." },
+        { i: "terminal", t: "تطبيق عملي", d: "معامل وتمارين على منصّات قانونية، لأن الأمن يُتعلّم باليد لا بالقراءة فقط." },
+        { i: "scale", t: "إطار أخلاقي", d: "كل درس يبدأ بالمسؤولية: التفويض، النطاق، والقانون قبل أي أمر في الطرفية." },
+        { i: "layers", t: "فهم عميق", d: "نشرح كيف تعمل الثغرة ولماذا، لا كيف تنسخ أمرًا جاهزًا دون فهم." },
+        { i: "shieldCheck", t: "منظور دفاعي", d: "تتعلّم الهجوم لتتقن الدفاع — كل تقنية مقرونة بكيفية كشفها ومنعها." },
+        { i: "graduation", t: "جاهزية مهنية", d: "من كتابة التقارير إلى خريطة الشهادات العالمية ومسارات التوظيف." },
+      ];
+      document.getElementById("whyGrid").innerHTML = why.map(function (w) {
+        return '<div class="card reveal"><div class="card-icon">' + I[w.i] + '</div><h3>' + w.t + '</h3><p>' + w.d + '</p></div>';
+      }).join("");
+
+      var methods = [
+        { i: "play", t: "فيديوهات", d: "شروحات مرئية لكل درس." },
+        { i: "book", t: "دروس مكتوبة", d: "محتوى مفصّل ومرجعي." },
+        { i: "terminal", t: "معامل تطبيقية", d: "بيئات تدريب آمنة." },
+        { i: "flag", t: "تحدّيات CTF", d: "اختبر مهارتك عمليًا." },
+      ];
+      document.getElementById("methodsGrid").innerHTML = methods.map(function (m) {
+        return '<div class="card reveal" style="text-align:center"><div class="card-icon" style="margin-inline:auto">' + I[m.i] + '</div><h3 style="font-size:1.05rem">' + m.t + '</h3><p>' + m.d + '</p></div>';
+      }).join("");
+
+      // إعادة تفعيل reveal للعناصر المحقونة
+      document.querySelectorAll(".reveal:not(.in)").forEach(function (e) {
+        if ("IntersectionObserver" in window) {
+          var io = new IntersectionObserver(function (ents) {
+            ents.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+          }, { threshold: 0.1 });
+          io.observe(e);
+        } else { e.classList.add("in"); }
+      });
+    });
+  </script>
+</body>
+</html>
