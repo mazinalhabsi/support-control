@@ -3,33 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-</head>
-<body style="margin:0">
+<meta name="theme-color" content="#0C131A">
+<meta name="description" content="واجهة بسيطة لشاشة هيونداي إلنترا: أوقات الصلاة، السرعة، الإرشاد، الموسيقى، الهاتف، والوقود.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>شاشة إلنترا الجديدة</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one dark "cabin at night" page. The 9-inch head-unit mockup (1280x720, scaled to fit) is the hero; the buying guide sits below it. */
+/* Layout: one dark "cabin at night" page. The head-unit screen (720 logical px tall, scaled to fit) is the hero; the install guide sits below it.
+   In app mode (installed on the car screen) only the head unit is shown, filling the display. */
 :root{
   color-scheme:dark;
   /* page */
   --page:#10161D; --panel:#17202A; --ink:#E8ECEF; --mute:#94A1AD; --line:#27323D; --amber:#F2A23C;
-  /* head unit: night palette is the default, day palette is swapped in on .unit[data-mode="day"] */
+  /* head unit, night palette (default); the day palette is swapped in on .unit[data-mode="day"] */
   --s-bg:#0C131A; --s-card:#151F29; --s-card2:#1E2A35; --s-ink:#EEF2F5; --s-mute:#8D9CAA; --s-line:#24323F;
-  --s-accent:#F2A23C; --s-on-accent:#1A1206; --s-route:#4FD1C5;
-  --m-road:#24323E; --m-block:#16212B; --m-major:#3B4D5E; --m-park:#163026; --m-label:#8494A3;
-  --ok:#5BC98A; --on-ok:#06210F; --bad:#EF6B5B;
+  --s-accent:#F2A23C; --s-on-accent:#1A1206;
+  --m-road:#1B2731; --m-block:#141E27; --m-major:#2C3B48; --m-park:#14271F;
+  --ok:#5BC98A; --on-ok:#06210F; --warn:#F2A23C; --bad:#EF6B5B;
+  /* app tiles: same in both modes, white glyphs on top */
+  --c-music:#B9573F; --c-nav:#2C8A7F; --c-chat:#3A8752; --c-book:#8E7230; --c-link:#A35F00; --c-phone:#3A8752;
   /* type */
   --f-display:"Alexandria","IBM Plex Sans Arabic",system-ui,sans-serif;
   --f-body:"IBM Plex Sans Arabic",system-ui,"Segoe UI",Tahoma,sans-serif;
 }
 .unit[data-mode="day"]{
   --s-bg:#E6EBEF; --s-card:#FFFFFF; --s-card2:#EEF2F5; --s-ink:#14202B; --s-mute:#56656F; --s-line:#D2DAE0;
-  --s-accent:#A35F00; --s-on-accent:#FFFFFF; --s-route:#0E8C80;
-  --m-road:#FFFFFF; --m-block:#DCE3E8; --m-major:#F1D9A6; --m-park:#CDE6D4; --m-label:#5E6C77;
-  --ok:#1E8E4E; --on-ok:#FFFFFF; --bad:#C8402F;
+  --s-accent:#A35F00; --s-on-accent:#FFFFFF;
+  --m-road:#F4F6F8; --m-block:#E1E7EC; --m-major:#F1DDB4; --m-park:#D6EBDC;
+  --ok:#1E8E4E; --on-ok:#FFFFFF; --warn:#A35F00; --bad:#C8402F;
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -37,6 +42,7 @@
 html,body{background:var(--page);color:var(--ink)}
 body{font-family:var(--f-body);font-size:16px;line-height:1.65}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit}
 :focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .ic{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ic .f{fill:currentColor;stroke:none}
@@ -44,12 +50,12 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 /* ---------- page ---------- */
 .page{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 72px;display:grid;gap:36px}
-.intro{display:grid;gap:12px;max-width:70ch}
+.intro{display:grid;gap:12px;max-width:72ch}
 .eyebrow{margin:0;color:var(--amber);font-size:15px;font-weight:600}
 h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5vw,46px);line-height:1.2;text-wrap:balance}
 .lede{margin:0;color:var(--mute);font-size:17px}
 .intro-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:15px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:15px;text-decoration:none}
 .btn .ic{font-size:18px;color:var(--amber)}
 .btn:hover{border-color:var(--mute)}
 .tag{font-size:13px;color:var(--mute);border:1px dashed var(--line);padding:4px 12px;border-radius:999px}
@@ -59,220 +65,213 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
 
 /* ---------- device frame ---------- */
 .stage{position:relative;width:100%}
-.device{position:absolute;top:0;left:0;width:1312px;height:752px;padding:16px;border-radius:30px;background:linear-gradient(160deg,#252d36,#0a0e12 60%);box-shadow:0 0 0 1px #2e3843,0 40px 80px -30px rgba(0,0,0,.8);transform-origin:0 0}
-.stage.is-fs{background:#000}
-.stage.is-fs .device{padding:0;width:1280px;height:720px;border-radius:0;box-shadow:none;background:none}
-.stage.is-fs .unit{border-radius:0}
+.device{position:absolute;top:0;left:0;padding:16px;border-radius:30px;background:linear-gradient(160deg,#252d36,#0a0e12 60%);box-shadow:0 0 0 1px #2e3843,0 40px 80px -30px rgba(0,0,0,.8);transform-origin:0 0}
+.stage.is-fs,body.app-mode .stage{background:#000}
+.stage.is-fs .device,body.app-mode .device{padding:0;border-radius:0;box-shadow:none;background:none}
+.stage.is-fs .unit,body.app-mode .unit{border-radius:0}
+body.app-mode{background:#000;overflow:hidden}
+body.app-mode .page{padding:0;max-width:none;display:block}
+body.app-mode .intro,body.app-mode .guide{display:none}
+body.app-mode .stage{position:fixed;inset:0}
 
 /* ---------- head unit ---------- */
 .unit{position:relative;width:1280px;height:720px;border-radius:14px;overflow:hidden;background:var(--s-bg);color:var(--s-ink);font-family:var(--f-body);line-height:1.4;--k:1;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 .unit[data-size="large"]{--k:1.14}
-.screen{position:absolute;inset:0;display:grid;grid-template-rows:52px 568px 100px;filter:brightness(var(--bright,1));background:var(--s-bg);transition:background .4s}
-.unit button:active{transform:scale(.97)}
+.unit input,.unit select{-webkit-user-select:text;user-select:text}
+.screen{position:absolute;inset:0;display:grid;grid-template-rows:52px 568px 100px;filter:brightness(var(--dim,1));background:var(--s-bg);transition:background .4s}
+.unit button:active,.unit a:active{transform:scale(.97)}
 
-.status{display:flex;align-items:center;gap:22px;padding-inline:24px;border-bottom:1px solid var(--s-line);font-size:18px;color:var(--s-mute)}
-.clock-s{font-family:var(--f-display);font-weight:600;font-size:22px;color:var(--s-ink);font-variant-numeric:tabular-nums}
-.st-item{display:inline-flex;align-items:center;gap:8px}
-.st-item .ic{font-size:20px}
-.vol{display:inline-flex;align-items:center;gap:2px;background:var(--s-card);border-radius:12px;padding:3px}
-.vol button{width:42px;height:38px;border-radius:9px;display:grid;place-items:center;font-size:24px;color:var(--s-ink);line-height:1}
-.vol output{min-width:62px;display:inline-flex;gap:6px;align-items:center;justify-content:center;color:var(--s-ink);font-variant-numeric:tabular-nums}
-.vol output .ic{font-size:18px;color:var(--s-mute)}
+.status{display:flex;align-items:center;gap:18px;padding-inline:24px;border-bottom:1px solid var(--s-line);font-size:17px;color:var(--s-mute);min-width:0}
+.clock-s{font-family:var(--f-display);font-weight:600;font-size:22px;color:var(--s-ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.st-item{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.st-item .ic{font-size:19px}
+.st-item[data-on="1"]{color:var(--s-ink)}
+.st-item[data-on="1"] .ic{color:var(--ok)}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;border-radius:999px;font-size:15px;font-weight:600;white-space:nowrap;background:var(--s-card);color:var(--s-ink)}
+.chip .ic{font-size:17px}
+.chip[data-level="warn"]{background:var(--s-accent);color:var(--s-on-accent)}
+.chip[data-level="bad"]{background:var(--bad);color:#fff}
+.chip.demo{background:none;border:1px dashed var(--s-mute);color:var(--s-mute)}
 
 .views{position:relative;min-height:0;overflow:hidden}
 .view{position:absolute;inset:0;padding:20px;display:grid;gap:20px;min-height:0}
 .card{background:var(--s-card);border-radius:22px;padding:24px;min-width:0;min-height:0;position:relative;overflow:hidden}
 .label{font-size:calc(15px*var(--k));color:var(--s-mute)}
+.card-title{margin:0;font-family:var(--f-display);font-size:calc(20px*var(--k));font-weight:600}
 
 .seg{display:flex;gap:4px;background:var(--s-card2);border-radius:14px;padding:4px}
 .seg button{flex:1;padding:10px 12px;border-radius:10px;font-size:calc(16px*var(--k));font-weight:600;color:var(--s-mute);white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--s-accent);color:var(--s-on-accent)}
 
-/* home */
-.home{grid-template-columns:340px 1fr 390px}
-.col{display:grid;grid-template-rows:1fr auto;gap:16px;min-height:0}
-.clock-card{display:flex;flex-direction:column;justify-content:space-between}
-.big-time{font-family:var(--f-display);font-weight:600;font-size:100px;line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:10px}
-.big-time small{font-size:28px;color:var(--s-mute);font-weight:500}
-.date{font-size:calc(21px*var(--k));margin-top:14px}
-.weather{display:flex;align-items:center;gap:12px;font-size:calc(17px*var(--k));color:var(--s-mute)}
-.weather .ic{font-size:36px;color:var(--s-accent)}
-.weather b{font-family:var(--f-display);font-size:34px;color:var(--s-ink);font-weight:600}
-.quick{display:grid;gap:12px}
-.qa{display:flex;align-items:center;gap:16px;background:var(--s-card);border-radius:18px;padding:14px 20px;text-align:start;min-height:78px}
-.qa .ic{font-size:28px;color:var(--s-accent)}
-.qa b{display:block;font-size:calc(19px*var(--k));font-weight:600}
-.qa small{display:block;font-size:calc(14px*var(--k));color:var(--s-mute)}
-
-.mapcard,.map-wrap{padding:0;background:var(--m-road);cursor:pointer}
-.map-wrap{cursor:default}
-.map-slot,.map-slot svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* decorative map behind the driving cards */
+.map-slot{position:absolute;inset:0;pointer-events:none}
+.map-slot svg{width:100%;height:100%;display:block}
 .m-roadbg{fill:var(--m-road)} .m-block{fill:var(--m-block)} .m-park{fill:var(--m-park)}
 .m-major{fill:none;stroke:var(--m-major);stroke-width:22;stroke-linecap:round}
-.m-casing{fill:none;stroke:var(--s-bg);stroke-width:18;stroke-linejoin:round;stroke-linecap:round;opacity:.55}
-.m-route{fill:none;stroke:var(--s-route);stroke-width:10;stroke-linejoin:round;stroke-linecap:round}
-.m-dest circle{fill:var(--s-accent)} .m-dest .m-dot{fill:var(--s-bg)}
 .m-car{fill:var(--s-accent);stroke:var(--s-bg);stroke-width:3;stroke-linejoin:round}
-.m-label{fill:var(--m-label);font-size:15px;font-family:var(--f-body);text-anchor:middle}
-.turn{position:absolute;top:16px;inset-inline-start:16px;display:flex;align-items:center;gap:14px;background:var(--s-accent);color:var(--s-on-accent);border-radius:16px;padding:12px 20px;max-width:calc(100% - 32px);box-shadow:0 10px 24px -12px rgba(0,0,0,.6)}
-.turn .ic{font-size:44px;stroke-width:2.6}
-.turn .dist{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.turn .street{font-size:calc(16px*var(--k));font-weight:600}
-.eta{position:absolute;bottom:16px;inset-inline:16px;display:flex;align-items:center;gap:14px;background:var(--s-card);border-radius:16px;padding:12px 18px;box-shadow:0 10px 24px -12px rgba(0,0,0,.6)}
-.eta b{font-family:var(--f-display);font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.eta span{color:var(--s-mute);font-size:calc(16px*var(--k))}
-.end-nav{margin-inline-start:auto;padding:10px 20px;border-radius:12px;background:var(--bad);color:#fff;font-weight:600;font-size:calc(16px*var(--k))}
-.unit[data-nav="off"] .turn,.unit[data-nav="off"] .eta,.unit[data-nav="off"] .m-route,.unit[data-nav="off"] .m-casing,.unit[data-nav="off"] .m-dest{display:none}
-.speed-wrap{position:absolute;bottom:96px;inset-inline-end:16px;display:flex;align-items:center;gap:10px}
-.speed{width:96px;height:96px;border-radius:50%;background:var(--s-card);border:4px solid var(--s-line);display:grid;place-content:center;text-align:center;line-height:1}
-.speed b{font-family:var(--f-display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
-.speed small{font-size:13px;color:var(--s-mute);margin-top:4px}
-.limit{width:62px;height:62px;border-radius:50%;background:#fff;color:#111;border:6px solid #D93A2B;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:22px}
 
-.media-card{display:flex;flex-direction:column;gap:18px}
-.np{display:flex;gap:18px;align-items:center;min-width:0}
-.art{width:128px;height:128px;border-radius:18px;flex:none;display:grid;place-items:center;font-family:var(--f-display);font-size:54px;font-weight:700;color:rgba(255,255,255,.92);background:linear-gradient(135deg,var(--a1,#F2A23C),var(--a2,#6B3410))}
-.np-text{min-width:0}
-.np-title{font-size:calc(25px*var(--k));font-weight:700;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.np-artist{font-size:calc(18px*var(--k));color:var(--s-mute);margin-top:4px}
-.np-src{display:inline-block;font-size:calc(14px*var(--k));color:var(--s-accent);margin-top:10px;font-weight:600}
-.prog{display:grid;gap:8px}
-.bar{height:8px;border-radius:4px;background:var(--s-card2);overflow:hidden}
-.bar span{display:block;height:100%;width:0;background:var(--s-accent);border-radius:4px;transition:width .9s linear}
-.times{display:flex;justify-content:space-between;font-size:15px;color:var(--s-mute);font-variant-numeric:tabular-nums}
-.ctrls{display:flex;align-items:center;justify-content:center;gap:26px;margin-top:auto}
-.ctrls button{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;font-size:30px;background:var(--s-card2)}
-.ctrls .play{width:92px;height:92px;font-size:38px;background:var(--s-accent);color:var(--s-on-accent)}
-.unit[data-src="radio"] .only-track{display:none!important}
-.unit:not([data-src="radio"]) .only-radio{display:none!important}
+/* home */
+.home{grid-template-columns:340px minmax(0,1fr) 380px}
+.col{display:grid;gap:16px;min-height:0}
+.col-l{grid-template-rows:auto minmax(0,1fr)}
+.clock-card{display:flex;flex-direction:column;justify-content:space-between}
+.big-time{font-family:var(--f-display);font-weight:600;font-size:82px;line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:10px}
+.big-time small{font-size:28px;color:var(--s-mute);font-weight:500}
+.date{font-size:calc(21px*var(--k));margin-top:14px}
+.hijri{font-size:calc(18px*var(--k));color:var(--s-mute);margin-top:2px}
+.weather{display:flex;align-items:center;gap:14px;color:var(--s-mute)}
+.weather > .ic{font-size:42px;color:var(--s-accent)}
+.weather b{font-family:var(--f-display);font-size:38px;color:var(--s-ink);font-weight:600;line-height:1}
+.weather span{display:grid;font-size:calc(17px*var(--k))}
+.weather small{font-size:calc(14px*var(--k))}
+
+.drive{padding:0;background:var(--m-road);display:flex;flex-direction:column}
+.drive-in{position:relative;display:flex;flex-direction:column;gap:14px;padding:22px;height:100%}
+.glass{background:color-mix(in srgb,var(--s-card) 90%,transparent);border-radius:20px;backdrop-filter:blur(6px)}
+.spd{align-self:flex-start;display:flex;align-items:baseline;gap:10px;padding:14px 24px}
+.spd b{font-family:var(--f-display);font-size:96px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.spd span{font-size:22px;color:var(--s-mute);font-weight:600}
+.spd[data-over="1"] b{color:var(--bad)}
+.gps-hint{align-self:flex-start;padding:8px 14px;font-size:calc(14px*var(--k));color:var(--s-mute);border-radius:12px}
+.go-head{margin-top:auto;align-self:flex-start;padding:6px 14px;font-size:calc(14px*var(--k));color:var(--s-mute);border-radius:12px}
+.go-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.go{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:18px;background:var(--s-card);text-decoration:none;text-align:start;min-width:0;min-height:84px;box-shadow:0 10px 24px -14px rgba(0,0,0,.6)}
+.go:first-child{background:var(--s-accent);color:var(--s-on-accent)}
+.go .ic{font-size:30px}
+.go b{display:block;font-size:calc(20px*var(--k));font-weight:700}
+.go small{display:block;font-size:calc(14px*var(--k));opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.go > span{min-width:0}
+
+.prayer-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:start;width:100%}
+.prayer-card .p-name{font-family:var(--f-display);font-size:calc(36px*var(--k));font-weight:600;line-height:1.3;margin-top:4px}
+.prayer-card .p-time{font-size:calc(22px*var(--k));font-variant-numeric:tabular-nums}
+.p-left{margin-top:10px;display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:var(--s-card2);color:var(--s-accent);font-weight:600;font-size:calc(16px*var(--k))}
+.prayer-card > .ic{position:absolute;top:22px;inset-inline-end:22px;font-size:30px;color:var(--s-accent)}
+.music-card{display:flex;flex-direction:column;gap:12px}
+.mini-apps{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:10px;flex:1;min-height:0}
+.mini{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:16px;background:var(--s-card2);text-decoration:none;font-weight:600;font-size:calc(15px*var(--k));min-width:0;text-align:center;line-height:1.25}
+.mini .a-ic{width:44px;height:44px;border-radius:12px;font-size:22px}
+.mini span:last-child{min-width:0;max-width:100%}
+.a-ic{display:grid;place-items:center;flex:none;color:#fff;background:var(--cat,var(--c-music))}
 
 /* maps */
-.maps{grid-template-columns:360px 1fr}
+.maps{grid-template-columns:400px minmax(0,1fr)}
 .panel{display:flex;flex-direction:column;gap:12px;min-height:0}
-.search{display:flex;align-items:center;gap:12px;background:var(--s-card);border-radius:16px;padding:0 18px;height:60px;flex:none;cursor:text}
-.search .ic{font-size:24px;color:var(--s-mute)}
+.search{display:flex;align-items:center;gap:10px;background:var(--s-card);border-radius:16px;height:62px;flex:none}
+.search > .ic{font-size:24px;color:var(--s-mute);margin-inline-start:16px}
 .search input{flex:1;min-width:0;background:none;border:0;color:var(--s-ink);font:inherit;font-size:calc(19px*var(--k));outline:none}
 .search input::placeholder{color:var(--s-mute)}
 .search:focus-within{box-shadow:inset 0 0 0 2px var(--s-accent)}
-.dest-list{display:grid;gap:8px}
-.dest{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:16px;background:var(--s-card);text-align:start}
-.dest[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--s-accent)}
-.d-ico{width:46px;height:46px;border-radius:12px;background:var(--s-card2);display:grid;place-items:center;flex:none;font-size:24px;color:var(--s-accent)}
-.dest b{display:block;font-size:calc(18px*var(--k));font-weight:600}
-.dest small{display:block;color:var(--s-mute);font-size:calc(14px*var(--k))}
-.apps{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
-.apps .label{grid-column:1/-1}
-.app-btn{height:56px;border-radius:14px;background:var(--s-card);font-weight:600;font-size:calc(16px*var(--k))}
+.search button{height:48px;padding:0 20px;margin-inline-end:7px;border-radius:12px;background:var(--s-accent);color:var(--s-on-accent);font-weight:700}
+.place-list{display:grid;gap:8px;overflow:auto;min-height:0;align-content:start}
+.place{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:16px;background:var(--s-card);text-decoration:none;text-align:start;width:100%;min-width:0}
+.place .d-ico{width:46px;height:46px;border-radius:12px;background:var(--s-card2);display:grid;place-items:center;flex:none;font-size:24px;color:var(--s-accent)}
+.place b{display:block;font-size:calc(18px*var(--k));font-weight:600}
+.place small{display:block;color:var(--s-mute);font-size:calc(14px*var(--k));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place > span:last-child{min-width:0}
+.speed-card{padding:0;background:var(--m-road)}
+.speed-in{position:relative;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:22px;gap:16px}
+.speed-big{align-self:flex-start;display:flex;align-items:baseline;gap:12px;padding:18px 30px}
+.speed-big b{font-family:var(--f-display);font-size:150px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.speed-big span{font-size:28px;color:var(--s-mute);font-weight:600}
+.speed-big[data-over="1"] b{color:var(--bad)}
+.speed-rows{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.speed-rows > div{padding:16px 20px;display:flex;flex-direction:column;gap:6px}
+.speed-rows b{font-family:var(--f-display);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:52px;height:46px;border-radius:12px;background:var(--s-card2);font-size:26px;line-height:1}
+.stepper b{min-width:72px;text-align:center}
 
-/* media */
-.media{grid-template-columns:1fr 470px}
-.list-card{display:flex;flex-direction:column;gap:14px}
-.tracks{display:grid;gap:4px;align-content:start;overflow:auto;min-height:0}
-.trk{display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:14px;text-align:start;width:100%}
-.trk[aria-current="true"]{background:var(--s-card2)}
-.trk[aria-current="true"] b{color:var(--s-accent)}
-.trk .art{width:52px;height:52px;border-radius:10px;font-size:22px}
-.trk b{display:block;font-size:calc(18px*var(--k));font-weight:600}
-.trk small{display:block;color:var(--s-mute);font-size:calc(14px*var(--k))}
-.trk .dur{margin-inline-start:auto;color:var(--s-mute);font-variant-numeric:tabular-nums;font-size:15px}
-.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-content:start}
-.preset{height:96px;border-radius:18px;background:var(--s-card2);display:grid;place-content:center;text-align:center;line-height:1.15}
-.preset b{font-family:var(--f-display);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
-.preset small{font-size:14px;color:var(--s-mute)}
-.preset[aria-pressed="true"]{background:var(--s-accent);color:var(--s-on-accent)}
-.preset[aria-pressed="true"] small{color:inherit}
-.player{display:flex;flex-direction:column;gap:20px}
-.player .art{width:200px;height:200px;font-size:84px}
-.freq{display:flex;align-items:baseline;justify-content:center;gap:12px;padding-top:24px;font-variant-numeric:tabular-nums}
-.freq b{font-family:var(--f-display);font-size:112px;font-weight:600;line-height:1}
-.freq span{font-size:26px;color:var(--s-mute);font-weight:600}
-.tune{display:flex;justify-content:center;gap:14px}
-.tune button{padding:12px 26px;border-radius:14px;background:var(--s-card2);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+/* apps */
+.apps{grid-template-rows:minmax(0,1fr) auto}
+.app-grid{display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:minmax(0,1fr);gap:16px;min-height:0}
+.app{background:var(--s-card);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-decoration:none;text-align:center;padding:14px;min-width:0}
+.app .a-ic{width:86px;height:86px;border-radius:24px;font-size:42px}
+.app b{font-size:calc(18px*var(--k));font-weight:600}
+.app small{font-size:calc(14px*var(--k));color:var(--s-mute);margin-top:-8px}
+.apps-note{margin:0}
 
 /* phone */
-.phone{grid-template-rows:auto 1fr}
-.ph-head{display:flex;align-items:center;gap:16px}
-.ph-head .seg{width:540px}
-.ph-dev{display:inline-flex;align-items:center;gap:10px;color:var(--s-mute);font-size:calc(16px*var(--k))}
-.ph-dev .ic{font-size:20px;color:var(--s-accent)}
-.ph-body{position:relative;min-height:0}
-.favs{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:16px;height:100%}
-.fav{background:var(--s-card);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;position:relative}
-.fav .avatar{width:92px;height:92px;font-size:38px}
-.avatar{width:64px;height:64px;border-radius:50%;background:var(--s-card2);display:grid;place-items:center;font-family:var(--f-display);font-size:26px;font-weight:600;color:var(--s-accent);flex:none}
-.fav b{font-size:calc(20px*var(--k));font-weight:600}
-.fav .go-call{position:absolute;top:16px;inset-inline-end:16px;width:54px;height:54px;border-radius:50%;background:var(--ok);color:var(--on-ok);display:grid;place-items:center;font-size:24px}
-.recents{padding:8px 24px;overflow:auto;height:100%}
-.rec{display:flex;align-items:center;gap:16px;padding:14px 0;border-top:1px solid var(--s-line);width:100%;text-align:start}
-.rec:first-child{border-top:0}
-.rec .avatar{width:52px;height:52px;font-size:21px}
-.rec b{display:block;font-size:calc(19px*var(--k));font-weight:600}
-.rec small{display:inline-flex;align-items:center;gap:6px;color:var(--s-mute);font-size:calc(14px*var(--k))}
-.rec small .ic{font-size:16px}
-.rec[data-kind="miss"] b,.rec[data-kind="miss"] small{color:var(--bad)}
-.rec .go-call{margin-inline-start:auto;width:50px;height:50px;border-radius:50%;background:var(--s-card2);display:grid;place-items:center;font-size:22px;color:var(--ok)}
-.pad{display:grid;grid-template-columns:1fr 450px;gap:24px;height:100%}
-.pad-side{display:flex;flex-direction:column;justify-content:center;gap:22px}
-.pad-display{display:flex;align-items:center;gap:12px;min-height:84px;border-bottom:2px solid var(--s-line);padding-bottom:8px}
-.pad-display span{flex:1;font-family:var(--f-display);font-size:44px;font-weight:500;letter-spacing:.04em;font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.pad-display span:empty::before{content:"اكتب الرقم";font-family:var(--f-body);font-size:24px;color:var(--s-mute);letter-spacing:0}
-.pad-display button{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-size:28px;color:var(--s-mute)}
-.dial-call{display:flex;align-items:center;justify-content:center;gap:12px;height:76px;border-radius:20px;background:var(--ok);color:var(--on-ok);font-size:calc(22px*var(--k));font-weight:700}
+.phone{grid-template-columns:minmax(0,1fr) 430px}
+.favs{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:14px;min-height:0}
+.fav{background:var(--s-card);border-radius:20px;display:flex;align-items:center;gap:16px;padding:18px 20px;text-align:start;min-width:0}
+.avatar{width:66px;height:66px;border-radius:50%;background:var(--s-card2);display:grid;place-items:center;font-family:var(--f-display);font-size:27px;font-weight:600;color:var(--s-accent);flex:none}
+.fav b{display:block;font-size:calc(21px*var(--k));font-weight:600}
+.fav small{display:block;color:var(--s-mute);font-size:calc(15px*var(--k))}
+.fav > span:nth-child(2){min-width:0}
+.fav .go-call{margin-inline-start:auto;width:56px;height:56px;border-radius:50%;background:var(--ok);color:var(--on-ok);display:grid;place-items:center;font-size:24px;flex:none}
+.fav[data-empty="1"] .go-call{background:var(--s-card2);color:var(--s-mute)}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;grid-column:1/-1;grid-row:1/-1}
+.empty p{margin:0;font-size:calc(19px*var(--k));color:var(--s-mute);max-width:420px}
+.pad{display:flex;flex-direction:column;gap:14px;min-height:0}
+.pad-display{display:flex;align-items:center;gap:12px;min-height:66px;border-bottom:2px solid var(--s-line);padding-bottom:6px}
+.pad-display span{flex:1;font-family:var(--f-display);font-size:40px;font-weight:500;letter-spacing:.04em;font-variant-numeric:tabular-nums;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pad-display span:empty::before{content:"اكتب الرقم";font-family:var(--f-body);font-size:22px;color:var(--s-mute);letter-spacing:0}
+.pad-display button{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-size:28px;color:var(--s-mute)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:10px;flex:1;min-height:0}
+.keys button{border-radius:16px;background:var(--s-card);font-family:var(--f-display);font-size:32px;font-weight:500}
+.dial-call{display:flex;align-items:center;justify-content:center;gap:12px;height:72px;border-radius:20px;background:var(--ok);color:var(--on-ok);font-size:calc(21px*var(--k));font-weight:700;flex:none}
 .dial-call .ic{font-size:28px}
-.keys{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:10px}
-.keys button{border-radius:16px;background:var(--s-card);font-family:var(--f-display);font-size:34px;font-weight:500}
 
-/* phone projection */
-.proj{grid-template-rows:1fr auto}
-.proj-tiles{display:grid;grid-template-columns:1fr 1fr;gap:20px;min-height:0}
-.ptile{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:30px}
-.p-ic{font-size:52px;color:var(--s-accent);line-height:1}
-.ptile h3{margin:6px 0 0;font-family:var(--f-display);font-size:32px;font-weight:600}
-.ptile p{margin:0;font-size:calc(18px*var(--k));color:var(--s-mute)}
-.pstate{display:inline-flex;align-items:center;gap:8px;font-size:calc(16px*var(--k));font-weight:600;color:var(--s-mute)}
-.pstate::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--s-line)}
-.ptile[data-state="wait"] .pstate::before{background:var(--s-accent);animation:blink 1s infinite}
-.ptile[data-state="on"] .pstate{color:var(--ok)}
-.ptile[data-state="on"] .pstate::before{background:var(--ok)}
-.pact{margin-top:auto;padding:16px 34px;border-radius:16px;background:var(--s-accent);color:var(--s-on-accent);font-size:calc(19px*var(--k));font-weight:700}
-.ptile[data-state="on"] .pact{background:var(--s-card2);color:var(--s-ink)}
-.psteps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;counter-reset:st}
-.psteps li{display:flex;gap:14px;align-items:flex-start;counter-increment:st}
-.psteps li::before{content:counter(st);flex:none;width:38px;height:38px;border-radius:50%;border:2px solid var(--s-accent);color:var(--s-accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:600;font-size:18px}
-.psteps b{display:block;font-size:calc(17px*var(--k))}
-.psteps span{display:block;font-size:calc(15px*var(--k));color:var(--s-mute)}
-@keyframes blink{50%{opacity:.25}}
-
-/* camera: the feed is video, so it keeps fixed colours in both modes */
-.feed{position:relative;height:100%;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#5d6670 0%,#3c434a 34%,#2c3137 70%,#24282c 100%)}
-.feed svg{position:absolute;inset:0;width:100%;height:100%}
-.cam-tag{position:absolute;top:18px;inset-inline-start:18px;display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.55);color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;font-size:calc(17px*var(--k))}
-.cam-tag .ic{font-size:22px}
-.cam-hint{position:absolute;bottom:18px;inset-inline:0;text-align:center;color:#fff;font-size:calc(17px*var(--k));text-shadow:0 1px 3px rgba(0,0,0,.8)}
-.feed .x{background:rgba(0,0,0,.55);color:#fff}
+/* trip */
+.trip{grid-template-columns:repeat(3,minmax(0,1fr))}
+.t-card{display:flex;flex-direction:column;gap:14px}
+.t-head{display:flex;align-items:center;gap:10px}
+.t-head .ic{font-size:24px;color:var(--s-accent)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--s-card2);border-radius:16px;padding:12px 16px;min-width:0}
+.stat b{display:block;font-family:var(--f-display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat small{display:block;font-size:calc(14px*var(--k));color:var(--s-mute)}
+.big-num{display:flex;align-items:baseline;gap:10px}
+.big-num b{font-family:var(--f-display);font-size:58px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.big-num span{font-size:calc(17px*var(--k));color:var(--s-mute)}
+.fills{display:grid;gap:2px;font-size:calc(15px*var(--k))}
+.fills div{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--s-line);font-variant-numeric:tabular-nums}
+.fills div:first-child{border-top:0}
+.fills span:first-child{flex:1;color:var(--s-mute)}
+.meter{height:14px;border-radius:7px;background:var(--s-card2);overflow:hidden}
+.meter span{display:block;height:100%;width:0;border-radius:7px;background:var(--ok);transition:width .4s}
+.meter[data-level="warn"] span{background:var(--warn)}
+.meter[data-level="bad"] span{background:var(--bad)}
+.oil-left[data-level="warn"] b{color:var(--warn)}
+.oil-left[data-level="bad"] b{color:var(--bad)}
+.t-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
+.t-btn{height:58px;border-radius:16px;background:var(--s-accent);color:var(--s-on-accent);font-weight:700;font-size:calc(17px*var(--k));padding:0 14px}
+.t-btn.ghost{background:var(--s-card2);color:var(--s-ink)}
+.t-btn.wide{grid-column:1/-1}
+.t-empty{margin:auto 0;color:var(--s-mute);font-size:calc(17px*var(--k))}
 
 /* settings */
 .settings{grid-template-columns:1fr 1fr;grid-auto-rows:max-content;align-content:start;overflow:auto}
-.group{padding:18px 24px}
+.group{padding:18px 24px;display:flex;flex-direction:column}
 .group h3{margin:0 0 4px;font-family:var(--f-display);font-size:19px;font-weight:600;color:var(--s-accent)}
+.group .label{margin:2px 0 6px}
 .row{display:flex;align-items:center;gap:14px;min-height:58px;border-top:1px solid var(--s-line);font-size:calc(17px*var(--k))}
 .group h3 + .row{border-top:0}
-.row > .ic{font-size:22px;color:var(--s-mute)}
 .grow{flex:1;min-width:0}
-.row .seg{width:290px}
+.row .seg{width:280px}
 .row .seg button{padding:8px 10px}
-.row input[type="range"]{width:230px;accent-color:var(--s-accent)}
-.row output{min-width:36px;text-align:center;font-variant-numeric:tabular-nums;color:var(--s-mute)}
+.row input[type="range"]{width:220px;accent-color:var(--s-accent)}
+.field{min-width:0;height:48px;border-radius:12px;background:var(--s-card2);border:1px solid var(--s-line);color:var(--s-ink);font:inherit;font-size:calc(17px*var(--k));padding:0 14px}
+.field:focus{outline:none;border-color:var(--s-accent)}
+select.field{width:250px}
+.field.num{width:120px;text-align:center}
+.edit-list{display:grid;gap:8px;padding-block:6px}
+.edit-row{display:flex;gap:8px;align-items:center}
+.edit-row .field{flex:1}
+.edit-row .field.name{flex:0 0 130px}
+.icon-btn{width:46px;height:46px;border-radius:12px;background:var(--s-card2);display:grid;place-items:center;font-size:20px;flex:none}
+.icon-btn.del{color:var(--bad)}
+.add-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;background:var(--s-card2);font-weight:600;font-size:calc(15px*var(--k));margin-top:6px}
 .switch{width:62px;height:34px;border-radius:17px;background:var(--s-card2);border:1px solid var(--s-line);position:relative;flex:none}
 .switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:26px;height:26px;border-radius:50%;background:var(--s-mute);transition:inset-inline-start .2s}
 .switch[aria-checked="true"]{background:var(--s-accent);border-color:var(--s-accent)}
 .switch[aria-checked="true"]::after{inset-inline-start:31px;background:var(--s-on-accent)}
-.pill{font-size:calc(14px*var(--k));font-weight:600;padding:4px 12px;border-radius:999px;background:var(--s-card2);color:var(--s-mute)}
-.pill.ok{color:var(--ok)}
+.danger{color:var(--bad)}
 
 /* dock */
 .dock{display:flex;align-items:center;gap:6px;padding-inline:16px;border-top:1px solid var(--s-line)}
-.dock .d{flex:1;height:84px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--s-mute);font-size:calc(15px*var(--k));font-weight:600;position:relative}
+.dock .d{flex:1;height:84px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--s-mute);font-size:calc(15px*var(--k));font-weight:600}
 .dock .d .ic{font-size:30px}
 .dock .d[aria-current="page"]{color:var(--s-accent);background:var(--s-card)}
 .mic{width:76px;height:76px;border-radius:50%;background:var(--s-accent);color:var(--s-on-accent);display:grid;place-items:center;font-size:32px;flex:none;margin-inline-start:10px}
@@ -280,25 +279,35 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
 /* overlays */
 .overlay{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:color-mix(in srgb,var(--s-bg) 90%,transparent);backdrop-filter:blur(10px)}
 .x{position:absolute;top:20px;inset-inline-end:20px;width:56px;height:56px;border-radius:50%;background:var(--s-card);font-size:26px;display:grid;place-items:center;z-index:2}
-.voice{display:grid;justify-items:center;gap:16px;text-align:center}
-.ring{width:150px;height:150px;border-radius:50%;background:var(--s-accent);color:var(--s-on-accent);display:grid;place-items:center;font-size:60px;position:relative;margin-bottom:12px}
-.ring::before,.ring::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:3px solid var(--s-accent);animation:pulse 1.8s ease-out infinite}
-.ring::after{animation-delay:.9s}
+.sheet{background:var(--s-card);border-radius:26px;padding:28px 32px;width:min(780px,86%);display:grid;gap:16px}
+.sheet.wide{width:min(1060px,90%)}
+.sheet h3{margin:0;font-family:var(--f-display);font-size:28px;font-weight:600}
+.sheet-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid label{display:grid;gap:6px;font-size:calc(15px*var(--k));color:var(--s-mute)}
+.form-grid .field{width:100%}
+.form-err{margin:0;color:var(--bad);font-weight:600}
+.p-list{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.p-item{background:var(--s-card2);border-radius:18px;padding:20px 10px;text-align:center;display:grid;gap:6px}
+.p-item b{font-size:calc(19px*var(--k));font-weight:600}
+.p-item span{font-family:var(--f-display);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.p-item[data-next="1"]{background:var(--s-accent);color:var(--s-on-accent)}
+.p-item[data-past="1"]{opacity:.5}
+.voice{display:grid;justify-items:center;gap:14px;text-align:center}
+.ring{width:150px;height:150px;border-radius:50%;background:var(--s-accent);color:var(--s-on-accent);display:grid;place-items:center;font-size:60px;position:relative;margin-bottom:10px}
+.ring::before,.ring::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:3px solid var(--s-accent);opacity:0}
+.unit[data-listening="1"] .ring::before,.unit[data-listening="1"] .ring::after{animation:pulse 1.8s ease-out infinite}
+.unit[data-listening="1"] .ring::after{animation-delay:.9s}
 @keyframes pulse{from{transform:scale(.9);opacity:.7}to{transform:scale(1.4);opacity:0}}
-.voice h3,.call h3{margin:0;font-family:var(--f-display);font-size:34px;font-weight:600}
+.voice h3{margin:0;font-family:var(--f-display);font-size:34px;font-weight:600}
 .voice p{margin:0}
-.sugg{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:860px;margin-top:10px}
+.heard{font-size:22px;min-height:30px}
+.sugg{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:900px;margin-top:8px}
 .sugg button{padding:14px 24px;border-radius:999px;background:var(--s-card);border:1px solid var(--s-line);font-size:calc(19px*var(--k))}
-.call{display:grid;justify-items:center;gap:10px;text-align:center}
-.call .avatar{width:128px;height:128px;font-size:52px;margin-bottom:8px}
-.ct{font-size:22px;color:var(--s-mute);font-variant-numeric:tabular-nums}
-.call-btns{display:flex;gap:30px;margin-top:22px}
-.cbtn{width:86px;height:86px;border-radius:50%;background:var(--s-card);display:grid;place-items:center;font-size:34px}
-.cbtn[aria-pressed="true"]{background:var(--s-ink);color:var(--s-bg)}
-.cbtn.end{background:var(--bad);color:#fff}
-.cbtn.end .ic{transform:rotate(135deg)}
-.note{margin:18px 0 0;font-size:15px;color:var(--s-mute);max-width:520px}
-.toast{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);z-index:40;background:var(--s-ink);color:var(--s-bg);padding:12px 22px;border-radius:14px;font-size:17px;font-weight:600;white-space:nowrap}
+.steps3{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:st}
+.steps3 li{display:flex;gap:14px;align-items:flex-start;counter-increment:st;font-size:calc(18px*var(--k))}
+.steps3 li::before{content:counter(st);flex:none;width:36px;height:36px;border-radius:50%;border:2px solid var(--s-accent);color:var(--s-accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:600;font-size:17px}
+.toast{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);z-index:40;background:var(--s-ink);color:var(--s-bg);padding:12px 22px;border-radius:14px;font-size:17px;font-weight:600;max-width:88%;text-align:center}
 
 /* ---------- guide ---------- */
 .guide{display:grid;gap:24px}
@@ -308,35 +317,42 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
 .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;min-width:0}
 .box h3{margin:0 0 14px;font-family:var(--f-display);font-size:19px;font-weight:600}
 .box h3 small{display:block;font-family:var(--f-body);font-size:14px;font-weight:400;color:var(--mute);margin-top:2px}
-.checks,.warns{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.box h4{margin:16px 0 8px;font-size:15px;color:var(--amber)}
+.box h4:first-of-type{margin-top:0}
+.checks,.plain{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .checks label{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
 .checks input{width:20px;height:20px;accent-color:var(--amber);margin:4px 0 0;flex:none}
 .checks input:checked + span b{text-decoration:line-through;text-decoration-color:var(--amber);color:var(--mute)}
-.checks small,.warns small{display:block;color:var(--mute);font-size:14.5px;line-height:1.6}
-.warns li{padding-inline-start:16px;border-inline-start:3px solid #EF6B5B}
-.count{font-size:14px;color:var(--mute);margin-top:14px}
+.checks small,.plain small,.steps-list small{display:block;color:var(--mute);font-size:14.5px;line-height:1.6}
+.plain li{padding-inline-start:14px;border-inline-start:3px solid var(--line)}
+.plain.yes li{border-color:#5BC98A}
+.plain.no li{border-color:#EF6B5B}
+.count{font-size:14px;color:var(--mute);margin:14px 0 0}
 .steps-list{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:s}
 .steps-list li{display:grid;grid-template-columns:34px 1fr;gap:14px;align-items:start;counter-increment:s}
 .steps-list li::before{content:counter(s);width:34px;height:34px;border-radius:50%;border:1px solid var(--amber);color:var(--amber);display:grid;place-items:center;font-family:var(--f-display);font-weight:600;font-size:15px}
-.steps-list small{display:block;color:var(--mute);font-size:14.5px}
+.url-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px}
+.url{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;background:var(--page);border:1px solid var(--line);padding:4px 10px;border-radius:8px;overflow-wrap:anywhere;-webkit-user-select:all;user-select:all}
+.copy{font-size:13px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);color:var(--mute)}
 .foot{margin:0;font-size:13.5px;color:var(--mute)}
 
 @media (prefers-reduced-motion:reduce){
-  .ring::before,.ring::after,.ptile[data-state="wait"] .pstate::before{animation:none}
-  .bar span,.switch::after,.screen{transition:none}
-  .unit button:active{transform:none}
+  .unit[data-listening="1"] .ring::before,.unit[data-listening="1"] .ring::after{animation:none}
+  .switch::after,.screen,.meter span{transition:none}
+  .unit button:active,.unit a:active{transform:none}
 }
 </style>
+</head>
+<body>
 
 <div class="page" dir="rtl" lang="ar">
   <header class="intro">
-    <p class="eyebrow">هيونداي إلنترا 2018 · شاشة 9 بوصات مقترحة</p>
+    <p class="eyebrow">هيونداي إلنترا 2018 · الإصدار 2</p>
     <h1>شاشة إلنترا الجديدة</h1>
-    <p class="lede">هذه الواجهة المقترحة للشاشة التي تُركَّب مكان الشاشة الحالية. كل زر فيها يعمل: الخريطة، الموسيقى، الراديو، الهاتف، ربط الجوال، الكاميرا والإعدادات. الأرقام والأسماء أمثلة للتجربة فقط.</p>
+    <p class="lede">تطبيق يُثبَّت على شاشة الأندرويد الجديدة في السيارة ويعمل بملء الشاشة. أوقات الصلاة والتاريخ الهجري تُحسب بدون إنترنت، والسرعة تأتي من GPS الشاشة، وأزرار الأماكن والموسيقى تفتح التطبيقات المثبتة عليها. البيانات الظاهرة الآن أمثلة، وتُمسح من الإعدادات.</p>
     <div class="intro-row">
       <button class="btn" id="fsBtn" type="button" data-icon="expand">ملء الشاشة</button>
-      <button class="btn" id="revBtn" type="button" data-icon="camera">جرّب الرجوع للخلف (R)</button>
-      <span class="tag">نموذج تفاعلي · بيانات تجريبية</span>
+      <span class="tag">نموذج يعمل · بيانات مثال</span>
       <span class="fs-msg" id="fsMsg" hidden>ملء الشاشة غير متاح في هذا العرض.</span>
       <span class="fs-msg narrow-hint">على الجوال: اقلب الجوال بالعرض ثم اضغط «ملء الشاشة».</span>
     </div>
@@ -344,64 +360,51 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
 
   <div class="stage" id="stage">
     <div class="device" id="device">
-      <div class="unit" id="unit" dir="rtl" lang="ar" data-mode="night" data-size="normal" data-src="bt" data-nav="on">
+      <div class="unit" id="unit" dir="rtl" lang="ar" data-mode="night" data-size="normal" data-listening="0">
         <div class="screen" id="screen">
 
           <header class="status">
             <span class="clock-s"><span data-b="time">7:42</span> <span data-b="ap">م</span></span>
-            <span class="st-item" data-icon="sun"><bdi dir="ltr">34°</bdi></span>
+            <span class="st-item" id="wxS"><bdi dir="ltr" data-b="tempS">—°</bdi></span>
+            <button type="button" class="chip" id="alertChip" hidden></button>
             <span class="sp"></span>
-            <span class="st-item" data-icon="bt"><span>iPhone</span></span>
-            <span class="st-item" data-icon="signal" role="img" aria-label="الإنترنت من الجوال"></span>
-            <div class="vol" role="group" aria-label="مستوى الصوت">
-              <button type="button" data-act="vol-down" aria-label="خفض الصوت">−</button>
-              <output data-icon="vol"><span data-b="vol">18</span></output>
-              <button type="button" data-act="vol-up" aria-label="رفع الصوت">+</button>
-            </div>
+            <button type="button" class="chip demo" id="demoChip" data-go="set" hidden>بيانات مثال</button>
+            <span class="st-item" id="gpsChip" data-icon="gps"><span data-b="gpsShort">بدون GPS</span></span>
+            <span class="st-item" id="netChip" data-icon="wifi"><span data-b="netShort">متصل</span></span>
           </header>
 
           <main class="views">
             <!-- home -->
             <section class="view home" id="v-home" aria-label="الرئيسية">
-              <div class="col">
-                <div class="card clock-card">
-                  <div>
-                    <div class="big-time"><span data-b="time">7:42</span><small data-b="ap">م</small></div>
-                    <div class="date" data-b="date">الخميس، 22 أكتوبر</div>
-                  </div>
-                  <div class="weather" data-icon="sun"><b dir="ltr">34°</b><span>مشمس · العظمى <bdi dir="ltr">38°</bdi></span></div>
+              <div class="card clock-card">
+                <div>
+                  <div class="big-time"><span data-b="time">7:42</span><small data-b="ap">م</small></div>
+                  <div class="date" data-b="date"></div>
+                  <div class="hijri" data-b="hijri"></div>
                 </div>
-                <div class="quick">
-                  <button type="button" class="qa" data-act="go-home" data-icon="home"><span><b>خذني إلى البيت</b><small data-b="homeEta">18 دقيقة · 14 كم</small></span></button>
-                  <button type="button" class="qa" data-fav="أحمد" data-icon="phone"><span><b>اتصل بأحمد</b><small>آخر مكالمة اليوم</small></span></button>
-                </div>
+                <div class="weather" id="wxHome"><b dir="ltr" data-b="temp">—°</b><span><span data-b="wxDesc"></span><small data-b="wxMax"></small></span></div>
               </div>
 
-              <div class="card mapcard" data-go="maps" role="button" tabindex="0" aria-label="افتح الخريطة">
+              <div class="card drive">
                 <div class="map-slot"></div>
-                <div class="turn" data-icon="turnright"><div><div class="dist"><span data-b="turnDist">400</span> م</div><div class="street">انعطف يمينًا إلى شارع الخدمة</div></div></div>
-                <div class="eta"><b data-b="etaTime">8:00 م</b><span>الوصول إلى <span data-b="destName">البيت</span> · <span data-b="etaMeta">18 دقيقة</span></span></div>
+                <div class="drive-in">
+                  <div class="spd glass"><b data-b="speed">—</b><span>كم/س</span></div>
+                  <div class="gps-hint glass" data-b="gpsHint"></div>
+                  <div class="go-head glass">الإرشاد عبر <span data-b="navAppName">Google Maps</span></div>
+                  <div class="go-row" id="homePlaces"></div>
+                </div>
               </div>
 
-              <div class="card media-card">
-                <div class="seg" role="group" aria-label="مصدر الصوت">
-                  <button type="button" data-src="bt">بلوتوث</button>
-                  <button type="button" data-src="radio">راديو</button>
-                  <button type="button" data-src="usb">USB</button>
-                </div>
-                <div class="np">
-                  <div class="art" data-b="art"></div>
-                  <div class="np-text">
-                    <div class="np-title" data-b="title"></div>
-                    <div class="np-artist" data-b="artist"></div>
-                    <div class="np-src" data-b="srcLabel"></div>
-                  </div>
-                </div>
-                <div class="prog only-track" dir="ltr"><div class="bar"><span data-b="bar"></span></div><div class="times"><span data-b="pos"></span><span data-b="dur"></span></div></div>
-                <div class="ctrls" dir="ltr">
-                  <button type="button" data-act="prev" data-icon="prev" aria-label="السابق"></button>
-                  <button type="button" class="play" data-act="play" data-icon="pause" aria-label="إيقاف مؤقت"></button>
-                  <button type="button" data-act="next" data-icon="next" aria-label="التالي"></button>
+              <div class="col col-l">
+                <button type="button" class="card prayer-card" data-act="prayers" data-icon="moon">
+                  <span class="label">الصلاة القادمة · <span data-b="cityName">مسقط</span></span>
+                  <span class="p-name" data-b="pNext">العصر</span>
+                  <span class="p-time" data-b="pNextTime">3:08 م</span>
+                  <span class="p-left" data-b="pLeft">بعد 1 س 12 د</span>
+                </button>
+                <div class="card music-card">
+                  <span class="label">الموسيقى</span>
+                  <div class="mini-apps" id="homeMusic"></div>
                 </div>
               </div>
             </section>
@@ -409,122 +412,80 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
             <!-- maps -->
             <section class="view maps" id="v-maps" aria-label="الخرائط" hidden>
               <div class="panel">
-                <label class="search" data-icon="search"><input id="q" type="search" placeholder="إلى أين؟" aria-label="ابحث عن وجهة" autocomplete="off"></label>
-                <div class="dest-list" id="destList"></div>
-                <div class="apps">
-                  <span class="label">افتح الإرشاد في تطبيق آخر</span>
-                  <button type="button" class="app-btn" data-act="app" data-app="Google Maps">Google Maps</button>
-                  <button type="button" class="app-btn" data-act="app" data-app="Waze">Waze</button>
+                <form class="search" id="searchForm" role="search">
+                  <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4.2-4.2"/></svg>
+                  <input id="q" type="search" placeholder="إلى أين؟" aria-label="ابحث عن وجهة" autocomplete="off" enterkeyhint="go">
+                  <button type="submit">اذهب</button>
+                </form>
+                <div class="seg" role="group" aria-label="تطبيق الإرشاد">
+                  <button type="button" data-navapp="google">Google Maps</button>
+                  <button type="button" data-navapp="waze">Waze</button>
                 </div>
+                <div class="place-list" id="placeList"></div>
               </div>
-              <div class="card map-wrap">
+              <div class="card speed-card">
                 <div class="map-slot"></div>
-                <div class="turn" data-icon="turnright"><div><div class="dist"><span data-b="turnDist">400</span> م</div><div class="street">انعطف يمينًا إلى شارع الخدمة</div></div></div>
-                <div class="speed-wrap"><div class="speed"><b data-b="speed">64</b><small>كم/س</small></div><div class="limit" aria-label="السرعة المحددة 80">80</div></div>
-                <div class="eta"><b data-b="etaTime">8:00 م</b><span>الوصول إلى <span data-b="destName">البيت</span> · <span data-b="etaMeta">18 دقيقة</span></span><button type="button" class="end-nav" data-act="end-nav">إنهاء</button></div>
+                <div class="speed-in">
+                  <div class="speed-big glass"><b data-b="speed">—</b><span>كم/س</span></div>
+                  <div class="gps-hint glass" data-b="gpsHint"></div>
+                  <div class="speed-rows">
+                    <div class="glass"><span class="label">أعلى سرعة في الرحلة</span><b data-b="tripMax">—</b></div>
+                    <div class="glass"><span class="label">نبّهني فوق</span>
+                      <div class="stepper"><button type="button" data-act="lim-down" aria-label="خفض حد التنبيه">−</button><b data-b="limit">120</b><button type="button" data-act="lim-up" aria-label="رفع حد التنبيه">+</button></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
-            <!-- media -->
-            <section class="view media" id="v-media" aria-label="الوسائط" hidden>
-              <div class="card list-card">
-                <div class="seg" role="group" aria-label="مصدر الصوت">
-                  <button type="button" data-src="bt">بلوتوث</button>
-                  <button type="button" data-src="radio">راديو</button>
-                  <button type="button" data-src="usb">USB</button>
-                </div>
-                <div class="tracks only-track" id="trackList"></div>
-                <div class="presets only-radio" id="presetList"></div>
-              </div>
-              <div class="card player">
-                <div class="np only-track">
-                  <div class="art" data-b="art"></div>
-                  <div class="np-text">
-                    <div class="np-title" data-b="title"></div>
-                    <div class="np-artist" data-b="artist"></div>
-                    <div class="np-src" data-b="srcLabel"></div>
-                  </div>
-                </div>
-                <div class="freq only-radio" dir="ltr"><b data-b="freq">95.9</b><span>FM</span></div>
-                <div class="tune only-radio" dir="ltr">
-                  <button type="button" data-act="tune-down" aria-label="خفض التردد">− 0.1</button>
-                  <button type="button" data-act="tune-up" aria-label="رفع التردد">+ 0.1</button>
-                </div>
-                <div class="prog only-track" dir="ltr"><div class="bar"><span data-b="bar"></span></div><div class="times"><span data-b="pos"></span><span data-b="dur"></span></div></div>
-                <div class="ctrls" dir="ltr">
-                  <button type="button" data-act="prev" data-icon="prev" aria-label="السابق"></button>
-                  <button type="button" class="play" data-act="play" data-icon="pause" aria-label="إيقاف مؤقت"></button>
-                  <button type="button" data-act="next" data-icon="next" aria-label="التالي"></button>
-                </div>
-              </div>
+            <!-- apps -->
+            <section class="view apps" id="v-apps" aria-label="التطبيقات" hidden>
+              <div class="app-grid" id="appGrid"></div>
+              <p class="label apps-note">تفتح هذه الأزرار التطبيقات المثبتة على الشاشة. لا يوجد تطبيق فيديو هنا عمدًا لأنه يشتت السائق.</p>
             </section>
 
             <!-- phone -->
             <section class="view phone" id="v-phone" aria-label="الهاتف" hidden>
-              <div class="ph-head">
-                <div class="seg" role="group" aria-label="أقسام الهاتف">
-                  <button type="button" data-ptab="fav">المفضلة</button>
-                  <button type="button" data-ptab="rec">السجل</button>
-                  <button type="button" data-ptab="pad">لوحة الأرقام</button>
-                </div>
-                <span class="sp"></span>
-                <span class="ph-dev" data-icon="bt">iPhone متصل · البطارية <bdi dir="ltr">82%</bdi></span>
-              </div>
-              <div class="ph-body">
-                <div class="favs" id="pFav"></div>
-                <div class="card recents" id="pRec" hidden></div>
-                <div class="pad" id="pPad" hidden>
-                  <div class="pad-side">
-                    <div class="pad-display" dir="ltr"><span data-b="dial"></span><button type="button" data-act="bksp" data-icon="bksp" aria-label="حذف رقم"></button></div>
-                    <button type="button" class="dial-call" data-act="dial-call" data-icon="phone"><span>اتصال</span></button>
-                  </div>
-                  <div class="keys" dir="ltr" id="keys"></div>
-                </div>
+              <div class="favs" id="favGrid"></div>
+              <div class="pad">
+                <div class="pad-display" dir="ltr"><span data-b="dial"></span><button type="button" data-act="bksp" data-icon="bksp" aria-label="حذف رقم"></button></div>
+                <div class="keys" dir="ltr" id="keys"></div>
+                <button type="button" class="dial-call" data-act="dial-call" data-icon="phone"><span>اتصال</span></button>
               </div>
             </section>
 
-            <!-- phone projection -->
-            <section class="view proj" id="v-proj" aria-label="ربط الجوال" hidden>
-              <div class="proj-tiles">
-                <div class="card ptile" data-kind="cp" data-state="off">
-                  <div class="p-ic" data-icon="cast"></div>
-                  <h3>Apple CarPlay</h3>
-                  <p>لجوالات iPhone · بدون كيبل</p>
-                  <span class="pstate">غير متصل</span>
-                  <button type="button" class="pact" data-proj="cp">اتصال</button>
+            <!-- trip -->
+            <section class="view trip" id="v-trip" aria-label="الرحلة" hidden>
+              <div class="card t-card">
+                <div class="t-head" data-icon="nav"><h3 class="card-title">الرحلة الحالية</h3></div>
+                <div class="stats">
+                  <div class="stat"><b data-b="tripDist">0.0</b><small>كم مقطوعة</small></div>
+                  <div class="stat"><b data-b="tripTime">0:00</b><small>مدة القيادة</small></div>
+                  <div class="stat"><b data-b="tripAvg">—</b><small>متوسط السرعة كم/س</small></div>
+                  <div class="stat"><b data-b="tripMax">—</b><small>أعلى سرعة كم/س</small></div>
                 </div>
-                <div class="card ptile" data-kind="aa" data-state="off">
-                  <div class="p-ic" data-icon="cast"></div>
-                  <h3>Android Auto</h3>
-                  <p>لجوالات أندرويد · بدون كيبل</p>
-                  <span class="pstate">غير متصل</span>
-                  <button type="button" class="pact" data-proj="aa">اتصال</button>
+                <p class="label" data-b="tripHint"></p>
+                <div class="t-actions">
+                  <button type="button" class="t-btn" data-act="trip-toggle" data-b="tripBtn">ابدأ الرحلة</button>
+                  <button type="button" class="t-btn ghost" data-act="trip-reset">تصفير</button>
                 </div>
               </div>
-              <ol class="psteps">
-                <li><span><b>أول مرة فقط</b><span>اربط الجوال بالشاشة عن طريق البلوتوث.</span></span></li>
-                <li><span><b>وافق على الطلب</b><span>اضغط «سماح» عندما يظهر الطلب على الجوال.</span></span></li>
-                <li><span><b>بعدها تلقائي</b><span>يتصل الجوال وحده كلما شغّلت السيارة.</span></span></li>
-              </ol>
-            </section>
 
-            <!-- camera -->
-            <section class="view cam" id="v-cam" aria-label="الكاميرا الخلفية" hidden>
-              <div class="feed">
-                <svg viewBox="0 0 1240 528" aria-hidden="true">
-                  <g stroke="rgba(255,255,255,.35)" stroke-width="6" fill="none">
-                    <path d="M150 528 470 150"/><path d="M1090 528 770 150"/>
-                  </g>
-                  <g fill="none" stroke-width="7" stroke-linecap="round">
-                    <path d="M330 500 375 420M910 500 865 420M375 420h44M865 420h-44" stroke="#EF5B4B"/>
-                    <path d="M375 420 443 300M865 420 797 300M443 300h38M797 300h-38" stroke="#F2C23C"/>
-                    <path d="M443 300 500 200M797 300 740 200M500 200h240" stroke="#5BC98A"/>
-                  </g>
-                  <path d="M0 528V492Q620 440 1240 492V528Z" fill="#14171a"/>
-                </svg>
-                <div class="cam-tag" data-icon="camera"><span>الكاميرا الخلفية</span></div>
-                <div class="cam-hint">تفتح وحدها عند الرجوع للخلف · انتبه لما حولك</div>
-                <button type="button" class="x" data-act="cam-exit" data-icon="x" aria-label="إغلاق الكاميرا"></button>
+              <div class="card t-card">
+                <div class="t-head" data-icon="fuel"><h3 class="card-title">استهلاك الوقود</h3></div>
+                <div id="fuelBody"></div>
+                <div class="t-actions">
+                  <button type="button" class="t-btn wide" data-act="fuel-add">أضف تعبئة</button>
+                </div>
+              </div>
+
+              <div class="card t-card">
+                <div class="t-head" data-icon="drop"><h3 class="card-title">تغيير الزيت</h3></div>
+                <div id="oilBody"></div>
+                <div class="t-actions">
+                  <button type="button" class="t-btn" data-act="oil-done">غيّرت الزيت اليوم</button>
+                  <button type="button" class="t-btn ghost" data-act="oil-edit">تعديل العداد</button>
+                </div>
               </div>
             </section>
 
@@ -535,30 +496,50 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
                 <div class="row"><span class="grow">الوضع</span>
                   <div class="seg" role="group" aria-label="وضع الشاشة"><button type="button" data-mode-set="auto">تلقائي</button><button type="button" data-mode-set="day">نهاري</button><button type="button" data-mode-set="night">ليلي</button></div>
                 </div>
-                <div class="row"><label class="grow" for="sBright">السطوع</label><input id="sBright" type="range" min="30" max="100" step="5" value="100"></div>
+                <p class="label">التلقائي يتحول إلى الوضع الليلي عند غروب الشمس في مدينتك.</p>
                 <div class="row"><span class="grow">حجم الخط</span>
                   <div class="seg" role="group" aria-label="حجم الخط"><button type="button" data-size-set="normal">عادي</button><button type="button" data-size-set="large">كبير</button></div>
                 </div>
+                <div class="row"><label class="grow" for="sDim">إضاءة الواجهة</label><input id="sDim" type="range" min="40" max="100" step="5" value="100"></div>
               </div>
+
               <div class="card group">
-                <h3>الصوت</h3>
-                <div class="row"><label class="grow" for="sVol">مستوى الصوت</label><input id="sVol" type="range" min="0" max="40" value="18"><output data-b="vol">18</output></div>
-                <div class="row"><label class="grow" for="eq0">الجهير (Bass)</label><input id="eq0" data-eq="0" type="range" min="-6" max="6" value="2"><output dir="ltr" data-b="eq0">+2</output></div>
-                <div class="row"><label class="grow" for="eq1">الوسط</label><input id="eq1" data-eq="1" type="range" min="-6" max="6" value="0"><output dir="ltr" data-b="eq1">0</output></div>
-                <div class="row"><label class="grow" for="eq2">الحاد (Treble)</label><input id="eq2" data-eq="2" type="range" min="-6" max="6" value="1"><output dir="ltr" data-b="eq2">+1</output></div>
-                <div class="row"><span class="grow" id="lbl-speedVol">رفع الصوت مع السرعة</span><button type="button" class="switch" role="switch" data-tg="speedVol" aria-labelledby="lbl-speedVol"></button></div>
+                <h3>الصلاة</h3>
+                <div class="row"><label class="grow" for="sCity">المدينة</label><select class="field" id="sCity"></select></div>
+                <div class="row"><label class="grow" for="sMethod">طريقة الحساب</label><select class="field" id="sMethod"></select></div>
+                <div class="row"><span class="grow">العصر</span>
+                  <div class="seg" role="group" aria-label="مذهب العصر"><button type="button" data-asr="1">الجمهور</button><button type="button" data-asr="2">الحنفي</button></div>
+                </div>
+                <div class="row"><span class="grow" id="lbl-pAlert">تنبيه قبل الأذان بعشر دقائق</span><button type="button" class="switch" role="switch" data-tg="pAlert" aria-labelledby="lbl-pAlert"></button></div>
+                <p class="label">قارن الأوقات مع تقويم وزارة الأوقاف في بلدك، واختر الطريقة الأقرب.</p>
               </div>
+
               <div class="card group">
-                <h3>الأجهزة المتصلة</h3>
-                <div class="row" data-icon="bt"><span class="grow">iPhone</span><span class="pill ok">متصل</span></div>
-                <div class="row" data-icon="bt"><span class="grow">جوال Samsung</span><span class="pill">محفوظ</span></div>
-                <div class="row" data-icon="wifi"><span class="grow">الإنترنت من نقطة اتصال الجوال</span><span class="pill ok">يعمل</span></div>
+                <h3>الأماكن المحفوظة</h3>
+                <p class="label">اكتب العنوان كما تكتبه في الخرائط، أو الإحداثيات مثل 23.59, 58.38. أول مكانين يظهران في الرئيسية.</p>
+                <div class="edit-list" id="placeEd"></div>
+                <button type="button" class="add-btn" data-act="add-place" data-icon="plus">إضافة مكان</button>
               </div>
+
               <div class="card group">
-                <h3>السيارة</h3>
-                <div class="row"><span class="grow" id="lbl-autoCam">فتح الكاميرا عند الرجوع للخلف</span><button type="button" class="switch" role="switch" data-tg="autoCam" aria-labelledby="lbl-autoCam"></button></div>
-                <div class="row"><span class="grow" id="lbl-lastSrc">تشغيل آخر مصدر صوت عند تشغيل السيارة</span><button type="button" class="switch" role="switch" data-tg="lastSrc" aria-labelledby="lbl-lastSrc"></button></div>
-                <div class="row"><span class="grow">أزرار المقود (الصوت والمكالمات)</span><span class="pill ok">تعمل</span></div>
+                <h3>الأرقام المفضلة</h3>
+                <p class="label">تظهر في شاشة الهاتف، ويتصل بها المساعد الصوتي بالاسم.</p>
+                <div class="edit-list" id="favEd"></div>
+                <button type="button" class="add-btn" data-act="add-fav" data-icon="plus">إضافة رقم</button>
+              </div>
+
+              <div class="card group">
+                <h3>القيادة</h3>
+                <div class="row"><span class="grow" id="lbl-spAlert">صوت تنبيه عند تجاوز السرعة</span><button type="button" class="switch" role="switch" data-tg="spAlert" aria-labelledby="lbl-spAlert"></button></div>
+                <div class="row"><label class="grow" for="sOilEvery">تغيير الزيت كل (كم)</label><input class="field num" id="sOilEvery" inputmode="numeric" dir="ltr"></div>
+                <div class="row"><label class="grow" for="sCur">العملة</label><input class="field num" id="sCur" maxlength="6"></div>
+              </div>
+
+              <div class="card group">
+                <h3>البيانات</h3>
+                <p class="label">كل بياناتك محفوظة على هذه الشاشة فقط ولا تُرسل لأي جهة.</p>
+                <div class="row"><span class="grow">مسح بيانات المثال والبدء ببياناتك</span><button type="button" class="t-btn ghost" data-act="clear-demo">ابدأ ببياناتي</button></div>
+                <div class="row"><span class="grow">إعادة كل شيء كما كان</span><button type="button" class="t-btn ghost danger" data-act="reset-all" data-b="resetBtn">إعادة الضبط</button></div>
               </div>
             </section>
           </main>
@@ -566,39 +547,73 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
           <nav class="dock" aria-label="التنقل">
             <button type="button" class="d" data-go="home" data-icon="home"><span>الرئيسية</span></button>
             <button type="button" class="d" data-go="maps" data-icon="nav"><span>الخرائط</span></button>
-            <button type="button" class="d" data-go="media" data-icon="music"><span>الوسائط</span></button>
+            <button type="button" class="d" data-go="apps" data-icon="grid"><span>التطبيقات</span></button>
             <button type="button" class="d" data-go="phone" data-icon="phone"><span>الهاتف</span></button>
-            <button type="button" class="d" data-go="proj" data-icon="cast"><span>ربط الجوال</span></button>
-            <button type="button" class="d" data-go="cam" data-icon="camera"><span>الكاميرا</span></button>
+            <button type="button" class="d" data-go="trip" data-icon="gauge"><span>الرحلة</span></button>
             <button type="button" class="d" data-go="set" data-icon="sliders"><span>الإعدادات</span></button>
             <button type="button" class="mic" data-act="voice" data-icon="mic" aria-label="المساعد الصوتي"></button>
           </nav>
 
+          <!-- overlays -->
           <div class="overlay" id="voiceOv" role="dialog" aria-label="المساعد الصوتي" hidden>
-            <button type="button" class="x" data-act="voice-close" data-icon="x" aria-label="إغلاق"></button>
+            <button type="button" class="x" data-act="close" data-icon="x" aria-label="إغلاق"></button>
             <div class="voice">
               <div class="ring" data-icon="mic"></div>
-              <h3>أنا أسمعك…</h3>
-              <p class="label">قل ما تريد، أو اضغط أحد هذه الأوامر</p>
-              <div class="sugg">
-                <button type="button" data-cmd="home">«خذني إلى البيت»</button>
-                <button type="button" data-cmd="call">«اتصل بأحمد»</button>
-                <button type="button" data-cmd="radio">«شغّل الراديو»</button>
-                <button type="button" data-cmd="louder">«ارفع الصوت»</button>
-              </div>
+              <h3 data-b="vState">أنا أسمعك…</h3>
+              <p class="heard" data-b="vHeard"></p>
+              <p class="label" data-b="vHint"></p>
+              <div class="sugg" id="sugg"></div>
             </div>
           </div>
 
-          <div class="overlay" id="callOv" role="dialog" aria-label="مكالمة" hidden>
-            <div class="call">
-              <div class="avatar" id="callAv"></div>
-              <h3 id="callName"></h3>
-              <div class="ct" data-b="callTime">جارٍ الاتصال…</div>
-              <div class="call-btns">
-                <button type="button" class="cbtn" data-act="mute" data-icon="micoff" aria-label="كتم الميكروفون" aria-pressed="false"></button>
-                <button type="button" class="cbtn end" data-act="hangup" data-icon="phone" aria-label="إنهاء المكالمة"></button>
+          <div class="overlay" id="prayOv" role="dialog" aria-labelledby="prayTitle" hidden>
+            <button type="button" class="x" data-act="close" data-icon="x" aria-label="إغلاق"></button>
+            <div class="sheet wide">
+              <div class="sheet-head"><h3 id="prayTitle">أوقات الصلاة · <span data-b="cityName">مسقط</span></h3><span class="label" data-b="hijri"></span></div>
+              <div class="p-list" id="pList"></div>
+              <p class="label">طريقة الحساب: <span data-b="methodName"></span>. تُحسب على الشاشة بدون إنترنت.</p>
+            </div>
+          </div>
+
+          <div class="overlay" id="fuelOv" role="dialog" aria-labelledby="fuelTitle" hidden>
+            <button type="button" class="x" data-act="close" data-icon="x" aria-label="إغلاق"></button>
+            <form class="sheet" id="fuelForm" novalidate>
+              <h3 id="fuelTitle">تعبئة وقود جديدة</h3>
+              <div class="form-grid">
+                <label for="fDate">التاريخ<input class="field" id="fDate" type="date"></label>
+                <label for="fOdo">قراءة العداد (كم)<input class="field" id="fOdo" inputmode="numeric" dir="ltr" autocomplete="off"></label>
+                <label for="fL">اللترات<input class="field" id="fL" inputmode="decimal" dir="ltr" autocomplete="off"></label>
+                <label for="fC">المبلغ (<span data-b="cur">ر.ع</span>)<input class="field" id="fC" inputmode="decimal" dir="ltr" autocomplete="off"></label>
               </div>
-              <p class="note">محاكاة فقط. في السيارة تمر المكالمة عبر جوالك بالبلوتوث وتسمعها من سماعات السيارة.</p>
+              <p class="label">املأ الخزان كاملًا في كل مرة ليكون حساب الاستهلاك دقيقًا.</p>
+              <p class="form-err" id="fuelErr" hidden></p>
+              <div class="t-actions"><button type="submit" class="t-btn">حفظ</button><button type="button" class="t-btn ghost" data-act="close">إلغاء</button></div>
+            </form>
+          </div>
+
+          <div class="overlay" id="oilOv" role="dialog" aria-labelledby="oilTitle" hidden>
+            <button type="button" class="x" data-act="close" data-icon="x" aria-label="إغلاق"></button>
+            <form class="sheet" id="oilForm" novalidate>
+              <h3 id="oilTitle">العداد وتغيير الزيت</h3>
+              <div class="form-grid">
+                <label for="oOdo">قراءة العداد الآن (كم)<input class="field" id="oOdo" inputmode="numeric" dir="ltr" autocomplete="off"></label>
+                <label for="oAt">العداد عند آخر تغيير زيت<input class="field" id="oAt" inputmode="numeric" dir="ltr" autocomplete="off"></label>
+              </div>
+              <p class="form-err" id="oilErr" hidden></p>
+              <div class="t-actions"><button type="submit" class="t-btn">حفظ</button><button type="button" class="t-btn ghost" data-act="close">إلغاء</button></div>
+            </form>
+          </div>
+
+          <div class="overlay" id="linkOv" role="dialog" aria-labelledby="linkTitle" hidden>
+            <button type="button" class="x" data-act="close" data-icon="x" aria-label="إغلاق"></button>
+            <div class="sheet">
+              <h3 id="linkTitle">ربط الجوال</h3>
+              <p class="label">Apple CarPlay و Android Auto يعملان من تطبيق الربط الموجود في الشاشة نفسها، واسمه غالبًا ZLink أو CarPlay. افتحه من قائمة تطبيقات الشاشة.</p>
+              <ol class="steps3">
+                <li>أول مرة فقط: اربط الجوال بالشاشة عن طريق البلوتوث.</li>
+                <li>اضغط «سماح» عندما يظهر طلب الربط على الجوال.</li>
+                <li>بعدها يتصل الجوال وحده كلما شغّلت السيارة.</li>
+              </ol>
             </div>
           </div>
 
@@ -609,60 +624,83 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
   </div>
 
   <section class="guide" aria-labelledby="g-title">
-    <h2 id="g-title">كيف تحصل على هذه الشاشة في سيارتك</h2>
-    <p>الشاشة الحالية (حوالي 5 بوصات مع مشغل CD) لا يوجد لها تحديث يضيف Apple CarPlay أو Android Auto أو الخرائط، لأن العتاد نفسه لا يدعمها. الطريق العملي هو استبدال الوحدة كاملة بشاشة أندرويد مصممة لإلنترا 2016–2018، ثم ضبط واجهتها لتشبه النموذج أعلاه.</p>
+    <h2 id="g-title">ثبّت التطبيق على شاشتك</h2>
+    <p>الشاشة الأصلية (حوالي 5 بوصات مع مشغل CD) لا يمكن تحديثها لتضيف هذه المزايا. ركّب شاشة أندرويد مكانها، ثم ثبّت هذا التطبيق عليها. يعمل بملء الشاشة، ويحفظ بياناتك على الشاشة نفسها.</p>
 
     <div class="cols">
       <div class="box">
-        <h3>اطلب هذه المواصفات من البائع<small>علّم كل بند بعد أن يؤكده البائع كتابيًا.</small></h3>
-        <ul class="checks" id="checks">
-          <li><label><input type="checkbox" id="c1"><span><b>إطار مخصص لإلنترا 2016–2018</b><small>أرسل له صورة شاشتك الحالية ليتأكد أن الإطار يناسب نسخة الشاشة الصغيرة مع مشغل CD.</small></span></label></li>
-          <li><label><input type="checkbox" id="c2"><span><b>شاشة 9 بوصات QLED أو IPS بدقة 1280×720 أو أعلى</b><small>تبقى واضحة تحت شمس الظهر.</small></span></label></li>
-          <li><label><input type="checkbox" id="c3"><span><b>Android 12 أو أحدث، رام 4GB وتخزين 64GB على الأقل</b><small>الأجهزة برام 2GB تبطئ بعد أشهر قليلة.</small></span></label></li>
-          <li><label><input type="checkbox" id="c4"><span><b>Apple CarPlay و Android Auto لاسلكي مدمج</b><small>يتصل الجوال وحده عند تشغيل السيارة، بدون كيبل.</small></span></label></li>
-          <li><label><input type="checkbox" id="c5"><span><b>ضفيرة أسلاك جاهزة مع صندوق CANbus</b><small>بدون قص أسلاك السيارة، وتحافظ على أزرار الصوت والمكالمات في المقود.</small></span></label></li>
-          <li><label><input type="checkbox" id="c6"><span><b>توافق مع نظام صوت Infinity</b><small>سيارتك فيها مضخم صوت خارجي. اسأل عن ضفيرة Infinity بالاسم، وإلا قد يخرج الصوت ضعيفًا أو لا يخرج أبدًا.</small></span></label></li>
-          <li><label><input type="checkbox" id="c7"><span><b>مدخل كاميرا خلفية</b><small>إن كانت عندك كاميرا أصلية فاطلب ضفيرة تحافظ عليها، وإلا أضف كاميرا AHD.</small></span></label></li>
-          <li><label><input type="checkbox" id="c8"><span><b>ميكروفون خارجي وهوائي GPS داخل العلبة</b><small>الميكروفون يُركَّب قرب المرآة لتكون المكالمات واضحة.</small></span></label></li>
-          <li><label><input type="checkbox" id="c9"><span><b>ضمان سنة على الأقل وإمكانية الإرجاع</b></span></label></li>
-        </ul>
-        <p class="count" id="count">0 من 9 مؤكدة</p>
-      </div>
-
-      <div class="box">
-        <h3>أخطاء تكلّف مالًا</h3>
-        <ul class="warns">
-          <li><b>تصديق من يبيع «تحديثًا» للشاشة القديمة</b><small>لا يوجد تحديث يحول هذه الوحدة إلى شاشة ذكية. أي عرض من هذا النوع غالبًا جهاز آخر أو احتيال.</small></li>
-          <li><b>شراء الأرخص بمواصفات مبالغ فيها</b><small>جهاز رخيص يدّعي رام 8GB يكون غالبًا أقل. اطلب صورة صفحة «حول الجهاز» قبل الدفع.</small></li>
-          <li><b>توصيل الكهرباء بطريقة خاطئة</b><small>إذا وُصل الجهاز على كهرباء دائمة بدل كهرباء المفتاح (ACC) قد يفرغ البطارية وأنت نائم.</small></li>
-          <li><b>رمي الجهاز الأصلي</b><small>احتفظ به. يفيدك عند بيع السيارة أو إذا تعطل الجديد.</small></li>
-          <li><b>التركيب عند أول محل تجده</b><small>اختر فنيًا ركّب الجهاز نفسه في إلنترا من قبل، واطلب صورًا من شغله.</small></li>
-        </ul>
-      </div>
-
-      <div class="box">
-        <h3>بعد التركيب: اجعلها بسيطة مثل النموذج</h3>
+        <h3>خطوات التثبيت</h3>
         <ol class="steps-list">
-          <li><span><b>ثبّت واجهة مخصصة للسيارة</b><small>مثل AGAMA Car Launcher أو CarWebGuru، واجعلها الشاشة الرئيسية.</small></span></li>
-          <li><span><b>ثلاثة أشياء فقط في الشاشة الرئيسية</b><small>الساعة، الخريطة، والموسيقى. لا شيء آخر.</small></span></li>
-          <li><span><b>ست أيقونات كحد أقصى في الشريط السفلي</b><small>الخرائط، الوسائط، الهاتف، ربط الجوال، الكاميرا، الإعدادات.</small></span></li>
-          <li><span><b>فعّل الوضع الليلي التلقائي وكبّر الخط</b><small>من إعدادات العرض في الجهاز.</small></span></li>
-          <li><span><b>اختبر قبل أن يغادر الفني</b><small>أزرار المقود، الرد على مكالمة، الكاميرا عند الرجوع، وصوت كل السماعات.</small></span></li>
+          <li><span><b>وصّل الشاشة بالإنترنت</b><small>من نقطة اتصال الجوال أو شريحة بيانات. يلزم مرة واحدة للتثبيت، وبعدها للطقس والخرائط فقط.</small></span></li>
+          <li><span><b>افتح Chrome في الشاشة واكتب الرابط</b>
+            <span class="url-row"><bdi class="url" dir="ltr" id="appUrl">mazinalhabsi.github.io/support-control</bdi><button type="button" class="copy" id="copyUrl">نسخ</button></span></span></li>
+          <li><span><b>ثبّت التطبيق</b><small>من قائمة Chrome (⋮) اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».</small></span></li>
+          <li><span><b>اسمح بالموقع والميكروفون</b><small>للسرعة، وأوقات الصلاة حسب موقعك، والأوامر الصوتية.</small></span></li>
+          <li><span><b>امسح بيانات المثال</b><small>من الإعدادات، ثم أضف عنوان البيت والعمل وأرقامك المفضلة.</small></span></li>
         </ol>
       </div>
+
+      <div class="box">
+        <h3>ما يفعله التطبيق وما لا يفعله</h3>
+        <h4>يفعل</h4>
+        <ul class="plain yes">
+          <li>أوقات الصلاة والتاريخ الهجري بدون إنترنت، مع تنبيه قبل الأذان.</li>
+          <li>السرعة من GPS الشاشة، مع صوت تنبيه عند تجاوز الحد الذي تختاره.</li>
+          <li>يفتح الإرشاد إلى البيت والعمل بضغطة في Google Maps أو Waze.</li>
+          <li>يفتح تطبيقات الموسيقى، ويتصل بأرقامك المفضلة.</li>
+          <li>يحسب استهلاك الوقود وتكلفته، ويذكّرك بتغيير الزيت.</li>
+          <li>أوامر صوتية بالعربي، ووضع ليلي تلقائي مع الغروب.</li>
+        </ul>
+        <h4>لا يفعل</h4>
+        <ul class="plain no">
+          <li><b>التحكم بالأغنية التي تعمل في تطبيق آخر</b><small>هذه من صلاحيات الشاشة نفسها، لا من تطبيق ويب.</small></li>
+          <li><b>الكاميرا الخلفية و CarPlay</b><small>تعملان من نظام الشاشة تلقائيًا.</small></li>
+          <li><b>قراءة الوقود من السيارة مباشرة</b><small>لذلك تُسجَّل التعبئة يدويًا.</small></li>
+        </ul>
+      </div>
+
+      <div class="box">
+        <h3>مواصفات الشاشة التي تشتريها<small>علّم كل بند بعد أن يؤكده البائع كتابيًا.</small></h3>
+        <ul class="checks" id="checks">
+          <li><label><input type="checkbox" id="c1"><span><b>إطار مخصص لإلنترا 2016–2018</b><small>أرسل للبائع صورة شاشتك الحالية.</small></span></label></li>
+          <li><label><input type="checkbox" id="c2"><span><b>9 بوصات، QLED أو IPS، دقة 1280×720 أو أعلى</b></span></label></li>
+          <li><label><input type="checkbox" id="c3"><span><b>Android 12 أو أحدث، رام 4GB وتخزين 64GB</b><small>متصفح Chrome محدّث لازم لتثبيت التطبيق.</small></span></label></li>
+          <li><label><input type="checkbox" id="c4"><span><b>CarPlay و Android Auto لاسلكي مدمج</b></span></label></li>
+          <li><label><input type="checkbox" id="c5"><span><b>ضفيرة جاهزة مع صندوق CANbus</b><small>تحافظ على أزرار المقود.</small></span></label></li>
+          <li><label><input type="checkbox" id="c6"><span><b>توافق مع نظام صوت Infinity</b><small>سيارتك فيها مضخم خارجي. اسأل عنه بالاسم.</small></span></label></li>
+          <li><label><input type="checkbox" id="c7"><span><b>GPS مدمج وميكروفون خارجي</b><small>يحتاجهما التطبيق للسرعة والأوامر الصوتية.</small></span></label></li>
+          <li><label><input type="checkbox" id="c8"><span><b>ضمان سنة وإمكانية الإرجاع</b></span></label></li>
+        </ul>
+        <p class="count" id="count">0 من 8 مؤكدة</p>
+      </div>
     </div>
-    <p class="foot">تصميم مستقل للتوضيح، غير تابع لشركة هيونداي. الأسماء والأرقام داخل الشاشة أمثلة.</p>
+    <p class="foot">تصميم مستقل، غير تابع لشركة هيونداي. أسماء التطبيقات تُستخدم لفتحها فقط.</p>
   </section>
 </div>
 
 <script>
 (() => {
+  "use strict";
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Arabic-Indic and Persian digits typed on the car keyboard become plain digits
+  const toNum = (s) => {
+    const t = String(s || "").replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 1632).replace(/[۰-۹]/g, (d) => d.charCodeAt(0) - 1776).replace(/[٫,]/g, ".").replace(/[^\d.]/g, "");
+    return t ? parseFloat(t) : NaN;
+  };
+
+  /* ---------- where we run ---------- */
+  const params = new URLSearchParams(location.search);
+  const standalone = !!(window.matchMedia && matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches);
+  const APP = params.get("mode") === "app" || standalone;
+  let FRAMED = true;
+  try { FRAMED = window.self !== window.top; } catch (e) { FRAMED = true; }
+  if (APP) document.body.classList.add("app-mode");
 
   /* ---------- icons ---------- */
   const ICONS = {
@@ -671,30 +709,29 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
     music: '<path d="M9 18V5.5l11-2.5v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
     phone: '<path d="M5.5 3.5h3.2l1.8 4.6-2.3 1.6a12 12 0 0 0 6.1 6.1l1.6-2.3 4.6 1.8v3.2a2 2 0 0 1-2.2 2A17 17 0 0 1 3.5 5.7a2 2 0 0 1 2-2.2z"/>',
     cast: '<rect x="2.5" y="4.5" width="13" height="10" rx="2"/><path d="M6 19h6M9 14.5V19"/><rect x="17" y="8" width="5" height="11" rx="1.4"/>',
-    camera: '<path d="M3 8.5a2 2 0 0 1 2-2h2.2l1.6-2.2h6.4l1.6 2.2H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/>',
+    grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/>',
+    gauge: '<path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l4-4.5"/><circle cx="12" cy="14" r="1.4"/>',
     sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
     mic: '<rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
-    micoff: '<rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M3.5 3.5l17 17"/>',
-    bt: '<path d="M7 7.5 17 16.5 12 21V3l5 4.5L7 16.5"/>',
-    signal: '<path d="M4 20v-3M9 20v-7M14 20V9M19 20V4"/>',
+    gps: '<circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1.5V4M12 20v2.5M1.5 12H4M20 12h2.5"/>',
+    wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.8 16a5 5 0 0 1 6.4 0"/><circle class="f" cx="12" cy="19.5" r="1.3"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
-    vol: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
-    play: '<path class="f" d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5z"/>',
-    pause: '<rect class="f" x="6" y="4" width="4.5" height="16" rx="1.2"/><rect class="f" x="13.5" y="4" width="4.5" height="16" rx="1.2"/>',
-    next: '<path class="f" d="M5 5.2v13.6a.8.8 0 0 0 1.2.7l10-6.8a.8.8 0 0 0 0-1.4l-10-6.8a.8.8 0 0 0-1.2.7z"/><rect class="f" x="17" y="5" width="2.6" height="14" rx="1"/>',
-    prev: '<path class="f" d="M19 5.2v13.6a.8.8 0 0 1-1.2.7l-10-6.8a.8.8 0 0 1 0-1.4l10-6.8a.8.8 0 0 1 1.2.7z"/><rect class="f" x="4.4" y="5" width="2.6" height="14" rx="1"/>',
-    turnright: '<path d="M6 21v-8.5A4.5 4.5 0 0 1 10.5 8H19M15 4l4 4-4 4"/>',
-    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4.2-4.2"/>',
+    cloud: '<path d="M7 18.5a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 11a3.8 3.8 0 0 1-.5 7.5z"/>',
+    rain: '<path d="M7 15a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 7.5a3.8 3.8 0 0 1-.5 7.5z"/><path d="M8 18.5 7 21M12.5 18.5l-1 2.5M17 18.5l-1 2.5"/>',
+    fog: '<path d="M4 9h16M3 13h18M5 17h14"/>',
+    storm: '<path d="M7 15a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 7.5a3.8 3.8 0 0 1-.5 7.5"/><path d="M12.5 12.5 10 16.5h4l-2.5 4"/>',
+    moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>',
+    book: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5c-3.5-.5-6.5 0-8.5 1.5zM12 6.5v13"/>',
+    chat: '<path d="M4 19.5l1.3-3.9A8 8 0 1 1 8.4 18.7z"/>',
     work: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>',
     fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 10h10M14 9h2.5l2.5 2.5v6a1.5 1.5 0 0 1-3 0V15h-2"/>',
+    drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
     pin: '<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
     bksp: '<path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7z"/><path d="m12 9 6 6M18 9l-6 6"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>',
-    wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.8 16a5 5 0 0 1 6.4 0"/><circle class="f" cx="12" cy="19.5" r="1.3"/>',
-    expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
-    in: '<path d="M17 7 7 17M7 9v8h8"/>',
-    out: '<path d="M7 17 17 7M9 7h8v8"/>',
-    miss: '<path d="M3 8l6 6 4-4 7 7"/>'
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trash: '<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
+    expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
   };
   const icon = (n) => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[n] || "") + "</svg>";
   function setIcon(el, n) {
@@ -702,329 +739,679 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
     const old = el.querySelector(":scope > svg.ic");
     if (old) old.outerHTML = icon(n); else el.insertAdjacentHTML("afterbegin", icon(n));
   }
-  const paintIcons = (root) => $$("[data-icon]", root).forEach(el => { if (!el.querySelector(":scope > svg.ic")) el.insertAdjacentHTML("afterbegin", icon(el.dataset.icon)); });
+  const paintIcons = (root) => $$("[data-icon]", root).forEach((el) => { if (!el.querySelector(":scope > svg.ic")) el.insertAdjacentHTML("afterbegin", icon(el.dataset.icon)); });
 
-  /* ---------- example data ---------- */
-  const TRACKS = {
-    bt: [
-      { t: "الأماكن", a: "محمد عبده", d: 331, c: ["#F2A23C", "#6B3410"] },
-      { t: "نسّم علينا الهوى", a: "فيروز", d: 214, c: ["#4FD1C5", "#123E44"] },
-      { t: "Viva la Vida", a: "Coldplay", d: 242, c: ["#E36A5C", "#3B1520"] },
-      { t: "تملّي معاك", a: "عمرو دياب", d: 276, c: ["#8FA8FF", "#1D2550"] }
-    ],
-    usb: [
-      { t: "مقطع 01", a: "مجلد الرحلات", d: 198, c: ["#9BB86A", "#2A3A14"] },
-      { t: "مقطع 02", a: "مجلد الرحلات", d: 245, c: ["#C58BE0", "#35184A"] },
-      { t: "مقطع 03", a: "مجلد الرحلات", d: 221, c: ["#6FB7E8", "#12324A"] }
-    ]
+  /* ---------- reference data ---------- */
+  const CITIES = {
+    muscat: { n: "مسقط", lat: 23.588, lng: 58.3829, tz: 4 }, salalah: { n: "صلالة", lat: 17.0151, lng: 54.0924, tz: 4 },
+    sohar: { n: "صحار", lat: 24.347, lng: 56.709, tz: 4 }, nizwa: { n: "نزوى", lat: 22.9333, lng: 57.5333, tz: 4 },
+    sur: { n: "صور", lat: 22.5667, lng: 59.5289, tz: 4 }, buraimi: { n: "البريمي", lat: 24.25, lng: 55.793, tz: 4 },
+    dubai: { n: "دبي", lat: 25.2048, lng: 55.2708, tz: 4 }, abudhabi: { n: "أبوظبي", lat: 24.4539, lng: 54.3773, tz: 4 },
+    riyadh: { n: "الرياض", lat: 24.7136, lng: 46.6753, tz: 3 }, jeddah: { n: "جدة", lat: 21.4858, lng: 39.1925, tz: 3 },
+    makkah: { n: "مكة المكرمة", lat: 21.4225, lng: 39.8262, tz: 3 }, doha: { n: "الدوحة", lat: 25.2854, lng: 51.531, tz: 3 },
+    kuwait: { n: "الكويت", lat: 29.3759, lng: 47.9774, tz: 3 }, manama: { n: "المنامة", lat: 26.2285, lng: 50.586, tz: 3 }
   };
-  const PRESETS = [88.5, 91.3, 95.9, 98.3, 102.7, 104.8];
-  const DESTS = [
-    { n: "البيت", i: "home", min: 18, km: 14 },
-    { n: "العمل", i: "work", min: 25, km: 21 },
-    { n: "أقرب محطة وقود", i: "fuel", min: 4, km: 2.1 },
-    { n: "مركز صيانة هيونداي", i: "pin", min: 31, km: 27 }
+  const METHODS = {
+    mwl: { n: "رابطة العالم الإسلامي", fajr: 18, isha: 17 },
+    umm: { n: "أم القرى", fajr: 18.5, ishaMin: 90 },
+    gulf: { n: "منطقة الخليج", fajr: 19.5, ishaMin: 90 },
+    egypt: { n: "الهيئة المصرية العامة للمساحة", fajr: 19.5, isha: 17.5 },
+    kuwait: { n: "الكويت", fajr: 18, isha: 17.5 }
+  };
+  const PNAMES = { fajr: "الفجر", sunrise: "الشروق", dhuhr: "الظهر", asr: "العصر", maghrib: "المغرب", isha: "العشاء" };
+  const APPS = [
+    { n: "YouTube Music", k: "موسيقى", url: "https://music.youtube.com/", i: "music", c: "--c-music", say: ["يوتيوب"] },
+    { n: "Spotify", k: "موسيقى", url: "https://open.spotify.com/", i: "music", c: "--c-music", say: ["سبوتيفاي", "سبوتفاي"] },
+    { n: "أنغامي", k: "موسيقى", url: "https://play.anghami.com/", i: "music", c: "--c-music", say: ["انغامي"] },
+    { n: "Apple Music", k: "موسيقى", url: "https://music.apple.com/", i: "music", c: "--c-music", say: ["ابل ميوزك"] },
+    { n: "القرآن الكريم", k: "استماع", url: "https://quran.com/", i: "book", c: "--c-book", say: ["القران", "قران"] },
+    { n: "Google Maps", k: "خرائط", url: "https://www.google.com/maps", i: "nav", c: "--c-nav", say: ["قوقل ماب", "جوجل ماب", "الخرائط"] },
+    { n: "Waze", k: "خرائط", url: "https://waze.com/ul", i: "nav", c: "--c-nav", say: ["ويز"] },
+    { n: "واتساب", k: "رسائل", url: "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fwa.me%2F;end", i: "chat", c: "--c-chat", say: ["واتس"] },
+    { n: "الهاتف", k: "المفضلة ولوحة الأرقام", go: "phone", i: "phone", c: "--c-phone", say: [] },
+    { n: "ربط الجوال", k: "CarPlay · Android Auto", act: "link-help", i: "cast", c: "--c-link", say: ["كاربلاي"] }
   ];
-  const FAVS = ["البيت", "أحمد", "سارة", "العمل", "أبو خالد", "الورشة"];
-  const RECENTS = [
-    { n: "أحمد", w: "اليوم، 6:10 م", k: "in", l: "واردة" },
-    { n: "سارة", w: "اليوم، 1:25 م", k: "out", l: "صادرة" },
-    { n: "رقم غير محفوظ", w: "أمس، 9:02 م", k: "miss", l: "فائتة" },
-    { n: "الورشة", w: "أمس، 11:40 ص", k: "out", l: "صادرة" },
-    { n: "أبو خالد", w: "الثلاثاء، 4:15 م", k: "in", l: "واردة" }
-  ];
-  const SRC_LABEL = { bt: "بلوتوث · iPhone", usb: "USB · مجلد الرحلات", radio: "راديو FM" };
+  const MUSIC_HOME = [0, 1, 2, 4];
 
-  /* ---------- state ---------- */
+  /* ---------- saved state (on this device only) ---------- */
+  const KEY = "elantra-v2";
+  const emptyState = () => ({
+    v: 2, demo: false, mode: "auto", size: "normal", dim: 100,
+    city: "muscat", method: "mwl", asr: 1, pAlert: true,
+    navApp: "google", limit: 120, spAlert: true,
+    places: [{ n: "البيت", q: "", i: "home" }, { n: "العمل", q: "", i: "work" }, { n: "أقرب محطة وقود", q: "محطة وقود", i: "fuel" }],
+    favs: [], currency: "ر.ع", oilEvery: 5000, oilAt: null, odo: null, kmSince: 0,
+    fuel: [], trip: { on: false, dist: 0, start: null, elapsed: 0, max: 0 }, gpsLoc: null, wx: null
+  });
+  const demoState = () => Object.assign(emptyState(), {
+    demo: true,
+    places: [{ n: "البيت", q: "Al Khuwair, Muscat", i: "home" }, { n: "العمل", q: "Ruwi, Muscat", i: "work" }, { n: "أقرب محطة وقود", q: "محطة وقود", i: "fuel" }, { n: "مركز صيانة هيونداي", q: "Hyundai service center", i: "pin" }],
+    favs: [{ n: "البيت", t: "" }, { n: "أحمد", t: "" }, { n: "سارة", t: "" }, { n: "الورشة", t: "" }],
+    oilAt: 82500, odo: 85460,
+    fuel: [
+      { d: "2026-09-02", odo: 84200, l: 38.5, c: 9.2 },
+      { d: "2026-09-14", odo: 84610, l: 37.9, c: 9.06 },
+      { d: "2026-09-27", odo: 85030, l: 39.2, c: 9.37 },
+      { d: "2026-10-10", odo: 85460, l: 38.8, c: 9.27 }
+    ]
+  });
+  let S = Object.assign(demoState(), store.get(KEY, {}));
+  let saveTimer;
+  const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set(KEY, S), 250); };
+
   const unit = $("#unit");
-  const S = Object.assign({ mode: "auto", size: "normal", bright: 100, vol: 18, eq: [2, 0, 1], tg: { speedVol: true, lastSrc: true, autoCam: true } }, store.get("elantra-ui", {}));
-  const R = { view: "home", back: "home", src: "bt", idx: { bt: 0, usb: 0 }, pos: 74, playing: true, freq: 95.9, dest: 0, nav: true, turn: 400, speed: 64, dial: "", call: null, proj: null, ptab: "fav" };
-  const save = () => store.set("elantra-ui", S);
+  const R = { view: "home", dial: "", over: false, alerted: {}, resetArm: false };
+  const G = { state: FRAMED ? "framed" : "wait", speed: null, last: null };
 
-  const bind = (k, v) => $$('[data-b="' + k + '"]').forEach(el => { if (el.textContent !== String(v)) el.textContent = v; });
-  const mmss = (s) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
-  const minutes = (n) => n + (n >= 3 && n <= 10 ? " دقائق" : " دقيقة");
-  const signed = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n);
-  const initial = (s) => /^[\d+*#]/.test(s) ? "#" : Array.from(s.length > 3 && s.startsWith("ال") ? s.slice(2) : s)[0];
-
-  const fmtTime = new Intl.DateTimeFormat("ar-u-nu-latn", { hour: "numeric", minute: "2-digit", hour12: true });
-  const fmtDate = new Intl.DateTimeFormat("ar-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
-  function timeParts(d) {
-    const p = fmtTime.formatToParts(d);
-    const hm = p.filter(x => x.type === "hour" || x.type === "minute" || (x.type === "literal" && x.value.trim() === ":")).map(x => x.value).join("");
-    const ap = (p.find(x => x.type === "dayPeriod") || {}).value || "";
-    return { hm, ap };
-  }
+  const bind = (k, v) => $$('[data-b="' + k + '"]').forEach((el) => { const s = String(v); if (el.textContent !== s) el.textContent = s; });
+  const initial = (s) => /^[\d+*#]/.test(s) ? "#" : (Array.from(s.length > 3 && s.startsWith("ال") ? s.slice(2) : s)[0] || "؟");
+  const fmt1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
+  const fmtInt = (n) => Math.round(n).toLocaleString("en-US");
 
   let toastTimer;
   function toast(msg) {
     const el = $("#toast");
     el.textContent = msg; el.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 3200);
   }
 
-  /* ---------- display settings ---------- */
-  function applyDisplay() {
-    const h = new Date().getHours();
-    unit.dataset.mode = S.mode === "auto" ? (h >= 6 && h < 18 ? "day" : "night") : S.mode;
-    unit.dataset.size = S.size;
-    $("#screen").style.setProperty("--bright", (S.bright / 100).toFixed(2));
-    $$("[data-mode-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.modeSet === S.mode)));
-    $$("[data-size-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sizeSet === S.size)));
-    $$("[data-tg]").forEach(b => b.setAttribute("aria-checked", String(!!S.tg[b.dataset.tg])));
-    $("#sBright").value = S.bright;
-    $("#sVol").value = S.vol;
-    bind("vol", S.vol);
-    S.eq.forEach((v, i) => { $("#eq" + i).value = v; bind("eq" + i, signed(v)); });
+  let AC;
+  function beep(freq, n) {
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      for (let i = 0; i < (n || 2); i++) {
+        const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime + i * 0.28;
+        o.frequency.value = freq || 880; o.connect(g); g.connect(AC.destination);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+        o.start(t); o.stop(t + 0.22);
+      }
+    } catch (e) {}
   }
 
-  /* ---------- navigation between screens ---------- */
-  function go(v) {
-    if (v === "cam" && R.view !== "cam") R.back = R.view;
-    R.view = v;
-    $$(".view").forEach(el => { el.hidden = el.id !== "v-" + v; });
-    $$(".dock .d").forEach(b => { if (b.dataset.go === v) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  /* ---------- time ---------- */
+  const fmtTime = new Intl.DateTimeFormat("ar-u-nu-latn", { hour: "numeric", minute: "2-digit", hour12: true });
+  const fmtDate = new Intl.DateTimeFormat("ar-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
+  const fmtShort = new Intl.DateTimeFormat("ar-u-nu-latn", { day: "numeric", month: "long" });
+  let fmtHijri = null;
+  try { fmtHijri = new Intl.DateTimeFormat("ar-u-ca-islamic-umalqura-nu-latn", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { fmtHijri = null; }
+  function timeParts(d) {
+    const p = fmtTime.formatToParts(d);
+    return {
+      hm: p.filter((x) => x.type === "hour" || x.type === "minute" || (x.type === "literal" && x.value.trim() === ":")).map((x) => x.value).join(""),
+      ap: (p.find((x) => x.type === "dayPeriod") || {}).value || ""
+    };
+  }
+  // hours since midnight (city time) -> "4:51 ص"
+  function hmText(h) {
+    const m = Math.round((((h % 24) + 24) % 24) * 60) % 1440;
+    const H = Math.floor(m / 60), M = m % 60;
+    return ((H + 11) % 12 + 1) + ":" + String(M).padStart(2, "0") + " " + (H < 12 ? "ص" : "م");
   }
 
-  /* ---------- map ---------- */
-  function mapSVG() {
-    const xs = [0, 170, 360, 520, 700, 900], ys = [0, 140, 270, 410, 560];
-    let blocks = "";
-    for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
-      const cls = (i === 1 && j === 2) || (i === 4 && j === 3) ? "m-park" : "m-block";
-      blocks += '<rect class="' + cls + '" x="' + (xs[i] + 11) + '" y="' + (ys[j] + 11) + '" width="' + (xs[i + 1] - xs[i] - 22) + '" height="' + (ys[j + 1] - ys[j] - 22) + '" rx="10"/>';
+  /* ---------- prayer times (astronomical, offline) ---------- */
+  const rad = (d) => d * Math.PI / 180, deg = (r) => r * 180 / Math.PI;
+  const fix = (a, b) => { a -= b * Math.floor(a / b); return a < 0 ? a + b : a; };
+  function julian(y, m, d) {
+    if (m <= 2) { y -= 1; m += 12; }
+    const A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+    return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5;
+  }
+  function sunPos(jd) {
+    const D = jd - 2451545.0, g = fix(357.529 + 0.98560028 * D, 360), q = fix(280.459 + 0.98564736 * D, 360);
+    const L = fix(q + 1.915 * Math.sin(rad(g)) + 0.020 * Math.sin(rad(2 * g)), 360), e = 23.439 - 0.00000036 * D;
+    const RA = deg(Math.atan2(Math.cos(rad(e)) * Math.sin(rad(L)), Math.cos(rad(L)))) / 15;
+    return { decl: deg(Math.asin(Math.sin(rad(e)) * Math.sin(rad(L)))), eqt: q / 15 - fix(RA, 24) };
+  }
+  function prayerTimes(y, mo, d, L) {
+    const m = METHODS[S.method] || METHODS.mwl;
+    const jd = julian(y, mo, d) - L.lng / (15 * 24);
+    const noon = (t) => fix(12 - sunPos(jd + t).eqt, 24);
+    const angleTime = (a, t, ccw) => {
+      const dc = sunPos(jd + t).decl;
+      const c = (-Math.sin(rad(a)) - Math.sin(rad(dc)) * Math.sin(rad(L.lat))) / (Math.cos(rad(dc)) * Math.cos(rad(L.lat)));
+      const h = deg(Math.acos(Math.max(-1, Math.min(1, c)))) / 15;
+      return noon(t) + (ccw ? -h : h);
+    };
+    const dcAsr = sunPos(jd + 13 / 24).decl;
+    const asrAngle = -deg(Math.atan(1 / ((S.asr === 2 ? 2 : 1) + Math.tan(rad(Math.abs(L.lat - dcAsr))))));
+    const T = {
+      fajr: angleTime(m.fajr, 5 / 24, true), sunrise: angleTime(0.833, 6 / 24, true), dhuhr: noon(12 / 24),
+      asr: angleTime(asrAngle, 13 / 24), maghrib: angleTime(0.833, 18 / 24)
+    };
+    T.isha = m.ishaMin ? T.maghrib + m.ishaMin / 60 : angleTime(m.isha, 18 / 24);
+    for (const k in T) T[k] += L.tz - L.lng / 15;
+    return T;
+  }
+  function loc() {
+    if (S.city === "gps" && S.gpsLoc) return { n: "موقعي", lat: S.gpsLoc.lat, lng: S.gpsLoc.lng, tz: -new Date().getTimezoneOffset() / 60 };
+    return CITIES[S.city] || CITIES.muscat;
+  }
+  // current date and hour-of-day in the chosen city's time zone
+  function cityNow() {
+    const L = loc(), shifted = new Date(Date.now() + L.tz * 3600000);
+    return { L, y: shifted.getUTCFullYear(), m: shifted.getUTCMonth() + 1, d: shifted.getUTCDate(), dow: shifted.getUTCDay(),
+      h: shifted.getUTCHours() + shifted.getUTCMinutes() / 60 + shifted.getUTCSeconds() / 3600 };
+  }
+  const ORDER = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+  function prayerState() {
+    const c = cityNow(), T = prayerTimes(c.y, c.m, c.d, c.L);
+    let key = ORDER.find((k) => T[k] > c.h), at, left;
+    if (key) { at = T[key]; left = T[key] - c.h; }
+    else {
+      const t = new Date(Date.UTC(c.y, c.m - 1, c.d + 1));
+      const TT = prayerTimes(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), c.L);
+      key = "fajr"; at = TT.fajr; left = 24 - c.h + TT.fajr;
     }
-    const route = "M520 600 V270 H700 V140 H860";
-    return '<svg viewBox="0 0 900 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
-      '<rect class="m-roadbg" width="900" height="560"/>' + blocks +
-      '<path class="m-major" d="M-20 520 C 150 480 290 400 400 350 S 720 210 930 70"/>' +
-      '<text class="m-label" x="205" y="414" transform="rotate(-24 205 414)">الطريق السريع</text>' +
-      '<text class="m-label" x="800" y="275">شارع الخدمة</text>' +
-      '<path class="m-casing" d="' + route + '"/><path class="m-route" d="' + route + '"/>' +
-      '<g class="m-dest"><circle cx="860" cy="140" r="16"/><circle class="m-dot" cx="860" cy="140" r="6"/></g>' +
-      '<polygon class="m-car" points="520,388 539,432 520,422 501,432"/></svg>';
+    const today = key !== "fajr" || T.fajr > c.h;
+    const name = key === "dhuhr" && c.dow === 5 ? "الجمعة" : PNAMES[key];
+    return { c, T, key, name, at, left, today };
   }
-  $$(".map-slot").forEach(el => { el.innerHTML = mapSVG(); });
+  function leftText(hours) {
+    const mins = Math.max(0, Math.ceil(hours * 60 - 0.001));
+    if (mins === 0) return "الآن";
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return "بعد " + (h ? h + " س" + (m ? " " : "") : "") + (m ? m + " د" : "");
+  }
 
-  function renderDests() {
-    $("#destList").innerHTML = DESTS.map((d, i) =>
-      '<button type="button" class="dest" data-dest="' + i + '" aria-pressed="' + (R.nav && i === R.dest) + '"><span class="d-ico" data-icon="' + d.i + '"></span><span><b>' + d.n + "</b><small>" + minutes(d.min) + " · " + d.km + " كم</small></span></button>"
-    ).join("");
-    paintIcons($("#destList"));
+  /* ---------- weather (Open-Meteo, needs internet) ---------- */
+  const WX = (c) => c === 0 ? ["sun", "صافٍ"] : c <= 2 ? ["sun", "غائم جزئيًا"] : c === 3 ? ["cloud", "غائم"] : c <= 48 ? ["fog", "ضباب"] :
+    c <= 67 ? ["rain", "مطر"] : c <= 77 ? ["cloud", "ثلج"] : c <= 82 ? ["rain", "زخات مطر"] : ["storm", "عاصفة رعدية"];
+  const wxKey = () => { const L = loc(); return L.lat.toFixed(2) + "," + L.lng.toFixed(2); };
+  function renderWx() {
+    const w = S.wx && S.wx.key === wxKey() && Date.now() - S.wx.at < 6 * 3600000 ? S.wx : null;
+    const [ic, desc] = w ? WX(w.code) : ["cloud", ""];
+    const home = $("#wxHome"), st = $("#wxS");
+    if (home.dataset.icon !== ic) setIcon(home, ic);
+    if (st.dataset.icon !== ic) setIcon(st, ic);
+    bind("temp", w ? w.t + "°" : "—°"); bind("tempS", w ? w.t + "°" : "—°");
+    bind("wxDesc", w ? desc : FRAMED ? "الطقس يظهر في التطبيق المثبّت" : !navigator.onLine ? "الطقس يحتاج إنترنت" : R.wxFailed ? "الطقس غير متاح الآن" : "جارٍ جلب الطقس…");
+    bind("wxMax", w ? "العظمى " + w.max + "° · " + loc().n : "");
   }
-  function renderNav() {
-    const d = DESTS[R.dest];
-    unit.dataset.nav = R.nav ? "on" : "off";
-    bind("destName", d.n);
-    bind("etaMeta", minutes(d.min) + " · " + d.km + " كم");
-    bind("homeEta", minutes(DESTS[0].min) + " · " + DESTS[0].km + " كم");
-    renderDests();
+  async function loadWeather(force) {
+    const key = wxKey();
+    if (!force && S.wx && S.wx.key === key && Date.now() - S.wx.at < 30 * 60000) return renderWx();
+    if (FRAMED || !navigator.onLine || !window.fetch) return renderWx();
+    const L = loc();
+    try {
+      const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lng + "&current=temperature_2m,weather_code&daily=temperature_2m_max&timezone=auto&forecast_days=1");
+      if (!r.ok) throw new Error("weather " + r.status);
+      const j = await r.json();
+      S.wx = { key, at: Date.now(), t: Math.round(j.current.temperature_2m), code: j.current.weather_code, max: Math.round(j.daily.temperature_2m_max[0]) };
+      R.wxFailed = false; save();
+    } catch (e) { R.wxFailed = true; }
+    renderWx();
   }
-  function startNav(i) { R.dest = i; R.nav = true; R.turn = 400; renderNav(); }
 
-  /* ---------- media ---------- */
-  function nowPlaying() {
-    if (R.src === "radio") return { t: "FM " + R.freq.toFixed(1), a: "الراديو", art: "FM", c: ["#4FD1C5", "#14373B"], d: 0 };
-    const tr = TRACKS[R.src][R.idx[R.src]];
-    return { t: tr.t, a: tr.a, art: initial(tr.t), c: tr.c, d: tr.d };
+  /* ---------- GPS: speed, trip distance, odometer estimate ---------- */
+  function hav(a, b) {
+    const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * 6371000 * Math.asin(Math.sqrt(x));
   }
-  function renderMedia() {
-    unit.dataset.src = R.src;
-    const n = nowPlaying();
-    bind("title", n.t); bind("artist", n.a); bind("srcLabel", SRC_LABEL[R.src]);
-    $$('[data-b="art"]').forEach(el => { el.textContent = n.art; el.style.setProperty("--a1", n.c[0]); el.style.setProperty("--a2", n.c[1]); });
-    bind("pos", mmss(R.pos)); bind("dur", mmss(n.d));
-    $$('[data-b="bar"]').forEach(el => { el.style.width = n.d ? (R.pos / n.d * 100).toFixed(2) + "%" : "0"; });
-    bind("freq", R.freq.toFixed(1));
-    $$('[data-act="play"]').forEach(b => {
-      if (b.dataset.icon !== (R.playing ? "pause" : "play")) setIcon(b, R.playing ? "pause" : "play");
-      b.setAttribute("aria-label", R.playing ? "إيقاف مؤقت" : "تشغيل");
-    });
-    $$("[data-src]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.src === R.src)));
-    $$(".trk").forEach(b => b.setAttribute("aria-current", String(+b.dataset.trk === R.idx[R.src])));
-    $$(".preset").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.preset === R.freq)));
-  }
-  function renderLists() {
-    if (R.src !== "radio") {
-      $("#trackList").innerHTML = TRACKS[R.src].map((t, i) =>
-        '<button type="button" class="trk" data-trk="' + i + '"><span class="art" style="--a1:' + t.c[0] + ";--a2:" + t.c[1] + '">' + initial(t.t) + "</span><span><b>" + t.t + "</b><small>" + t.a + '</small></span><span class="dur">' + mmss(t.d) + "</span></button>"
-      ).join("");
+  function onPos(p) {
+    const c = p.coords, now = p.timestamp || Date.now(), here = { lat: c.latitude, lng: c.longitude, t: now };
+    let v = typeof c.speed === "number" && !isNaN(c.speed) ? c.speed * 3.6 : null;
+    if (G.last) {
+      const d = hav(G.last, here), dt = (now - G.last.t) / 1000;
+      if (v == null && dt > 0) v = d / dt * 3.6;
+      if (c.accuracy < 50 && d > 3 && d < 800 && (v == null || v > 3)) {
+        S.kmSince += d / 1000;
+        if (S.trip.on) S.trip.dist += d / 1000;
+      }
     }
-    $("#presetList").innerHTML = PRESETS.map((f, i) =>
-      '<button type="button" class="preset" data-preset="' + f + '"><b>' + f.toFixed(1) + "</b><small>محطة " + (i + 1) + "</small></button>"
-    ).join("");
+    const firstFix = !S.gpsLoc;
+    G.last = here; S.gpsLoc = { lat: here.lat, lng: here.lng };
+    G.speed = Math.max(0, v || 0); G.state = "on";
+    if (S.trip.on) S.trip.max = Math.max(S.trip.max, G.speed);
+    if (firstFix && S.city === "gps") { applyDisplay(renderPrayer()); loadWeather(true); }
+    renderGPS(); save();
   }
-  function setSource(src) { R.src = src; R.pos = 0; R.playing = true; renderLists(); renderMedia(); }
-  function step(dir) {
-    if (R.src === "radio") {
-      let i = PRESETS.indexOf(R.freq);
-      if (i < 0) i = dir > 0 ? -1 : 0;
-      R.freq = PRESETS[(i + dir + PRESETS.length) % PRESETS.length];
-    } else if (dir < 0 && R.pos > 3) {
-      R.pos = 0;
-    } else {
-      const list = TRACKS[R.src];
-      R.idx[R.src] = (R.idx[R.src] + dir + list.length) % list.length;
-      R.pos = 0;
+  function onErr(e) { G.state = e && e.code === 1 ? "denied" : "wait"; renderGPS(); }
+  function startGPS() {
+    if (FRAMED) return renderGPS();
+    if (!("geolocation" in navigator)) { G.state = "none"; return renderGPS(); }
+    try { navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 1000, timeout: 30000 }); }
+    catch (e) { G.state = "none"; renderGPS(); }
+  }
+  function renderGPS() {
+    const on = G.state === "on";
+    bind("speed", on ? Math.round(G.speed) : "—");
+    bind("gpsHint", {
+      on: "السرعة من GPS الشاشة",
+      wait: "جارٍ البحث عن إشارة GPS…",
+      denied: "اسمح للتطبيق باستخدام الموقع لعرض السرعة",
+      none: "هذه الشاشة لا توفر GPS للتطبيق",
+      framed: "السرعة تظهر من GPS الشاشة في السيارة"
+    }[G.state]);
+    $("#gpsChip").dataset.on = on ? "1" : "0";
+    bind("gpsShort", on ? "GPS" : "بدون GPS");
+    const over = on && G.speed > S.limit;
+    $$(".spd,.speed-big").forEach((el) => { el.dataset.over = over ? "1" : "0"; });
+    if (over && !R.over && S.spAlert) beep(988, 3);
+    R.over = over;
+  }
+
+  /* ---------- navigation and app launching ---------- */
+  const isLatLng = (q) => /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(q);
+  const navName = () => (S.navApp === "waze" ? "Waze" : "Google Maps");
+  function navUrl(q) {
+    q = String(q).trim();
+    if (S.navApp === "waze") return "https://waze.com/ul?" + (isLatLng(q) ? "ll=" + encodeURIComponent(q.replace(/\s/g, "")) : "q=" + encodeURIComponent(q)) + "&navigate=yes";
+    return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(q) + "&travelmode=driving&dir_action=navigate";
+  }
+  function openUrl(url, label) {
+    if (/^https:/.test(url)) {
+      let w = null;
+      try { w = window.open(url, "_blank", "noopener"); } catch (e) { w = null; }
+      if (!w && !FRAMED) { location.href = url; return; }
+      if (!w && FRAMED) toast("افتح " + label + " من زره في الشاشة");
+      return;
     }
-    renderMedia();
+    if (FRAMED) { toast("في الشاشة الحقيقية يفتح هذا الزر " + label + " مباشرة"); return; }
+    location.href = url;
   }
-  function tune(delta) {
-    R.freq = Math.min(108, Math.max(87.5, Math.round((R.freq + delta) * 10) / 10));
-    renderMedia();
+  function dial(num, name) {
+    const clean = String(num).replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 1632).replace(/[^\d+*#]/g, "");
+    if (!clean) { toast("اكتب الرقم أولًا"); return; }
+    if (FRAMED) { toast("في السيارة يتصل بـ" + (name ? name + " على " : " ") + clean + " عبر جوالك"); return; }
+    location.href = "tel:" + clean;
   }
-  function setVol(v) { S.vol = Math.min(40, Math.max(0, v)); bind("vol", S.vol); $("#sVol").value = S.vol; save(); }
+  function callFav(i) {
+    const f = S.favs[i];
+    if (!f) return;
+    if (!f.t) { toast("أضف رقم " + (f.n || "هذا الاسم") + " من الإعدادات"); return; }
+    dial(f.t, f.n);
+  }
+
+  function placeHTML(p, cls) {
+    const has = p.q && p.q.trim();
+    const ico = cls === "place" ? '<span class="d-ico" data-icon="' + esc(p.i || "pin") + '"></span>' : '<span data-icon="' + esc(p.i || "pin") + '"></span>';
+    const inner = ico + "<span><b>" + esc(p.n) + "</b><small dir=\"auto\">" + (has ? esc(p.q) : "أضف العنوان من الإعدادات") + "</small></span>";
+    return has
+      ? '<a class="' + cls + '" href="' + esc(navUrl(p.q)) + '" target="_blank" rel="noopener">' + inner + "</a>"
+      : '<button type="button" class="' + cls + '" data-act="edit-places">' + inner + "</button>";
+  }
+  function renderPlaces() {
+    bind("navAppName", navName());
+    $$("[data-navapp]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.navapp === S.navApp)));
+    $("#placeList").innerHTML = S.places.length ? S.places.map((p) => placeHTML(p, "place")).join("") : '<p class="label">أضف أماكنك من الإعدادات.</p>';
+    $("#homePlaces").innerHTML = S.places.slice(0, 2).map((p) => placeHTML(p, "go")).join("");
+    paintIcons($("#placeList")); paintIcons($("#homePlaces"));
+  }
+  function appTile(a, i, cls) {
+    const big = cls === "app";
+    const inner = '<span class="a-ic" style="--cat:var(' + a.c + ')" data-icon="' + a.i + '"></span><span>' + (big ? "<b>" + esc(a.n) + "</b>" : esc(a.n)) + "</span>" + (big ? "<small>" + esc(a.k) + "</small>" : "");
+    if (a.url && /^https:/.test(a.url)) return '<a class="' + cls + '" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + inner + "</a>";
+    return '<button type="button" class="' + cls + '" data-app="' + i + '">' + inner + "</button>";
+  }
+  function renderApps() {
+    $("#appGrid").innerHTML = APPS.map((a, i) => appTile(a, i, "app")).join("");
+    $("#homeMusic").innerHTML = MUSIC_HOME.map((i) => appTile(APPS[i], i, "mini")).join("");
+    paintIcons($("#appGrid")); paintIcons($("#homeMusic"));
+  }
+  function runApp(i) {
+    const a = APPS[i];
+    if (!a) return;
+    if (a.go) return go(a.go);
+    if (a.act === "link-help") return openOv("linkOv");
+    openUrl(a.url, a.n);
+  }
 
   /* ---------- phone ---------- */
-  function renderPhone() {
-    $("#pFav").innerHTML = FAVS.map(n =>
-      '<button type="button" class="fav" data-fav="' + n + '"><span class="avatar">' + initial(n) + "</span><b>" + n + '</b><span class="go-call" data-icon="phone"></span></button>'
+  function renderFavs() {
+    const g = $("#favGrid");
+    if (!S.favs.length) {
+      g.innerHTML = '<div class="card empty"><p>لا توجد أرقام مفضلة بعد. أضف أرقام من تتصل بهم كثيرًا ليصيروا بضغطة واحدة.</p><button type="button" class="t-btn" data-act="edit-favs">أضف رقمًا</button></div>';
+      return;
+    }
+    g.innerHTML = S.favs.slice(0, 8).map((f, i) =>
+      '<button type="button" class="fav" data-call="' + i + '" data-empty="' + (f.t ? 0 : 1) + '"><span class="avatar">' + esc(initial(f.n || "؟")) + "</span><span><b>" + esc(f.n || "بدون اسم") + "</b><small" + (f.t ? ' dir="ltr"' : "") + ">" + (f.t ? esc(f.t) : "أضف الرقم من الإعدادات") + '</small></span><span class="go-call" data-icon="phone"></span></button>'
     ).join("");
-    $("#pRec").innerHTML = RECENTS.map(r =>
-      '<button type="button" class="rec" data-fav="' + r.n + '" data-kind="' + r.k + '"><span class="avatar">' + initial(r.n) + "</span><span><b>" + r.n + '</b><small data-icon="' + r.k + '">' + r.l + " · " + r.w + '</small></span><span class="go-call" data-icon="phone"></span></button>'
-    ).join("");
-    $("#keys").innerHTML = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map(k => '<button type="button" data-key="' + k + '">' + k + "</button>").join("");
-    paintIcons($("#v-phone"));
-  }
-  function setPhoneTab(t) {
-    R.ptab = t;
-    $("#pFav").hidden = t !== "fav"; $("#pRec").hidden = t !== "rec"; $("#pPad").hidden = t !== "pad";
-    $$("[data-ptab]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ptab === t)));
-  }
-  function startCall(name) {
-    R.call = { name, t0: Date.now(), muted: false };
-    $("#callName").textContent = name;
-    $("#callAv").textContent = initial(name);
-    const m = $('[data-act="mute"]'); m.setAttribute("aria-pressed", "false");
-    bind("callTime", "جارٍ الاتصال…");
-    $("#voiceOv").hidden = true;
-    $("#callOv").hidden = false;
-  }
-  function endCall() { R.call = null; $("#callOv").hidden = true; toast("انتهت المكالمة"); }
-
-  /* ---------- phone projection ---------- */
-  function renderProj() {
-    $$(".ptile").forEach(t => {
-      const k = t.dataset.kind;
-      const st = R.proj && R.proj.kind === k ? R.proj.state : "off";
-      t.dataset.state = st;
-      $(".pstate", t).textContent = st === "on" ? "متصل بدون كيبل" : st === "wait" ? "جارٍ البحث عن الجوال…" : "غير متصل";
-      $(".pact", t).textContent = st === "on" ? "قطع الاتصال" : st === "wait" ? "إلغاء" : "اتصال";
-    });
-  }
-  function toggleProj(kind) {
-    if (R.proj && R.proj.kind === kind) { R.proj = null; renderProj(); return; }
-    R.proj = { kind, state: "wait" };
-    renderProj();
-    setTimeout(() => {
-      if (R.proj && R.proj.kind === kind && R.proj.state === "wait") {
-        R.proj.state = "on"; renderProj();
-        toast(kind === "cp" ? "تم الاتصال بـ Apple CarPlay" : "تم الاتصال بـ Android Auto");
-      }
-    }, 1800);
+    paintIcons(g);
   }
 
-  /* ---------- voice ---------- */
-  function runCmd(c) {
-    $("#voiceOv").hidden = true;
-    if (c === "home") { startNav(0); go("maps"); toast("بدأ الإرشاد إلى البيت"); }
-    else if (c === "call") startCall("أحمد");
-    else if (c === "radio") { setSource("radio"); go("media"); }
-    else if (c === "louder") { setVol(S.vol + 4); toast("مستوى الصوت " + S.vol); }
+  /* ---------- trip, fuel, oil ---------- */
+  function curOdo() {
+    const base = Math.max(S.odo || 0, ...S.fuel.map((f) => f.odo));
+    return base ? base + (S.kmSince || 0) : null;
+  }
+  const tripElapsed = () => S.trip.elapsed + (S.trip.on && S.trip.start ? Date.now() - S.trip.start : 0);
+  function renderTrip() {
+    const ms = tripElapsed(), h = ms / 3600000;
+    bind("tripDist", fmt1(S.trip.dist));
+    bind("tripTime", Math.floor(ms / 3600000) + ":" + String(Math.floor(ms / 60000) % 60).padStart(2, "0"));
+    bind("tripAvg", h > 0.01 && S.trip.dist > 0.05 ? Math.round(S.trip.dist / h) : "—");
+    bind("tripMax", S.trip.max > 0 ? Math.round(S.trip.max) : "—");
+    bind("tripBtn", S.trip.on ? "أوقف الرحلة" : "ابدأ الرحلة");
+    bind("tripHint", S.trip.on ? (G.state === "on" ? "تُحسب المسافة من GPS أثناء الحركة." : "المدة تُحسب الآن، والمسافة تحتاج GPS.") : "اضغط «ابدأ الرحلة» عند التحرك لتسجيلها.");
+  }
+  function fuelStats() {
+    const f = S.fuel.slice().sort((a, b) => a.odo - b.odo);
+    if (f.length < 2) return null;
+    const dist = f[f.length - 1].odo - f[0].odo;
+    const rest = f.slice(1), liters = rest.reduce((s, x) => s + x.l, 0), cost = rest.reduce((s, x) => s + x.c, 0);
+    if (dist <= 0 || liters <= 0) return null;
+    return { l100: liters / dist * 100, kml: dist / liters, per100: cost / dist * 100 };
+  }
+  function renderFuel() {
+    const st = fuelStats(), last = S.fuel.slice().sort((a, b) => b.odo - a.odo).slice(0, 3), cur = esc(S.currency);
+    bind("cur", S.currency);
+    if (!S.fuel.length) { $("#fuelBody").innerHTML = '<p class="t-empty">سجّل كل تعبئة بالعداد واللترات والمبلغ، ويظهر هنا استهلاك سيارتك الحقيقي.</p>'; return; }
+    let h = st
+      ? '<div class="big-num"><b dir="ltr">' + fmt1(st.l100) + '</b><span>لتر لكل 100 كم</span></div>' +
+        '<div class="stats"><div class="stat"><b dir="ltr">' + fmt1(st.kml) + '</b><small>كم لكل لتر</small></div><div class="stat"><b dir="ltr">' + st.per100.toFixed(2) + "</b><small>" + cur + " لكل 100 كم</small></div></div>"
+      : '<p class="t-empty">أضف تعبئة ثانية ليظهر الاستهلاك.</p>';
+    h += '<div class="fills">' + last.map((f) => {
+      let dt = f.d;
+      try { dt = fmtShort.format(new Date(f.d + "T12:00:00")); } catch (e) { dt = f.d; }
+      return "<div><span>" + esc(dt) + " · " + fmtInt(f.odo) + ' كم</span><span dir="ltr">' + fmt1(f.l) + " L</span><span>" + f.c.toFixed(2) + " " + cur + "</span></div>";
+    }).join("") + "</div>";
+    $("#fuelBody").innerHTML = h;
+  }
+  function oilInfo() {
+    const odo = curOdo();
+    if (S.oilAt == null || odo == null) return null;
+    const left = S.oilAt + S.oilEvery - odo;
+    return { odo, left, pct: Math.max(0, Math.min(1, (odo - S.oilAt) / S.oilEvery)), level: left <= 0 ? "bad" : left <= 500 ? "warn" : "ok" };
+  }
+  function renderOil() {
+    const o = oilInfo();
+    if (!o) { $("#oilBody").innerHTML = '<p class="t-empty">أدخل قراءة العداد الآن وعند آخر تغيير زيت، ويذكّرك التطبيق قبل الموعد.</p>'; return; }
+    $("#oilBody").innerHTML =
+      '<div class="big-num oil-left" data-level="' + o.level + '"><b>' + fmtInt(Math.abs(o.left)) + "</b><span>" + (o.left >= 0 ? "كم متبقية" : "كم متأخر") + "</span></div>" +
+      '<div class="meter" data-level="' + o.level + '"><span style="width:' + (o.pct * 100).toFixed(1) + '%"></span></div>' +
+      '<div class="stats"><div class="stat"><b>' + fmtInt(o.odo) + '</b><small>العداد التقريبي الآن</small></div><div class="stat"><b>' + fmtInt(S.oilAt + S.oilEvery) + "</b><small>موعد التغيير القادم</small></div></div>" +
+      '<p class="label">يزيد العداد التقريبي تلقائيًا من GPS. صحّحه من «تعديل العداد» متى أردت.</p>';
+  }
+  const renderTripAll = () => { renderTrip(); renderFuel(); renderOil(); };
+
+  /* ---------- alerts in the status bar ---------- */
+  function renderAlert(ps) {
+    const chip = $("#alertChip"), o = oilInfo();
+    let a = null;
+    if (ps.left <= 15 / 60) a = { level: "warn", text: "أذان " + ps.name + " " + leftText(ps.left), icon: "moon", act: "prayers" };
+    else if (o && o.level !== "ok") a = { level: o.level, text: o.left > 0 ? "تغيير الزيت بعد " + fmtInt(o.left) + " كم" : "تأخر تغيير الزيت " + fmtInt(-o.left) + " كم", icon: "drop", go: "trip" };
+    chip.hidden = !a;
+    if (!a) return;
+    chip.dataset.level = a.level;
+    delete chip.dataset.act; delete chip.dataset.go;
+    if (a.act) chip.dataset.act = a.act;
+    if (a.go) chip.dataset.go = a.go;
+    chip.innerHTML = icon(a.icon) + "<span>" + esc(a.text) + "</span>";
+  }
+
+  /* ---------- prayer rendering ---------- */
+  function renderPrayer() {
+    const ps = prayerState();
+    bind("cityName", ps.c.L.n);
+    bind("pNext", ps.name); bind("pNextTime", hmText(ps.at)); bind("pLeft", leftText(ps.left));
+    bind("methodName", (METHODS[S.method] || METHODS.mwl).n + (S.asr === 2 ? "، والعصر على المذهب الحنفي" : ""));
+    $("#pList").innerHTML = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"].map((k) => {
+      const next = k === ps.key && ps.today, past = ps.T[k] <= ps.c.h;
+      const nm = k === "dhuhr" && ps.c.dow === 5 ? "الجمعة" : PNAMES[k];
+      return '<div class="p-item" data-next="' + (next ? 1 : 0) + '" data-past="' + (past ? 1 : 0) + '"><b>' + nm + "</b><span>" + hmText(ps.T[k]) + "</span></div>";
+    }).join("");
+    // ten-minute reminder, once per prayer per day
+    const tag = ps.c.y + "-" + ps.c.m + "-" + ps.c.d + "-" + ps.key;
+    if (S.pAlert && ps.left <= 10 / 60 && ps.left > 0 && !R.alerted[tag]) { R.alerted[tag] = true; beep(660, 2); toast("أذان " + ps.name + " " + leftText(ps.left)); }
+    renderAlert(ps);
+    return ps;
+  }
+
+  /* ---------- display ---------- */
+  function applyDisplay(ps) {
+    ps = ps || prayerState();
+    const day = ps.c.h >= ps.T.sunrise && ps.c.h < ps.T.maghrib;
+    unit.dataset.mode = S.mode === "auto" ? (day ? "day" : "night") : S.mode;
+    unit.dataset.size = S.size;
+    $("#screen").style.setProperty("--dim", (S.dim / 100).toFixed(2));
+    $$("[data-mode-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modeSet === S.mode)));
+    $$("[data-size-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sizeSet === S.size)));
+    $$("[data-asr]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.asr === S.asr)));
+    $$("[data-tg]").forEach((b) => b.setAttribute("aria-checked", String(!!S[b.dataset.tg])));
+    $("#sDim").value = S.dim; $("#sCity").value = S.city; $("#sMethod").value = S.method;
+    if (document.activeElement !== $("#sOilEvery")) $("#sOilEvery").value = S.oilEvery;
+    if (document.activeElement !== $("#sCur")) $("#sCur").value = S.currency;
+    bind("limit", S.limit);
+    $("#demoChip").hidden = !S.demo;
+    bind("netShort", navigator.onLine ? "متصل" : "بدون إنترنت");
+    $("#netChip").dataset.on = navigator.onLine ? "1" : "0";
+  }
+
+  /* ---------- settings editors ---------- */
+  function renderEditors() {
+    $("#placeEd").innerHTML = S.places.map((p, i) =>
+      '<div class="edit-row"><input class="field name" id="pl-n-' + i + '" data-pl="' + i + '" data-f="n" value="' + esc(p.n) + '" aria-label="اسم المكان ' + (i + 1) + '" maxlength="24">' +
+      '<input class="field" id="pl-q-' + i + '" data-pl="' + i + '" data-f="q" value="' + esc(p.q) + '" placeholder="العنوان أو الإحداثيات" aria-label="عنوان ' + esc(p.n) + '">' +
+      '<button type="button" class="icon-btn del" data-del-pl="' + i + '" data-icon="trash" aria-label="حذف ' + esc(p.n) + '"></button></div>'
+    ).join("");
+    $("#favEd").innerHTML = S.favs.length ? S.favs.map((f, i) =>
+      '<div class="edit-row"><input class="field name" id="fv-n-' + i + '" data-fv="' + i + '" data-f="n" value="' + esc(f.n) + '" placeholder="الاسم" aria-label="الاسم ' + (i + 1) + '" maxlength="24">' +
+      '<input class="field" id="fv-t-' + i + '" data-fv="' + i + '" data-f="t" value="' + esc(f.t) + '" placeholder="رقم الهاتف" inputmode="tel" dir="ltr" aria-label="رقم ' + esc(f.n) + '">' +
+      '<button type="button" class="icon-btn del" data-del-fv="' + i + '" data-icon="trash" aria-label="حذف ' + esc(f.n) + '"></button></div>'
+    ).join("") : '<p class="label">لا توجد أرقام بعد.</p>';
+    paintIcons($("#placeEd")); paintIcons($("#favEd"));
+    $('[data-act="add-place"]').hidden = S.places.length >= 6;
+    $('[data-act="add-fav"]').hidden = S.favs.length >= 8;
+  }
+  function fillSelects() {
+    $("#sCity").innerHTML = Object.entries(CITIES).map(([k, c]) => '<option value="' + k + '">' + c.n + "</option>").join("") + '<option value="gps">موقعي من GPS</option>';
+    $("#sMethod").innerHTML = Object.entries(METHODS).map(([k, m]) => '<option value="' + k + '">' + m.n + "</option>").join("");
+  }
+
+  /* ---------- screens and overlays ---------- */
+  function go(v) {
+    R.view = v;
+    $$(".view").forEach((el) => { el.hidden = el.id !== "v-" + v; });
+    $$(".dock .d").forEach((b) => { if (b.dataset.go === v) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    if (v === "set") renderEditors();
+    if (v === "trip") renderTripAll();
+  }
+  function openOv(id) { $$(".overlay").forEach((o) => { o.hidden = o.id !== id; }); }
+  function closeOv() { stopVoice(); $$(".overlay").forEach((o) => { o.hidden = true; }); }
+  function renderAll() { renderPlaces(); renderFavs(); renderTripAll(); renderEditors(); applyDisplay(renderPrayer()); renderWx(); renderGPS(); }
+
+  /* ---------- voice commands ---------- */
+  const norm = (s) => String(s || "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
+  const stripAl = (s) => s.replace(/^ال/, "");
+  function runText(text) {
+    const t = norm(text);
+    if (/(اتصل|كلم|دق علي)/.test(t)) {
+      const i = S.favs.findIndex((f) => f.n && t.includes(stripAl(norm(f.n))));
+      if (i >= 0) { closeOv(); callFav(i); return true; }
+    }
+    const pi = S.places.findIndex((p) => p.n && t.includes(stripAl(norm(p.n))));
+    if (pi >= 0 && /(خذني|وديني|ودني|روح|اذهب|وصلني|نوصل|الي|طريق|ابغي|ابي)/.test(t)) {
+      const p = S.places[pi]; closeOv();
+      if (!p.q) { toast("أضف عنوان " + p.n + " من الإعدادات"); go("set"); return true; }
+      openUrl(navUrl(p.q), navName()); return true;
+    }
+    if (/(صلاه|اذان|الصلوات)/.test(t)) { closeOv(); renderPrayer(); openOv("prayOv"); return true; }
+    if (/(وقود|بنزين|بترول|زيت)/.test(t)) { closeOv(); go("trip"); return true; }
+    const ai = APPS.findIndex((a) => t.includes(norm(a.n)) || a.say.some((w) => t.includes(norm(w))));
+    if (ai >= 0) { closeOv(); runApp(ai); return true; }
+    return false;
+  }
+  function renderSugg() {
+    const s = [];
+    if (S.places[0]) s.push("خذني إلى " + S.places[0].n);
+    const f = S.favs.find((x) => x.n && (!S.places[0] || x.n !== S.places[0].n)) || S.favs[0];
+    if (f && f.n) s.push("اتصل بـ" + f.n);
+    s.push("شغّل يوتيوب ميوزك", "متى الصلاة القادمة؟");
+    $("#sugg").innerHTML = s.map((x) => '<button type="button" data-say="' + esc(x) + '">«' + esc(x) + "»</button>").join("");
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null;
+  function stopVoice() { if (rec) { try { rec.abort(); } catch (e) {} rec = null; } unit.dataset.listening = "0"; }
+  function openVoice() {
+    renderSugg(); openOv("voiceOv"); bind("vHeard", "");
+    if (!SR || FRAMED) {
+      bind("vState", "اختر أمرًا");
+      bind("vHint", FRAMED ? "الأوامر الصوتية تعمل في التطبيق المثبّت على الشاشة. جرّبها هنا بالضغط." : "متصفح هذه الشاشة لا يدعم التعرف على الصوت. اضغط أحد الأوامر.");
+      return;
+    }
+    try {
+      rec = new SR(); rec.lang = "ar-SA"; rec.interimResults = true; rec.maxAlternatives = 1;
+      rec.onresult = (e) => {
+        const txt = Array.from(e.results).map((r) => r[0].transcript).join(" ");
+        bind("vHeard", "«" + txt + "»");
+        if (e.results[e.results.length - 1].isFinal && !runText(txt)) bind("vState", "لم أفهم، جرّب أحد هذه الأوامر");
+      };
+      rec.onerror = (ev) => { bind("vState", ev.error === "not-allowed" ? "اسمح للتطبيق باستخدام الميكروفون" : "لم أسمع شيئًا، اضغط الميكروفون مرة أخرى"); unit.dataset.listening = "0"; };
+      rec.onend = () => { unit.dataset.listening = "0"; };
+      rec.start(); unit.dataset.listening = "1";
+      bind("vState", "أنا أسمعك…"); bind("vHint", "قل مثلًا: خذني إلى البيت، اتصل بأحمد، شغّل أنغامي");
+    } catch (e) { bind("vState", "اختر أمرًا"); bind("vHint", "تعذر تشغيل الميكروفون."); }
   }
 
   /* ---------- events ---------- */
+  function openOil() {
+    $("#oilErr").hidden = true;
+    const o = curOdo(); $("#oOdo").value = o ? Math.round(o) : ""; $("#oAt").value = S.oilAt != null ? S.oilAt : "";
+    openOv("oilOv"); $("#oOdo").focus();
+  }
   unit.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-go],[data-act],[data-src],[data-dest],[data-key],[data-fav],[data-preset],[data-trk],[data-proj],[data-mode-set],[data-size-set],[data-tg],[data-ptab],[data-cmd]");
+    const t = e.target.closest("[data-go],[data-act],[data-app],[data-call],[data-key],[data-navapp],[data-mode-set],[data-size-set],[data-asr],[data-tg],[data-say],[data-del-pl],[data-del-fv]");
     if (!t || !unit.contains(t)) return;
     const d = t.dataset;
-    if (d.go) return go(d.go);
-    if (d.src) return setSource(d.src);
-    if (d.dest) { startNav(+d.dest); return toast("بدأ الإرشاد إلى " + DESTS[+d.dest].n); }
-    if (d.key) { if (R.dial.length < 15) R.dial += d.key; return bind("dial", R.dial); }
-    if (d.fav) return startCall(d.fav);
-    if (d.preset) { R.freq = +d.preset; R.playing = true; return renderMedia(); }
-    if (d.trk) { R.idx[R.src] = +d.trk; R.pos = 0; R.playing = true; return renderMedia(); }
-    if (d.proj) return toggleProj(d.proj);
+    if (d.go) { closeOv(); return go(d.go); }
+    if (d.app != null) return runApp(+d.app);
+    if (d.call != null) return callFav(+d.call);
+    if (d.key) { if (R.dial.length < 16) R.dial += d.key; return bind("dial", R.dial); }
+    if (d.navapp) { S.navApp = d.navapp; save(); return renderPlaces(); }
     if (d.modeSet) { S.mode = d.modeSet; save(); return applyDisplay(); }
     if (d.sizeSet) { S.size = d.sizeSet; save(); return applyDisplay(); }
-    if (d.tg) { S.tg[d.tg] = !S.tg[d.tg]; save(); return applyDisplay(); }
-    if (d.ptab) return setPhoneTab(d.ptab);
-    if (d.cmd) return runCmd(d.cmd);
+    if (d.asr) { S.asr = +d.asr; save(); return applyDisplay(renderPrayer()); }
+    if (d.tg) { S[d.tg] = !S[d.tg]; save(); return applyDisplay(); }
+    if (d.say) { if (!runText(d.say)) toast("لم أفهم الأمر"); return; }
+    if (d.delPl != null) { S.places.splice(+d.delPl, 1); save(); renderPlaces(); return renderEditors(); }
+    if (d.delFv != null) { S.favs.splice(+d.delFv, 1); save(); renderFavs(); return renderEditors(); }
     switch (d.act) {
-      case "play": R.playing = !R.playing; return renderMedia();
-      case "next": return step(1);
-      case "prev": return step(-1);
-      case "tune-up": return tune(0.1);
-      case "tune-down": return tune(-0.1);
-      case "vol-up": return setVol(S.vol + 1);
-      case "vol-down": return setVol(S.vol - 1);
-      case "go-home": startNav(0); go("maps"); return toast("بدأ الإرشاد إلى البيت");
-      case "end-nav": R.nav = false; renderNav(); return toast("انتهى الإرشاد");
-      case "app": return toast("في الجهاز الحقيقي يفتح هذا الزر تطبيق " + d.app);
+      case "prayers": renderPrayer(); return openOv("prayOv");
+      case "voice": return openVoice();
+      case "close": return closeOv();
+      case "lim-up": S.limit = Math.min(180, S.limit + 10); save(); bind("limit", S.limit); return renderGPS();
+      case "lim-down": S.limit = Math.max(40, S.limit - 10); save(); bind("limit", S.limit); return renderGPS();
       case "bksp": R.dial = R.dial.slice(0, -1); return bind("dial", R.dial);
-      case "dial-call": return R.dial ? startCall(R.dial) : toast("اكتب الرقم أولًا");
-      case "hangup": return endCall();
-      case "mute": R.call && (R.call.muted = !R.call.muted); return t.setAttribute("aria-pressed", String(!!(R.call && R.call.muted)));
-      case "voice": return ($("#voiceOv").hidden = false);
-      case "voice-close": return ($("#voiceOv").hidden = true);
-      case "cam-exit": return go(R.back || "home");
+      case "dial-call": return dial(R.dial);
+      case "edit-places": go("set"); return toast("اكتب العنوان في «الأماكن المحفوظة»");
+      case "edit-favs": go("set"); return toast("أضف الرقم في «الأرقام المفضلة»");
+      case "add-place": S.places.push({ n: "مكان جديد", q: "", i: "pin" }); save(); renderPlaces(); renderEditors(); return $("#pl-q-" + (S.places.length - 1)).focus();
+      case "add-fav": S.favs.push({ n: "", t: "" }); save(); renderFavs(); renderEditors(); return $("#fv-n-" + (S.favs.length - 1)).focus();
+      case "trip-toggle":
+        if (S.trip.on) { S.trip.elapsed += Date.now() - (S.trip.start || Date.now()); S.trip.start = null; S.trip.on = false; }
+        else { S.trip.on = true; S.trip.start = Date.now(); if (G.state !== "on") toast(FRAMED ? "المسافة تُحسب من GPS في التطبيق المثبّت" : "المسافة تحتاج إشارة GPS"); }
+        save(); return renderTrip();
+      case "trip-reset": S.trip = { on: S.trip.on, dist: 0, start: S.trip.on ? Date.now() : null, elapsed: 0, max: 0 }; save(); return renderTrip();
+      case "fuel-add": {
+        $("#fuelErr").hidden = true;
+        const now = new Date();
+        $("#fDate").value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+        const o = curOdo(); $("#fOdo").value = o ? Math.round(o) : ""; $("#fL").value = ""; $("#fC").value = "";
+        openOv("fuelOv"); return $("#fL").focus();
+      }
+      case "oil-done": {
+        const o = curOdo();
+        if (!o) { toast("أدخل قراءة العداد أولًا"); return openOil(); }
+        S.oilAt = Math.round(o); save(); renderOil(); renderPrayer(); return toast("سُجّل تغيير الزيت عند " + fmtInt(o) + " كم");
+      }
+      case "oil-edit": return openOil();
+      case "clear-demo": {
+        const keep = { mode: S.mode, size: S.size, dim: S.dim, city: S.city, method: S.method, asr: S.asr, navApp: S.navApp, limit: S.limit, pAlert: S.pAlert, spAlert: S.spAlert, gpsLoc: S.gpsLoc };
+        S = Object.assign(emptyState(), keep); save(); renderAll(); return toast("مُسحت الأمثلة. أضف بياناتك من هنا");
+      }
+      case "reset-all":
+        if (!R.resetArm) { R.resetArm = true; bind("resetBtn", "اضغط مرة أخرى للتأكيد"); setTimeout(() => { R.resetArm = false; bind("resetBtn", "إعادة الضبط"); }, 4000); return; }
+        R.resetArm = false; bind("resetBtn", "إعادة الضبط");
+        S = demoState(); save(); renderAll(); return toast("عادت الإعدادات وبيانات المثال كما كانت");
     }
   });
-  unit.addEventListener("keydown", (e) => {
-    if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute("role") === "button") { e.preventDefault(); e.target.click(); }
+  unit.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOv(); });
+  unit.addEventListener("input", (e) => {
+    const el = e.target, d = el.dataset;
+    if (d.pl != null) { const p = S.places[+d.pl]; if (p) { p[d.f] = el.value; save(); renderPlaces(); } }
+    else if (d.fv != null) { const f = S.favs[+d.fv]; if (f) { f[d.f] = el.value; save(); renderFavs(); } }
   });
-  $("#q").addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    const q = e.target.value.trim();
-    if (!q) return;
-    const hit = DESTS.findIndex(d => d.n.includes(q));
-    if (hit >= 0) { startNav(hit); toast("بدأ الإرشاد إلى " + DESTS[hit].n); }
-    else toast("في الجهاز الحقيقي يبحث هنا عن «" + q + "» في الخرائط");
+  $("#searchForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("#q").value.trim();
+    if (!q) { $("#q").focus(); return; }
+    openUrl(navUrl(q), navName());
   });
-  $("#sBright").addEventListener("input", (e) => { S.bright = +e.target.value; save(); applyDisplay(); });
-  $("#sVol").addEventListener("input", (e) => setVol(+e.target.value));
-  $$("[data-eq]").forEach(r => r.addEventListener("input", (e) => { S.eq[+r.dataset.eq] = +e.target.value; save(); bind("eq" + r.dataset.eq, signed(+e.target.value)); }));
+  $("#fuelForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const odo = toNum($("#fOdo").value), l = toNum($("#fL").value), c = toNum($("#fC").value);
+    const dt = $("#fDate").value || new Date().toISOString().slice(0, 10);
+    const err = !(odo > 0) ? "اكتب قراءة العداد بالكيلومتر." : !(l > 0 && l < 120) ? "اكتب عدد اللترات، مثل 38.5" : !(c >= 0) ? "اكتب المبلغ المدفوع." : "";
+    if (err) { const el = $("#fuelErr"); el.textContent = err; el.hidden = false; return; }
+    S.fuel.push({ d: dt, odo: Math.round(odo), l, c });
+    S.odo = Math.max(S.odo || 0, Math.round(odo)); S.kmSince = 0;
+    save(); closeOv(); renderTripAll(); renderPrayer(); toast("حُفظت التعبئة");
+  });
+  $("#oilForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const odo = toNum($("#oOdo").value), atRaw = $("#oAt").value.trim(), at = toNum(atRaw);
+    const fail = (m) => { const el = $("#oilErr"); el.textContent = m; el.hidden = false; };
+    if (!(odo > 0)) return fail("اكتب قراءة العداد الحالية بالكيلومتر.");
+    if (atRaw && !(at >= 0 && at <= odo)) return fail("قراءة آخر تغيير زيت يجب أن تكون أقل من العداد الحالي.");
+    S.odo = Math.round(odo); S.kmSince = 0;
+    // a manual reading wins over anything the fuel log implied
+    S.fuel.forEach((f) => { if (f.odo > S.odo) f.odo = S.odo; });
+    if (atRaw) S.oilAt = Math.round(at);
+    save(); closeOv(); renderTripAll(); renderPrayer(); toast("حُفظ العداد");
+  });
+  $("#sDim").addEventListener("input", (e) => { S.dim = +e.target.value; save(); applyDisplay(); });
+  $("#sCity").addEventListener("change", (e) => {
+    S.city = e.target.value; save();
+    if (S.city === "gps" && !S.gpsLoc) toast(FRAMED ? "موقع GPS يعمل في التطبيق المثبّت؛ تُستخدم مسقط الآن" : "ننتظر أول إشارة GPS؛ تُستخدم مسقط حتى ذلك الحين");
+    applyDisplay(renderPrayer()); loadWeather();
+  });
+  $("#sMethod").addEventListener("change", (e) => { S.method = e.target.value; save(); applyDisplay(renderPrayer()); });
+  $("#sOilEvery").addEventListener("change", (e) => {
+    const n = toNum(e.target.value);
+    if (n >= 500 && n <= 30000) { S.oilEvery = Math.round(n); save(); renderOil(); renderPrayer(); } else e.target.value = S.oilEvery;
+  });
+  $("#sCur").addEventListener("change", (e) => { S.currency = e.target.value.trim() || "ر.ع"; save(); renderFuel(); });
+  window.addEventListener("online", () => { applyDisplay(); loadWeather(true); });
+  window.addEventListener("offline", () => { applyDisplay(); renderWx(); });
 
-  $("#revBtn").addEventListener("click", () => {
-    if (S.tg.autoCam) go("cam");
-    else { go("set"); toast("فتح الكاميرا التلقائي متوقف من الإعدادات"); }
-  });
-
-  /* ---------- clock and simulated motion ---------- */
+  /* ---------- clock ---------- */
+  let lastMinute = -1;
   function tick() {
-    const now = new Date();
-    const t = timeParts(now);
+    const now = new Date(), t = timeParts(now);
     bind("time", t.hm); bind("ap", t.ap); bind("date", fmtDate.format(now));
-    const eta = timeParts(new Date(now.getTime() + DESTS[R.dest].min * 60000));
-    bind("etaTime", eta.hm + " " + eta.ap);
-    if (R.playing && R.src !== "radio") {
-      R.pos++;
-      if (R.pos >= nowPlaying().d) step(1);
+    if (fmtHijri) bind("hijri", fmtHijri.format(now));
+    if (now.getMinutes() !== lastMinute) {
+      lastMinute = now.getMinutes();
+      applyDisplay(renderPrayer());
+      if (now.getMinutes() % 30 === 0) loadWeather();
     }
-    if (R.nav) { R.turn = R.turn <= 30 ? 400 : R.turn - 10; bind("turnDist", R.turn); }
-    if (R.call) {
-      const s = Math.floor((Date.now() - R.call.t0) / 1000);
-      bind("callTime", s < 3 ? "جارٍ الاتصال…" : mmss(s - 3));
-    }
-    if (now.getSeconds() === 0) applyDisplay();
-    renderMedia();
+    if (S.trip.on) renderTrip();
   }
-  setInterval(() => { R.speed = Math.min(78, Math.max(52, R.speed + Math.round(Math.random() * 6 - 3))); bind("speed", R.speed); }, 2000);
 
-  /* ---------- scale the 1280x720 screen to the page, or to the whole display in full screen ---------- */
+  /* ---------- fit the 720px-tall screen to the page, full screen, or the car display ---------- */
   const stage = $("#stage"), device = $("#device");
   function fit() {
-    const fs = document.fullscreenElement === stage;
+    const fs = document.fullscreenElement === stage, bare = fs || APP;
     stage.classList.toggle("is-fs", fs);
-    const W = fs ? 1280 : 1312, H = fs ? 720 : 752;
-    const aw = stage.clientWidth;
-    const s = fs ? Math.min(aw / W, stage.clientHeight / H) : Math.min(1, aw / W);
+    const pad = bare ? 0 : 16, H = 720;
+    let W = 1280, s;
+    if (bare) {
+      const vw = stage.clientWidth || innerWidth, vh = stage.clientHeight || innerHeight;
+      s = vh / H;
+      W = Math.max(1180, Math.min(1500, vw / s));
+      s = Math.min(s, vw / W);
+    } else {
+      s = Math.min(1, stage.clientWidth / (W + pad * 2));
+    }
+    unit.style.width = W + "px";
+    device.style.width = (W + pad * 2) + "px";
+    device.style.height = (H + pad * 2) + "px";
     device.style.transform = "scale(" + s + ")";
-    device.style.left = ((aw - W * s) / 2) + "px";
-    device.style.top = fs ? ((stage.clientHeight - H * s) / 2) + "px" : "0px";
-    stage.style.height = fs ? "" : (H * s) + "px";
+    device.style.left = ((stage.clientWidth - (W + pad * 2) * s) / 2) + "px";
+    device.style.top = bare ? (((stage.clientHeight || innerHeight) - (H + pad * 2) * s) / 2) + "px" : "0px";
+    stage.style.height = bare ? "" : ((H + pad * 2) * s) + "px";
   }
   if ("ResizeObserver" in window) new ResizeObserver(fit).observe(stage);
   window.addEventListener("resize", fit);
@@ -1035,24 +1422,56 @@ h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(30px,5v
     stage.requestFullscreen().catch(() => { msg.hidden = false; });
   });
 
-  /* ---------- buying checklist (remembered in this browser only) ---------- */
+  /* ---------- page-only bits: install link, buying checklist ---------- */
+  $("#copyUrl").addEventListener("click", () => {
+    const txt = "https://" + $("#appUrl").textContent.trim() + "/";
+    const done = () => { $("#copyUrl").textContent = "نُسخ"; setTimeout(() => { $("#copyUrl").textContent = "نسخ"; }, 1800); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents($("#appUrl")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
+    try { navigator.clipboard.writeText(txt).then(done, fallback); } catch (e) { fallback(); }
+  });
   const checks = store.get("elantra-checklist", {});
   const boxes = $$("#checks input");
-  const count = () => { $("#count").textContent = boxes.filter(b => b.checked).length + " من " + boxes.length + " مؤكدة"; };
-  boxes.forEach(b => {
+  const count = () => { $("#count").textContent = boxes.filter((b) => b.checked).length + " من " + boxes.length + " مؤكدة"; };
+  boxes.forEach((b) => {
     b.checked = !!checks[b.id];
     b.addEventListener("change", () => { checks[b.id] = b.checked; store.set("elantra-checklist", checks); count(); });
   });
   count();
 
+  /* ---------- map backdrop ---------- */
+  function mapSVG() {
+    const xs = [0, 170, 360, 520, 700, 900], ys = [0, 140, 270, 410, 560];
+    let b = "";
+    for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
+      const cls = (i === 1 && j === 2) || (i === 4 && j === 0) ? "m-park" : "m-block";
+      b += '<rect class="' + cls + '" x="' + (xs[i] + 11) + '" y="' + (ys[j] + 11) + '" width="' + (xs[i + 1] - xs[i] - 22) + '" height="' + (ys[j + 1] - ys[j] - 22) + '" rx="10"/>';
+    }
+    return '<svg viewBox="0 0 900 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect class="m-roadbg" width="900" height="560"/>' + b +
+      '<path class="m-major" d="M-20 520 C 150 480 290 400 400 350 S 720 210 930 70"/><polygon class="m-car" points="520,300 539,344 520,334 501,344"/></svg>';
+  }
+  $$(".map-slot").forEach((el) => { el.innerHTML = mapSVG(); });
+
+  /* ---------- installed app: keep the screen awake and work offline ---------- */
+  if (!FRAMED && APP && navigator.wakeLock) {
+    const lock = () => navigator.wakeLock.request("screen").catch(() => {});
+    lock();
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") lock(); });
+  }
+  if (!FRAMED && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+
   /* ---------- boot ---------- */
   paintIcons(document);
-  renderPhone(); setPhoneTab("fav");
-  renderLists(); renderNav(); renderProj();
-  applyDisplay(); go("home"); tick(); fit();
+  fillSelects();
+  renderApps();
+  $("#keys").innerHTML = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map((k) => '<button type="button" data-key="' + k + '">' + k + "</button>").join("");
+  if (S.trip.on && !S.trip.start) S.trip.start = Date.now();
+  renderAll();
+  go("home"); tick(); fit();
+  startGPS(); loadWeather();
   setInterval(tick, 1000);
 })();
 </script>
-
 </body>
 </html>
