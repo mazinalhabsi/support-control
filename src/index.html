@@ -531,6 +531,7 @@ select{-webkit-appearance:none;appearance:none;background-image:url("data:image/
 .sla.late{color:rgb(var(--red-ink))}.sla.late .ring{animation:beat-o 1.6s infinite}
 .avatar{--h:210;position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;flex:none;color:#fff;font:700 12.5px var(--f-display);background:linear-gradient(135deg,hsl(var(--h) 62% 55%),hsl(calc(var(--h) + 40) 70% 32%));box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25),0 6px 14px -6px hsl(var(--h) 60% 25% / .8);overflow:hidden;line-height:1}
 .avatar img{width:100%;height:100%;object-fit:cover}
+.avatar .av-n{display:block;max-width:90%;overflow:hidden;white-space:nowrap;line-height:1.1;letter-spacing:0;text-align:center}
 .av{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;flex:none;overflow:hidden;vertical-align:middle}
 .av-sm{width:26px;height:26px;font-size:10.5px}.av-lg{width:52px;height:52px;font-size:17px}.av-xl{width:112px;height:112px;font-size:36px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.28),0 20px 40px -16px hsl(var(--h) 60% 25% / .9)}
 .stars{display:inline-flex;gap:1px;color:rgb(var(--amber))}
@@ -4889,13 +4890,20 @@ UI.sla = (t) => {
   return html`<span class="sla ${left < 0 ? 'late' : ''}" title="الموعد النهائي ${fmtDateTime(t.dueAt)}">${UI.ring(left < 0 ? 1 : pct, tone)}${left < 0 ? `متأخر ${fmtDuration(-left)}` : `متبقٍ ${fmtDuration(left)}`}</span>`;
 };
 UI.hueOf = (u) => (u && u.prefs && u.prefs.hue != null ? u.prefs.hue : [...String((u && u.id) || 'x')].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 360, 7));
+/* الاسم الأول (والمركّب مثل «عبد الله» و«أبو بكر» يبقى اسماً واحداً) */
+const firstName = (name) => {
+  const w = String(name || '').replace(/\(.*?\)/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '؟';
+  return /^(عبد|أبو|ابو|أبي|ابي)$/.test(w[0]) && w[1] ? w[0] + w[1] : w[0];
+};
+/* الصورة الرمزية تعرض الاسم الأول، ويصغر خطه حسب طوله ليبقى داخل الدائرة */
 UI.avatar = (u, size = '') => {
   const __rec = typeof u === 'string' ? (Data.c.users.get(u) || {}) : (u || {});
   if (__rec.avatar) return raw(`<span class="av ${size} av-img"><img src="${esc(__rec.avatar)}" alt=""></span>`);
   if (__rec.avatarIcon) return raw(`<span class="av ${size} av-ico">${String(UI.illu(__rec.avatarIcon))}</span>`);
   if (typeof u === 'string') u = Data.c.users.get(u);
-  const name = (u && u.name) || '؟', words = name.replace(/\(.*?\)/g, ' ').trim().split(/\s+/).filter((w) => w && !['بن', 'بنت', 'ابن', 'آل'].includes(w)).map((w) => w.replace(/^ال(?=\S{2,})/, '')), init = words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] || '؟').slice(0, 2);
-  return html`<span class="avatar ${size}" style="--h:${UI.hueOf(u)}" title="${name}">${u && u.photo ? html`<img src="${u.photo}" alt="">` : init}</span>`;
+  const name = (u && u.name) || '؟', first = firstName(name), k = Math.min(1, 4.3 / Math.max(1, [...first].length));
+  return html`<span class="avatar ${size}" style="--h:${UI.hueOf(u)}" title="${name}">${u && u.photo ? html`<img src="${u.photo}" alt="">` : html`<span class="av-n" style="font-size:${k.toFixed(2)}em">${first}</span>`}</span>`;
 };
 UI.stars = (n) => html`<span class="stars" aria-label="${n} من 5">${[1, 2, 3, 4, 5].map((i) => UI.icon('star', i <= n ? 'on' : 'off'))}</span>`;
 UI.pageHead = ({ title, sub = '', actions = '', illu = '', crumbs = '' }) => html`<header class="page-head">${illu ? UI.illu(illu, 'head-illu') : ''}<div class="page-title">${crumbs ? html`<div class="crumbs">${crumbs}</div>` : ''}<h1>${title}</h1>${sub ? html`<p>${sub}</p>` : ''}</div><div class="page-actions">${actions}</div></header>`;
@@ -11691,7 +11699,7 @@ Pages.monitor = async (ctx) => {
       <aside class="tv2-side">
         <section class="tv2-card"><h3>${UI.icon('pulse')} حالة الخدمات</h3><div class="tv2-svcs" data-svcs></div></section>
         <section class="tv2-card grow"><h3>${UI.icon('bell')} التعاميم والتوضيحات</h3><div class="tv2-news" data-news></div></section>
-        <section class="tv2-card"><h3>${UI.icon('users')} الفريق</h3><div class="tv2-team" data-team></div></section>
+        <section class="tv2-card"><h3>${UI.icon('users')} <span data-teamh>الفريق المتواجد</span></h3><div class="tv2-team" data-team></div></section>
       </aside>
     </div>
     <footer class="tv2-ticker"><span class="tv2-tlabel">${UI.icon('bell')} آخر المستجدات</span><div class="tv2-tview"><div class="tv2-ttrack" data-ticker></div></div></footer>
@@ -11758,8 +11766,11 @@ Pages.monitor = async (ctx) => {
     const t = now();
     const live = anns.filter((a) => (!a.startsAt || a.startsAt <= t) && (!a.endsAt || a.endsAt >= t) && ['all', 'monitor', 'staff'].includes(a.audience || 'all')).sort((a, b) => (b.pinned || 0) - (a.pinned || 0) || b.createdAt - a.createdAt).slice(0, 5);
     $v('[data-news]').innerHTML = live.length ? String(html`${live.map((a) => { const k = TV_KIND[a.kind] || TV_KIND[a.level === 'critical' ? 'service' : 'notice']; return html`<article class="tv2-ann tone-${a.level === 'critical' ? 'red' : a.level === 'warn' ? 'amber' : k[2]}"><em>${UI.icon(k[1])}${k[0]}</em><b>${a.title}</b>${a.body ? html`<p>${a.body}</p>` : ''}</article>`; })}`) : String(html`<p class="faint tv2-none">لا توجد تعاميم حالياً. يضيفها المشرف أو المخوَّلون من صفحة «حالة الخدمات».</p>`);
-    const team = Data.list('users').filter((u) => u.active && ['technician', 'support_manager'].includes(u.role));
-    $v('[data-team]').innerHTML = String(html`${team.slice(0, 8).map((u) => { const n = open.filter((x) => x.assigneeId === u.id).length; const cls = n >= 6 ? 'busy' : n >= 3 ? 'mid' : 'free'; return html`<div class="tv2-mate ${cls}">${UI.avatar(u, 'av-sm')}<b>${u.name}</b><span>${n ? `${fmtNum(n)} مفتوح` : 'متاح'}</span></div>`; })}`);
+    /* الفريق المتواجد الآن فقط: من له نبضة تواجد حديثة (داخل النظام على أي جهاز) */
+    const here = new Set((await Presence.online()).map((p) => p.userId));
+    const team = Data.list('users').filter((u) => u.active && ['technician', 'support_manager'].includes(u.role) && here.has(u.id));
+    const th = $v('[data-teamh]'); if (th) th.textContent = team.length ? `الفريق المتواجد (${fmtNum(team.length)})` : 'الفريق المتواجد';
+    $v('[data-team]').innerHTML = team.length ? String(html`${team.slice(0, 8).map((u) => { const n = open.filter((x) => x.assigneeId === u.id).length; const cls = n >= 6 ? 'busy' : n >= 3 ? 'mid' : 'free'; return html`<div class="tv2-mate ${cls}">${UI.avatar(u, 'av-sm')}<b>${u.name}</b><span>${n ? `${fmtNum(n)} مفتوح` : 'متاح'}</span></div>`; })}`) : '<p class="tv2-none faint">لا يوجد فني متصل الآن</p>';
     const H2 = 2 * HOUR, ev = [];
     tickets.filter((x) => x.createdAt >= t - H2).forEach((x) => ev.push([x.createdAt, `🆕 بلاغ جديد: ${x.title} — ${Data.nameOf('departments', x.departmentId, '')}`]));
     tickets.filter((x) => (x.resolvedAt || 0) >= t - H2).forEach((x) => ev.push([x.resolvedAt, `✅ تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`]));
