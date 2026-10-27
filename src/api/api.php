@@ -281,8 +281,9 @@ function self_sql(array $u): array {
     . " AND (store <> 'loans' OR {$j('borrowerId')} = ?)"
     . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)"
     . " AND (store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?)"
-    . " AND (store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?)))";
-  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me, $me]];
+    . " AND (store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?)"
+    . " AND (store <> 'orgLog' OR {$j('userId')} = ?)))";
+  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me, $me, $me]];
 }
 /** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
 function owners_of(string $store, array $ids, string $field, array $known): array {
@@ -328,6 +329,7 @@ function visible_rows(array $rows, array $u): array {
       case 'surveyResponses': case 'surveyMarks': $ok = (string) ($d['userId'] ?? '') === $me; break;
       /* الردود الخاصة لا تصل إلا لصاحبها */
       case 'replies': $ok = ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me; break;
+      case 'orgLog': $ok = (string) ($d['userId'] ?? '') === $me; break;
       default: $ok = true;
     }
     if ($ok) $out[] = $r;
@@ -538,6 +540,64 @@ function doc_data(string $store, string $id): ?array {
   $b = $GLOBALS['PUSH_BATCH'][$store . '|' . $id] ?? null;
   return is_array($b) ? $b : null;
 }
+/** السجل بعد هذه الدفعة (منها إن وُجد فيها، وإلا من الخادم): لفحص الموضع الجديد لا القديم */
+function doc_next(string $store, string $id): ?array {
+  if ($id === '') return null;
+  $b = $GLOBALS['PUSH_BATCH'][$store . '|' . $id] ?? null;
+  return is_array($b) ? $b : doc_data($store, $id);
+}
+
+/*
+ * رئاسة الهيكل: من عُيّن رئيساً لإدارة (headId) يدير كل فروعها وحساباتها، ورئيس الفرع يدير ما تحت فرعه.
+ * الموضع الذي يرأسه (وليس فوقه ما يرأسه) يعدّل بياناته فقط: لا يحذفه ولا ينقله ولا يغيّر رئيسه.
+ */
+function org_heads_any(array $u): bool {
+  static $memo = [];
+  $me = (string) ($u['id'] ?? ''); if ($me === '') return false;
+  if (isset($memo[$me])) return $memo[$me];
+  try {
+    $st = db()->prepare("SELECT 1 FROM docs WHERE store IN ('departments', 'deptUnits') AND deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.headId')) = ? LIMIT 1");
+    $st->execute([$me]);
+    return $memo[$me] = (bool) $st->fetchColumn();
+  } catch (Throwable $e) {
+    foreach (db()->query("SELECT data FROM docs WHERE store IN ('departments', 'deptUnits') AND deleted = 0")->fetchAll() as $r) {
+      $d = json_decode((string) $r['data'], true);
+      if (is_array($d) && (string) ($d['headId'] ?? '') === $me) return $memo[$me] = true;
+    }
+    return $memo[$me] = false;
+  }
+}
+/** هل الموضع (الإدارة كلها، أو فرع فيها) ضمن رئاسة المستخدم؟ يصعد من الفرع إلى أعلاه */
+function org_covers(array $u, string $depId, string $unitId = ''): bool {
+  $me = (string) ($u['id'] ?? ''); if ($me === '' || $depId === '') return false;
+  $d = doc_data('departments', $depId);
+  if ($d && (string) ($d['headId'] ?? '') === $me) return true;
+  $seen = [];
+  for ($id = $unitId; $id !== '' && count($seen) < 15 && !isset($seen[$id]);) {
+    $seen[$id] = 1; $x = doc_data('deptUnits', $id); if (!$x) return false;
+    if ((string) ($x['headId'] ?? '') === $me) return true;
+    $id = (string) ($x['parentId'] ?? '');
+  }
+  return false;
+}
+/** موضع متسق: الإدارة موجودة، والفرع (إن وُجد) من الإدارة نفسها */
+function org_place_ok(string $depId, string $unitId): bool {
+  if ($depId === '' || !doc_next('departments', $depId)) return false;
+  if ($unitId === '') return true;
+  $x = doc_next('deptUnits', $unitId);
+  return $x && (string) ($x['departmentId'] ?? '') === $depId;
+}
+/** كتابة رئيس على فرع: موضعه القديم والجديد ضمن رئاسته، والفرع الذي يرأسه تُعدَّل بياناته فقط */
+function org_unit_write(array $u, ?array $old, ?array $new): bool {
+  $pos = fn(array $x) => [(string) ($x['departmentId'] ?? ''), (string) ($x['parentId'] ?? '')];
+  $under = fn(array $x) => org_covers($u, ...$pos($x));
+  if ($old && !$under($old)) {
+    if (!$new || (string) ($old['headId'] ?? '') !== (string) ($u['id'] ?? '')) return false;
+    return $pos($new) === $pos($old) && (string) ($new['headId'] ?? '') === (string) ($old['headId'] ?? '');
+  }
+  return !$new || (org_place_ok(...$pos($new)) && $under($new));
+}
+
 const INV_STORES = ['items', 'stock', 'deptStock', 'unitStock', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'];
 const INV_PERMS = ['inventory.manage', 'inventory.move', 'loans.manage', 'custody.direct', 'extmaint.manage', 'settings'];
 const TICKET_STAFF = ['tickets.work', 'tickets.manage'];
@@ -627,6 +687,20 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       $any = false;
       /* توزيع الحسابات على الهيكل: الإدارة والقسم فقط */
       if (can_any($user, ['org.manage', 'org.assign', 'users.manage'])) { foreach (['departmentId', 'unitId', 'orgText'] as $k) if (array_key_exists($k, $data)) $merged[$k] = $data[$k]; $any = true; }
+      elseif (org_heads_any($user)) {
+        /* رئيس الإدارة أو الفرع: ينقل الحسابات داخل رئاسته، ويضم إليها من بلا إدارة، ويخرج منها */
+        $from = [(string) ($old['departmentId'] ?? ''), (string) ($old['unitId'] ?? '')];
+        $to = [(string) ($data['departmentId'] ?? $from[0]), (string) ($data['unitId'] ?? $from[1])];
+        if ($to[0] === '') $to[1] = '';
+        $free = $from[0] === '' || !doc_data('departments', $from[0]);
+        if ($to !== $from) {
+          if (!$free && !org_covers($user, ...$from)) return null;
+          if ($to[0] !== '' ? !(org_place_ok(...$to) && org_covers($user, ...$to)) : $free) return null;
+          [$merged['departmentId'], $merged['unitId']] = $to;
+          $merged['orgText'] = $to[0] !== '' ? '' : (string) ($data['orgText'] ?? ($old['orgText'] ?? ''));
+          $any = true;
+        }
+      }
       /* تحديد مسؤولي الفئات من إدارة البلاغات */
       if (can_any($user, ['categories.manage', 'settings'])) { $merged['categories'] = $data['categories'] ?? ($old['categories'] ?? []); $any = true; }
       if (!$any) return null;
@@ -634,8 +708,20 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       return $merged;
     }
     case 'categories': return can_any($user, ['settings', 'categories.manage', 'categories.docs']) ? $new : null;
-    case 'departments': return can_any($user, ['settings', 'org.manage', 'users.manage']) ? $new : null;
-    case 'deptUnits': return can_any($user, ['settings', 'org.manage']) ? $new : null;
+    case 'departments': {
+      if (can_any($user, ['settings', 'org.manage', 'users.manage'])) return $new;
+      /* رئيس الإدارة: يعدّل بيانات إدارته، ولا يحذفها ولا يغيّر رئيسها ولا ينشئ إدارات */
+      if ($deleted || !$old || (string) ($old['headId'] ?? '') !== $me) return null;
+      return (string) ($data['headId'] ?? '') === $me ? $new : null;
+    }
+    case 'deptUnits': return can_any($user, ['settings', 'org.manage']) || org_unit_write($user, $old, $deleted ? null : $data) ? $new : null;
+    /* سجل تغييرات الهيكل: يُضاف باسم صاحب الجلسة، ولا يتغير منه إلا علامة التراجع، ولا يُحذف */
+    case 'orgLog': {
+      if ($deleted) return null;
+      if (!$old) return can_any($user, ['org.manage', 'org.assign', 'users.manage', 'settings']) || org_heads_any($user) ? array_merge($data, ['userId' => $me, 'undoneAt' => 0]) : null;
+      if (!can_any($user, ['org.manage', 'settings']) && (string) ($old['userId'] ?? '') !== $me) return null;
+      return array_merge($old, ['undoneAt' => (int) ($data['undoneAt'] ?? 0), 'undoneBy' => $me]);
+    }
     case 'locations': return can_any($user, ['settings', 'users.manage', 'inventory.manage']) ? $new : null;
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
     case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
@@ -1266,7 +1352,7 @@ case 'wipe': {
     'announcements' => ['announcements'],
     'extmaint' => ['extmaint'],
     'vault' => ['vault'],
-    'org' => ['departments', 'deptUnits', 'locations'],
+    'org' => ['departments', 'deptUnits', 'locations', 'orgLog'],
     'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
     'kb' => ['kb', 'replies', 'templates'],
     'forms' => ['forms'],

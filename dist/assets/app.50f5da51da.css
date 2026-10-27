@@ -1628,6 +1628,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .oc-people{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);color:inherit;font:600 10.5px var(--f-body);cursor:pointer}
 .oc-people:hover{border-color:rgb(var(--accent));color:rgb(var(--accent))}.oc-people .ic{width:11px;height:11px}
 .org-node .oc-people,.org-dept header .oc-people{font-size:11.5px;padding:3px 9px}
+.org-log-wrap{max-height:460px;overflow:auto}.org-log{padding:10px 4px;border-bottom:1px solid var(--line-2)}.org-log.undone{opacity:.6}.org-log details{margin-top:4px}
+.org-log-list{margin:6px 0 0;padding-inline-start:20px;font-size:12.5px;line-height:1.9}.org-log-list .ic{width:13px;height:13px;vertical-align:-2px}
 .oc-box[draggable="true"]{cursor:grab}
 .oc-rootbox .org-acts{position:static;border:0;background:none;margin-top:6px}
 .org-code{font:700 10.5px var(--f-body);padding:0 6px;border-radius:6px;background:var(--surface-3);color:var(--ink-2);vertical-align:middle}
