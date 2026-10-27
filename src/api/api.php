@@ -624,9 +624,14 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
         foreach ($data as $k => $v) if (!in_array($k, USER_PROTECTED, true) && $k !== 'mustChangePassword' && $k !== 'pass' && $k !== 'passChangedAt') $merged[$k] = $v;
         return $merged;
       }
+      $any = false;
+      /* توزيع الحسابات على الهيكل: الإدارة والقسم فقط */
+      if (can_any($user, ['org.manage', 'org.assign', 'users.manage'])) { foreach (['departmentId', 'unitId', 'orgText'] as $k) if (array_key_exists($k, $data)) $merged[$k] = $data[$k]; $any = true; }
       /* تحديد مسؤولي الفئات من إدارة البلاغات */
-      if (can_any($user, ['categories.manage', 'settings'])) { $merged['categories'] = $data['categories'] ?? ($old['categories'] ?? []); $merged['updatedAt'] = $data['updatedAt'] ?? ($old['updatedAt'] ?? 0); return $merged; }
-      return null;
+      if (can_any($user, ['categories.manage', 'settings'])) { $merged['categories'] = $data['categories'] ?? ($old['categories'] ?? []); $any = true; }
+      if (!$any) return null;
+      $merged['updatedAt'] = $data['updatedAt'] ?? ($old['updatedAt'] ?? 0);
+      return $merged;
     }
     case 'categories': return can_any($user, ['settings', 'categories.manage', 'categories.docs']) ? $new : null;
     case 'departments': return can_any($user, ['settings', 'org.manage', 'users.manage']) ? $new : null;
