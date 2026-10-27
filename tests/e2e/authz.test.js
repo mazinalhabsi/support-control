@@ -41,20 +41,23 @@ const docOf = async (tok, store, id) => { /* سحب كامل من الخادم �
   const t3 = await docOf(sup, 'tickets', tk.id);
   ok('employee rating accepted', !conf3.length && t3 && Number(t3.data.rating || (t3.data.rate || {}).stars || 0) === 5, JSON.stringify(conf3) + ' ' + JSON.stringify((t3 || {}).data ? { rating: t3.data.rating, status: t3.data.status } : {}));
   /* ── محاولات العبث المباشر بحساب الموظف ── */
-  const dep = (await api('login', { username: 'dep', password: 'Passw0rd!' })).j.token;
-  const other = (await api('push', { ops: [{ store: 'tickets', id: 'tk_other_' + Date.now(), rev: 0, data: { id: 'x', title: 'بلاغ موظف آخر', requesterId: techId, status: 'new' } }] }, sup)).j.applied[0].id;
+  const depLogin = (await api('login', { username: 'dep', password: 'Passw0rd!' })).j, dep = depLogin.token, depId = depLogin.user.id;
+  /* كل سجل يحمل مفتاحه في بياناته (كما يكتبه المتصفح)، فيُرفض ما يُرفض بسبب الصلاحية لا بسبب المفتاح */
+  const T = Date.now(), other = (await api('push', { ops: [{ store: 'tickets', id: 'tk_other_' + T, rev: 0, data: { id: 'tk_other_' + T, title: 'بلاغ موظف آخر', requesterId: techId, status: 'new' } }] }, sup)).j.applied[0].id;
   /* «إعادة» العداد تعني إنقاصه: يُرفع العداد أولاً حتى لا يعتمد الفحص على بيانات قديمة في القاعدة */
   const sq = await docOf(sup, 'meta', 'seq:ticket');
   if (!sq || Number((sq.data || {}).value || 0) < 10) await api('push', { ops: [{ store: 'meta', id: 'seq:ticket', rev: -1, data: { key: 'seq:ticket', value: 10 } }] }, sup);
   const tries = [
     ['edit another user\'s ticket', [{ store: 'tickets', id: other, rev: -1, data: { id: other, title: 'عبث', requesterId: techId, status: 'closed' } }]],
-    ['create an inventory item', [{ store: 'items', id: 'it_t_' + Date.now(), rev: 0, data: { id: 'x', name: 'صنف' } }]],
-    ['write a stock balance', [{ store: 'stock', id: 'w|i' + Date.now(), rev: 0, data: { warehouseId: 'w', itemId: 'i', qty: 99 } }]],
+    ['create an inventory item', [{ store: 'items', id: 'it_t_' + T, rev: 0, data: { id: 'it_t_' + T, name: 'صنف' } }]],
+    ['write a stock balance', [{ store: 'stock', id: 'w|i' + T, rev: 0, data: { warehouseId: 'w', itemId: 'i' + T, qty: 99 } }]],
     ['delete an activity entry', [{ store: 'activity', id: 'act_any', rev: -1, deleted: 1 }]],
-    ['publish an announcement', [{ store: 'announcements', id: 'an_' + Date.now(), rev: 0, data: { id: 'x', title: 'إعلان' } }]],
-    ['write a KB article', [{ store: 'kb', id: 'kb_t_' + Date.now(), rev: 0, data: { id: 'x', title: 'مقال' } }]],
+    ['publish an announcement', [{ store: 'announcements', id: 'an_' + T, rev: 0, data: { id: 'an_' + T, title: 'إعلان' } }]],
+    ['write a KB article', [{ store: 'kb', id: 'kb_t_' + T, rev: 0, data: { id: 'kb_t_' + T, title: 'مقال' } }]],
     ['write an unknown settings key', [{ store: 'meta', id: 'feat:x', rev: -1, data: { key: 'feat:x', value: 1 } }]],
-    ['delete another user\'s notification', [{ store: 'notifications', id: 'nt_x', rev: -1, deleted: 1 }]]
+    ['delete another user\'s notification', [{ store: 'notifications', id: 'nt_x', rev: -1, deleted: 1 }]],
+    /* بلاغه الجديد بمفتاح بلاغ غيره: كل جهاز يحفظ السجل بمفتاح بياناته، فكان يكتب فوق بلاغ غيره */
+    ['overwrite another ticket through a forged record key', [{ store: 'tickets', id: 'tk_mine_' + T, rev: 0, data: { id: other, title: 'عبث', requesterId: depId, status: 'new' } }]]
   ];
   for (const [name, ops] of tries) { const r = (await api('push', { ops }, dep)).j; ok(`employee blocked: ${name}`, !(r.applied || []).length, JSON.stringify(r.conflicts ? r.conflicts.map((c) => c.reason) : r)); }
   /* العداد لا ينقص: القيمة الأقل تُحفظ بالقيمة الأعلى المحفوظة (ولا يُرفض معها بلاغ في الطلب نفسه) */

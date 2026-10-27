@@ -540,6 +540,11 @@ function doc_data(string $store, string $id): ?array {
   $b = $GLOBALS['PUSH_BATCH'][$store . '|' . $id] ?? null;
   return is_array($b) ? $b : null;
 }
+/** مفتاح السجل من بياناته، كما يحسبه المتصفح لكل جدول */
+const DOC_KEYS = ['meta' => ['key'], 'handles' => ['key'], 'stock' => ['warehouseId', 'itemId'], 'deptStock' => ['departmentId', 'itemId'], 'unitStock' => ['unitId', 'itemId']];
+function doc_key(string $store, array $data): string {
+  return implode('|', array_map(fn($k) => (string) ($data[$k] ?? ''), DOC_KEYS[$store] ?? ['id']));
+}
 /** السجل بعد هذه الدفعة (منها إن وُجد فيها، وإلا من الخادم): لفحص الموضع الجديد لا القديم */
 function doc_next(string $store, string $id): ?array {
   if ($id === '') return null;
@@ -1172,8 +1177,11 @@ case 'push': {
         $cur = $sel->fetch();
         $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
         $deleted = !empty($op['deleted']) ? 1 : 0;
-        /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null) */
-        $allowed = authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
+        /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null).
+           والبيانات تحمل مفتاحها: كل جهاز يحفظ السجل بمفتاح بياناته، فسجل بمفتاح غير مفتاح عمليته كان يكتب فوق سجل آخر
+           لا يملكه صاحب الطلب، في كل جهاز يستلمه */
+        $badKey = !$deleted && is_array($op['data'] ?? null) && doc_key($store, $op['data']) !== $id;
+        $allowed = $badKey ? null : authorize($user, $store, $curData, $deleted ? ($curData ?? []) : ($op['data'] ?? null), (bool) $deleted);
         if ($allowed === null) {
           error_log('sqapa deny: ' . ($user['role'] ?? '?') . ' ' . ($user['id'] ?? '?') . ' ' . ($deleted ? 'del' : 'put') . " $store/$id");
           /* رفض: نعيد النسخة الصحيحة من الخادم ليرجع إليها المتصفح */
