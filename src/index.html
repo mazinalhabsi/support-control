@@ -8000,7 +8000,8 @@ const Sync = {
     try {
       let total = 0, guard = 0;
       for (;;) {
-        const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500&pres=1` });
+        const wantPres = guard === 0 && Date.now() - (this.presAt || 0) > 20000; if (wantPres) this.presAt = Date.now();
+        const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500${wantPres ? '&pres=1' : ''}` });
         if (Array.isArray(res.presence)) { Sync.presence = true; Presence.setList(res.presence); }
         if (res.scope && res.scope !== this.scope) { if (this.scope === 'self' && res.scope === 'all') this._widen = true; this.scope = res.scope; await this.raw.put('meta', { key: 'sync:scope', value: res.scope }); }
         const docs = res.docs || [];
@@ -9456,9 +9457,31 @@ Pages.bulkPassword = (ids) => {
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تنفيذ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form), mode = v.mode || 'shared', must = Number(v.must) ? 1 : 0, shared = String(v.pw || '').trim();
       if (mode === 'shared' && shared.length < 6) throw new AppError('كلمة المرور 6 أحرف على الأقل');
-      let ok = 0, fail = 0; const creds = [];
-      for (const u of list) { const pw = mode === 'shared' ? shared : randomPw(); try { await Data.users.setPassword(u.id, pw, must); ok += 1; creds.push([u.name, u.militaryNo || '', u.username, pw, ROLES[u.role] || u.role, Data.nameOf('departments', u.departmentId, '')]); } catch (e) { fail += 1; } }
-      if (!ok) throw new AppError('تعذّر تعيين كلمة المرور لأي حساب' + (fail ? ` (${fmtNum(fail)} فشل)` : ''));
+      const pwOf = new Map(list.map((u) => [u.id, mode === 'shared' ? shared : randomPw()])), done = new Set();
+      const btn = form.closest('dialog') && form.closest('dialog').querySelector('.btn-primary');
+      let viaBulk = !!(Sync.on && Sync.token);
+      /* على الخادم: دفعات من 100 حساب في طلب واحد لكل دفعة (ثوانٍ لألف حساب بدل دقائق) */
+      if (viaBulk) {
+        try {
+          for (let i = 0; i < list.length; i += 100) {
+            if (btn) btn.textContent = `جارٍ التنفيذ ${fmtNum(Math.min(i + 100, list.length))} / ${fmtNum(list.length)}`;
+            const chunk = list.slice(i, i + 100);
+            const r = await Sync.call('passwd_bulk', { body: { items: chunk.map((u) => ({ userId: u.id, next: pwOf.get(u.id) })), mustChange: must }, timeout: 90000 });
+            (r.done || []).forEach((id) => done.add(id));
+          }
+          Sync.pull().catch(() => {});
+        } catch (e) { if (e && e.status === 404 && !done.size) viaBulk = false; else if (!done.size) throw e; }
+      }
+      /* خادم أقدم بلا التغيير الجماعي، أو نسخة محلية: حساباً حساباً */
+      if (!viaBulk) for (const u of list) { try { await Data.users.setPassword(u.id, pwOf.get(u.id), must); done.add(u.id); } catch (_) { /* يُحسب ضمن ما تعذّر */ } }
+      const ok = done.size, fail = list.length - ok;
+      if (!ok) throw new AppError('تعذّر تعيين كلمة المرور لأي حساب');
+      const creds = list.filter((u) => done.has(u.id)).map((u) => [u.name, u.militaryNo || '', u.username, pwOf.get(u.id), ROLES[u.role] || u.role, Data.nameOf('departments', u.departmentId, '')]);
+      /* على الخادم: سجل واحد للعملية كلها، وإشعار لكل حساب في كتابة واحدة (المسار البديل يسجّل ويشعر لكل حساب بنفسه) */
+      if (viaBulk) {
+        await Data.log('password', 'user', '', `تعيين كلمة مرور جماعي لعدد ${ok} من الحسابات`);
+        await Data.notify([...done], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: `راجع من أصدرها لاستلامها${pwForce() ? '، وسيُطلب منك تغييرها عند الدخول' : ''}.`, link: '/profile', kind: 'user' });
+      }
       return { ok, fail, creds, mode, shared };
     } }]
   });

@@ -104,8 +104,10 @@ function setup(): void {
   try { if ((int) $pdo->query('SELECT @@global.max_allowed_packet')->fetchColumn() < 67108864) $pdo->exec('SET GLOBAL max_allowed_packet = 67108864'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   /* ذاكرة القاعدة: قيمة XAMPP الافتراضية 16 ميجابايت فقط، فتُقرأ البيانات من القرص في كل طلب */
   try { if ((int) $pdo->query('SELECT @@global.innodb_buffer_pool_size')->fetchColumn() < 268435456) $pdo->exec('SET GLOBAL innodb_buffer_pool_size = 268435456'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
-  /* مئات المستخدمين: القيمة الافتراضية 151 اتصالاً تنفد عند الذروة فتظهر أخطاء Too many connections */
-  try { if ((int) $pdo->query('SELECT @@global.max_connections')->fetchColumn() < 500) $pdo->exec('SET GLOBAL max_connections = 500'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
+  /* ألف مستخدم: القيمة الافتراضية 151 اتصالاً تنفد عند الذروة فتظهر أخطاء Too many connections،
+     وكل طلب يفتح اتصالاً ويغلقه فيُعاد استخدام خيوط MySQL بدل إنشائها كل مرة */
+  try { if ((int) $pdo->query('SELECT @@global.max_connections')->fetchColumn() < 1000) $pdo->exec('SET GLOBAL max_connections = 1000'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
+  try { if ((int) $pdo->query('SELECT @@global.thread_cache_size')->fetchColumn() < 128) $pdo->exec('SET GLOBAL thread_cache_size = 128'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   $ready = false;
   try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); $ready = true; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
   if ($ready) { setup_v4($pdo); if (setup_v6($pdo) && setup_v7($pdo)) @file_put_contents($flag, 'v7'); return; }
@@ -164,6 +166,9 @@ function setup_v6(PDO $pdo): bool {
 
 /** الإصدار 7: لا قفل للحسابات. سجلات القفل القديمة (meta/lock:*) تُحذف مرة واحدة ويُزال أثرها من الأجهزة بالمزامنة */
 function setup_v7(PDO $pdo): bool {
+  /* عمود الدور في جدول التواجد (بيانات مؤقتة في الذاكرة: يُعاد إنشاؤه) حتى تُصفّى قائمة الموظف في SQL */
+  $col = $pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'presence' AND COLUMN_NAME = 'role'")->fetchColumn();
+  if (!(int) $col) { $pdo->exec('DROP TABLE IF EXISTS presence'); setup_v4($pdo); }
   $n = (int) $pdo->query("SELECT COUNT(*) FROM docs WHERE store = 'meta' AND deleted = 0 AND doc_id LIKE 'lock:%'")->fetchColumn();
   if ($n > 0) { $rev = bump_rev(); $pdo->prepare("UPDATE docs SET deleted = 1, data = '{}', rev = ?, updated_at = ? WHERE store = 'meta' AND deleted = 0 AND doc_id LIKE 'lock:%'")->execute([$rev, now_ms()]); }
   return true;
@@ -173,7 +178,7 @@ function setup_v7(PDO $pdo): bool {
 function setup_v4(PDO $pdo): void {
   /* بيانات مؤقتة بطبيعتها: في الذاكرة (MEMORY) بلا كتابة على القرص مع كل نبضة. تُفرغ عند إعادة تشغيل MySQL ولا ضرر */
   $tables = [
-    'presence' => "CREATE TABLE IF NOT EXISTS presence (user_id VARCHAR(120) NOT NULL PRIMARY KEY, at BIGINT NOT NULL, data VARCHAR(600) NOT NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4",
+    'presence' => "CREATE TABLE IF NOT EXISTS presence (user_id VARCHAR(120) NOT NULL PRIMARY KEY, at BIGINT NOT NULL, role VARCHAR(30) NOT NULL DEFAULT '', data VARCHAR(600) NOT NULL, KEY idx_at (at)) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4",
     'leases' => "CREATE TABLE IF NOT EXISTS leases (name VARCHAR(120) NOT NULL PRIMARY KEY, holder CHAR(32) NOT NULL, expires_at BIGINT NOT NULL) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4",
   ];
   foreach ($tables as $t => $ddl) {
@@ -311,15 +316,18 @@ function vault_rows(array $rows, array $user): array {
   }));
 }
 /** المتواجدون الآن. الموظف العادي لا يرى الصفحة التي يتصفحها غيره */
+const STAFF_ROLES = ['supervisor', 'support_manager', 'technician'];
+/** المتواجدون الآن. الموظف لا يحتاج إلا تواجد الفنيين والإداريين (حالة من يتابع بلاغه)، ولا يرى الصفحة التي يتصفحها غيره.
+    كان كل جهاز يستلم قائمة كل المتواجدين مع كل نبضة: مع 1000 متصل يصبح ذلك 1000×1000 سجل كل 45 ثانية */
 function presence_list(array $user): array {
-  $st = db()->prepare("SELECT data FROM presence WHERE at > ?");
+  $staff = in_array($user['role'] ?? '', STAFF_ROLES, true);
+  $st = db()->prepare("SELECT data FROM presence WHERE at > ?" . ($staff ? '' : " AND role IN ('supervisor', 'support_manager', 'technician')"));
   $st->execute([now_ms() - PRESENCE_TTL]);
-  $staff = in_array($user['role'] ?? '', ['supervisor', 'support_manager', 'technician'], true);
   $out = [];
   foreach ($st->fetchAll() as $row) {
     $v = json_decode($row['data'], true);
     if (!is_array($v)) continue;
-    if (!$staff) unset($v['page']);
+    if (!$staff) { if (!in_array($v['role'] ?? '', STAFF_ROLES, true)) continue; unset($v['page']); }
     $out[] = $v;
   }
   return $out;
@@ -807,6 +815,43 @@ case 'passwd': {
   out(['ok' => true, 'rev' => $rev, 'user' => strip_user($target)]);
 }
 
+/* تعيين كلمات مرور لمجموعة حسابات في طلب واحد (التغيير الجماعي): صلاحية المُنفِّذ تُفحص لكل حساب على حدة،
+   والدفعة كلها في معاملة واحدة برقم تغيير واحد. التجزئة بـ10 آلاف تكرار لأنها كلمة مؤقتة، وتُرقّى إلى 100 ألف عند أول دخول.
+   (طلب لكل حساب كان يأخذ دقائق مع 1000 حساب: تجزئة 100 ألف تكرار وسجل وإشعار لكل واحد) */
+case 'passwd_bulk': {
+  $user = session_user();
+  $b = body();
+  $items = is_array($b['items'] ?? null) ? $b['items'] : [];
+  if (!$items) fail('لم تُحدد الحسابات');
+  if (count($items) > 300) fail('الدفعة كبيرة جداً، أرسلها على دفعات');
+  $mustReq = pw_force() && !empty($b['mustChange']);
+  $pdo = db(); $t = now_ms(); $done = []; $denied = [];
+  $pdo->beginTransaction();
+  try {
+    $rev = bump_rev();
+    $sel = $pdo->prepare("SELECT data FROM docs WHERE store = 'users' AND doc_id = ? AND deleted = 0 FOR UPDATE");
+    $upd = $pdo->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?");
+    $kill = $pdo->prepare("DELETE FROM sessions WHERE user_id = ?");
+    foreach ($items as $it) {
+      $tid = is_array($it) ? (string) ($it['userId'] ?? '') : ''; $next = is_array($it) ? trim((string) ($it['next'] ?? '')) : '';
+      if ($tid === '' || $tid === (string) $user['id']) { $denied[] = $tid; continue; }
+      $sel->execute([$tid]); $raw = $sel->fetchColumn();
+      $target = $raw !== false ? (json_decode((string) $raw, true) ?: []) : null;
+      if (!$target) { $denied[] = $tid; continue; }
+      $target['id'] = $tid;
+      if ((is_sys_account($target, $tid) && !is_sup($user)) || !can_set_password($user, $target) || pw_len($next) < 6) { $denied[] = $tid; continue; }
+      $salt = random_bytes(16);
+      $target['pass'] = ['algo' => 'pbkdf2-sha256', 'iter' => 10000, 'salt' => bin2hex($salt), 'hash' => bin2hex(hash_pbkdf2('sha256', $next, $salt, 10000, 32, true))];
+      $target['mustChangePassword'] = $mustReq && !is_sys_account($target, $tid) ? 1 : 0; $target['updatedAt'] = $t; $target['passChangedAt'] = $t;
+      $upd->execute([$rev, $t, json_encode($target, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $tid]);
+      $kill->execute([$tid]);
+      $done[] = $tid;
+    }
+    if ($done) $pdo->commit(); else $pdo->rollBack();
+  } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
+  out(['ok' => true, 'rev' => current_rev(), 'done' => $done, 'denied' => $denied]);
+}
+
 case 'me': {
   $user = session_user();
   out(['user' => strip_user($user), 'rev' => current_rev()]);
@@ -872,7 +917,7 @@ case 'beat': {
     'userId' => $uid, 'role' => (string) ($user['role'] ?? ''), 'at' => $t,
     'since' => (int) ($v['since'] ?? $t), 'act' => min($t, (int) ($v['act'] ?? $t)), 'page' => cut((string) ($v['page'] ?? ''), 120),
   ];
-  db()->prepare("REPLACE INTO presence (user_id, at, data) VALUES (?, ?, ?)")->execute([$uid, $t, json_encode($val, JSON_UNESCAPED_UNICODE)]);
+  db()->prepare("REPLACE INTO presence (user_id, at, role, data) VALUES (?, ?, ?, ?)")->execute([$uid, $t, (string) ($user['role'] ?? ''), json_encode($val, JSON_UNESCAPED_UNICODE)]);
   if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - PRESENCE_TTL]);
   out(['ok' => true, 'presence' => presence_list($user)]);
 }
@@ -1208,7 +1253,8 @@ case 'diag': {
     ['opcache', 'تسريع PHP (OPcache)', !empty($op['opcache_enabled']), 'فعّل zend_extension=opcache و opcache.enable=1 في php.ini'],
     ['connect', "زمن الاتصال بقاعدة البيانات: {$connect} ms", $connect < 50, 'أكثر من 50ms: اجعل host في config.php = 127.0.0.1 وأضف skip-name-resolve في my.ini'],
     ['query', "زمن الاستعلام: {$query} ms", $query < 5, 'الخادم مشغول أو القرص بطيء'],
-    ['maxconn', 'الحد الأقصى للاتصالات: ' . $g('max_connections'), (int) $g('max_connections') >= 500, 'max_connections=500 في my.ini'],
+    ['maxconn', 'الحد الأقصى للاتصالات: ' . $g('max_connections'), (int) $g('max_connections') >= 1000, 'max_connections=1000 في my.ini'],
+    ['tcache', 'ذاكرة خيوط الاتصال: ' . $g('thread_cache_size'), (int) $g('thread_cache_size') >= 64, 'thread_cache_size=128 في my.ini'],
     ['pool', 'ذاكرة قاعدة البيانات: ' . round((int) $g('innodb_buffer_pool_size') / 1048576) . ' MB', (int) $g('innodb_buffer_pool_size') >= 268435456, 'innodb_buffer_pool_size=512M في my.ini'],
     ['packet', 'أقصى حجم للسجل: ' . round((int) $g('max_allowed_packet') / 1048576) . ' MB', (int) $g('max_allowed_packet') >= 33554432, 'max_allowed_packet=64M في my.ini'],
     ['flush', 'كتابة السجل على القرص: ' . $g('innodb_flush_log_at_trx_commit'), (int) $g('innodb_flush_log_at_trx_commit') !== 1, 'اختياري لتسريع الحفظ: innodb_flush_log_at_trx_commit=2'],
