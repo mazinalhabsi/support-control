@@ -3319,23 +3319,23 @@ const XL = (() => {
 })();
 AR.user = ['مستخدم واحد', 'مستخدمين اثنين', 'مستخدمين', 'مستخدماً', 'مستخدم'];
 const headKey = (h) => normalizeAr(h).replace(/[\s_\-.:()/\\]/g, '');
-const IMPORT_COLS = { name: ['الاسم', 'الاسمالكامل', 'اسمالموظف', 'الاسمالرباعي', 'name', 'fullname'], militaryNo: ['الرقمالعسكري', 'رقمعسكري', 'الرقم', 'militaryno', 'militarynumber', 'serviceno'], role: ['الدور', 'الصلاحيه', 'نوعالحساب', 'role'], department: ['الاداره', 'القسم', 'الادارهالقسم', 'department'], location: ['المبني', 'الموقع', 'المبنيالموقع', 'building', 'location'], office: ['المكتب', 'الغرفه', 'office'], phone: ['الهاتف', 'رقمالهاتف', 'الجوال', 'phone', 'mobile'], rank: ['الرتبه', 'rank'] };
+const IMPORT_COLS = { name: ['الاسم', 'الاسمالكامل', 'اسمالموظف', 'الاسمالرباعي', 'name', 'fullname'], militaryNo: ['الرقمالعسكري', 'رقمعسكري', 'الرقم', 'militaryno', 'militarynumber', 'serviceno'], role: ['الدور', 'الصلاحيه', 'نوعالحساب', 'role'], department: ['الاداره', 'الادارهالقسم', 'الجهه', 'department'], unit: ['القسم', 'الشعبه', 'الوحده', 'section', 'unit'], location: ['المبني', 'الموقع', 'المبنيالموقع', 'building', 'location'], office: ['المكتب', 'الغرفه', 'office'], phone: ['الهاتف', 'رقمالهاتف', 'الجوال', 'phone', 'mobile'], rank: ['الرتبه', 'rank'] };
 const ROLE_NORM = new Map(Object.entries({ 'موظف': 'department', 'موظفه': 'department', 'مستخدم': 'department', 'فني': 'technician', 'فنيه': 'technician', 'اداري': 'support_manager', 'اداريه': 'support_manager', 'مشرف': 'supervisor', 'مشرفه': 'supervisor', 'شاشهمراقبه': 'monitor', 'شاشه': 'monitor', employee: 'department', user: 'department', technician: 'technician', tech: 'technician', admin: 'support_manager', administrator: 'support_manager', manager: 'support_manager', supervisor: 'supervisor', monitor: 'monitor' }));
 const headerMap = (row) => { const m = {}; (row || []).forEach((h, i) => { const k = headKey(h); for (const [f, names] of Object.entries(IMPORT_COLS)) if (m[f] == null && names.includes(k)) m[f] = i; }); return m; };
 
-Pages.analyzeImport = (sheets, fileName) => {
+Pages.analyzeImport = (sheets, fileName, units = []) => {
   let sheet = null, hi = -1, map = null;
   for (const s of sheets) { for (let r = 0; r < Math.min(10, s.rows.length); r++) { const m = headerMap(s.rows[r]); if (m.name != null && m.militaryNo != null) { sheet = s; hi = r; map = m; break; } } if (sheet) break; }
   if (!sheet) throw new AppError('لم أجد عمودي «الاسم» و«الرقم العسكري» في الملف. نزّل القالب الجاهز واستخدمه.');
   const users = Data.list('users'), byMil = new Map(users.filter((u) => u.militaryNo).map((u) => [milKey(u.militaryNo), u])), byUser = new Set(users.map((u) => userKey(u.username)));
-  const depBy = new Set(Data.list('departments').map((d) => normalizeAr(d.name))), locBy = new Set(Data.list('locations').map((l) => normalizeAr(l.name)));
-  const sup = Auth.user.role === 'supervisor', seen = new Set(), claimed = new Set(), rows = [], newDeps = new Map(), newLocs = new Map();
+  const locBy = new Set(Data.list('locations').map((l) => normalizeAr(l.name))), targets = OrgMatch.targets(Data.list('departments'), units);
+  const sup = Auth.user.role === 'supervisor', seen = new Set(), claimed = new Set(), rows = [], newLocs = new Map();
   sheet.rows.slice(hi + 1).forEach((r, i) => {
     const cell = (k) => (map[k] != null ? String(r[map[k]] || '').replace(/\s+/g, ' ').trim() : '');
     const name = cell('name'), mil = latinDigits(cell('militaryNo')).replace(/\s+/g, ''), roleRaw = cell('role');
     if (!name && !mil && !roleRaw) return;
     const role = roleRaw ? ROLE_NORM.get(headKey(roleRaw)) : 'department';
-    const row = { line: hi + i + 2, name, militaryNo: mil, roleRaw, role, department: cell('department'), location: cell('location'), office: cell('office'), phone: latinDigits(cell('phone')), rank: cell('rank'), issues: [], note: '' };
+    const row = { line: hi + i + 2, name, militaryNo: mil, roleRaw, role, department: cell('department'), unit: cell('unit'), location: cell('location'), office: cell('office'), phone: latinDigits(cell('phone')), rank: cell('rank'), issues: [], note: '' };
     if (name.length < 3) row.issues.push('الاسم ناقص');
     if (!mil) row.issues.push('الرقم العسكري مفقود'); else if (!/^[\p{L}\p{N}-]{2,20}$/u.test(mil)) row.issues.push('رقم عسكري غير صالح');
     if (!role) row.issues.push(`دور غير معروف «${roleRaw}»`); else if (!sup && ['supervisor', 'support_manager'].includes(role)) row.issues.push('إضافة المشرف والإداري من صلاحية المشرف فقط');
@@ -3350,26 +3350,30 @@ Pages.analyzeImport = (sheets, fileName) => {
     }
     if (row.existing && row.existing.id === Auth.user.id && role !== Auth.user.role) row.note = 'حسابك الحالي: لن يتغير دورك';
     if (!roleRaw && !row.issues.length) row.note = 'بلا دور: سيُسجَّل موظفاً';
-    if (!row.issues.length) { if (row.department && !depBy.has(normalizeAr(row.department))) newDeps.set(normalizeAr(row.department), row.department); if (row.location && !locBy.has(normalizeAr(row.location))) newLocs.set(normalizeAr(row.location), row.location); }
+    /* موضع الحساب في الهيكل: مطابق أو أقرب تطابق، وإلا يبقى بلا إدارة. لا تُنشأ إدارات من الملف */
+    row.place = OrgMatch.place({ department: row.department, unit: row.unit }, targets);
+    if (!row.issues.length && row.location && !locBy.has(normalizeAr(row.location))) newLocs.set(normalizeAr(row.location), row.location);
     row.status = row.issues.length ? 'error' : row.existing ? 'update' : 'new';
     rows.push(row);
   });
   if (!rows.length) throw new AppError('الملف لا يحتوي على بيانات مستخدمين تحت صف العناوين');
-  return { fileName, sheet: sheet.name, rows, newDeps: [...newDeps.values()], newLocs: [...newLocs.values()] };
+  return { fileName, sheet: sheet.name, rows, newLocs: [...newLocs.values()] };
 };
 
 Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = {}, onProgress) => {
   const t = now(), me = Auth.user, ok = a.rows.filter((r) => r.status === 'new' || (r.status === 'update' && update));
   const addLookups = async (store, names) => { if (!names.length) return; const base = await DB.count(store); await DB.bulkPut(store, names.map((name, i) => ({ id: uid(store === 'departments' ? 'dep' : 'loc'), name, description: '', order: base + i, createdAt: t, updatedAt: t }))); await Data.refresh(store); };
-  const usedDeps = new Set(ok.map((r) => normalizeAr(r.department))), usedLocs = new Set(ok.map((r) => normalizeAr(r.location)));
-  await addLookups('departments', a.newDeps.filter((n) => usedDeps.has(normalizeAr(n)))); await addLookups('locations', a.newLocs.filter((n) => usedLocs.has(normalizeAr(n))));
-  const idOf = (store) => new Map(Data.list(store).map((x) => [normalizeAr(x.name), x.id])), depBy = idOf('departments'), locBy = idOf('locations'), rankBy = idOf('ranks');
+  const usedLocs = new Set(ok.map((r) => normalizeAr(r.location)));
+  await addLookups('locations', a.newLocs.filter((n) => usedLocs.has(normalizeAr(n))));
+  const idOf = (store) => new Map(Data.list(store).map((x) => [normalizeAr(x.name), x.id])), locBy = idOf('locations'), rankBy = idOf('ranks');
+  /* النص الأصلي من الملف يبقى مع الحساب غير المُسند، فيقترح النظام موضعه حين تُضاف الإدارة إلى الهيكل */
+  const orgText = (r) => [r.department, r.unit].filter(Boolean).join(' / ');
   const taken = new Set(Data.list('users').map((u) => userKey(u.username))), creds = [], batch = []; let created = 0, updated = 0, skippedDup = 0;
   for (let i = 0; i < ok.length; i++) {
-    const r = ok[i], depId = r.department ? depBy.get(normalizeAr(r.department)) || '' : '', locId = r.location ? locBy.get(normalizeAr(r.location)) || '' : '', rankId = r.rank ? rankBy.get(normalizeAr(r.rank)) || '' : '';
+    const r = ok[i], placed = r.place && r.place.departmentId ? r.place : null, depId = placed ? placed.departmentId : '', unitId = placed ? placed.unitId || '' : '', locId = r.location ? locBy.get(normalizeAr(r.location)) || '' : '', rankId = r.rank ? rankBy.get(normalizeAr(r.rank)) || '' : '';
     if (r.existing) {
       const u = await DB.get('users', r.existing.id);
-      if (u) { u.name = r.name; if (u.id !== me.id) u.role = r.role; if (depId) u.departmentId = depId; if (locId) u.locationId = locId; if (r.office) u.office = r.office; if (r.phone) u.phone = r.phone; if (rankId) u.rankId = rankId; u.militaryNo = r.militaryNo; u.updatedAt = t; batch.push(u); updated += 1; }
+      if (u) { u.name = r.name; if (u.id !== me.id) u.role = r.role; if (depId) { u.departmentId = depId; u.unitId = unitId; u.orgText = ''; } else if (orgText(r) && !u.departmentId) u.orgText = orgText(r); if (locId) u.locationId = locId; if (r.office) u.office = r.office; if (r.phone) u.phone = r.phone; if (rankId) u.rankId = rankId; u.militaryNo = r.militaryNo; u.updatedAt = t; batch.push(u); updated += 1; }
     } else {
       let username = r.username || userKey(r.militaryNo); if (username.length < 3) username = `u${username}`;
       /* اسم الدخول مستخدم مسبقاً (تغيّر منذ المعاينة): يُتجاوز هذا الصف وحده دون إيقاف الباقي، ولا يُعاد تسميته */
@@ -3379,8 +3383,8 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
         const pw = mode === 'military' ? r.militaryNo : mode === 'shared' ? sharedPw : Crypto.tempPassword(), salt = Crypto.randomHex(16);
         /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
         const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
-        batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: pwForce() ? 1 : 0, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
-        creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], Data.nameOf('departments', depId, ''), Data.nameOf('locations', locId, '')]); created += 1;
+        batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, unitId, orgText: depId ? '' : orgText(r), locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: pwForce() ? 1 : 0, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
+        creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], placed ? placed.label : '', Data.nameOf('locations', locId, '')]); created += 1;
       }
     }
     if (batch.length >= 150 || i === ok.length - 1) { await DB.bulkPut('users', batch.splice(0)); if (onProgress) onProgress(i + 1, ok.length); await new Promise((res) => setTimeout(res, 0)); }
@@ -3390,14 +3394,17 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
   return { created, updated, skipped: a.rows.length - ok.length + skippedDup, creds, mode };
 };
 
-Pages.usersTemplate = () => {
-  const deps = Data.list('departments').map((d) => d.name), locs = Data.list('locations').map((l) => l.name), ranks = Data.list('ranks').map((r) => r.name), n = Math.max(deps.length, locs.length, ranks.length, 1);
-  const lists = [['الإدارات', 'المباني', 'الرتب'], ...Array.from({ length: n }, (_, i) => [deps[i] || '', locs[i] || '', ranks[i] || ''])];
+Pages.usersTemplate = async () => {
+  const units = await DB.getAll('deptUnits'), deps = Data.list('departments').map((d) => d.name), locs = Data.list('locations').map((l) => l.name), ranks = Data.list('ranks').map((r) => r.name);
+  /* أقسام الهيكل بأسمائها (للاختيار من القائمة) ومساراتها كاملة (للتوضيح) */
+  const flat = Data.list('departments').flatMap((d) => orgUnitsFlat(units, d.id).map(({ u, path }) => [u.name, `${d.name} / ${path}`]));
+  const n = Math.max(deps.length, locs.length, ranks.length, flat.length, 1);
+  const lists = [['الإدارات', 'المباني', 'الرتب', 'الأقسام', 'موضع القسم في الهيكل'], ...Array.from({ length: n }, (_, i) => [deps[i] || '', locs[i] || '', ranks[i] || '', (flat[i] || [])[0] || '', (flat[i] || [])[1] || ''])];
   const blob = XL.write([
-    { name: 'المستخدمون', widths: [32, 16, 12, 28, 26, 22, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', locs[1] || '', 'مكتب 214', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '']],
-      validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }, { sqref: 'H2:H10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }] },
-    { name: 'القوائم', widths: [34, 30, 22], rows: lists },
-    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارات والمباني غير الموجودة في النظام تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. يمكن لكل مستخدم تغيير كلمة مروره من «الملف الشخصي».']] }
+    { name: 'المستخدمون', widths: [32, 16, 12, 28, 26, 26, 22, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'القسم', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', '', locs[1] || '', 'مكتب 214', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '', '']],
+      validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$D$2:$D$${n + 1}` }, { sqref: 'F2:F10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }, { sqref: 'I2:I10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }] },
+    { name: 'القوائم', widths: [34, 30, 22, 30, 48], rows: lists },
+    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارة والقسم يُطابَقان مع الهيكل التنظيمي: الاسم المطابق يُسند إليه، والمكتوب بصيغة قريبة يُسند لأقرب إدارة أو قسم، والمختلف تماماً يُسجَّل حسابه بلا إدارة وتُحدَّد إدارته لاحقاً. ولا تُنشأ إدارات من الملف. والمباني غير الموجودة تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. يمكن لكل مستخدم تغيير كلمة مروره من «الملف الشخصي».']] }
   ]);
   downloadBlob(blob, 'قالب-استيراد-المستخدمين.xlsx');
 };
@@ -3412,16 +3419,22 @@ Pages.importUsers = () => new Promise((resolve) => {
   let analysis = null, result = null, filter = 'all';
   const impPw = { mode: 'random', val: '' };
   const steps = (n) => html`<div class="imp-steps">${['جهّز الملف', 'راجع البيانات', 'تم الاستيراد'].map((l, i) => html`<div class="imp-step ${n === i + 1 ? 'on' : n > i + 1 ? 'done' : ''}"><i>${n > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
-  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>${pwForce() ? '، ويُلزم بتغيير كلمة المرور الأولية' : ''}.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>المبنى غير المحدد في الملف <b>يُحدَّد لاحقاً</b> من صفحة المستخدمين (التعديل الجماعي).</span></div></div>`;
+  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، القسم، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>${pwForce() ? '، ويُلزم بتغيير كلمة المرور الأولية' : ''}.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>المبنى غير المحدد في الملف <b>يُحدَّد لاحقاً</b> من صفحة المستخدمين (التعديل الجماعي).</span></div></div>`;
   const reviewView = () => {
     const a = analysis, c = { new: 0, update: 0, error: 0 }; a.rows.forEach((r) => { c[r.status] += 1; });
     const roles = {}; a.rows.filter((r) => r.status !== 'error').forEach((r) => { roles[r.role] = (roles[r.role] || 0) + 1; });
     const shown = a.rows.filter((r) => filter === 'all' || r.status === filter), label = { new: ['teal', 'جديد'], update: ['sky', 'تحديث'], error: ['red', 'خطأ'] };
+    const pc = { exact: 0, close: 0, none: 0 }; a.rows.filter((r) => r.status !== 'error' && r.place && r.place.status !== 'empty').forEach((r) => { pc[r.place.status] += 1; });
+    const where = (r) => { const p = r.place || { status: 'empty' }, typed = [r.department, r.unit].filter(Boolean).join(' / ');
+      if (p.status === 'exact') return html`<b class="small">${p.label}</b>`;
+      if (p.status === 'close') return html`<b class="small">${p.label}</b><div class="t-sub">${UI.chip('amber', 'أقرب تطابق')} في الملف: ${typed}</div>`;
+      if (p.status === 'none') return html`${UI.chip('slate', 'بلا إدارة')}<div class="t-sub">${typed}${p.reason === 'ambiguous' ? ' — يتقارب مع أكثر من موضع' : ''}</div>`;
+      return html`<span class="faint">—</span>`; };
     return html`${steps(2)}<div class="imp-summary">${UI.chip('slate', `${a.fileName} — ${a.sheet}`, 'file')}${UI.chip('teal', `جديد: ${fmtNum(c.new)}`, 'user-plus')}${UI.chip('sky', `تحديث: ${fmtNum(c.update)}`, 'refresh')}${c.error ? UI.chip('red', `أخطاء: ${fmtNum(c.error)}`, 'alert') : ''}${Object.entries(roles).map(([k, n]) => UI.chip(ROLE_INFO[k] ? ROLE_INFO[k].tone : 'slate', `${ROLES[k]}: ${fmtNum(n)}`))}</div>
-      ${a.newDeps.length ? html`<div class="banner tone-violet">${UI.icon('building')}<div class="grow"><b>إدارات جديدة ستُضاف تلقائياً (${fmtNum(a.newDeps.length)})</b><div class="small muted">${a.newDeps.join('، ')}</div></div></div>` : ''}
+      ${pc.exact + pc.close + pc.none ? html`<div class="banner tone-${pc.none ? 'amber' : 'teal'}">${UI.icon('building')}<div class="grow"><b>موضع الحسابات في الهيكل التنظيمي</b><div class="small muted">مطابق للهيكل: ${fmtNum(pc.exact)} — أُسند لأقرب إدارة أو قسم: ${fmtNum(pc.close)} — بلا إدارة: ${fmtNum(pc.none)}${pc.none ? '. تُحدَّد إدارتهم لاحقاً من «الهيكل التنظيمي ← حسابات بلا إدارة» أو من ملف المستخدم' : ''}</div></div></div>` : ''}
       ${a.newLocs.length ? html`<div class="banner tone-sky">${UI.icon('pin')}<div class="grow"><b>مبانٍ جديدة ستُضاف تلقائياً (${fmtNum(a.newLocs.length)})</b><div class="small muted">${a.newLocs.join('، ')}</div></div></div>` : ''}
       <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random"${(impPw.mode || 'random') === 'random' ? raw(' checked') : ''}><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"${impPw.mode === 'military' ? raw(' checked') : ''}><span>${UI.icon('shield')} الرقم العسكري</span></label><label><input type="radio" name="pwmode" value="shared"${impPw.mode === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} موحّدة للجميع</span></label></div><div id="sharedPwRow" class="mt"${impPw.mode === 'shared' ? '' : raw(' hidden')}><input name="sharedpw" dir="ltr" class="input" placeholder="كلمة المرور الموحّدة (6 أحرف على الأقل)" value="${impPw.val || ''}" style="max-width:280px"></div>${pwForce() ? html`<small class="hint">في كل الحالات يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small>` : ''}</div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
-      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الإدارة</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td class="small">${r.department || html`<span class="faint">—</span>`}</td><td class="small">${r.location || html`<span class="faint">غير محدد</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
+      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الموضع في الهيكل</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td>${where(r)}</td><td class="small">${r.location || html`<span class="faint">غير محدد</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
       <div class="imp-progress" hidden><div class="progress"><i style="width:0%"></i></div><span>جارٍ الاستيراد...</span></div>
       <div class="row imp-actions"><button type="button" class="btn btn-ghost" data-imp="again">${UI.icon('upload')} اختيار ملف آخر</button><button type="button" class="btn btn-primary btn-lg" data-imp="run"${c.new + c.update ? '' : raw(' disabled')}>${UI.icon('check')} استيراد ${arCount(c.new + c.update, AR.user)}</button></div>`;
   };
@@ -3436,12 +3449,12 @@ Pages.importUsers = () => new Promise((resolve) => {
           const isCsv = /\.csv$/i.test(file.name) || file.type === 'text/csv';
           const sheets = isCsv ? [{ name: 'CSV', rows: [] }] : await XL.read(file);
           if (isCsv) { const text = await readText(file), lines = text.replace(/^\ufeff/, '').split(/\r?\n/).filter((l) => l.trim()); const splitLine = (l) => { const out = []; let cur = '', q = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === ',' || ch === ';' || ch === '\t') { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out.map((x) => x.trim()); }; sheets[0].rows = lines.map(splitLine); }
-          analysis = Pages.analyzeImport(sheets, file.name); filter = analysis.rows.some((r) => r.status === 'error') ? 'all' : 'all'; render(reviewView());
+          analysis = Pages.analyzeImport(sheets, file.name, await DB.getAll('deptUnits')); filter = 'all'; render(reviewView());
         } catch (ex) { UI.error(ex instanceof AppError ? ex : new AppError('تعذر قراءة الملف. تأكد أنه ملف Excel سليم')); }
       };
       UI.on(form, 'click', '[data-imp]', async (e, el) => {
         const act = el.dataset.imp;
-        if (act === 'template') Pages.usersTemplate();
+        if (act === 'template') Pages.usersTemplate().catch((ex) => UI.error(ex));
         else if (act === 'pick') { const [f] = await UI.pickFiles({ accept: '.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv', multiple: false }); load(f); }
         else if (act === 'again') { analysis = null; render(pickView()); }
         else if (act === 'run') {
@@ -7187,6 +7200,67 @@ Data.units.tree = async (departmentId) => {
 const orgDepth = (units, id) => { let d = 0, cur = units.find((u) => u.id === id), g = 0; while (cur && g++ < 60) { d++; cur = cur.parentId ? units.find((u) => u.id === cur.parentId) : null; } return d; };
 const orgHeight = (units, id) => { const kids = units.filter((u) => u.parentId === id); return 1 + (kids.length ? Math.max(...kids.map((k) => orgHeight(units, k.id))) : 0); };
 const orgSubtree = (units, id) => { const set = new Set([id]); let grew = true; while (grew) { grew = false; units.forEach((u) => { if (set.has(u.parentId) && !set.has(u.id)) { set.add(u.id); grew = true; } }); } return set; };
+/* ── مطابقة اسم إدارة أو قسم مكتوب (في ملف الاستيراد مثلاً) مع الهيكل التنظيمي ──
+   مطابق: الاسم نفسه بعد توحيد الكتابة (الهمزات والتاء المربوطة و«ال» وكلمات مثل «إدارة» و«قسم»)، أو اسم بديل له، أو رمزه.
+   أقرب تطابق: يتشابه في كلماته أو حروفه بدرجة كافية، فيُسند لما يمثله.
+   مختلف تماماً، أو يتقارب مع أكثر من موضع بالدرجة نفسها: لا يُسند، ويبقى الحساب بلا إدارة ليُحدَّد لاحقاً */
+const ORG_GENERIC = new Set(['اداره', 'ادارات', 'قسم', 'اقسام', 'شعبه', 'وحده', 'مكتب', 'دائره', 'فرع', 'مديريه', 'عام', 'عامه']);
+const OrgMatch = {
+  CLOSE: 0.5,
+  words(s) {
+    return normalizeAr(s).replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)
+      .map((w) => w.replace(/^(وال|بال|لل|ال)(?=\S{2,})/, '')).filter((w) => w && !ORG_GENERIC.has(w));
+  },
+  key(s) { return OrgMatch.words(s).join(' '); },
+  /* تشابه بين 0 و1: الأعلى من تشابه الكلمات وتشابه أزواج الحروف */
+  score(a, b) {
+    const wa = OrgMatch.words(a), wb = OrgMatch.words(b); if (!wa.length || !wb.length) return 0;
+    const same = (x, y) => x === y || (x.length > 3 && y.length > 3 && (x.startsWith(y) || y.startsWith(x)));
+    const hit = wa.filter((x) => wb.some((y) => same(x, y))).length, words = hit / (wa.length + wb.length - hit);
+    const pairs = (w) => { const t = w.join(''), out = []; for (let i = 0; i < t.length - 1; i++) out.push(t.slice(i, i + 2)); return out; };
+    const pa = pairs(wa), pb = pairs(wb), left = [...pb]; let common = 0;
+    pa.forEach((x) => { const k = left.indexOf(x); if (k >= 0) { common++; left.splice(k, 1); } });
+    const chars = pa.length + pb.length ? (2 * common) / (pa.length + pb.length) : 0;
+    return Math.max(words, chars);
+  },
+  /* كل مواضع الهيكل القابلة للإسناد: الإدارات وكل وحداتها بمسارها الكامل وأسمائها البديلة */
+  targets(deps = Data.list('departments'), units = []) {
+    const out = deps.map((d) => ({ departmentId: d.id, unitId: '', label: d.name, names: [d.name, ...(d.aliases || [])], code: String(d.code || '').toLowerCase() }));
+    deps.forEach((d) => orgUnitsFlat(units, d.id).forEach(({ u, path }) => out.push({ departmentId: d.id, unitId: u.id, label: `${d.name} / ${path}`, names: [u.name, ...(u.aliases || [])], code: String(u.code || '').toLowerCase() })));
+    return out;
+  },
+  /* أفضل موضع لنص واحد بين مواضع محددة: { status: exact|close|none, ...الموضع، score } */
+  find(text, list) {
+    const k = OrgMatch.key(text), raw = String(text || '').trim().toLowerCase();
+    if (!k && !raw) return { status: 'none' };
+    const exact = list.filter((t) => (raw && t.code && t.code === raw) || t.names.some((n) => OrgMatch.key(n) === k && k));
+    /* الإدارة أولى من قسم يحمل اسمها في إدارة أخرى */
+    const exDep = exact.filter((t) => !t.unitId);
+    if (exDep.length === 1) return { status: 'exact', ...exDep[0], score: 1 };
+    if (exact.length === 1) return { status: 'exact', ...exact[0], score: 1 };
+    if (exact.length > 1) return { status: 'none', reason: 'ambiguous' };
+    const ranked = list.map((t) => ({ t, s: Math.max(...t.names.map((n) => OrgMatch.score(text, n))) })).sort((a, b) => b.s - a.s);
+    const [a, b] = ranked;
+    if (!a || a.s < OrgMatch.CLOSE) return { status: 'none' };
+    if (b && a.s - b.s < 0.08 && (b.t.departmentId !== a.t.departmentId || b.t.unitId !== a.t.unitId)) return { status: 'none', reason: 'ambiguous' };
+    return { status: 'close', ...a.t, score: a.s };
+  },
+  /* موضع حساب من خانتي «الإدارة» و«القسم»: القسم يُبحث عنه داخل إدارته إن عُرفت، وإلا في الهيكل كله */
+  place({ department = '', unit = '' } = {}, targets) {
+    const dep = String(department || '').trim(), un = String(unit || '').trim();
+    if (!dep && !un) return { status: 'empty' };
+    if (dep) {
+      const d = OrgMatch.find(dep, targets.filter((t) => !t.unitId));
+      if (d.status !== 'none') {
+        if (!un) return d;
+        const u = OrgMatch.find(un, targets.filter((t) => t.unitId && t.departmentId === d.departmentId));
+        return u.status === 'none' ? d : { ...u, status: d.status === 'exact' && u.status === 'exact' ? 'exact' : 'close' };
+      }
+      if (!un) return OrgMatch.find(dep, targets);
+    }
+    return OrgMatch.find(un, targets);
+  }
+};
 Data.org = {
   async load() { const [units, users] = await Promise.all([DB.getAll('deptUnits'), DB.getAll('users')]); return { deps: Data.list('departments'), units, users: users.filter((u) => u.active && u.role !== 'monitor') }; },
   guard() { if (!canOrg()) throw new AppError('لا تملك صلاحية تعديل الهيكل التنظيمي'); },
