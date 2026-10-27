@@ -3393,7 +3393,7 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .xm-line .xm-chips+textarea{margin-top:8px}
 .xm-accother{height:32px;max-width:180px;border-radius:999px;font-size:12.5px;padding:0 12px}
 @media (max-width:760px){.bc-row.cur{grid-template-columns:minmax(0,1fr) 72px 34px}.bc-row.cur .bc-s{grid-column:1/-1}.bc-row.cur .bc-acts{grid-column:1/2}}
-/* ── الجولة 23: أيقونة المتصفح، والعمل على http ── */
+/* ── الجولة 23: أيقونة المتصفح ── */
 .fv-styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
 .fv-style{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--surface-solid);cursor:pointer;text-align:center;transition:border-color .15s,box-shadow .15s}
 .fv-style input{position:absolute;opacity:0;pointer-events:none}
@@ -3424,17 +3424,7 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .fv-sizes{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-top:18px;padding:14px;border-radius:12px;border:1px dashed var(--line-2);background:var(--surface-2)}
 .fv-sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
 .fv-sizes figcaption{font:600 11px var(--f-body);color:var(--ink-3)}
-.hp-state .t-sub{margin-top:2px}
-.hp-feats{display:grid}
-.hp-f{display:flex;gap:10px;align-items:flex-start;padding:11px 16px;border-bottom:1px solid var(--line)}
-.hp-f:last-child{border-bottom:0}
-.hp-f .ic{width:18px;height:18px;flex:none;margin-top:2px}
-.hp-f.ok .ic{color:rgb(var(--teal))}
-.hp-f.off .ic{color:rgb(var(--amber))}
-.hp-f b{font-size:13.5px;display:block}
-.hp-f small{display:block;font-size:12px;color:var(--ink-3);line-height:1.6}
 .hp-steps{margin:14px 0 0;padding:0 20px 0 0;display:grid;gap:8px;font-size:13px;line-height:1.8}
-.hp-state .ltr{direction:ltr;unicode-bidi:embed}
 .hp-code{display:block;direction:ltr;text-align:left;margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);font:12px/1.7 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;color:var(--ink)}
 .hp-code.in{display:inline;margin:0;padding:1px 6px;white-space:normal}
 /* ── الجولة 24: الأصوات ── */

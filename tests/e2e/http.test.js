@@ -100,25 +100,10 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   f = await favState(p);
   ok('default restored: static icons back, cache cleared', !f.fav && f.icons === 3 && f.off === 0 && f.cache === 0, JSON.stringify(f));
 
-  /* 5) صفحة «العمل على http» وملف السياسة */
-  await p.evaluate(() => { location.hash = '#/settings?s=http'; }); await p.waitForSelector('.hp-feats'); await p.waitForTimeout(500);
-  const hp = await p.evaluate(() => ({ banner: document.querySelector('.hp-state').className, text: document.querySelector('.hp-state b').textContent, cam: [...document.querySelectorAll('.hp-f')].find((x) => /الكاميرا: تصوير/.test(x.textContent)).className, origins: document.querySelector('[name="origins"]').value }));
-  ok('http page reports the insecure origin', /tone-amber/.test(hp.banner) && /غير آمن/.test(hp.text), hp.text);
-  ok('camera listed as blocked on http', /off/.test(hp.cam), hp.cam);
-  ok('current address prefilled', hp.origins.split('\n')[0] === new URL(U).origin, hp.origins);
-  await p.fill('[name="origins"]', 'ftp://bad'); await p.click('[data-act="hpreg"]'); await p.waitForTimeout(500);
-  ok('invalid address rejected', /غير صالح/.test(await p.$$eval('.toast', (x) => x.map((t) => t.textContent).join(' '))));
-  await p.fill('[name="origins"]', 'it\nhttp://192.168.12.100/IT/\nhttp://it');
-  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="hpreg"]')]);
-  const regPath = await dl.path(), raw = fs.readFileSync(regPath), txt = raw.slice(2).toString('utf16le');
-  ok('policy file is UTF-16 with BOM (regedit format)', raw[0] === 0xff && raw[1] === 0xfe && txt.startsWith('Windows Registry Editor Version 5.00\r\n'), dl.suggestedFilename());
-  ok('policy file lists Chrome and Edge keys with both addresses', /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin\]\r\n"1"="http:\/\/it"\r\n"2"="http:\/\/192\.168\.12\.100"\r\n/.test(txt) && /Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin\]\r\n"1"="http:\/\/it"/.test(txt) && !/"3"=/.test(txt), JSON.stringify(txt.slice(0, 400)));
-  ok('policy file also lets display screens play sound without a tap', /Google\\Chrome\\AutoplayAllowlist\]\r\n"1"="http:\/\/it"\r\n"2"="http:\/\/192\.168\.12\.100"/.test(txt) && /Microsoft\\Edge\\AutoplayAllowlist\]\r\n"1"="http:\/\/it"/.test(txt));
-  await p.waitForTimeout(800);
-  ok('addresses remembered in settings', JSON.stringify(await p.evaluate(() => App.Data.c.settings.httpOrigins)) === JSON.stringify(['http://it', 'http://192.168.12.100']));
-  const [dl2] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="hpunreg"]')]);
-  const t2 = fs.readFileSync(await dl2.path()).slice(2).toString('utf16le');
-  ok('removal file only deletes the keys', /\[-HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin\]/.test(t2) && !/"1"=/.test(t2));
+  /* 5) صفحة «العمل على http» حُذفت من المنصة: لا تظهر في مركز التحكم ولا يفتحها رابطها القديم */
+  await p.evaluate(() => { location.hash = '#/settings?s=http'; }); await p.waitForTimeout(900);
+  const gone = await p.evaluate(() => ({ page: !!document.querySelector('.hp-feats, .hp-state, [data-act="hpreg"]'), menu: /العمل على http/.test(document.body.innerText) }));
+  ok('http page removed (no page, no menu entry)', !gone.page && !gone.menu, JSON.stringify(gone));
 
   /* 6) الميزات الممنوعة على http تشرح السبب، والنسخ يعمل بالطريقة البديلة */
   await p.evaluate(() => { App.Pages.scanModal(); }); await p.waitForSelector('.scan-off'); await p.waitForTimeout(300);

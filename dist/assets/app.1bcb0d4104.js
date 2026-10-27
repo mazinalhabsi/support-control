@@ -145,7 +145,7 @@ function copyText(text) {
   return Promise.resolve(legacy());
 }
 /* رسالة موحدة للميزات التي يمنعها المتصفح على http */
-const httpBlocked = (what) => `${what} لا تعمل على http قبل تفعيل سياسة المتصفح (الإعدادات ← العمل على http)`;
+const httpBlocked = (what) => `${what}: يمنعها المتصفح على الاتصال غير الآمن (http)، وتعمل على https`;
 const fmtBytes = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 
 /* ── ناقل الأحداث (يشمل التبويبات الأخرى عبر BroadcastChannel) ── */
@@ -6182,7 +6182,7 @@ Pages.scanModal = ({ title = 'مسح الرمز', hint = 'وجّه الكامي�
   return UI.modal({
     title, icon: 'search', size: 'lg',
     body: html`<div class="scan-wrap">
-        <div class="scan-view" data-scanview>${scanSupported() ? html`<video id="scanVideo" playsinline muted></video><div class="scan-frame"></div>` : html`<div class="scan-off">${UI.icon('alert')}<b>${window.isSecureContext ? 'الكاميرا غير مدعومة في هذا المتصفح' : 'الكاميرا لا تعمل على http'}</b><span>${window.isSecureContext ? 'استخدم قارئ الشفرات أو اكتب الرقم يدوياً' : 'يمنعها المتصفح حتى تُفعَّل سياسته (الإعدادات ← العمل على http). استخدم قارئ الشفرات أو اكتب الرقم يدوياً'}</span></div>`}</div>
+        <div class="scan-view" data-scanview>${scanSupported() ? html`<video id="scanVideo" playsinline muted></video><div class="scan-frame"></div>` : html`<div class="scan-off">${UI.icon('alert')}<b>${window.isSecureContext ? 'الكاميرا غير مدعومة في هذا المتصفح' : 'الكاميرا لا تعمل على http'}</b><span>${window.isSecureContext ? 'استخدم قارئ الشفرات أو اكتب الرقم يدوياً' : 'يمنعها المتصفح على الاتصال غير الآمن (http). استخدم قارئ الشفرات أو اكتب الرقم يدوياً'}</span></div>`}</div>
         <p class="hint">${hint}</p>
       </div>
       <div class="field mt"><label for="scanIn">قارئ الشفرات أو إدخال يدوي</label><div class="combo"><input id="scanIn" name="code" dir="ltr" placeholder="امسح بالقارئ أو اكتب الرقم ثم اضغط Enter" autocomplete="off"><button type="button" class="combo-btn" data-scan="cam" title="تشغيل الكاميرا">${UI.icon('eye')}</button></div><small class="hint">قارئ الشفرات USB يعمل مباشرة: ضع المؤشر في الخانة وامسح.</small></div>
@@ -14598,7 +14598,7 @@ document.addEventListener('click', async (e) => {
 }
 /* الخروج من تبويب يُخرج التبويبات الأخرى فوراً (الرمز نفسه انتهى على الخادم) */
 window.addEventListener('storage', (e) => { if (e.key === 'sq_token' && !e.newValue && Sync.on && Sync.token && Auth.user) Sync.sessionEnded(true); });
-/* ══════════ الجولة 23: أيقونة تبويب المتصفح، والعمل على http ══════════ */
+/* ══════════ الجولة 23: أيقونة تبويب المتصفح ══════════ */
 
 /* ── أيقونة التبويب: رمز يدل على النظام، يُختار من الإعدادات، ويعرض عدد الإشعارات غير المقروءة ── */
 const FAV_DEF = { style: 'it', text: 'IT', bg: '#0B1628', fg: '#D9B45A', plate: 1, badge: 1, img: '' };
@@ -14800,70 +14800,10 @@ Pages.ccFavicon = (ctx) => {
   sync();
 };
 
-/* ── العمل على http: ما يعمل، وما يمنعه المتصفح، وملف سياسة يعامل عنوان النظام كعنوان آمن دون شهادة ── */
-const HTTP_POLICY_KEYS = ['HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin',
-  /* تشغيل الأصوات دون نقرة على عناوين النظام (شاشات العرض). AutoplayWhitelist اسمها في Chrome قبل 86 */
-  'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoplayAllowlist', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoplayWhitelist', 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoplayAllowlist'];
-const httpOrigin = (line) => {
-  let s = String(line || '').trim(); if (!s) return '';
-  if (!/^[a-z]+:\/\//i.test(s)) s = `http://${s}`;
-  try { const u = new URL(s); return u.protocol === 'http:' && /^[a-z0-9.\-[\]:]+$/i.test(u.host) ? u.origin : ''; } catch (_) { return ''; }
-};
-const httpRegFile = (origins, remove) => {
-  const lines = ['Windows Registry Editor Version 5.00', ''];
-  for (const k of HTTP_POLICY_KEYS) { lines.push(`[-${k}]`, ''); if (!remove) lines.push(`[${k}]`, ...origins.map((o, i) => `"${i + 1}"="${o}"`), ''); }
-  const text = lines.join('\r\n'), buf = new Uint8Array(2 + text.length * 2); buf[0] = 0xff; buf[1] = 0xfe;
-  for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); buf[2 + i * 2] = c & 255; buf[3 + i * 2] = c >> 8; }
-  return new Blob([buf], { type: 'application/octet-stream' });
-};
-const httpBrowser = () => { const ua = navigator.userAgent, m = ua.match(/Edg\/(\d+)/), c = ua.match(/Chrome\/(\d+)/); return m ? { name: 'Edge', v: Number(m[1]) } : c ? { name: 'Chrome', v: Number(c[1]) } : { name: '', v: 0 }; };
-Pages.ccHttp = (ctx) => {
-  const sec = !!window.isSecureContext, br = httpBrowser(), isHttp = location.protocol === 'http:';
-  const saved = (Data.c.settings.httpOrigins || []).map(httpOrigin).filter(Boolean);
-  const list0 = [...new Set([isHttp ? location.origin : '', ...saved].filter(Boolean))];
-  const feats = [
-    ['النظام كاملاً: الدخول والمزامنة والبلاغات والمخازن والتقارير والطباعة', true, 'يعمل على http و https'],
-    ['أزرار «نسخ» إلى الحافظة', true, sec ? '' : 'تعمل بطريقة بديلة على http'],
-    ['الكاميرا: تصوير المستندات من الماسح', sec && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia), sec ? 'لا توجد كاميرا متاحة في هذا المتصفح' : 'يمنعها المتصفح على http'],
-    ['قراءة الباركود بالكاميرا', 'BarcodeDetector' in window, sec ? 'غير متوفرة في Chrome على Windows؛ قارئ الباركود USB يعمل دائماً' : 'يمنعها المتصفح على http؛ قارئ الباركود USB يعمل دائماً'],
-    ['الحفظ التلقائي للنسخ في مجلد، ومجلد الماسح الضوئي', 'showDirectoryPicker' in window, sec ? 'تحتاج Chrome أو Edge 86 فأحدث' : 'يمنعها المتصفح على http؛ البديل: نسخ الخادم المجدولة واختيار ملفات الماسح يدوياً'],
-    ['التخزين الدائم لبيانات المتصفح', !!(navigator.storage && navigator.storage.persist), sec ? '' : 'يمنعه المتصفح على http؛ البيانات الأصلية محفوظة على الخادم'],
-    ['إبقاء شاشة العرض مضاءة', 'wakeLock' in navigator, sec ? 'تحتاج Chrome أو Edge 84 فأحدث' : 'يمنعه المتصفح على http؛ اضبط الطاقة في Windows على «أبداً»']
-  ];
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'العمل على http', sub: 'النظام يعمل على http دون شهادة. المتصفح وحده يقيّد بعض ميزاته، ويمكن رفع القيد بسياسة على الأجهزة', illu: 'network' })}
-    <div class="banner tone-${sec ? 'teal' : 'amber'} hp-state">${UI.icon(sec ? 'check' : 'alert')}<div class="grow"><b>${sec ? (isHttp ? 'هذا المتصفح يعامل عنوان النظام كعنوان آمن (السياسة مفعّلة)' : 'اتصال آمن https') : 'هذا المتصفح يعامل عنوان النظام كعنوان غير آمن'}</b><div class="t-sub ltr">${location.origin} · ${br.name ? `${br.name} ${br.v}` : navigator.userAgent.slice(0, 40)}</div></div></div>
-    <div class="grid g-main mt">
-      ${UI.panel({ title: 'رفع القيد مع البقاء على http', icon: 'shield', body: html`
-        <p class="muted">سياسة <code class="hp-code in">OverrideSecurityRestrictionsOnInsecureOrigin</code> في Chrome و Edge تجعل المتصفح يعامل العناوين المحددة كعناوين آمنة، فتعمل الكاميرا والمجلدات والتخزين الدائم على http. ويتضمن الملف أيضاً سياسة <code class="hp-code in">AutoplayAllowlist</code> لتعمل أصوات شاشات العرض دون نقرة. ${br.v && br.v < 69 ? html`<b style="color:rgb(var(--red))">هذا المتصفح (${br.name} ${br.v}) أقدم من أن يدعمها، تحتاج 69 فأحدث.</b>` : ''}</p>
-        <div class="field mt"><label for="hpOrigins">عناوين النظام (عنوان في كل سطر، بلا مسار)</label><textarea id="hpOrigins" name="origins" rows="4" dir="ltr" placeholder="http://it&#10;http://192.168.12.100">${list0.join('\n')}</textarea><small class="hint">أضف كل عنوان يُفتح به النظام: الاسم والـ IP، مثل http://it و http://192.168.12.100</small></div>
-        <div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primary" data-act="hpreg">${UI.icon('download')} تنزيل ملف التفعيل (.reg)</button><button type="button" class="btn btn-ghost" data-act="hpunreg">${UI.icon('undo')} ملف الإلغاء</button></div>
-        <ol class="hp-steps">
-          <li><b>جهاز واحد:</b> انسخ الملف إليه، وانقر عليه مرتين ← نعم (بصلاحية مسؤول)، ثم أغلق المتصفح وافتحه.</li>
-          <li><b>كل أجهزة النطاق:</b> في Group Policy Management افتح Computer Configuration ← Preferences ← Windows Settings ← Registry، وأضف لكل عنوان قيمة من النوع REG_SZ اسمها 1 ثم 2… في المفتاحين:<code class="hp-code">HKLM\\SOFTWARE\\Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin
-HKLM\\SOFTWARE\\Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin</code></li>
-          <li><b>متصفح واحد دون صلاحية مسؤول:</b> افتح العنوان التالي، وأدخل العناوين مفصولة بفاصلة، ثم Enabled ← Relaunch:<code class="hp-code">chrome://flags/#unsafely-treat-insecure-origin-as-secure
-edge://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
-          <li><b>التحقق:</b> افتح <code class="hp-code in">chrome://policy</code> لترى السياسة، ثم هذه الصفحة: يظهر في أعلاها «يعامل عنوان النظام كعنوان آمن».</li>
-        </ol>
-        <p class="hint">السياسة لا تشفّر الاتصال: كلمات المرور تمر داخل الشبكة دون تشفير كما هي على http. التشفير يحتاج https (docs/XAMPP-TUNING.md، القسم 8).</p>` })}
-      ${UI.panel({ title: 'الميزات في هذا المتصفح', icon: 'list', flush: true, body: html`<div class="hp-feats">${feats.map(([l, ok, why]) => html`<div class="hp-f ${ok ? 'ok' : 'off'}">${UI.icon(ok ? 'check' : 'lock')}<div><b>${l}</b>${why ? html`<small>${why}</small>` : ''}</div></div>`)}</div>` })}
-    </div>`);
-  const read = () => { const raw0 = ctx.view.querySelector('[name="origins"]').value.split(/[\n,،\s]+/).filter(Boolean); const ok = [...new Set(raw0.map(httpOrigin).filter(Boolean))]; return { ok, bad: raw0.filter((l) => !httpOrigin(l)) }; };
-  UI.on(ctx.view, 'click', '[data-act="hpreg"]', async () => {
-    const { ok, bad } = read();
-    if (bad.length) { UI.toast(`عنوان غير صالح: ${bad[0]} (اكتب http:// ثم الاسم أو الـ IP)`, 'warn'); return; }
-    if (!ok.length) { UI.toast('أدخل عنوان النظام أولاً', 'warn'); return; }
-    downloadBlob(httpRegFile(ok, false), 'sqapa-http-features.reg');
-    if (canUser(Auth.user, 'settings') && JSON.stringify(ok) !== JSON.stringify(saved)) { try { await Data.saveSettings({ httpOrigins: ok }); } catch (_) { /* تجاهل */ } }
-    UI.toast('نُزّل ملف التفعيل، شغّله على كل جهاز ثم أعد تشغيل المتصفح');
-  });
-  UI.on(ctx.view, 'click', '[data-act="hpunreg"]', () => { downloadBlob(httpRegFile([], true), 'sqapa-http-features-remove.reg'); UI.toast('نُزّل ملف الإلغاء'); });
-};
 {
   const sys = (CC_GROUPS.find((g) => g[0] === 'النظام') || CC_GROUPS[0])[2];
   const add = [
-    ['favicon', 'أيقونة المتصفح', 'photo', 'settings', 'رمز تبويب المتصفح وألوانه، وعدد الإشعارات غير المقروءة', '', (c) => Pages.ccFavicon(c)],
-    ['http', 'العمل على http', 'shield', 'settings', 'ما يعمل على http وما يمنعه المتصفح، وملف تفعيل الكاميرا والمجلدات دون شهادة', '', (c) => Pages.ccHttp(c)]
+    ['favicon', 'أيقونة المتصفح', 'photo', 'settings', 'رمز تبويب المتصفح وألوانه، وعدد الإشعارات غير المقروءة', '', (c) => Pages.ccFavicon(c)]
   ];
   sys.splice(1, 0, ...add); CC_ALL.push(...add);
 }
@@ -15116,7 +15056,7 @@ Pages.ccSounds = (ctx) => {
       ${UI.panel({ title: 'تشغيل الصوت على شاشة العرض دون نقرة', icon: 'sound', cls: 'mt', body: html`
         <p class="muted">المتصفح يمنع أي صوت في الصفحة حتى ينقر أحد عليها مرة. فإذا أُعيد تشغيل شاشة العرض ولم يلمسها أحد، يظهر عليها زر «اضغط لتفعيل الصوت». لتعمل الأصوات دون أي نقرة:</p>
         <ol class="hp-steps">
-          <li><b>ملف التفعيل:</b> من «العمل على http» نزّل ملف التفعيل وشغّله على جهاز الشاشة. يتضمن سياسة <code class="hp-code in">AutoplayAllowlist</code> لعناوين النظام في Chrome و Edge.</li>
+          <li><b>سياسة المتصفح:</b> أضف عنوان النظام إلى سياسة <code class="hp-code in">AutoplayAllowlist</code> في Chrome و Edge (عبر Group Policy على جهاز الشاشة).</li>
           <li><b>أو اختصار المتصفح على جهاز الشاشة:</b><code class="hp-code">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk --autoplay-policy=no-user-gesture-required http://it/</code></li>
         </ol>` })}
       <div class="row mt"><button type="button" class="btn btn-primary" data-act="sndsave">${UI.icon('check')} حفظ الإعدادات</button></div>`);
