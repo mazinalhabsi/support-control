@@ -3665,9 +3665,40 @@ const Bus = (() => {
   try { ch = new BroadcastChannel('sqapa-it'); ch.onmessage = (e) => t.dispatchEvent(new CustomEvent(e.data.type, { detail: { ...(e.data.detail || {}), remote: true } })); } catch (_) { /* غير مدعوم */ }
   return {
     on(type, fn) { t.addEventListener(type, fn); return () => t.removeEventListener(type, fn); },
-    emit(type, detail = {}) { t.dispatchEvent(new CustomEvent(type, { detail })); try { if (ch) ch.postMessage({ type, detail }); } catch (_) { /* ignore */ } }
+    emit(type, detail = {}) { t.dispatchEvent(new CustomEvent(type, { detail })); try { if (ch) ch.postMessage({ type, detail }); } catch (_) { /* ignore */ } },
+    /* لهذا التبويب فقط: ما يصل من الخادم يسحبه كل تبويب بنفسه */
+    local(type, detail = {}) { t.dispatchEvent(new CustomEvent(type, { detail })); }
   };
 })();
+
+/* تغييرات وصلت من جهاز آخر: تُبلَّغ الصفحة المفتوحة فتعيد رسم نفسها دون تحديث الصفحة، لكن حين يفرغ المستخدم مما بين يديه
+   (لا نافذة مفتوحة، ولا كتابة في خانة، ولا لمس في آخر ثانية ونصف) حتى لا يضيع ما يكتبه أو يقفز ما يقرؤه */
+const Live = {
+  pending: new Map(), timer: 0, touchAt: 0,
+  busy() {
+    const a = document.activeElement, typing = !!(a && a !== document.body && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)));
+    const idle = Date.now() - this.touchAt;
+    return document.hidden || !!document.querySelector('dialog[open], .cmdk') || idle < 1500 || (typing && idle < 15000);
+  },
+  emit(type, detail = {}) {
+    const prev = this.pending.get(type);
+    this.pending.set(type, { ...detail, remote: true, stores: [...new Set([...((prev && prev.stores) || []), ...(detail.stores || [])])] });
+    if (!this.timer) this.timer = setTimeout(() => this.flush(), 250);
+  },
+  flush() {
+    this.timer = 0;
+    if (!this.pending.size) return;
+    if (this.busy()) { this.timer = setTimeout(() => this.flush(), 1000); return; }
+    const all = [...this.pending]; this.pending.clear();
+    all.forEach(([type, detail]) => Bus.local(type, detail));
+  }
+};
+['pointerdown', 'keydown', 'wheel'].forEach((ev) => document.addEventListener(ev, () => { Live.touchAt = Date.now(); }, { passive: true, capture: true }));
+/* حدث كل صفحة لكل جدول (الأحداث نفسها التي تطلقها الصفحات عند الحفظ على هذا الجهاز) */
+const STORE_EVENTS = {
+  printers: ['data:printers'], categories: ['data:categories'], departments: ['org', 'data:departments'], deptUnits: ['org'], locations: ['org'],
+  forms: ['forms'], services: ['status'], announcements: ['status'], workFolders: ['works'], workItems: ['works'], worklog: ['worklog'], backups: ['backup'], settings: ['settings']
+};
 
 /* ── قاعدة البيانات IndexedDB ───────────────────────────────── */
 const DB = (() => {
@@ -7902,7 +7933,15 @@ const Sync = {
     this.raw = { put: (st, r) => putBase(st, r), del: (st, k) => delBase(st, k), bulkPut: (st, rows) => bulkBase(st, rows) };
     /* سجلات النظام الداخلية (meta): آخر كتابة تفوز، فلا تتعارض مع نفسها */
     const revOf = (store, rec) => (store === 'meta' ? -1 : Number(rec._rev || 0));
-    DB.put = async (store, rec) => { const r = await putBase(store, rec); if (!this.applying) this.enqueue([{ store, id: this.keyOf(store, rec), rev: revOf(store, rec), data: rec }]); return r; };
+    /* بيانات الإعداد (الطابعات والهيكل والمستخدمون والفئات...): يؤخذ رقم النسخة من قاعدة الجهاز لا من النسخة المعروضة،
+       فالنسخة المعروضة قد تحمل رقماً أقدم من آخر حفظ على هذا الجهاز، فيعدّها الخادم تعارضاً ويُسقط التعديل.
+       البلاغات والأرصدة خارج هذه القائمة: يبقى فيها التعارض حماية من الكتابة فوق عمل جهاز آخر */
+    const LATEST = new Set(['printers', 'departments', 'deptUnits', 'locations', 'categories', 'itemCategories', 'warehouses', 'ranks', 'users', 'templates', 'replies', 'forms', 'kb', 'services', 'announcements', 'workFolders', 'workItems', 'brandIcons']);
+    const latestRev = async (store, rec) => {
+      if (!LATEST.has(store) || !rec) return;
+      try { const cur = await DB.get(store, this.localKey(store, this.keyOf(store, rec))); if (cur && Number(cur._rev || 0) > Number(rec._rev || 0)) rec._rev = cur._rev; } catch (_) { /* يكمل بما لديه */ }
+    };
+    DB.put = async (store, rec) => { if (!this.applying) await latestRev(store, rec); const r = await putBase(store, rec); if (!this.applying) this.enqueue([{ store, id: this.keyOf(store, rec), rev: revOf(store, rec), data: rec }]); return r; };
     DB.del = async (store, key) => { let rev = 0; try { const old = await DB.get(store, key); rev = Number((old || {})._rev || 0); } catch (_) { /* تجاهل */ } const r = await delBase(store, key); if (!this.applying) this.enqueue([{ store, id: Array.isArray(key) ? key.map(String).join('|') : String(key), rev, deleted: 1 }]); return r; };
     DB.bulkPut = async (store, rows, chunk) => { const r = await bulkBase(store, rows, chunk); if (!this.applying && rows.length) this.enqueue(rows.map((rec) => ({ store, id: this.keyOf(store, rec), rev: revOf(store, rec), data: rec }))); return r; };
     DB.run = async (names, fn) => {
@@ -8052,9 +8091,11 @@ const Sync = {
   },
 
   notifyStores(stores) {
-    const set = new Set(stores);
-    const look = ['users', 'departments', 'categories', 'itemCategories', 'warehouses', 'ranks', 'printers', 'locations', 'settings'].filter((s) => set.has(s));
-    if (look.length) { look.forEach((x) => (this._look = this._look || new Set()).add(x)); clearTimeout(this._lookT); this._lookT = setTimeout(() => { const l = [...this._look]; this._look.clear(); Promise.all(l.map((x) => Data.refresh(x))).catch(() => {}); }, 700); }
+    const set = new Set(stores), LOOK = ['users', 'departments', 'categories', 'itemCategories', 'warehouses', 'ranks', 'printers', 'locations', 'settings'];
+    /* الإعدادات محفوظة في meta */
+    const look = LOOK.filter((s) => set.has(s) || (s === 'settings' && set.has('meta')));
+    if (look.length) { look.forEach((x) => (this._look = this._look || new Set()).add(x)); clearTimeout(this._lookT); this._lookT = setTimeout(() => { const l = [...this._look]; this._look.clear(); Promise.all(l.map((x) => Data.refresh(x))).catch(() => {}).then(() => this.relay(l)); }, 700); }
+    this.relay([...set].filter((s) => !LOOK.includes(s) && s !== 'meta'));
     if (set.has('tickets') || set.has('ticketEvents')) Bus.emit('tickets', { remote: true });
     if (['items', 'stock', 'movements', 'loans', 'deptStock', 'assets', 'vouchers'].some((s) => set.has(s))) Bus.emit('inventory', { remote: true });
     if (set.has('users')) Bus.emit('users', { remote: true, synced: true });
@@ -8062,7 +8103,13 @@ const Sync = {
     if (set.has('kb')) Bus.emit('data:kb', { remote: true });
     if (['surveys', 'surveyMarks', 'surveyResponses'].some((x) => set.has(x))) Bus.emit('surveys', { remote: true });
     if (set.has('replies')) Bus.emit('replies', { remote: true });
-    if (set.has('meta')) Data.refresh('settings').catch(() => {});
+  },
+  /* بعد تحديث الذاكرة المؤقتة: أحداث الصفحات لما وصل من الخادم، وحدث عام بأسماء الجداول */
+  relay(stores) {
+    if (!stores.length) return;
+    const ev = new Set(); stores.forEach((s) => (STORE_EVENTS[s] || []).forEach((e) => ev.add(e)));
+    ev.forEach((e) => Live.emit(e));
+    Live.emit('remote', { stores });
   },
 
   /* الدخول عبر الخادم */
