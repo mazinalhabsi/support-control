@@ -129,7 +129,10 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   ok('bell button mutes this display', (await plays(M)).length === n0 && (await M.evaluate(() => localStorage.getItem('sq_tv_sound'))) === '0');
   await M.click('[data-act="sound"]'); await M.waitForTimeout(600);
 
-  /* تذكير بالبلاغات غير المستلمة (كل 5 دقائق في الإعداد؛ يُقدَّم موعده هنا) */
+  /* تذكير بالبلاغات غير المستلمة (كل 5 دقائق في الإعداد؛ يُقدَّم موعده هنا).
+     بلاغ جديد عمره 10 دقائق لم يستلمه أحد، حتى لا يعتمد الاختبار على بيانات قديمة في القاعدة */
+  { const id = 't_snd_old_' + Date.now(), t0 = Date.now() - 10 * 60000; created.push(id);
+    await api('push', { ops: [{ store: 'tickets', id, rev: -1, data: { id, number: 'IT-SND-' + (Date.now() % 100000), title: 'بلاغ ينتظر الاستلام', description: 'اختبار التذكير', categoryId: 'printer', priority: 'medium', status: 'new', requesterId: 'u_dep', departmentId: 'dep_1', createdAt: t0, updatedAt: t0, dueAt: Date.now() + 86400000 } }] }, sup); }
   await api('push', { ops: [{ store: 'users', id: 'u_mon_snd', rev: -1, data: { id: 'u_mon_snd', username: 'mon_snd', name: 'شاشة الأصوات', role: 'monitor', active: 1, mustChangePassword: 0, monitor: { categories: [], locations: [], sound: 1 }, pass: { algo: 'pbkdf2-sha256', iter: 1000, salt: salt.toString('hex'), hash: h }, createdAt: Date.now(), updatedAt: Date.now() } }] }, sup);
   await M.reload(); await M.waitForSelector('.tv2'); await M.waitForTimeout(1500); await M.mouse.click(700, 450); await M.waitForTimeout(2000);
   await M.evaluate(() => { App.TvSound.st.snd.remindAt = 0; }); n0 = (await plays(M)).length;

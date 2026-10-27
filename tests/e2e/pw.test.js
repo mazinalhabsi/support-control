@@ -4,15 +4,23 @@ const { chromium } = require('playwright');
 const { execSync } = require('child_process');
 const BASE = process.env.BASE || 'http://127.0.0.1:8106/', B = BASE + 'api/api.php', U = BASE;
 const api = async (a, body, tok) => { const r = await fetch(`${B}?a=${a}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tok ? { 'X-Token': tok } : {}) }, body: JSON.stringify(body || {}) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
-const sql = (q) => execSync(`mysql -uroot ${process.env.DBNAME || 'sqtest6'} -N -e "${q.replace(/"/g, '\\"')}"`).toString().trim();
+const sql = (q) => execSync(`mysql -uroot ${process.env.DBNAME || 'sqapa_e2e'} -N -e "${q.replace(/"/g, '\\"')}"`).toString().trim();
 const res = []; const ok = (name, cond, info = '') => res.push(`${cond ? 'OK  ' : 'FAIL'} ${name}${info ? ' — ' + info : ''}`);
+/* سياسة إلزام تغيير كلمة المرور المؤقتة عند أول دخول (معطّلة افتراضياً): تُفعَّل لاختبارات الإلزام ثم تُعاد كما كانت */
+const policy = async (tok, on) => {
+  let since = 0, cur = null;
+  for (;;) { const r = await fetch(`${B}?a=pull&since=${since}&limit=3000`, { headers: { 'X-Token': tok } }).then((x) => x.json()); const d = r.docs.find((x) => x.store === 'meta' && x.id === 'settings' && !x.deleted); if (d) cur = d.data; since = r.rev; if (!r.more) break; }
+  const value = { ...((cur && cur.value) || {}), pwForce: on ? 1 : 0 };
+  return (await api('push', { ops: [{ store: 'meta', id: 'settings', rev: -1, data: { key: 'settings', value } }] }, tok)).status;
+};
 (async () => {
   const T = Date.now() % 1000000, MIL = '7' + T, MIL2 = '8' + T;
   const sup = (await api('login', { username: 'sup', password: 'Passw0rd!' })).j.token;
   const b = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   const page = async () => { const c = await b.newContext({ viewport: { width: 1300, height: 860 } }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); } catch (_) {} }); const p = await c.newPage(); p.setDefaultTimeout(20000); return p; };
   const login = async (p, u, pw) => { await p.goto(U); await p.waitForSelector('[name="username"]'); await p.fill('[name="username"]', u); await p.fill('[name="password"]', pw); await p.keyboard.press('Enter'); await p.waitForFunction(() => window.App && App.Auth.user, null, { timeout: 20000 }); await p.waitForTimeout(1500); };
-  /* 1) الاستيراد بخيار الرقم العسكري */
+  /* 1) الاستيراد بخيار الرقم العسكري (البنود 1–3 تختبر سياسة الإلزام وهي مفعّلة) */
+  await policy(sup, true);
   const S = await page(); await login(S, 'sup', 'Passw0rd!');
   const imp = await S.evaluate(async (mil) => { const r = await App.Pages.runImport({ rows: [{ status: 'new', name: 'مستورد تجريبي', militaryNo: mil, role: 'department', department: '', location: '', rank: '', office: '', phone: '' }], newDeps: [], newLocs: [], fileName: 't.xlsx' }, { mode: 'military' }); await App.Sync.waitIdle(8000); return r.creds[0]; }, MIL);
   const uname = imp[2];
@@ -39,6 +47,14 @@ const res = []; const ok = (name, cond, info = '') => res.push(`${cond ? 'OK  ' 
   ok('technician categories stay visible (auto-assignment)', !!tech, tech ? JSON.stringify(tech.data.categories) : 'none');
   const supTok = sup; const full = await fetch(`${B}?a=pull&since=0&limit=3000`, { headers: { 'X-Token': supTok } }).then((x) => x.json());
   ok('staff still receive full user records', full.docs.some((d) => d.store === 'users' && d.data && d.data.militaryNo));
+  /* 5) السياسة معطّلة (الافتراضي): الاستيراد بالرقم العسكري لا يُلزم بالتغيير، والدخول الأول يفتح النظام مباشرة */
+  await policy(sup, false);
+  const MIL3 = '6' + T;
+  const imp3 = await S.evaluate(async (mil) => { await App.Sync.pull(); await App.Data.refresh('settings'); const r = await App.Pages.runImport({ rows: [{ status: 'new', name: 'مستورد بلا إلزام', militaryNo: mil, role: 'department', department: '', location: '', rank: '', office: '', phone: '' }], newDeps: [], newLocs: [], fileName: 't2.xlsx' }, { mode: 'military' }); await App.Sync.waitIdle(8000); return r.creds[0]; }, MIL3);
+  const row3 = sql(`SELECT JSON_EXTRACT(data,'$.mustChangePassword') FROM docs WHERE store='users' AND JSON_UNQUOTE(JSON_EXTRACT(data,'$.username'))='${imp3[2]}'`);
+  ok('policy off: military-number import does not force a change', row3 === '0', row3);
+  const P3 = await page(); await login(P3, imp3[2], MIL3);
+  ok('policy off: first login with the military number opens the system', !/welcome/.test(await P3.evaluate(() => location.hash)));
   console.log(res.join('\n'));
   await api('push', { ops: [{ store: 'users', id: lid, rev: -1, deleted: 1 }] }, sup);
   await b.close();

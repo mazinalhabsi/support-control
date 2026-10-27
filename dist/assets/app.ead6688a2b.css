@@ -1858,6 +1858,8 @@ body.tv-mode:not(.tv-cursor){cursor:none}
 .tv2-ttrack{display:inline-flex;gap:60px;animation:tvTicker 40s linear infinite;font-size:16px}
 @keyframes tvTicker{from{transform:translateX(0)}to{transform:translateX(50%)}}
 @media (max-width:1400px){.tv2-kpis{grid-template-columns:repeat(4,1fr)}.tv2-tr{grid-template-columns:36px 96px minmax(0,2fr) minmax(0,1.2fr) 96px 130px minmax(0,1fr) 60px 100px;font-size:14px}}
+/* شاشة العرض على جهاز صغير (معاينة من الجوال): عمود واحد، وجدول الوصول يُمرَّر أفقياً داخل إطاره بدل أن تتسع الصفحة كلها */
+@media (max-width:900px){.tv2{padding:12px;gap:10px}.tv2-head{flex-wrap:wrap;gap:10px}.tv2-head img{width:44px;height:44px}.tv2-title h1{font-size:20px}.tv2-pills{margin-inline-start:0}.tv2-clock{min-width:0;align-items:flex-start}.tv2-clock b{font-size:30px}.tv2-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.tv2-kpi b{font-size:26px}.tv2-body{grid-template-columns:minmax(0,1fr)}.tv2-queue{overflow-x:auto}.tv2-rows{min-width:860px}.tv2-svcs,.tv2-team{grid-template-columns:minmax(0,1fr)}}
 .tv2-ctrl .icon-btn.off{opacity:.45}
 .tv2-ctrl .icon-btn.off::after{content:"";position:absolute;width:22px;height:2px;background:currentColor;transform:rotate(-45deg);border-radius:2px}
 .tv2-ctrl .icon-btn{position:relative}
@@ -3063,6 +3065,8 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .vle-asr.main{background:rgba(var(--accent),.08);border-color:rgba(var(--accent),.4)}
 .vle-asr b{display:flex;align-items:center;gap:6px}
 @media (max-width:1100px){.vle{grid-template-columns:minmax(0,1fr)}.vle-insp{position:static;max-height:none}.vle-ribbon{position:static}}
+/* الجوال: شريط الإدراج يُمرَّر أفقياً داخل إطاره، وشريط اختيار القالب يلتف، فلا تتسع الصفحة عن الشاشة */
+@media (max-width:600px){.vle-top,.vle-ribbon,.vle,.vle-insp,.vle-tsel{min-width:0;max-width:100%}.vle-tsel{flex-wrap:wrap}.vle-tsel select{min-width:0;flex:1 1 160px}.vle-ribbon{overflow-x:auto;flex-wrap:nowrap}.vle-g{flex:none}}
 /* ═══════════ مركز الإعدادات والتحكم ═══════════ */
 .cc{display:grid;grid-template-columns:270px minmax(0,1fr);gap:16px;align-items:start}
 .cc-nav{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;display:grid;gap:4px;padding:12px;border-radius:18px;background:var(--surface-2);border:1px solid var(--line)}

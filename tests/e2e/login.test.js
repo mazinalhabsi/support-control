@@ -5,10 +5,19 @@ const crypto = require('crypto');
 const BASE = process.env.BASE || 'http://127.0.0.1:8106/', B = BASE + 'api/api.php', U = BASE;
 const api = async (a, body, tok) => { const r = await fetch(`${B}?a=${a}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tok ? { 'X-Token': tok } : {}) }, body: JSON.stringify(body || {}) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
 const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  ' : 'FAIL'} ${name}${info ? ' — ' + info : ''}`); };
+/* سياسة إلزام تغيير كلمة المرور المؤقتة عند أول دخول (معطّلة افتراضياً): تُفعَّل لاختبارات الإلزام ثم تُعاد كما كانت */
+const policy = async (tok, on) => {
+  let since = 0, cur = null;
+  for (;;) { const r = await fetch(`${B}?a=pull&since=${since}&limit=3000`, { headers: { 'X-Token': tok } }).then((x) => x.json()); const d = r.docs.find((x) => x.store === 'meta' && x.id === 'settings' && !x.deleted); if (d) cur = d.data; since = r.rev; if (!r.more) break; }
+  const value = { ...((cur && cur.value) || {}), pwForce: on ? 1 : 0 };
+  return (await api('push', { ops: [{ store: 'meta', id: 'settings', rev: -1, data: { key: 'settings', value } }] }, tok)).status;
+};
 const mkUser = async (sup, id, username, pw, extra = {}) => { const salt = crypto.randomBytes(16), hash = crypto.pbkdf2Sync(pw, salt, 1000, 32, 'sha256').toString('hex'); await api('push', { ops: [{ store: 'users', id, rev: -1, data: { id, username, name: 'حساب اختبار ' + username, role: 'department', departmentId: 'dep_1', active: 1, mustChangePassword: 0, pass: { algo: 'pbkdf2-sha256', iter: 1000, salt: salt.toString('hex'), hash }, createdAt: Date.now(), updatedAt: Date.now(), ...extra } }] }, sup); };
 (async () => {
   const sup = (await api('login', { username: 'sup', password: 'Passw0rd!' })).j.token;
   const OLD = 'OldPassw0rd!', NEW = 'NewPassw0rd!9', T = Date.now() % 100000;
+  /* الخادم لا يقبل كلمة مرور في تعديل حساب قائم، فيُحذف حساب الاختبار أولاً ليُعاد إنشاؤه بكلمته الأصلية عند كل تشغيل */
+  await api('push', { ops: [{ store: 'users', id: 'u_pwtest', rev: -1, deleted: 1 }] }, sup);
   await mkUser(sup, 'u_pwtest', 'pwtest', OLD);
   const b = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   const newCtx = async () => { const c = await b.newContext({ viewport: { width: 1300, height: 860 } }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); } catch (_) {} }); return c; };
@@ -51,7 +60,8 @@ const mkUser = async (sup, id, username, pw, extra = {}) => { const salt = crypt
   await p.evaluate(() => { document.querySelector('[data-act="logout"]').click(); }); await p2.waitForTimeout(1500);
   const s5 = await state(p2);
   ok('logout in one tab signs the other tab out', !s5.user && s5.login, JSON.stringify(s5));
-  /* 5) المشرف يعيّن كلمة مرور: يسري فوراً وتنتهي جلسة المستخدم المفتوحة */
+  /* 5) المشرف يعيّن كلمة مرور: يسري فوراً وتنتهي جلسة المستخدم المفتوحة (مع تفعيل سياسة الإلزام لاختبار 6) */
+  ok('forced-change policy switched on for the next checks', (await policy(sup, true)) === 200);
   await login(p, 'pwtest', NEW);
   const c2 = await newCtx(), q = await c2.newPage(); q.setDefaultTimeout(20000); await login(q, 'sup', 'Passw0rd!');
   const r5 = await q.evaluate(async () => { try { await App.Data.users.setPassword('u_pwtest', 'Temp1234', 1); return 'ok'; } catch (e) { return e.message; } });
@@ -70,6 +80,14 @@ const mkUser = async (sup, id, username, pw, extra = {}) => { const salt = crypt
     const f = (await api('login', { username: 'pwtest', password: 'Final2Passw0rd' })).status, t = (await api('login', { username: 'pwtest', password: 'Temp1234' })).status;
     ok('welcome change applies immediately', f === 200 && t === 401, `final ${f}, temp ${t}`);
   }
+  /* 6ب) السياسة معطّلة (الافتراضي): كلمة المرور المؤقتة تدخل مباشرة ولا تُطلب صفحة التغيير */
+  await policy(sup, false);
+  const r6 = await q.evaluate(async () => { try { await App.Sync.pull(); await App.Data.refresh('settings'); await App.Data.users.setPassword('u_pwtest', 'Temp5678', 1); return 'ok'; } catch (e) { return e.message; } });
+  const flag6 = (await api('login', { username: 'pwtest', password: 'Temp5678' })).j;
+  ok('policy off: reset does not mark the account for a forced change', r6 === 'ok' && flag6.user && !Number(flag6.user.mustChangePassword), `${r6}, must=${flag6.user && flag6.user.mustChangePassword}`);
+  await login(p, 'pwtest', 'Temp5678');
+  const h6 = await p.evaluate(() => location.hash);
+  ok('policy off: temporary password goes straight to the system', !/welcome/.test(h6), h6);
   /* 7) تعديل مستخدم موجود من شاشة المستخدمين دون كلمة مرور لم يعد يرفض */
   const r7 = await q.evaluate(async () => { try { const u = await App.DB.get('users', 'u_pwtest'); await App.Data.users.save({ ...u, name: 'حساب اختبار معدّل', active: 1 }, ''); return 'ok'; } catch (e) { return e.message; } });
   ok('editing an existing user without a password works', r7 === 'ok', r7);

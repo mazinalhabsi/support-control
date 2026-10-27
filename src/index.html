@@ -1905,6 +1905,8 @@ body.tv-mode:not(.tv-cursor){cursor:none}
 .tv2-ttrack{display:inline-flex;gap:60px;animation:tvTicker 40s linear infinite;font-size:16px}
 @keyframes tvTicker{from{transform:translateX(0)}to{transform:translateX(50%)}}
 @media (max-width:1400px){.tv2-kpis{grid-template-columns:repeat(4,1fr)}.tv2-tr{grid-template-columns:36px 96px minmax(0,2fr) minmax(0,1.2fr) 96px 130px minmax(0,1fr) 60px 100px;font-size:14px}}
+/* شاشة العرض على جهاز صغير (معاينة من الجوال): عمود واحد، وجدول الوصول يُمرَّر أفقياً داخل إطاره بدل أن تتسع الصفحة كلها */
+@media (max-width:900px){.tv2{padding:12px;gap:10px}.tv2-head{flex-wrap:wrap;gap:10px}.tv2-head img{width:44px;height:44px}.tv2-title h1{font-size:20px}.tv2-pills{margin-inline-start:0}.tv2-clock{min-width:0;align-items:flex-start}.tv2-clock b{font-size:30px}.tv2-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.tv2-kpi b{font-size:26px}.tv2-body{grid-template-columns:minmax(0,1fr)}.tv2-queue{overflow-x:auto}.tv2-rows{min-width:860px}.tv2-svcs,.tv2-team{grid-template-columns:minmax(0,1fr)}}
 .tv2-ctrl .icon-btn.off{opacity:.45}
 .tv2-ctrl .icon-btn.off::after{content:"";position:absolute;width:22px;height:2px;background:currentColor;transform:rotate(-45deg);border-radius:2px}
 .tv2-ctrl .icon-btn{position:relative}
@@ -3110,6 +3112,8 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .vle-asr.main{background:rgba(var(--accent),.08);border-color:rgba(var(--accent),.4)}
 .vle-asr b{display:flex;align-items:center;gap:6px}
 @media (max-width:1100px){.vle{grid-template-columns:minmax(0,1fr)}.vle-insp{position:static;max-height:none}.vle-ribbon{position:static}}
+/* الجوال: شريط الإدراج يُمرَّر أفقياً داخل إطاره، وشريط اختيار القالب يلتف، فلا تتسع الصفحة عن الشاشة */
+@media (max-width:600px){.vle-top,.vle-ribbon,.vle,.vle-insp,.vle-tsel{min-width:0;max-width:100%}.vle-tsel{flex-wrap:wrap}.vle-tsel select{min-width:0;flex:1 1 160px}.vle-ribbon{overflow-x:auto;flex-wrap:nowrap}.vle-g{flex:none}}
 /* ═══════════ مركز الإعدادات والتحكم ═══════════ */
 .cc{display:grid;grid-template-columns:270px minmax(0,1fr);gap:16px;align-items:start}
 .cc-nav{position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;display:grid;gap:4px;padding:12px;border-radius:18px;background:var(--surface-2);border:1px solid var(--line)}
@@ -3670,9 +3674,9 @@ const DB = (() => {
   const NAME = 'sqapa_it_system', VERSION = 14;
   const SCHEMA = {
     meta: { key: 'key' },
-    users: { key: 'id', idx: { username: { path: 'username', unique: true }, role: 'role' } },
+    users: { key: 'id', idx: { username: { path: 'username' }, role: 'role' } },
     departments: { key: 'id' }, ranks: { key: 'id' }, categories: { key: 'id' },
-    tickets: { key: 'id', idx: { number: { path: 'number', unique: true }, status: 'status', createdAt: 'createdAt', resolvedAt: 'resolvedAt', openDue: 'openDue', requester_createdAt: ['requesterId', 'createdAt'], status_createdAt: ['status', 'createdAt'], assignee_status: ['assigneeId', 'status'] } },
+    tickets: { key: 'id', idx: { number: { path: 'number' }, status: 'status', createdAt: 'createdAt', resolvedAt: 'resolvedAt', openDue: 'openDue', requester_createdAt: ['requesterId', 'createdAt'], status_createdAt: ['status', 'createdAt'], assignee_status: ['assigneeId', 'status'] } },
     ticketEvents: { key: 'id', idx: { ticket_at: ['ticketId', 'at'] } },
     attachments: { key: 'id', idx: { ticketId: 'ticketId' } },
     notifications: { key: 'id', idx: { user_at: ['userId', 'at'], user_read: ['userId', 'read'] } },
@@ -3680,7 +3684,7 @@ const DB = (() => {
     kb: { key: 'id', idx: { updatedAt: 'updatedAt' } },
     activity: { key: 'id', idx: { at: 'at' } },
     warehouses: { key: 'id' }, itemCategories: { key: 'id' }, printers: { key: 'id' }, locations: { key: 'id' },
-    items: { key: 'id', idx: { sku: { path: 'sku', unique: true }, categoryId: 'categoryId', updatedAt: 'updatedAt' } },
+    items: { key: 'id', idx: { sku: { path: 'sku' }, categoryId: 'categoryId', updatedAt: 'updatedAt' } },
     stock: { key: ['warehouseId', 'itemId'], idx: { itemId: 'itemId', warehouseId: 'warehouseId' } },
     deptStock: { key: ['departmentId', 'itemId'], idx: { itemId: 'itemId', departmentId: 'departmentId' } },
     deptUnits: { key: 'id', idx: { departmentId: 'departmentId', parentId: 'parentId' } },
@@ -3717,11 +3721,14 @@ const DB = (() => {
   let idb = null;
   const factory = () => idb || window.indexedDB;
   const timed = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => { const e = new Error(what); e.name = 'TimeoutError'; rej(e); }, ms))]);
+  /* الفهارس الفريدة القديمة (اسم المستخدم، رقم البلاغ، رمز الصنف) كانت ترفض دفعة الخادم كاملة إن وُجد فيها تكرار قديم،
+     فتتوقف مزامنة الجهاز ويُعاد تنزيل كل البيانات مع كل سحب. التفرّد يفرضه الخادم ونماذج الإدخال، لا قاعدة الجهاز */
+  const sameIdx = (s, iname, spec) => { try { return s.index(iname).unique === !!spec.unique; } catch (_) { return false; } };
   function upgrade(d, tx) {
     for (const [name, def] of Object.entries(SCHEMA)) {
       const s = d.objectStoreNames.contains(name) ? tx.objectStore(name) : d.createObjectStore(name, { keyPath: def.key });
       for (const [iname, spec] of Object.entries(def.idx || {})) {
-        if (s.indexNames.contains(iname)) continue;
+        if (s.indexNames.contains(iname)) { if (sameIdx(s, iname, spec)) continue; s.deleteIndex(iname); }
         const path = typeof spec === 'string' || Array.isArray(spec) ? spec : spec.path;
         s.createIndex(iname, path, { unique: !!spec.unique });
       }
@@ -3740,8 +3747,8 @@ const DB = (() => {
   }
   const complete = (d) => Object.entries(SCHEMA).every(([name, def]) => {
     if (!d.objectStoreNames.contains(name)) return false;
-    const want = Object.keys(def.idx || {}); if (!want.length) return true;
-    try { const st = d.transaction(name, 'readonly').objectStore(name); return want.every((x) => st.indexNames.contains(x)); } catch (_) { return false; }
+    const want = Object.entries(def.idx || {}); if (!want.length) return true;
+    try { const st = d.transaction(name, 'readonly').objectStore(name); return want.every(([x, spec]) => st.indexNames.contains(x) && sameIdx(st, x, spec)); } catch (_) { return false; }
   });
   async function openSmart() {
     const cur = await timed(openRaw(0), 10000, 'لم تستجب قاعدة الجهاز');
@@ -4169,7 +4176,7 @@ Data.inv = {
     const item = isNew ? { id: uid('it'), onHand: 0, createdAt: now() } : await DB.get('items', input.id);
     if (!item) throw new AppError('الصنف غير موجود');
     if (!sku) { const seq = ((await DB.get('meta', 'seq:item')) || { value: 0 }).value + 1; await DB.put('meta', { key: 'seq:item', value: seq }); sku = `ITM-${pad(seq, 5)}`; }
-    const dup = (await DB.getAll('items', 'sku', KR(sku)))[0]; if (dup && dup.id !== item.id) throw new AppError(`الرمز ${sku} مستخدم لصنف آخر`);
+    const dup = (await DB.getAll('items', 'sku', KR(sku))).find((x) => x.id !== item.id); if (dup) throw new AppError(`الرمز ${sku} مستخدم لصنف آخر`);
     Object.assign(item, { name, sku, categoryId: input.categoryId || 'ic_other', unit: String(input.unit || 'قطعة').trim(), minQty: Math.max(0, Math.floor(Number(input.minQty) || 0)), brand: String(input.brand || '').trim(), model: String(input.model || '').trim(), serial: String(input.serial || '').trim(), notes: String(input.notes || '').trim(), updatedAt: now() });
     item.search = this.searchOf(item); await DB.put('items', item);
     await Data.log(isNew ? 'create' : 'update', 'item', item.id, `${isNew ? 'إضافة' : 'تعديل'} الصنف ${item.name}`); Bus.emit('inventory'); return item;
@@ -4270,10 +4277,12 @@ Data.users = {
     if (!String(input.name || '').trim()) throw new AppError('اكتب الاسم الكامل');
     if (!ROLES[input.role]) throw new AppError('اختر الدور');
     if (Auth.user.role !== 'supervisor' && ['supervisor', 'support_manager'].includes(input.role)) throw new AppError('إنشاء حسابات المشرف والإداري من صلاحية المشرف فقط');
-    const dup = (await DB.getAll('users', 'username', KR(username)))[0];
-    if (dup && dup.id !== input.id) throw new AppError('اسم المستخدم مستخدم مسبقاً');
+    /* التفرد يُفحص عند الإنشاء أو تغيير الاسم والرقم فقط (كالخادم)، فلا يمنع التكرار القديم تعديل الحساب أو إيقافه */
+    const prevU = input.id ? await DB.get('users', input.id) : null;
+    const dup = (!prevU || String(prevU.username || '').trim().toLowerCase() !== username) && ((await DB.getAll('users', 'username', KR(username))).find((x) => x.id !== input.id) || Data.list('users').find((x) => x.id !== input.id && String(x.username || '').trim().toLowerCase() === username));
+    if (dup) throw new AppError('اسم المستخدم مستخدم مسبقاً');
     const mil = String(input.militaryNo || '').trim(), mk = milKey(mil);
-    if (mk) { const mdup = Data.list('users').find((x) => x.id !== input.id && milKey(x.militaryNo) === mk); if (mdup) throw new AppError(`الرقم العسكري «${mil}» مسجّل مسبقاً للمستخدم «${mdup.name}»`); }
+    if (mk && (!prevU || milKey(prevU.militaryNo) !== mk)) { const mdup = Data.list('users').find((x) => x.id !== input.id && milKey(x.militaryNo) === mk); if (mdup) throw new AppError(`الرقم العسكري «${mil}» مسجّل مسبقاً للمستخدم «${mdup.name}»`); }
     const isNew = !input.id, u = isNew ? { id: uid('u'), createdAt: now(), lastLoginAt: 0, pass: null } : await DB.get('users', input.id);
     if (!u) throw new AppError('المستخدم غير موجود');
     if (!isNew && u.id === Auth.user.id && input.active === 0) throw new AppError('لا يمكنك إيقاف حسابك');
@@ -4341,8 +4350,8 @@ const Auth = {
   },
   async login(username, password) {
     /* لا قفل للحسابات: المحاولة الخاطئة تأخذ زمناً قصيراً ثابتاً فقط */
-    const name = String(username || '').trim().toLowerCase(), u = name ? (await DB.getAll('users', 'username', KR(name)))[0] : null;
-    const ok = !!(u && u.pass && Crypto.verifyPassword(String(password || ''), u.pass));
+    const name = String(username || '').trim().toLowerCase(), cands = name ? await DB.getAll('users', 'username', KR(name)) : [];
+    const u = cands.find((x) => x.pass && Crypto.verifyPassword(String(password || ''), x.pass)), ok = !!u;
     if (!ok) { await new Promise((r) => setTimeout(r, 300)); throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة'); }
     if (!u.active) throw new AppError('هذا الحساب موقوف. تواصل مع مشرف النظام.');
     if (u.pass.algo !== 'pbkdf2-sha256') u.pass = Crypto.makePassword(String(password));
@@ -5408,7 +5417,7 @@ Pages.login = () => {
     <div class="field"><label for="lu">اسم المستخدم</label><div class="input-icon">${UI.icon('user')}<input id="lu" name="username" autocomplete="username" value="${last}" dir="auto"></div></div>
     <div class="field"><label for="lp">كلمة المرور</label><div class="input-icon">${UI.icon('lock')}<input id="lp" name="password" type="password" autocomplete="current-password"><button type="button" class="reveal" aria-label="إظهار كلمة المرور">${UI.icon('eye')}</button></div></div>
     <label class="check"><input type="checkbox" name="remember"${last ? raw(' checked') : ''}><span>تذكر اسم المستخدم على هذا الجهاز</span></label>
-    <p class="form-error" id="loginErr" role="alert" hidden></p>
+    <p class="form-error" id="loginErr" role="alert"${Sync.setupBlocked ? '' : raw(' hidden')}>${Sync.setupBlocked ? 'الخادم جديد ولم يُجهَّز بعد. افتح النظام أول مرة من جهاز الخادم نفسه (http://localhost/…) لتجهيزه، ثم ادخل من أي جهاز.' : ''}</p>
     <button class="btn btn-primary btn-lg btn-block" type="submit">${UI.icon('key')} دخول</button>
   </form></section>${Pages.scene('قسم تقنية المعلومات', '')}</div>`);
   const form = $('#loginForm'), err = $('#loginErr'), pw = $('#lp');
@@ -5465,6 +5474,13 @@ Pages.migration = async () => {
   const c = m.value.counts || {};
   return html`<div class="banner tone-teal" id="migBanner">${UI.icon('database')}<div class="grow"><b>تم ترحيل بيانات النظام السابق إلى قاعدة البيانات الجديدة</b><div class="small muted">${fmtNum(c.users || 0)} مستخدم، ${fmtNum(c.tickets || 0)} بلاغ، ${fmtNum(c.items || 0)} صنف، ${fmtNum(c.loans || 0)} عهدة. نسخة البيانات القديمة ما زالت محفوظة في المتصفح.</div></div><button class="btn btn-sm btn-ok" data-act="ackmig">${UI.icon('check')} تم</button></div>`;
 };
+/* تنبيه المشرف إن بقي حساب أساسي بكلمة المرور الافتراضية المنشورة مع النظام (تنبيه لا إلزام) */
+Pages.sysPwWarn = () => {
+  if (!Auth.user || Auth.user.role !== 'supervisor') return '';
+  const list = Sync.on ? (Sync.sysDefault || []) : SYS_ACCOUNTS.filter((a) => { const u = Data.list('users').find((x) => x.id === a.id); return u && u.active && u.pass && SYS_PASS[a.username] && u.pass.salt === SYS_PASS[a.username].salt; }).map((a) => a.username);
+  if (!list.length) return '';
+  return html`<div class="banner tone-amber">${UI.icon('shield')}<div class="grow"><b>تنبيه أمني: ${list.length === 1 ? 'حساب أساسي ما زال' : 'حسابات أساسية ما زالت'} بكلمة المرور الافتراضية التي تأتي مع النظام</b><div class="small muted">${list.join('، ')} — كلمة المرور الافتراضية معروفة لكل من لديه نسخة من النظام. غيّرها من «كلمات المرور».</div></div><a class="btn btn-sm" href="#/passwords">${UI.icon('key')} كلمات المرور</a></div>`;
+};
 Pages.bindCommon = (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="ackmig"]', async () => { await DB.put('meta', { key: 'migration:ack', value: now() }); const b = $('#migBanner'); if (b) b.remove(); });
   UI.on(ctx.view, 'click', '[data-act="tv"]', () => Router.go('/monitor'));
@@ -5481,7 +5497,7 @@ Pages.dashManager = (ctx) => Pages.live(ctx, async () => {
   const avg = Stats.avgRes(win.resolved) / HOUR, sla = Stats.slaPct(win.resolved);
   ctx.view.innerHTML = String(html`${await Pages.announceBar()}${await Pages.healthPanel()}${await Pages.grantsPanel()}
     ${Pages.hello(u, open ? `لديك ${arCount(open, AR.openTicket)}، منها ${fmtNum(counts.new || 0)} بانتظار الإسناد و${fmtNum(overdue)} متأخرة عن موعدها.` : 'لا توجد بلاغات مفتوحة حالياً. عمل رائع!', html`<a class="btn btn-primary btn-sm" href="#/tickets?scope=unassigned">${UI.icon('inbox')} توزيع غير المسندة</a><a class="btn btn-soft btn-sm" href="#/reports">${UI.icon('chart')} التقارير</a><button class="btn btn-ghost btn-sm" data-act="tv">${UI.icon('monitor')} وضع شاشة العرض</button>`)}
-    ${mig}
+    ${mig}${Pages.sysPwWarn()}
     <div class="kpis">
       ${UI.kpi({ label: 'بلاغات مفتوحة', icon: 'ticket', tone: 'sky', value: open, foot: html`<span class="faint small">${fmtNum(counts.new || 0)} غير مسندة</span>`, spark: cD.slice(-14) })}
       ${UI.kpi({ label: 'متأخرة عن الموعد', icon: 'alert', tone: overdue ? 'red' : 'teal', value: overdue, foot: html`<span class="faint small">حسب اتفاقية الخدمة</span>` })}
@@ -5851,17 +5867,6 @@ Pages.ticket = async (ctx) => {
   ctx.onCleanup(Bus.on('tickets', debounce((e) => { if (ctx.alive() && (!e.detail || !e.detail.id || e.detail.id === id)) draw(); }, 250)));
   const tick = setInterval(() => { const d = $('#dial', view); if (d && OPEN.includes(t.status)) d.innerHTML = String(slaDial(t)); }, 30000); ctx.onCleanup(() => clearInterval(tick));
 };
-Pages.rateModal = (id) => UI.modal({
-  title: 'كيف كانت الخدمة؟', icon: 'star', size: 'sm',
-  body: html`<div class="center stack" style="gap:14px;align-items:center"><p class="muted">تقييمك يساعدنا على تحسين الدعم الفني</p><div class="star-input" role="radiogroup" aria-label="التقييم">${[1, 2, 3, 4, 5].map((n) => html`<button type="button" data-v="${n}" aria-label="${n} من 5">${UI.icon('star')}</button>`)}</div><b id="rateLbl" style="min-height:24px">اختر عدد النجوم</b>${UI.field({ name: 'comment', label: 'ملاحظاتك (اختياري)', type: 'textarea', rows: 3 })}</div>`,
-  onMount: (form) => {
-    const labels = ['', 'غير راضٍ', 'مقبول', 'جيد', 'جيد جداً', 'ممتاز'], btns = $$('.star-input button', form); let val = 0;
-    const paint = (n) => btns.forEach((b) => b.classList.toggle('on', Number(b.dataset.v) <= n));
-    btns.forEach((b) => { b.onmouseenter = () => paint(Number(b.dataset.v)); b.onclick = () => { val = Number(b.dataset.v); form.dataset.val = val; $('#rateLbl', form).textContent = labels[val]; paint(val); }; });
-    $('.star-input', form).onmouseleave = () => paint(val);
-  },
-  actions: [{ label: 'لاحقاً', kind: 'ghost' }, { label: 'إرسال التقييم وإغلاق البلاغ', kind: 'primary', submit: true, handler: async (form) => { const v = Number(form.dataset.val || 0); if (!v) throw new AppError('اختر عدد النجوم أولاً'); await Data.tickets.rate(id, v, form.querySelector('textarea').value); if (v >= 4) UI.confetti(); UI.toast('شكراً لتقييمك!'); } }]
-});
 
 /* ── المخازن والعهد ─────────────────────────────────────────── */
 const itemIllu = (it) => (Data.c.itemCategories.get(it && it.categoryId) || {}).illustration || 'box';
@@ -6008,7 +6013,7 @@ Pages.item = async (ctx) => {
     const days = 60, from = startOfDay() - (days - 1) * DAY, hist = await DB.getAll('movements', 'item_at', KR([id, from], [id, Infinity]));
     const bal = new Array(days).fill(0); let run = it.onHand, j = hist.length - 1;
     for (let d = days - 1; d >= 0; d--) { bal[d] = run; const dayStart = from + d * DAY; while (j >= 0 && hist[j].at >= dayStart) { run -= hist[j].delta; j--; } }
-    const active = loans.filter((l) => l.status === 'active'), mvOk = Auth.can('inventory.move');
+    const mvOk = Auth.can('inventory.move');
     if (!ctx.alive()) return;
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/inventory/items">الأصناف</a>${UI.icon('chevron-left')}<span class="ltr">${it.sku}</span>`, title: it.name, illu: itemIllu(it), sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.chip('sky', Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand || it.model ? UI.chip('slate', [it.brand, it.model].filter(Boolean).join(' '), 'box') : ''}${it.serial ? html`<span class="t-num">SN ${it.serial}</span>` : ''}</span>`, actions: html`${mvOk ? html`<button class="btn btn-ok" data-move="receive" data-item="${id}">${UI.icon('download')} استلام</button><button class="btn" data-move="issue" data-item="${id}">${UI.icon('upload')} صرف</button><button class="btn" data-move="transfer" data-item="${id}">${UI.icon('swap')} تحويل</button><button class="btn btn-soft" data-act="lend" data-item="${id}">${UI.icon('clipboard')} عهدة</button>` : ''}${Auth.can('inventory.move') ? UI.cartBtn(id, 'btn') : ''}${Auth.can('inventory.manage') ? html`<button class="btn btn-ghost" data-move="adjust" data-item="${id}">${UI.icon('refresh')} جرد</button><button class="btn btn-ghost" data-fixstock="${id}" title="إنقاص كمية أو وحدات سُجلت بالخطأ">${UI.icon('undo')} تصحيح خطأ</button><button class="icon-btn" data-act="edit" title="تعديل" aria-label="تعديل">${UI.icon('edit')}</button>` : ''}` })}
@@ -6157,7 +6162,7 @@ Pages.profile = async (ctx) => {
           <div class="row" style="gap:22px">${UI.field({ name: 'motion', type: 'switch', text: 'الحركات والمؤثرات' }, document.documentElement.dataset.motion !== 'off')}</div>
           ${u.photo ? html`<button class="btn btn-ghost btn-sm" data-act="nophoto" style="align-self:flex-start">${UI.icon('trash')} حذف الصورة الشخصية</button>` : ''}
         </div>` })}
-        ${isSysAccount(u) && u.role !== 'supervisor' ? UI.panel({ title: 'كلمة المرور', icon: 'lock', body: html`<div class="banner tone-brass" style="margin:0">${UI.icon('shield')}<div class="grow"><b>حساب أساسي ثابت</b><div class="small muted">اسم المستخدم وكلمة المرور لهذا الحساب ثابتان، ولا يغيّرهما إلا المشرف. يمكنك تخصيص المظهر والصورة من هذه الصفحة.</div></div></div>` }) : UI.panel({ title: 'تغيير كلمة المرور', icon: 'lock', body: html`<form id="pwForm" class="stack" style="gap:14px" novalidate>${UI.field({ name: 'current', label: 'كلمة المرور الحالية', type: 'password', autocomplete: 'current-password', required: true })}${UI.field({ name: 'next', label: 'كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<div class="strength" id="pwStr"><i></i><i></i><i></i><i></i></div>${UI.field({ name: 'confirm', label: 'تأكيد كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<button class="btn btn-primary" type="submit">${UI.icon('check')} تحديث كلمة المرور</button></form>` })}
+        ${isSysAccount(u) && u.role !== 'supervisor' ? UI.panel({ title: 'كلمة المرور', icon: 'lock', body: html`<div class="banner tone-brass" style="margin:0">${UI.icon('shield')}<div class="grow"><b>حساب أساسي ثابت</b><div class="small muted">اسم المستخدم وكلمة المرور لهذا الحساب ثابتان، ولا يغيّرهما إلا المشرف. يمكنك تخصيص المظهر والصورة من هذه الصفحة.</div></div></div>` }) : UI.panel({ title: 'تغيير كلمة المرور', icon: 'lock', body: html`<form id="pwForm" class="stack" style="gap:14px" novalidate><input type="text" name="username" autocomplete="username" value="${u.username || ''}" hidden tabindex="-1" aria-hidden="true">${UI.field({ name: 'current', label: 'كلمة المرور الحالية', type: 'password', autocomplete: 'current-password', required: true })}${UI.field({ name: 'next', label: 'كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<div class="strength" id="pwStr"><i></i><i></i><i></i><i></i></div>${UI.field({ name: 'confirm', label: 'تأكيد كلمة المرور الجديدة', type: 'password', autocomplete: 'new-password', required: true })}<button class="btn btn-primary" type="submit">${UI.icon('check')} تحديث كلمة المرور</button></form>` })}
       </div>
       ${UI.panel({ title: 'نشاطي الأخير', icon: 'pulse', cls: 'mt', body: acts.length ? html`<div class="timeline">${acts.map((a) => html`<div class="tl"><span class="tl-icon tone-${ACT_TONE[a.action] || 'slate'}">${UI.icon(ACT_ICON[a.action] || 'pulse')}</span><div class="tl-head">${a.summary}<span class="tl-time">${timeAgo(a.at)}</span></div></div>`)}</div>` : UI.noData('لا يوجد نشاط مسجل بعد') })}`);
     const pwf = $('#pwForm', ctx.view);
@@ -6171,6 +6176,7 @@ Pages.profile = async (ctx) => {
         UI.busy(btn, true); await new Promise((r) => setTimeout(r, 40));
         const rec = await DB.get('users', u.id); if (!(Sync.on && Sync.token) && !(await Crypto.verifyPassword(v.current, rec.pass))) throw new AppError('كلمة المرور الحالية غير صحيحة');
         const forced = needsPwChange(u); await Data.users.setPassword(u.id, v.next, false, v.current); Auth.user = await DB.get('users', u.id);
+        rememberPw(u, v.next);
         UI.toast('تم تحديث كلمة المرور بنجاح'); UI.confetti();
         if (forced) { Shell.unmount(); Router.go('/dashboard'); } else pwf.reset();
       } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
@@ -6846,7 +6852,7 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
         const pw = mode === 'military' ? r.militaryNo : mode === 'shared' ? sharedPw : Crypto.tempPassword(), salt = Crypto.randomHex(16);
         /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
         const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
-        batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: 1, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
+        batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: pwForce() ? 1 : 0, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
         creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], Data.nameOf('departments', depId, ''), Data.nameOf('locations', locId, '')]); created += 1;
       }
     }
@@ -6964,7 +6970,7 @@ Pages.welcome = async (ctx) => {
   ctx.view.innerHTML = String(html`<div class="login welcome"><section class="login-panel"><form class="login-card" id="wForm" novalidate>
     <div class="crest-wrap"><img class="crest" src="${ASSETS.logo}" alt=""></div>
     <div><h1>أهلاً ${u.name.split(/\s+/)[0]}، لنُكمل حسابك</h1><p class="lead">${info.label}${u.departmentId ? ` — ${Data.nameOf('departments', u.departmentId)}` : ''}</p></div>
-    ${needPw ? html`<div class="w-sec"><h3>1. اختر كلمة مرور خاصة بك</h3><div class="field"><label for="wn">كلمة المرور الجديدة</label><div class="input-icon">${UI.icon('lock')}<input id="wn" name="next" type="password" autocomplete="new-password"></div><div class="strength" id="wStr"><i></i><i></i><i></i><i></i></div><small class="hint" style="color:#8FA3BD">8 أحرف على الأقل تتضمن حروفاً وأرقاماً</small></div><div class="field"><label for="wc">تأكيد كلمة المرور</label><div class="input-icon">${UI.icon('lock')}<input id="wc" name="confirm" type="password" autocomplete="new-password"></div></div></div>` : ''}
+    ${needPw ? html`<div class="w-sec"><input type="text" name="username" autocomplete="username" value="${u.username || ''}" hidden tabindex="-1" aria-hidden="true"><h3>1. اختر كلمة مرور خاصة بك</h3><div class="field"><label for="wn">كلمة المرور الجديدة</label><div class="input-icon">${UI.icon('lock')}<input id="wn" name="next" type="password" autocomplete="new-password"></div><div class="strength" id="wStr"><i></i><i></i><i></i><i></i></div><small class="hint" style="color:#8FA3BD">8 أحرف على الأقل تتضمن حروفاً وأرقاماً</small></div><div class="field"><label for="wc">تأكيد كلمة المرور</label><div class="input-icon">${UI.icon('lock')}<input id="wc" name="confirm" type="password" autocomplete="new-password"></div></div></div>` : ''}
     <div class="w-sec" hidden><h3>${needPw ? '2. ' : ''}أين تعمل؟</h3>
       <div class="field"><label for="wd">الإدارة التي تعمل بها<em>*</em></label><select id="wd" name="departmentId"><option value="">اختر إدارتك...</option>${Data.list('departments').map((d) => html`<option value="${d.id}"${u.departmentId === d.id ? raw(' selected') : ''}>${d.name}</option>`)}</select><small class="hint">اختر من القائمة الكاملة، ويضيف المشرف أي إدارة جديدة من الإعدادات.</small></div>
       ${u.role === 'supervisor' ? '' : html`<div class="field"><label>المبنى الذي تعمل فيه<em>*</em></label><div class="bld-pick">${locs.map((l) => html`<label><input type="radio" name="locationId" value="${l.id}"${u.locationId === l.id ? raw(' checked') : ''}><span>${UI.icon('building')}${l.name}</span></label>`)}</div></div>`}
@@ -6984,7 +6990,7 @@ Pages.welcome = async (ctx) => {
     try {
       if (needPw) { if (v.next !== v.confirm) throw new AppError('كلمتا المرور غير متطابقتين'); if (u.militaryNo && v.next === u.militaryNo) throw new AppError('لا تستخدم رقمك العسكري كلمة مرور'); Data.users.checkPolicy(v.next); }
       UI.busy(btn, true); await new Promise((r) => setTimeout(r, 40));
-      if (needPw) await Data.users.setPassword(u.id, v.next, false);
+      if (needPw) { await Data.users.setPassword(u.id, v.next, false); rememberPw(u, v.next); }
       const rec = await DB.get('users', u.id);
       Object.assign(rec, { locationId: v.locationId || rec.locationId || '', departmentId: v.departmentId || rec.departmentId || '', office: String(v.office || '').trim(), phone: String(v.phone || '').trim(), mustChangePassword: 0, updatedAt: now() });
       await DB.put('users', rec); await Data.refresh('users'); Auth.user = rec;
@@ -7873,6 +7879,8 @@ const Sync = {
       if (!(ping && ping.ok) && this.serverExpected()) ping = await this.waitServer(lastErr);
       if (!ping || !ping.ok) throw lastErr || new AppError('استجابة غير متوقعة');
       this.on = true; this.head = ping.rev || 0; this.serverEmpty = !!ping.empty;
+      /* خادم فارغ لا يقبل التجهيز إلا من جهازه نفسه: لا تُرسل بيانات التجهيز من هذا الجهاز، وتظهر رسالة توضح الخطوة */
+      this.setupBlocked = this.serverEmpty && ping.setup === false;
       this.token = localStorage.getItem('sq_token') || '';
       this.rev = Number(((await DB.get('meta', 'sync:rev')) || {}).value || 0);
       this.scope = String(((await DB.get('meta', 'sync:scope')) || {}).value || '');
@@ -7921,7 +7929,7 @@ const Sync = {
   },
   async waitIdle(ms = 15000) { const t0 = Date.now(); while ((this.flushing || this.queue.length) && Date.now() - t0 < ms) { await new Promise((r) => setTimeout(r, 120)); if (!this.flushing && this.queue.length) this.flush(); } },
   async flush() {
-    if (!this.on || this.flushing || !this.queue.length || (!this.token && !this.serverEmpty)) return;
+    if (!this.on || this.flushing || !this.queue.length || (!this.token && (!this.serverEmpty || this.setupBlocked))) return;
     this.flushing = true; this.setStatus('syncing');
     try {
       while (this.queue.length) {
@@ -8017,7 +8025,7 @@ const Sync = {
             if (!puts.has(d.store)) puts.set(d.store, []);
             puts.get(d.store).push(d.data);
           }
-          for (const [st, rows] of puts) if (rows.length) await this.raw.bulkPut(st, rows);
+          for (const [st, rows] of puts) if (rows.length) await this.putRows(st, rows);
           if (alerts.length) this.announce(alerts);
           this.notifyStores([...new Set(docs.map((d) => d.store))]);
           total += docs.length;
@@ -8030,6 +8038,17 @@ const Sync = {
       if (this._widen) { this._widen = false; setTimeout(() => this.pull(true), 50); }
       return total;
     } catch (e) { this.setStatus('offline', e && e.message); return 0; } finally { this._pulling = false; }
+  },
+
+  /* حفظ دفعة من الخادم. إن رفضت قاعدة الجهاز الدفعة كاملة بسبب سجل واحد، يُحفظ كل سجل وحده فلا يوقف سجلٌ واحد المزامنة.
+     وإن فشل الحفظ كله (امتلاء مساحة الجهاز مثلاً) يُرفع الخطأ فلا يتقدم رقم المزامنة ويُعاد السحب لاحقاً */
+  async putRows(st, rows) {
+    try { await this.raw.bulkPut(st, rows); return; } catch (e0) {
+      let bad = 0;
+      for (const r of rows) { try { await this.raw.put(st, r); } catch (_) { bad++; } }
+      if (bad === rows.length) throw e0 || new AppError('تعذر حفظ البيانات على هذا الجهاز');
+      if (bad) console.warn(`sync: ${bad} ${st} record(s) not stored on this device`);
+    }
   },
 
   notifyStores(stores) {
@@ -8051,12 +8070,17 @@ const Sync = {
     const local = { login: Auth.login.bind(Auth), restore: Auth.restore.bind(Auth), logout: Auth.logout.bind(Auth) };
     Auth.login = async (username, password) => {
       if (!this.on) return local.login(username, password);
+      if (this.setupBlocked) {
+        /* ربما جُهّز الخادم من جهازه في هذه الأثناء */
+        try { const p = await this.call('ping', { timeout: 8000 }); this.serverEmpty = !!p.empty; this.setupBlocked = this.serverEmpty && p.setup === false; } catch (_) { /* يبقى كما هو */ }
+        if (this.setupBlocked) throw new AppError('الخادم جديد ولم يُجهَّز بعد. افتح النظام أول مرة من جهاز الخادم نفسه (http://localhost/…) لتجهيزه، ثم ادخل من أي جهاز.');
+      }
       if (this.serverEmpty) { try { this.flush(); await this.waitIdle(); } catch (_) { /* يكمل */ } }
       if (this._bye) await Promise.race([this._bye, new Promise((res) => setTimeout(res, 9000))]);
       let r;
       try { r = await this.call('login', { body: { username: String(username || '').trim(), password: String(password || '') } }); }
       catch (e) { if (e instanceof AppError) throw e; throw new AppError('تعذر الوصول إلى الخادم الآن. تأكد من اتصال الشبكة ثم حاول مرة أخرى'); }
-      this.token = r.token; localStorage.setItem('sq_token', r.token);
+      this.token = r.token; localStorage.setItem('sq_token', r.token); this.sysDefault = r.sysDefault || [];
       try { const owner = localStorage.getItem('sq_queue_owner'); if (owner && owner !== r.user.id && this.queue.length) { this.queue = []; this.saveQueue(); } localStorage.setItem('sq_queue_owner', r.user.id); } catch (_) { /* تجاهل */ }
       await this.pull(this.needFull());
       let u = await DB.get('users', r.user.id);
@@ -8064,7 +8088,8 @@ const Sync = {
       Auth.user = u;
       this.serverEmpty = false;
       sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + 12 * HOUR }));
-      const rec = await DB.get('users', u.id); if (rec) { if (!(now() - (rec.lastLoginAt || 0) < 6 * HOUR)) { rec.lastLoginAt = now(); await DB.put('users', rec); } Auth.user = rec; }
+      /* وقت آخر دخول يسجّله الخادم نفسه عند الدخول */
+      const rec = await DB.get('users', u.id); if (rec) Auth.user = rec;
       await this.flush();
       return Auth.user;
     };
@@ -8072,7 +8097,7 @@ const Sync = {
       if (!this.on) return local.restore();
       if (!this.token) return null;
       try {
-        const r = await this.call('me', { timeout: 8000 });
+        const r = await this.call('me', { timeout: 8000 }); this.sysDefault = r.sysDefault || [];
         await this.pull();
         Auth.user = (await DB.get('users', r.user.id)) || r.user;
         this.flush();
@@ -8419,22 +8444,6 @@ Pages.deptDetail = async (ctx) => {
 };
 
 /* سند العهدة: أرقام تسلسلية وخانات الإرجاع */
-Pages.loanReceipt = async (l) => {
-  let serials = [];
-  try { const ids = l.assetIds || []; const rows = await Promise.all(ids.map((x) => DB.get('assets', x))); serials = rows.filter(Boolean).map((a) => a.serial); } catch (_) { /* تجاهل */ }
-  const it = l.itemId ? await DB.get('items', l.itemId) : null;
-  UI.print(html`<h2 style="text-align:center">سند تسليم عهدة رقم ${l.number}</h2>
-    <table>
-      <tr><th>الصنف</th><td>${l.itemName}</td><th>الكمية</th><td>${fmtNum(l.qty)}</td></tr>
-      <tr><th>الماركة والموديل</th><td>${it ? [it.brand, it.model].filter(Boolean).join(' ') || '—' : '—'}</td><th>الرقم التسلسلي</th><td class="ltr">${serials.length ? serials.join('، ') : '—'}</td></tr>
-      <tr><th>المستلم</th><td>${l.borrowerId ? who(l.borrowerId) : l.borrower}</td><th>الإدارة</th><td>${Data.nameOf('departments', l.departmentId)}</td></tr>
-      <tr><th>تاريخ التسليم</th><td>${fmtDateTime(l.issuedAt)}</td><th>تاريخ الإرجاع المتوقع</th><td>${l.dueAt ? fmtDate(l.dueAt) : 'عهدة دائمة'}</td></tr>
-      <tr><th>المسلِّم (الفني)</th><td>${who(l.userId)}</td><th>ملاحظات</th><td>${l.note || '—'}</td></tr>
-    </table>
-    <p style="font-size:12.5px;line-height:1.9">أقر أنا الموقع أدناه باستلام الصنف المذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه وإعادته في الموعد المحدد.</p>
-    <div class="sign-row two"><div>المستلم</div><div>المُسلِّم</div></div>
-    ${Pages.returnBox()}`, `سند عهدة ${l.number}`);
-};
 Pages.returnBox = () => html`<div class="return-box"><b>يُعبَّأ عند الإرجاع</b>
   <div class="rb-line"><span>تاريخ الإرجاع الفعلي</span><i></i></div>
   <div class="rb-line"><span>حالة الصنف عند الإرجاع</span><i></i></div>
@@ -8471,34 +8480,11 @@ Pages.saveVoucher = async (v) => {
   Bus.emit('inventory', {});
   return rec;
 };
-Pages.printVoucher = (v) => {
-  const kind = VOUCHER_KIND[v.type] || VOUCHER_KIND.issue, u = v.holderId ? Data.c.users.get(v.holderId) : null, loan = v.type === 'loan';
-  const line = (l, i) => html`<tr><td>${i + 1}</td><td>${l.name}</td><td>${[l.brand, l.model].filter(Boolean).join(' ') || '—'}</td><td class="ltr">${(l.serials || []).length ? l.serials.join('، ') : '—'}</td><td>${fmtNum(l.qty)}</td><td>${l.unit || 'قطعة'}</td></tr>`;
-  UI.print(html`<h2 style="text-align:center">${kind.title} رقم ${v.number}</h2>
-    <table>
-      <tr><th>التاريخ</th><td>${fmtDateTime(v.at)}</td><th>${loan ? 'موعد الإرجاع' : 'المرجع'}</th><td>${loan ? (v.dueAt ? fmtDate(v.dueAt) : 'عهدة دائمة') : v.ref || '—'}</td></tr>
-      <tr><th>المستلم</th><td>${v.holder || '—'}</td><th>الرقم العسكري</th><td>${u ? u.militaryNo || '—' : '—'}</td></tr>
-      <tr><th>الإدارة</th><td>${Data.nameOf('departments', v.departmentId, '—')}</td><th>${v.unitLabel ? 'القسم والمكتب' : 'المكتب'}</th><td>${v.unitLabel || (u ? u.office || '—' : '—')}</td></tr>
-      ${v.type === 'transfer' ? html`<tr><th>من</th><td>${v.fromLabel || '—'}</td><th>إلى</th><td>${v.toLabel || '—'}</td></tr>` : ''}
-      ${v.type === 'return' ? html`<tr><th>حالة الصنف</th><td>${v.condition || '—'}</td><th>سبب الإرجاع</th><td>${v.reason || '—'}</td></tr><tr><th>المخزن المستلم</th><td>${v.warehouseLabel || '—'}</td><th>المُسلِّم من الإدارة</th><td>${v.holder || '—'}</td></tr>` : ''}
-      ${v.type === 'replace' ? html`<tr><th>سبب الاستبدال</th><td>${v.reason || '—'}</td><th>مصير الجهاز القديم</th><td>${v.oldFate || '—'}</td></tr>` : ''}
-      <tr><th>المسلِّم (الفني)</th><td>${who(v.userId)}</td><th>ملاحظات</th><td>${v.note || '—'}</td></tr>
-    </table>
-    ${v.type === 'replace' ? html`<h3 style="margin:10px 0 4px">الجهاز المسلَّم (الجديد)</h3>` : ''}
-    <table><tr><th>م</th><th>الصنف</th><th>الماركة والموديل</th><th>الأرقام التسلسلية</th><th>الكمية</th><th>الوحدة</th></tr>
-      ${(v.lines || []).map(line)}
-      <tr><th colspan="4">الإجمالي</th><th>${fmtNum(v.units)}</th><th>وحدة</th></tr></table>
-    ${v.type === 'replace' && (v.oldLines || []).length ? html`<h3 style="margin:12px 0 4px">الجهاز المستبدَل (القديم)</h3><table><tr><th>م</th><th>الصنف</th><th>الماركة والموديل</th><th>الأرقام التسلسلية</th><th>الكمية</th><th>الوحدة</th></tr>${v.oldLines.map(line)}</table>` : ''}
-    <p style="font-size:12.5px;line-height:1.9">أقر أنا الموقع أدناه باستلام ما هو مذكور أعلاه بحالة سليمة، وأتعهد بالمحافظة عليه${loan ? ' وإعادته في الموعد المحدد' : ' وعدم التصرف فيه إلا بعلم الجهة المختصة'}.</p>
-    <div style="text-align:center;margin-top:6px">${UI.barcode(v.number, { height: 34 })}</div>
-    ${loan ? html`<div class="sign-row two"><div>المستلم</div><div>المُسلِّم</div></div>${Pages.returnBox()}`
-      : html`${UI.signBlock([{ title: 'المستلم', name: v.holder || '', no: v.holderNo || v.militaryNo || '' }, { title: 'المُسلِّم', userId: v.userId }])}`}`, `${kind.title} ${v.number}`);
-};
 
 /* تفاصيل الجهاز: المواصفات والأرقام التسلسلية والإجراءات */
 Pages.deviceModal = async (itemId, scope = {}) => {
   const it = await DB.get('items', itemId); if (!it) { UI.toast('الصنف غير موجود', 'warn'); return false; }
-  const [stock, deptRows, assets, units] = await Promise.all([Data.inv.stockOf(itemId), Data.dept.ofItem(itemId), Data.assets.byItem(itemId), scope.departmentId ? Data.units.tree(scope.departmentId) : Promise.resolve([])]);
+  const [deptRows, assets, units] = await Promise.all([Data.dept.ofItem(itemId), Data.assets.byItem(itemId), scope.departmentId ? Data.units.tree(scope.departmentId) : Promise.resolve([])]);
   const offices = units.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name }))), allU = await DB.getAll('deptUnits'), uPath = (id) => { const by = new Map(allU.map((u) => [u.id, u])), out = []; let u = by.get(id), g = 0; while (u && g++ < 12) { out.unshift(u.name); u = by.get(u.parentId); } return out.join(' — '); };
   const unitRows = scope.departmentId ? (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === scope.departmentId && r.qty > 0) : [];
   const mine = scope.departmentId ? assets.filter((a) => a.departmentId === scope.departmentId) : scope.store ? assets.filter((a) => a.status === 'in_store') : assets;
@@ -8875,11 +8861,6 @@ Pages.deptReturnModal = async (departmentId, itemId = '') => {
 };
 
 /* اختصارات لوحة المفاتيح والرجوع */
-Pages.shortcutsModal = () => UI.modal({
-  title: 'اختصارات لوحة المفاتيح', icon: 'keyboard', size: 'lg',
-  body: html`<div class="sc-grid">${[['Ctrl + K', 'البحث الشامل وقائمة الأوامر'], ['Alt + ←', 'رجوع خطوة للخلف'], ['Alt + →', 'تقدّم خطوة للأمام'], ['/', 'البحث في المخزن'], ['N', 'بلاغ جديد'], ['Q', 'استفسار سريع'], ['D', 'لوحة القيادة'], ['T', 'البلاغات'], ['I', 'المخزن'], ['C', 'سلة الصرف'], ['Esc', 'إغلاق النافذة الحالية'], ['?', 'عرض هذه القائمة']].map(([k, d]) => html`<div class="sc-row"><kbd>${k}</kbd><span>${d}</span></div>`)}</div><p class="hint mt">تعمل الاختصارات المفردة عندما لا يكون المؤشر داخل حقل كتابة.</p>`,
-  actions: [{ label: 'إغلاق', kind: 'primary' }]
-});
 document.addEventListener('keydown', (e) => {
   if (!Auth.user) return;
   const tag = (e.target.tagName || '').toLowerCase(), typing = ['input', 'textarea', 'select'].includes(tag) || e.target.isContentEditable;
@@ -9289,11 +9270,6 @@ Pages.repliesPicker = async (kind = '', ctx = {}) => {
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null }]
   });
 };
-Pages.replyModal = (rec = {}) => UI.modal({
-  title: rec.id ? 'تعديل رد جاهز' : 'حفظ رد جاهز', icon: 'book', size: 'lg',
-  body: html`${UI.fields([{ name: 'title', label: 'عنوان مختصر', placeholder: 'مثال: طلب توضيح', wide: true }, { name: 'text', label: 'نص الرد', type: 'textarea', rows: 4, required: true, wide: true }, { name: 'kind', label: 'يظهر في', type: 'select', placeholder: false, options: [{ value: '', label: 'البلاغات والاستفسارات' }, { value: 'ticket', label: 'البلاغات فقط' }, { value: 'chat', label: 'الاستفسارات فقط' }, { value: 'work', label: 'سجل الأعمال' }] }], rec)}`,
-  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); const saved = await Data.replies.save({ ...rec, ...v }); UI.toast('حُفظ الرد الجاهز'); return saved; } }]
-});
 UI.replyTools = (kind, targetId) => html`<div class="reply-tools"><button type="button" class="btn btn-ghost btn-sm" data-replies="${kind}" data-target="${targetId}">${UI.icon('book')} ردود جاهزة</button><button type="button" class="btn btn-ghost btn-sm" data-savereply="${targetId}">${UI.icon('plus')} حفظ الرد</button></div>`;
 document.addEventListener('click', async (e) => {
   const pick = e.target.closest('[data-replies]');
@@ -9324,7 +9300,7 @@ const canSetPassword = (actor, target) => {
   if (actor.role === 'technician') return target.role === 'department';
   return false;
 };
-Data.users.setPassword = async (id, password, mustChange = 1) => {
+Data.users.setPassword = async (id, password, mustChange = 0) => {
   const target = await DB.get('users', id); if (!target) throw new AppError('الحساب غير موجود');
   /* المستخدم يغيّر كلمة مروره بنفسه (أول دخول أو من الملف الشخصي) بشرط السياسة الكاملة */
   const self = !!Auth.user && Auth.user.id === id;
@@ -9355,6 +9331,9 @@ const isSysAccount = (u) => !!(u && (u.system || String(u.id || '').startsWith('
    العلامة mustChangePassword تبقى محفوظة في الحساب، ولا يُطلب التغيير إلا حين تكون السياسة مفعّلة */
 const pwForce = () => !!(Data.c.settings && Number(Data.c.settings.pwForce));
 const needsPwChange = (u) => !!(u && pwForce() && u.mustChangePassword && !isSysAccount(u));
+/* بعد تغيير كلمة المرور: يُطلب من مدير كلمات المرور في المتصفح تحديث المحفوظة لهذا الحساب، حتى لا يملأ الكلمة القديمة عند الدخول التالي
+   (متاح على https فقط؛ وعلى http يكفي حقل اسم المستخدم المخفي في النموذج ليعرف المتصفح أي حساب يحدّث) */
+const rememberPw = (u, pw) => { try { if (window.PasswordCredential && navigator.credentials && u && u.username) navigator.credentials.store(new window.PasswordCredential({ id: u.username, password: pw, name: u.name || u.username })).catch(() => {}); } catch (_) { /* غير مدعوم */ } };
 const SysAccounts = {
   async ensure() {
     const t = now();
@@ -10091,12 +10070,6 @@ Pages.pickItemModal = async (title = 'اختر الصنف') => {
   return UI.modal({ title, icon: 'box', size: 'lg', body: html`${UI.field({ name: 'itemId', label: 'الصنف', type: 'select', required: true, options: items.map((i) => ({ value: i.id, label: `${i.name}${i.model ? ` — ${i.model}` : ''}` })), wide: true })}`, actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'متابعة', kind: 'primary', icon: 'check', submit: true, handler: (form) => form.querySelector('[name="itemId"]').value }] });
 };
 
-/* سجل صيانة الجهاز داخل بطاقته */
-Pages.maintHistory = async (itemId, assetId = '') => {
-  const rows = assetId ? await Data.maint.byAsset(assetId) : await Data.maint.byItem(itemId);
-  if (!rows.length) return '';
-  return html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة (${fmtNum(rows.length)})</h3><div class="timeline">${rows.slice(0, 8).map((r) => html`<div class="tl-item"><span class="tl-icon tone-${MAINT_STATUS[r.status].tone}">${UI.icon(MAINT_STATUS[r.status].icon)}</span><div class="tl-body"><b>${r.reason}</b> — ${MAINT_STATUS[r.status].label}<div class="t-sub">${fmtDate(r.openedAt)}${r.serial ? ` — ${r.serial}` : ''}${r.fromDepartmentId ? ` — ${Data.nameOf('departments', r.fromDepartmentId)}` : ''}</div>${r.workDone ? html`<p class="muted small" style="margin:4px 0 0">${r.workDone}${r.parts ? ` — القطع: ${r.parts}` : ''}</p>` : ''}${r.returnedAt ? html`<div class="t-sub">أُرجع ${fmtDate(r.returnedAt)} إلى ${Data.nameOf('departments', r.toDepartmentId, '')}</div>` : ''}</div></div>`)}</div></div>`;
-};
 
 /* ── مكتبة النماذج والاستمارات، وأيقونات الماركات ── */
 const FORM_ICONS = ['card', 'book', 'clipboard', 'paper', 'archive', 'key', 'tools', 'printer', 'computer', 'network', 'box', 'bell', 'smartcard', 'fingerprint', 'barcode', 'router'];
@@ -11128,15 +11101,19 @@ const SVC_STATUS = {
 };
 const ANN_LEVEL = { info: { label: 'إعلان', tone: 'sky', icon: 'bell' }, warn: { label: 'تنبيه', tone: 'amber', icon: 'alert' }, critical: { label: 'عاجل', tone: 'red', icon: 'alert' } };
 const DEFAULT_SERVICES = [['البريد الإلكتروني', 'email', 'email'], ['الشبكة والإنترنت', 'network', 'network'], ['نظام المراسلات', 'archive', 'backup'], ['الطباعة', 'printer', 'printer'], ['برنامج مسار', 'key', 'path_code'], ['بطاقات الدخول', 'smartcard', 'card']];
-const canAnnounce = () => canUser(Auth.user, 'users.manage') || canUser(Auth.user, 'announce.manage');
+const canAnnounce = () => canUser(Auth.user, 'users.manage') || canUser(Auth.user, 'announce.manage') || canUser(Auth.user, 'settings');
 Data.svc = {
+  /* القائمة الافتراضية بمعرّفات ثابتة: إن جهّزها جهازان في الوقت نفسه لا تتكرر الخدمات */
+  defaults() { const t = now(); return DEFAULT_SERVICES.map(([name, icon, cat], i) => ({ id: `sv_def_${i + 1}`, name, icon, categoryId: cat, status: 'up', note: '', order: i, updatedAt: t })); },
+  /* يحفظها فقط من يملك تعديل الخدمات. غيره يرى القائمة الافتراضية دون حفظ حتى تصله قائمة الخادم،
+     فلا يرسل جهازه مع كل فتح كتابات يرفضها الخادم */
   async ensure() {
-    if ((await DB.count('services')) > 0) return;
-    const t = now();
-    await DB.bulkPut('services', DEFAULT_SERVICES.map(([name, icon, cat], i) => ({ id: uid('sv'), name, icon, categoryId: cat, status: 'up', note: '', order: i, updatedAt: t })));
+    if ((await DB.count('services')) > 0) return true;
+    if (Sync.on && !canAnnounce()) return false;
+    await DB.bulkPut('services', Data.svc.defaults()); return true;
   },
   /* الحالة الفعلية: إذا انتهت مدة التوقف المحددة تُعرض الخدمة «تعمل» حتى قبل حفظ ذلك */
-  async list() { await Data.svc.ensure(); const t = now(); return (await DB.getAll('services')).map((s) => (s.until && s.until <= t && s.status !== 'up' ? { ...s, status: 'up', note: '', until: 0, expired: 1 } : s)).sort((a, b) => (a.order || 0) - (b.order || 0)); },
+  async list() { const saved = await Data.svc.ensure(); const t = now(); return (saved ? await DB.getAll('services') : Data.svc.defaults()).map((s) => (s.until && s.until <= t && s.status !== 'up' ? { ...s, status: 'up', note: '', until: 0, expired: 1 } : s)).sort((a, b) => (a.order || 0) - (b.order || 0)); },
   async set(id, status, note = '', until = 0) {
     if (!canAnnounce()) throw new AppError('تحديث حالة الخدمات لمن يملك صلاحية التعاميم');
     const s = await DB.get('services', id); if (!s) return;
@@ -11400,17 +11377,6 @@ UI.signBlock = (roles = []) => {
 };
 
 /* الصرف والإعارة السريعة بالمسح */
-const autoPick = (assetId) => {
-  let n = 0;
-  const t = setInterval(() => {
-    const cb = document.querySelector(`dialog[open] [data-pick="${assetId}"]`);
-    if (cb && !cb.checked) {
-      cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true }));
-      const q = cb.closest('dialog').querySelector('[name="qty"]'); if (q && !Number(q.value)) { q.value = 1; q.dispatchEvent(new Event('input', { bubbles: true })); }
-    }
-    if (++n > 25) clearInterval(t);
-  }, 120);
-};
 Pages.quickScan = async () => {
   if (!Auth.can('inventory.move') && !Auth.can('loans.manage')) { UI.toast('الصرف السريع لمن يملك صلاحية حركات المخزون', 'warn'); return; }
   const code = await Pages.scanModal({ title: 'صرف أو إعارة سريعة', hint: 'امسح ملصق الجهاز بقارئ الشفرات أو الكاميرا، فتظهر بياناته ويمكن صرفه أو إعارته فوراً.' });
@@ -12292,7 +12258,7 @@ Pages.bulkAddUsers = async () => {
       for (let i = 0; i < people.length; i++) {
         const p = people[i], pw = v.pwMode === 'military' ? p.militaryNo : v.pwMode === 'same' ? v.samePw : Crypto.tempPassword();
         await new Promise((res) => setTimeout(res, 0));
-        batch.push({ id: uid('u'), username: p.username, name: p.name, role: v.role, departmentId: v.departmentId, unitId: v.unitId || '', locationId: v.locationId || '', office: String(v.office || '').trim(), rankId: p.rankId, militaryNo: p.militaryNo, phone: p.phone, email: '', active: 1, mustChangePassword: Number(v.mustChange) ? 1 : 0, pass: Crypto.makePassword(pw), extraPerms: [], deniedPerms: [], categories: [], createdAt: t, updatedAt: t, lastLoginAt: 0 });
+        batch.push({ id: uid('u'), username: p.username, name: p.name, role: v.role, departmentId: v.departmentId, unitId: v.unitId || '', locationId: v.locationId || '', office: String(v.office || '').trim(), rankId: p.rankId, militaryNo: p.militaryNo, phone: p.phone, email: '', active: 1, mustChangePassword: pwForce() && Number(v.mustChange) ? 1 : 0, pass: Crypto.makePassword(pw), extraPerms: [], deniedPerms: [], categories: [], createdAt: t, updatedAt: t, lastLoginAt: 0 });
         creds.push({ name: p.name, rank: Data.nameOf('ranks', p.rankId, ''), militaryNo: p.militaryNo, username: p.username, pw });
       }
       await DB.bulkPut('users', batch); await Data.refresh('users');
@@ -12682,27 +12648,6 @@ Pages.custodyOpenModal = () => UI.modal({ title: 'فتح الإضافة المب
     <div class="row" style="gap:8px;flex-wrap:nowrap;margin-top:10px"><input class="input" type="number" name="dur" min="1" dir="ltr" value="1" style="max-width:120px"><select class="input" name="unit">${Object.entries(DUR_UNITS).map(([k, v]) => html`<option value="${k}"${k === 'd' ? raw(' selected') : ''}>${v.label}</option>`)}</select></div>`,
   onMount: (f) => UI.on(f, 'click', '[data-dq]', (e, b) => { const [n, u] = b.dataset.dq.split('|'); f.querySelector('[name="dur"]').value = n; if (u) f.querySelector('[name="unit"]').value = u; }),
   actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'فتح', kind: 'primary', icon: 'key', submit: true, handler: async (f) => { const n = Number(f.querySelector('[name="dur"]').value), u = f.querySelector('[name="unit"]').value, until = n > 0 ? now() + Math.round(n * DUR_UNITS[u].ms) : 0; await Custody.set(true, until); UI.toast(until ? `فُتحت الإضافة المباشرة حتى ${fmtDateTime(until)}` : 'فُتحت الإضافة المباشرة حتى تغلقها'); return true; } }] });
-Pages.directCustodyModal = async (departmentId = '') => {
-  if (!(await Custody.allowed())) { UI.toast('الإضافة المباشرة مغلقة حالياً', 'warn'); return false; }
-  const items = (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
-  return UI.modal({ title: 'إضافة عهدة مباشرة للإدارة', icon: 'plus', size: 'lg',
-    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">لتسجيل العهد الموجودة فعلاً لدى الإدارة دون صرف من المخزن. لا تتأثر أرصدة المخازن، وتُسجل حركة «إضافة عهدة مباشرة».</div></div>
-      ${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments'), required: true }, { name: 'unitId', label: 'القسم / المكتب', type: 'select', options: [] }, { name: 'itemId', label: 'الصنف', type: 'select', required: true, options: items.map((i) => ({ value: i.id, label: [i.name, i.brand, i.model].filter(Boolean).join(' — ') })) }, { name: 'qty', label: 'الكمية', type: 'number', min: 1, value: 1, required: true }, { name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [] }, { name: 'note', label: 'ملاحظات', type: 'textarea', rows: 2, wide: true }], { departmentId })}
-      <div data-dsn class="mt"></div>`,
-    onMount: (form) => {
-      UI.bindOrgCascade(form, { value: '' });
-      const dep = form.querySelector('[name="departmentId"]'), hs = form.querySelector('[name="holderId"]'), is = form.querySelector('[name="itemId"]'), qs = form.querySelector('[name="qty"]'), box = form.querySelector('[data-dsn]');
-      const people = () => { const list = Data.list('users').filter((u) => u.active && u.departmentId === dep.value); hs.innerHTML = `<option value="">— الإدارة —</option>${list.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; };
-      const sn = () => { const it = items.find((x) => x.id === is.value), n = Math.min(200, Math.max(0, Math.floor(Number(qs.value) || 0))); box.innerHTML = it && isSerialItem(it) && n ? String(UI.serialBox(n, UI.serialPairs(box))) : ''; };
-      dep.addEventListener('change', people); is.addEventListener('change', sn); qs.addEventListener('change', sn); people(); sn();
-    },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة إلى العهدة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
-      const v = UI.formValues(form), noSn = form.querySelector('[name="noSerial"]');
-      const pairs = noSn && noSn.checked ? [] : UI.serialPairs(form);
-      await Data.dept.addDirect({ departmentId: v.departmentId, unitId: v.unitId, itemId: v.itemId, qty: v.qty, holderId: v.holderId, note: v.note, serials: pairs });
-      UI.toast('أُضيفت العهدة إلى الإدارة'); return true;
-    } }] });
-};
 document.addEventListener('click', async (e) => {
   const d = e.target.closest('[data-cdirect]'), l = e.target.closest('[data-clock]');
   if (d) { e.preventDefault(); await Pages.directCustodyModal(d.dataset.cdirect); return; }
@@ -12834,12 +12779,6 @@ Data.inv.removeItem = async (id) => {
   await DB.del('items', id); await Data.log('delete', 'inventory', id, `حذف الصنف ${it.name}`); Bus.emit('inventory', { itemId: id }); return 'deleted';
 };
 Data.inv.restoreItem = async (id) => { if (!canUser(Auth.user, 'inventory.manage')) throw new AppError('للمخولين فقط'); const it = await DB.get('items', id); if (!it) return; await DB.put('items', { ...it, archived: 0, updatedAt: now() }); await Data.log('update', 'inventory', id, `استعادة الصنف ${it.name} من الأرشيف`); Bus.emit('inventory', { itemId: id }); };
-Pages.itemDeleteFlow = async (id) => {
-  const it = await DB.get('items', id); if (!it) return false;
-  if (it.archived) { if (await UI.confirm(`استعادة «${it.name}» من الأرشيف ليظهر في المخزن مجدداً؟`, { ok: 'استعادة', icon: 'undo' })) { await Data.inv.restoreItem(id); UI.toast('استُعيد الصنف'); return 'restored'; } return false; }
-  if (!(await UI.confirm(`حذف الصنف «${it.name}»؟ إن كان له سجل حركات سابق يُؤرشف (يختفي من المخزن ويبقى في التقارير والسجل).`, { danger: true, ok: 'حذف' }))) return false;
-  const r = await Data.inv.removeItem(id); UI.toast(r === 'archived' ? 'أُرشف الصنف لوجود سجل حركات سابق، ويمكن استعادته' : 'حُذف الصنف'); return r;
-};
 document.addEventListener('click', async (e) => {
   const ed = e.target.closest('[data-itemedit]'), fe = e.target.closest('[data-icedit]'), nf = e.target.closest('[data-icnew]');
   if (!ed && !fe && !nf) return;
@@ -14311,49 +14250,6 @@ const WIPE_GROUPS = [
   ['forms', 'النماذج والاستمارات المرفوعة', 'file', ['forms'], 1]
 ];
 const WIPE_PHRASE = 'حذف بيانات التجربة';
-Pages.wipeModal = async () => {
-  if (!Auth.user || Auth.user.role !== 'supervisor') return UI.toast('هذه العملية للمشرف فقط', 'warn');
-  const counts = {};
-  for (const [k, , , stores] of WIPE_GROUPS) counts[k] = (await Promise.all(stores.map((s) => DB.count(s).catch(() => 0)))).reduce((a, b) => a + b, 0);
-  const users = (await DB.getAll('users')).filter((u) => u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system).length;
-  const r = await UI.modal({
-    title: 'تنظيف بيانات التجربة', icon: 'trash', size: 'lg',
-    body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>تُحذف البيانات المختارة نهائياً من الخادم ومن كل الأجهزة.</b><div class="small">البيانات التشغيلية محددة مسبقاً. ولحذف كل شيء حدد أيضاً الهيكل التنظيمي والتصنيفات وقاعدة المعرفة والنماذج والحسابات (أو «تحديد الكل»). تبقى دائماً الإعدادات العامة وحسابك، ويُعاد ترقيم البلاغات والأصناف والسندات من البداية.</div></div><a class="btn btn-soft btn-sm" href="#/backup" data-wipebk>${UI.icon('download')} نسخة احتياطية أولاً</a></div>
-      <div class="wipe-list mt"><div class="row" style="gap:6px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-soft" data-wipeall>${UI.icon('check')} تحديد الكل (حذف كل البيانات)</button><button type="button" class="btn btn-sm btn-ghost" data-wipenone>إلغاء التحديد</button></div>${WIPE_GROUPS.map(([k, label, icon, , off]) => html`<label class="wipe-row${off ? ' warn' : ''}"><input type="checkbox" name="g" value="${k}"${off ? '' : raw(' checked')}><span class="wipe-ic">${UI.icon(icon)}</span><span class="grow">${label}</span><b class="wipe-n">${fmtNum(counts[k])}</b></label>`)}
-        <label class="wipe-row warn"><input type="checkbox" name="users" value="1"><span class="wipe-ic">${UI.icon('users')}</span><span class="grow">حسابات المستخدمين التجريبية <small class="faint">— يبقى حسابك وحسابات المشرفين</small></span><b class="wipe-n">${fmtNum(users)}</b></label></div>
-      <div class="field mt"><label>للتأكيد اكتب: <b class="wipe-phrase">${WIPE_PHRASE}</b></label><input name="confirm" autocomplete="off" placeholder="${WIPE_PHRASE}"></div>`,
-    onMount: (form, finish) => {
-      const btn = form.querySelector('.modal-foot .btn-danger'), sync = () => { btn.disabled = form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE || !form.querySelector('[name="g"]:checked, [name="users"]:checked'); };
-      form.addEventListener('input', sync); form.addEventListener('change', sync); sync();
-      UI.on(form, 'click', '[data-wipebk]', () => finish(null));
-      UI.on(form, 'click', '[data-wipeall]', () => { $$('[name="g"], [name="users"]', form).forEach((c) => { c.checked = true; }); sync(); });
-      UI.on(form, 'click', '[data-wipenone]', () => { $$('[name="g"], [name="users"]', form).forEach((c) => { c.checked = false; }); sync(); });
-    },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حذف نهائياً', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => {
-      const groups = $$('[name="g"]:checked', form).map((x) => x.value), wipeUsers = !!form.querySelector('[name="users"]:checked');
-      if (form.querySelector('[name="confirm"]').value.trim() !== WIPE_PHRASE) throw new AppError('اكتب عبارة التأكيد كما هي');
-      return Data.wipeTrial(groups, wipeUsers);
-    } }]
-  });
-  if (r) { UI.toast('حُذفت بيانات التجربة، وسيُعاد تحميل النظام', 'ok', 6000); setTimeout(() => location.reload(), 1600); }
-  return r;
-};
-Data.wipeTrial = async (groups, wipeUsers) => {
-  const stores = WIPE_GROUPS.filter(([k]) => groups.includes(k)).flatMap(([, , , s]) => s);
-  let res = { counts: {} };
-  if (Sync.on) {
-    if (!Sync.token) throw new AppError('لا يوجد اتصال بالخادم، أعد المحاولة بعد عودة الاتصال');
-    Sync.queue = Sync.queue.filter((op) => !stores.includes(op.store) && !(wipeUsers && op.store === 'users')); Sync.saveQueue();
-    res = await Sync.call('wipe', { body: { groups, users: wipeUsers, confirm: WIPE_PHRASE } });
-  }
-  const put = Sync.on ? Sync.raw.put : (s, v) => DB.put(s, v), del = Sync.on ? Sync.raw.del : (s, k) => DB.del(s, k);
-  for (const s of stores) await DB.clear(s);
-  if (wipeUsers) for (const u of await DB.getAll('users')) if (u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system) await del('users', u.id);
-  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'], extmaint: ['extmaint'] };
-  for (const g of groups) for (const n of seqs[g] || []) await put('meta', { key: `seq:${n}`, value: 0 });
-  await Data.log('delete', 'system', '', `تنظيف بيانات التجربة: ${groups.map((g) => (WIPE_GROUPS.find((x) => x[0] === g) || [])[1]).join('، ')}${wipeUsers ? '، والحسابات التجريبية' : ''}`);
-  return res;
-};
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-act="wipetrial"]'); if (b) Pages.wipeModal(); });
 
 /* ══════════ تصحيح أخطاء الإدخال في المخزن ══════════ */
@@ -14588,7 +14484,6 @@ Object.assign(VOUCHER_KIND, {
 });
 const VT_KINDS = [['issue', 'الصرف'], ['loan', 'الإعارة'], ['transfer', 'النقل'], ['replace', 'الاستبدال'], ['return', 'الإرجاع'], ['receipt', 'تسليم العهدة'], ['xmsend', 'إرسال صيانة خارجية'], ['xmrecv', 'استلام صيانة خارجية']];
 const VT_FONTS = [['IBM Plex Sans Arabic', 'بلكس العربي (الافتراضي)'], ['Noto Kufi Arabic', 'نوتو كوفي'], ['Amiri', 'أميري — نسخ كلاسيكي'], ['Noto Naskh Arabic', 'نوتو نسخ'], ['Scheherazade New', 'شهرزاد'], ['Markazi Text', 'مركزي'], ['Cairo', 'القاهرة'], ['Tajawal', 'تجوّل'], ['Almarai', 'المراعي'], ['El Messiri', 'المسيري'], ['Reem Kufi', 'ريم كوفي'], ['Changa', 'تشانغا'], ['Traditional Arabic', 'Traditional Arabic (ويندوز)'], ['Simplified Arabic', 'Simplified Arabic (ويندوز)'], ['Sakkal Majalla', 'سكّال مجلة (ويندوز)'], ['Arabic Typesetting', 'Arabic Typesetting (ويندوز)'], ['Times New Roman', 'Times New Roman'], ['Tahoma', 'Tahoma'], ['Arial', 'Arial']];
-const VT_ACCENTS = [['#8a6a22', 'ذهبي'], ['#1f3a68', 'كحلي'], ['#1d5c3f', 'أخضر'], ['#7a1f2b', 'عنابي'], ['#334155', 'رمادي'], ['#000000', 'أسود رسمي']];
 const VTPL_DEFAULT = {
   page: { size: 'A4', margin: 10, frame: 'none' },
   font: { family: 'IBM Plex Sans Arabic', size: 12.5, title: 22, head: 15 },
@@ -14942,75 +14837,6 @@ const XM = {
   }
 };
 
-/* ── نافذة الإرسال: الجهة + الأجهزة (من المخزن أو العهدة بالرقم التسلسلي، أو إدخال يدوي) ── */
-Pages.xmSendModal = async (preset = {}) => {
-  const vendors = XM.vendors(), lines = [];
-  const lineBox = (l, i) => html`<div class="xm-line" data-li="${i}">
-    <div class="xm-lh"><span class="xm-ln">${fmtNum(i + 1)}</span><b>${l.itemName || 'جهاز جديد'}</b>${l.serial ? html`<span class="chip tone-slate ltr">${l.serial}</span>` : ''}${l.assetId ? UI.chip('teal', 'من سجلات المخزن', 'warehouse') : UI.chip('slate', 'إدخال يدوي', 'edit')}<span class="grow"></span>${lines.length > 1 ? html`<button type="button" class="icon-btn" data-xrm="${i}" title="حذف السطر">${UI.icon('trash')}</button>` : ''}</div>
-    <div class="form-grid">
-      <div class="field wide"><label>الرقم التسلسلي (اكتبه أو امسحه ليُجلب الجهاز من سجلات المخزن)</label><div class="row" style="gap:6px"><input data-lk="serial" dir="ltr" value="${l.serial || ''}" placeholder="مثال: 5CD1234XYZ" autocomplete="off" style="flex:1"><button type="button" class="btn btn-soft btn-sm" data-xfind="${i}">${UI.icon('search')} بحث</button></div><small class="hint" data-xhint>${l.assetId ? `${l.where || ''}` : 'إن لم يكن الجهاز مسجلاً في المخزن فأكمل بياناته يدوياً'}</small></div>
-      <div class="field"><label>الجهاز / الغرض<em>*</em></label><input data-lk="itemName" value="${l.itemName || ''}" placeholder="مثال: طابعة ليزر، حاسب محمول"></div>
-      <div class="field"><label>الماركة والموديل</label><input data-lk="model" value="${[l.brand, l.model].filter(Boolean).join(' ')}" placeholder="مثال: HP LaserJet M404"></div>
-      <div class="field"><label>الإدارة المالكة</label><select data-lk="departmentId"><option value="">— المخزن / غير محدد —</option>${UI.opts('departments').map((o) => html`<option value="${o.value}"${o.value === l.departmentId ? raw(' selected') : ''}>${o.label}</option>`)}</select></div>
-      <div class="field"><label>صاحب العهدة</label><input data-lk="holder" value="${l.holder || ''}" placeholder="الاسم (اختياري)"></div>
-      <div class="field wide"><label>وصف العطل<em>*</em></label><textarea data-lk="fault" rows="2" placeholder="ما المشكلة؟ متى تظهر؟ ماذا جُرّب قبل الإرسال؟">${l.fault || ''}</textarea></div>
-      <div class="field"><label>الضمان</label><select data-lk="warranty">${Object.entries(XM_WARRANTY).map(([k, v]) => html`<option value="${k}"${(l.warranty || 'unknown') === k ? raw(' selected') : ''}>${v}</option>`)}</select></div>
-      <div class="field"><label>الحالة الظاهرية عند الإرسال</label><input data-lk="condition" value="${l.condition || ''}" placeholder="مثال: خدش بسيط في الغطاء"></div>
-      <div class="field wide"><label>الملحقات المرسلة مع الجهاز</label><div class="xm-chips">${XM_ACCESSORIES.map((a) => html`<label class="xm-chip"><input type="checkbox" data-acc="${a}"${(l.accessories || []).includes(a) ? raw(' checked') : ''}><span>${a}</span></label>`)}</div></div>
-      <div class="field wide"><label>${UI.icon('shield')} حماية البيانات قبل الإرسال</label><div class="xm-chips">${XM_DATA_FLAGS.map(([k, t]) => html`<label class="xm-chip safe"><input type="checkbox" data-flag="${k}"${(l.dataFlags || {})[k] ? raw(' checked') : ''}><span>${t}</span></label>`)}</div></div>
-    </div></div>`;
-  const blank = () => ({ itemName: '', serial: '', fault: '', accessories: [], dataFlags: {}, warranty: 'unknown' });
-  if (preset.assetId) { const a = await DB.get('assets', preset.assetId), it = a ? await DB.get('items', a.itemId) : null; if (a && it) lines.push({ ...blank(), assetId: a.id, itemId: it.id, itemName: it.name, brand: it.brand || '', model: it.model || '', serial: a.serial, tag: a.tag || '', departmentId: a.departmentId || '', holder: a.holder || '', holderId: a.holderId || '' }); }
-  if (!lines.length) lines.push(blank());
-  const v0 = vendors[0] || {};
-  return UI.modal({
-    title: `إرسال إلى ${XM.name()}`, icon: 'upload', size: 'xl',
-    body: html`<div class="xm-send">
-      <section class="xm-sec"><h3>${UI.icon('building')} الجهة المرسل إليها</h3><div class="form-grid">
-        <div class="field"><label>اسم الجهة<em>*</em></label><input name="vname" list="xmVendors" value="${preset.vendor || ''}" placeholder="مثال: الوكيل المعتمد لأجهزة HP" autocomplete="off"><datalist id="xmVendors">${vendors.map((v) => html`<option value="${v.name}">${XM_VENDOR_TYPES[v.type] || ''}</option>`)}</datalist></div>
-        ${UI.field({ name: 'vtype', label: 'نوع الجهة', type: 'select', placeholder: false, options: Object.entries(XM_VENDOR_TYPES).map(([value, label]) => ({ value, label })) }, 'agent')}
-        ${UI.field({ name: 'vcontact', label: 'الشخص المسؤول لدى الجهة', placeholder: 'الاسم' })}
-        ${UI.field({ name: 'vphone', label: 'هاتف الجهة', dir: 'ltr', inputmode: 'tel', placeholder: '9xxxxxxx' })}
-        ${UI.field({ name: 'vendorRef', label: 'رقم أمر العمل / الإيصال لدى الجهة', dir: 'ltr', placeholder: 'مثال: RMA-55821' })}
-        ${UI.field({ name: 'expectedAt', label: 'الموعد المتوقع للإرجاع', type: 'date' }, dateInput(now() + XM.overdueDays() * DAY))}
-        ${UI.field({ name: 'courier', label: 'سلّمه للجهة (المندوب أو الناقل)', placeholder: 'اسم من نقل الجهاز' })}
-        ${UI.field({ name: 'vendorReceiver', label: 'المستلم لدى الجهة', placeholder: 'اسم موظف الاستلام لدى الجهة' })}
-        ${UI.field({ name: 'ticketRef', label: 'مرتبط ببلاغ (اختياري)', dir: 'ltr', placeholder: 'رقم البلاغ' }, preset.ticketRef || '')}
-        ${UI.field({ name: 'note', label: 'ملاحظات عامة', placeholder: 'تظهر في سند الإرسال' })}
-      </div></section>
-      <section class="xm-sec"><h3>${UI.icon('box')} الأجهزة والأغراض المرسلة <span class="faint small" data-xcount></span></h3><div data-xlines></div>
-        <button type="button" class="btn btn-soft" data-xadd>${UI.icon('plus')} إضافة جهاز آخر لنفس الجهة</button></section>
-    </div>`,
-    onMount: (form) => {
-      const box = form.querySelector('[data-xlines]');
-      const sync = () => { $$('.xm-line', form).forEach((el) => { const l = lines[Number(el.dataset.li)]; if (!l) return; $$('[data-lk]', el).forEach((inp) => { const k = inp.dataset.lk; if (k === 'model') { l.brand = ''; l.model = inp.value.trim(); } else l[k] = inp.value; }); l.accessories = $$('[data-acc]', el).filter((c) => c.checked).map((c) => c.dataset.acc); l.dataFlags = Object.fromEntries($$('[data-flag]', el).map((c) => [c.dataset.flag, c.checked ? 1 : 0])); }); };
-      const draw = () => { box.innerHTML = String(html`${lines.map(lineBox)}`); form.querySelector('[data-xcount]').textContent = `(${fmtNum(lines.length)})`; };
-      draw();
-      const vIn = form.querySelector('[name="vname"]');
-      const fillVendor = () => { const v = XM.vendors().find((x) => normalizeAr(x.name) === normalizeAr(vIn.value)); if (!v) return; const set = (n, val) => { const el = form.querySelector(`[name="${n}"]`); if (el && val && !el.value) el.value = val; }; form.querySelector('[name="vtype"]').value = v.type || 'company'; set('vcontact', v.contact); set('vphone', v.phone); };
-      vIn.addEventListener('change', fillVendor);
-      if (!preset.vendor && v0.name && vendors.length === 1) { vIn.value = v0.name; fillVendor(); }
-      const find = async (i) => {
-        sync(); const l = lines[i], s = String(l.serial || '').trim(); if (!s) return;
-        const a = await Data.assets.bySerial(s), el = form.querySelector(`[data-li="${i}"] [data-xhint]`);
-        if (!a) { if (el) el.textContent = 'لم يُعثر على هذا الرقم في المخزن — أكمل بيانات الجهاز يدوياً'; delete l.assetId; return; }
-        const it = await DB.get('items', a.itemId);
-        if (a.status === 'retired') { UI.toast('هذه الوحدة خارجة عن الخدمة', 'warn'); return; }
-        const where = a.status === 'in_store' ? `في ${Data.nameOf('warehouses', a.warehouseId, 'المخزن')}` : a.departmentId ? `بعهدة ${Data.nameOf('departments', a.departmentId, '')}${a.holder ? ` — ${a.holder}` : ''}` : (ASSET_STATUS[a.status] || {}).label || '';
-        Object.assign(l, { assetId: a.id, itemId: a.itemId, itemName: it ? it.name : l.itemName, brand: it ? it.brand || '' : '', model: it ? it.model || '' : '', serial: a.serial, tag: a.tag || '', departmentId: a.departmentId || '', holder: a.holder || '', holderId: a.holderId || '', where: `وُجد: ${where}` });
-        if (it && it.model && it.brand) l.model = `${it.brand} ${it.model}`;
-        draw(); UI.toast(`وُجد الجهاز: ${l.itemName}`);
-        const nx = form.querySelector(`[data-li="${i}"] [data-lk="fault"]`); if (nx) nx.focus();
-      };
-      UI.on(form, 'click', '[data-xfind]', (e, el) => find(Number(el.dataset.xfind)));
-      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.lk === 'serial') { e.preventDefault(); e.stopPropagation(); find(Number(e.target.closest('[data-li]').dataset.li)); } });
-      UI.on(form, 'click', '[data-xadd]', () => { sync(); lines.push(blank()); draw(); const ins = $$('.xm-line', form); const last = ins[ins.length - 1]; if (last) { last.scrollIntoView({ block: 'nearest' }); const s = last.querySelector('[data-lk="serial"]'); if (s) s.focus(); } });
-      UI.on(form, 'click', '[data-xrm]', (e, el) => { sync(); lines.splice(Number(el.dataset.xrm), 1); draw(); });
-      form._xmSync = sync;
-    },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'soft', icon: 'check', handler: (form) => Pages.xmSubmit(form, lines, false) }, { label: 'حفظ وطباعة سند الإرسال', kind: 'primary', icon: 'print', submit: true, handler: (form) => Pages.xmSubmit(form, lines, true) }]
-  });
-};
 Pages.xmSubmit = async (form, lines, print) => {
   form._xmSync();
   const v = UI.formValues(form);
@@ -16026,7 +15852,6 @@ const vlFix = (L) => { L.page = { ...VLS.page(), ...(L.page || {}) }; L.bands = 
 }
 /* ── واجهة المحرر ── */
 const VLE_COLORS = ['#000000', '#111111', '#444444', '#888888', '#ffffff', '#8a6a22', '#1f3a68', '#0f4c5c', '#1d5c3f', '#7a1f2b', '#b45309', '#1d4ed8', '#f6f2e8', '#eef2f8', '#e8f1f3', '#fff7e6'];
-const vleKindTitle = (k) => (VOUCHER_KIND[k] || {}).title || k;
 Pages.vleSample = (k, n) => { const d = Pages.vtdSample(k, n), T = VTPL.eff(k); d.title = String(T.title.text || '').trim() || d.kind.title; d.pledge = String(T.pledge.text || '').trim() || d.pledge || ''; return d; };
 Pages.vleImage = async (maxPx = 900) => {
   const [f] = await UI.pickFiles({ accept: 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif', multiple: false }); if (!f) return null;
@@ -17306,77 +17131,6 @@ document.addEventListener('click', async (e) => {
   } catch (ex) { UI.error(ex); }
 }, true);
 
-/* ══════════ الإضافة المباشرة دفعة واحدة: الإدارة أو أي قسم أو مكتب داخلها ══════════
-   لتعبئة العهد الموجودة فعلاً عند بدء التشغيل الرسمي: عدة أصناف في نافذة واحدة، أصناف جديدة تُنشأ تلقائياً، أرقام تسلسلية اختيارية، ولصق من Excel */
-Pages.directCustodyModal = async (departmentId = '', unitId = '') => {
-  if (!(await Custody.allowed())) {
-    if (Custody.canToggle() && (await UI.confirm('الإضافة المباشرة مغلقة. هل تريد فتحها الآن؟', { ok: 'فتح الإضافة المباشرة', icon: 'key' }))) { const ok = await Pages.custodyOpenModal(); if (!ok) return false; }
-    else { UI.toast('الإضافة المباشرة مغلقة حالياً. يفتحها المشرف أو من يملك صلاحية «أقفال المخزن والعهد»', 'warn', 6000); return false; }
-  }
-  const items = (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
-  const lab = (i) => [i.name, [i.brand, i.model].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
-  const byLab = new Map(); items.forEach((i) => { byLab.set(normalizeAr(lab(i)), i); if (!byLab.has(normalizeAr(i.name))) byLab.set(normalizeAr(i.name), i); if (i.sku) byLab.set(normalizeAr(i.sku), i); });
-  const cats = Data.list('itemCategories').map((c) => ({ value: c.id, label: IC.label(c.id) || c.name })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
-  const find = (v) => byLab.get(normalizeAr(String(v || '').trim())) || null;
-  const row = (r = {}) => html`<div class="bc-row" data-bcrow>
-      <div class="bc-item"><input class="input" list="bcItems" data-bci placeholder="اكتب اسم الصنف أو اختره" value="${r.name || ''}" autocomplete="off"><div class="bc-new" hidden>${UI.icon('plus')} صنف جديد يُضاف للمخزن تحت تصنيف <select data-bcc>${cats.map((c) => html`<option value="${c.value}"${c.value === 'ic_other' ? raw(' selected') : ''}>${c.label}</option>`)}</select></div></div>
-      <input class="input bc-q" type="number" min="1" max="9999" data-bcq value="${r.qty || 1}" title="الكمية">
-      <input class="input ltr bc-s" data-bcs placeholder="الأرقام التسلسلية (اختياري) — افصل بينها بفاصلة" value="${r.sn || ''}">
-      <input class="input bc-n" data-bcn placeholder="ملاحظة" value="${r.note || ''}">
-      <button type="button" class="icon-btn danger" data-bcx title="حذف السطر">${UI.icon('x')}</button></div>`;
-  return UI.modal({ title: 'إضافة عهدة مباشرة', icon: 'plus', size: 'xl',
-    body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">لتسجيل الأجهزة والأغراض الموجودة فعلاً في الإدارة أو أقسامها ومكاتبها دون صرف من المخزن. لا تتأثر أرصدة المخازن، وتُسجَّل حركة «إضافة عهدة مباشرة» لكل سطر.</div></div>
-      <div class="form-grid mt">${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments'), required: true }, { name: 'unitId', label: 'القسم / المكتب', type: 'select', options: [] }, { name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [] }], { departmentId })}</div>
-      <datalist id="bcItems">${items.map((i) => html`<option value="${lab(i)}">${i.sku || ''}</option>`)}</datalist>
-      <div class="bc-head"><span>الصنف</span><span>الكمية</span><span>الأرقام التسلسلية</span><span>ملاحظة</span><span></span></div>
-      <div class="bc-rows" data-bcrows>${row()}${row()}${row()}</div>
-      <div class="row mt" style="gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-soft btn-sm" data-bcadd>${UI.icon('plus')} سطر</button><button type="button" class="btn btn-ghost btn-sm" data-bcadd5>${UI.icon('plus')} 5 أسطر</button><span class="faint small">${UI.icon('copy')} يمكنك نسخ جدول من Excel (الصنف، الكمية، الأرقام التسلسلية، ملاحظة) ولصقه في خانة الصنف.</span><span class="grow"></span><b class="bc-sum" data-bcsum></b></div>`,
-    onMount: (form) => {
-      UI.bindOrgCascade(form, { value: unitId });
-      const dep = form.querySelector('[name="departmentId"]'), hs = form.querySelector('[name="holderId"]'), rows = $('[data-bcrows]', form);
-      const people = () => { const list = Data.list('users').filter((u) => u.active && u.departmentId === dep.value); hs.innerHTML = `<option value="">— بلا مستلم محدد —</option>${list.map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; };
-      const mark = (r) => { const v = $('[data-bci]', r).value.trim(), nw = $('.bc-new', r); nw.hidden = !v || !!find(v); };
-      const sum = () => { let n = 0, q = 0; $$('[data-bcrow]', rows).forEach((r) => { if ($('[data-bci]', r).value.trim()) { n++; const sn = $('[data-bcs]', r).value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean).length; q += Math.max(Number($('[data-bcq]', r).value) || 0, sn); } }); $('[data-bcsum]', form).textContent = n ? `${fmtNum(n)} صنف — ${fmtNum(q)} وحدة` : ''; };
-      const addRows = (k, data = []) => { for (let i = 0; i < k; i++) rows.insertAdjacentHTML('beforeend', String(row(data[i] || {}))); $$('[data-bcrow]', rows).forEach(mark); sum(); };
-      dep.addEventListener('change', people); people();
-      form.addEventListener('input', (e) => { const r = e.target.closest('[data-bcrow]'); if (r && e.target.matches('[data-bci]')) mark(r); if (r && e.target.matches('[data-bcs]')) { const k = e.target.value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean).length, q = $('[data-bcq]', r); if (k > (Number(q.value) || 0)) q.value = k; } sum(); });
-      UI.on(form, 'click', '[data-bcadd]', () => { addRows(1); const all = $$('[data-bci]', rows); all[all.length - 1].focus(); });
-      UI.on(form, 'click', '[data-bcadd5]', () => addRows(5));
-      UI.on(form, 'click', '[data-bcx]', (e, b) => { const r = b.closest('[data-bcrow]'); if ($$('[data-bcrow]', rows).length > 1) r.remove(); else $$('input', r).forEach((x) => { x.value = x.matches('[data-bcq]') ? 1 : ''; }); sum(); });
-      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.closest('[data-bcrow]')) { e.preventDefault(); const r = e.target.closest('[data-bcrow]'); if (!r.nextElementSibling) addRows(1); const nx = r.nextElementSibling; if (nx) $('[data-bci]', nx).focus(); } });
-      /* لصق جدول من Excel: كل سطر صنف، والأعمدة: الصنف، الكمية، الأرقام التسلسلية، ملاحظة */
-      form.addEventListener('paste', (e) => {
-        const inp = e.target.closest && e.target.closest('[data-bci]'); if (!inp) return;
-        const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; if (!/[\t\n]/.test(txt.trim())) return;
-        e.preventDefault();
-        const lines = txt.replace(/\r/g, '').split('\n').map((l) => l.split('\t')).filter((c) => (c[0] || '').trim());
-        const data = lines.map(([name, qty, sn, note]) => ({ name: String(name || '').trim(), qty: Math.max(1, parseInt(String(qty || '').replace(/[^\d]/g, ''), 10) || 1), sn: String(sn || '').trim(), note: String(note || '').trim() }));
-        let r = inp.closest('[data-bcrow]');
-        data.forEach((d, i) => { if (i > 0) { if (!r.nextElementSibling) rows.insertAdjacentHTML('beforeend', String(row())); r = r.nextElementSibling; } $('[data-bci]', r).value = d.name; $('[data-bcq]', r).value = d.qty; $('[data-bcs]', r).value = d.sn; $('[data-bcn]', r).value = d.note; });
-        $$('[data-bcrow]', rows).forEach(mark); sum(); UI.toast(`لُصق ${fmtNum(data.length)} سطر`);
-      });
-      sum();
-    },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة إلى العهدة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
-      const v = UI.formValues(form);
-      if (!v.departmentId) throw new AppError('اختر الإدارة');
-      const lines = $$('[data-bcrow]', form).map((r, i) => ({ i, name: $('[data-bci]', r).value.trim(), qty: Math.floor(Number($('[data-bcq]', r).value) || 0), sns: $('[data-bcs]', r).value.split(/[\n,،;]+/).map((x) => x.trim()).filter(Boolean), note: $('[data-bcn]', r).value.trim(), cat: ($('[data-bcc]', r) || {}).value || 'ic_other' })).filter((l) => l.name);
-      if (!lines.length) throw new AppError('أضف صنفاً واحداً على الأقل');
-      lines.forEach((l) => { l.qty = Math.max(l.qty, l.sns.length); if (!(l.qty > 0)) throw new AppError(`أدخل كمية صحيحة للصنف «${l.name}»`); });
-      /* فحص تكرار الأرقام التسلسلية في كل الأسطر قبل حفظ أي شيء */
-      const pairs = lines.flatMap((l) => l.sns.map((s) => ({ serial: s, tag: '' })));
-      if (pairs.length) await Data.assets.check(pairs);
-      let created = 0, units = 0;
-      for (const l of lines) {
-        let it = find(l.name);
-        if (!it) { it = await Data.inv.saveItem({ name: l.name, categoryId: l.cat, unit: 'قطعة' }); byLab.set(normalizeAr(it.name), it); created++; }
-        await Data.dept.addDirect({ departmentId: v.departmentId, unitId: v.unitId || '', itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note, serials: l.sns.map((s) => ({ serial: s, tag: '' })) });
-        units += l.qty;
-      }
-      return { lines: lines.length, units, created, place: v.unitId ? ((await DB.get('deptUnits', v.unitId)) || {}).name : Data.nameOf('departments', v.departmentId) };
-    } }]
-  }).then((r) => { if (r && r.lines) UI.toast(`أُضيف ${fmtNum(r.lines)} صنف (${fmtNum(r.units)} وحدة) إلى عهدة ${r.place}${r.created ? ` — منها ${fmtNum(r.created)} صنف جديد في المخزن` : ''}`, 'ok', 6000); return r; });
-};
 
 /* ══════════ صفحة «أقفال المخزن والعهد» في مركز الإعدادات ══════════ */
 Pages.ccLocks = async (ctx) => {
@@ -17516,7 +17270,7 @@ VL.dynTable = (e, d, F, opt, place) => {
   for (let i = 0; i < r1; i++) push(i, -1);
   for (let r = 0; r < reps; r++) for (let i = r1; i <= r2; i++) push(i, r);
   for (let i = r2 + 1; i < R; i++) push(i, -1);
-  const SPN = T.span || {}, CS = T.cs || {}, region = (i) => (i < r1 ? 0 : i <= r2 ? 1 : 2), lim = (i) => (i < r1 ? r1 - i : i <= r2 ? r2 - i + 1 : R - i);
+  const SPN = T.span || {}, CS = T.cs || {}, lim = (i) => (i < r1 ? r1 - i : i <= r2 ? r2 - i + 1 : R - i);
   const nSpan = {}, cov = new Set();
   out.forEach((o) => { for (let j = 0; j < C; j++) { const sp = SPN[`${o.orig},${j}`]; if (!sp) continue; const rs = Math.max(1, Math.min(Number(sp[0]) || 1, lim(o.orig))), cs = Math.max(1, Math.min(Number(sp[1]) || 1, C - j)); nSpan[`${o.ni},${j}`] = [rs, cs]; } });
   Object.keys(nSpan).forEach((k) => { const [i, j] = k.split(',').map(Number), [rs, cs] = nSpan[k]; for (let a = i; a < i + rs; a++) for (let z = j; z < j + cs; z++) if (a !== i || z !== j) cov.add(`${a},${z}`); });
@@ -18119,6 +17873,7 @@ document.addEventListener('click', async (e) => {
     const rec = await DB.get('users', id);
     if (rec) { delete rec.pass; rec.mustChangePassword = r.user ? Number(r.user.mustChangePassword) || 0 : (mustChange ? 1 : 0); rec.updatedAt = (r.user && r.user.updatedAt) || now(); rec.passChangedAt = (r.user && r.user.passChangedAt) || now(); rec._rev = r.rev; await Sync.raw.put('users', rec); }
     await Data.refresh('users');
+    if (Sync.sysDefault) Sync.sysDefault = Sync.sysDefault.filter((n) => n !== target.username);
     await Data.log('password', 'user', id, self ? 'تغيير كلمة المرور الشخصية' : `تعيين كلمة مرور لحساب ${target.name}`);
     if (self) Auth.user = await DB.get('users', id);
     else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: `راجع من أصدرها لاستلامها${pwForce() ? '، وسيُطلب منك تغييرها عند الدخول' : ''}.`, link: '/profile', kind: 'user' });
