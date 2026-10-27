@@ -98,7 +98,7 @@ function setup(): void {
   /* الفحص الكامل مرة كل 10 دقائق فقط، لا مع كل طلب */
   $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sqapa_setup_' . md5(__FILE__);
   /* العلامة تحمل رقم إصدار الجداول: ترقية الملف تُنشئ الجداول الجديدة فوراً دون انتظار انتهاء المدة */
-  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v6') return;
+  if (is_file($flag) && time() - filemtime($flag) < 600 && @file_get_contents($flag) === 'v7') return;
   $pdo = db();
   /* رفع الحدود تلقائياً إن سمحت صلاحيات المستخدم (حساب root في XAMPP يسمح). تسري حتى إعادة تشغيل MySQL */
   try { if ((int) $pdo->query('SELECT @@global.max_allowed_packet')->fetchColumn() < 67108864) $pdo->exec('SET GLOBAL max_allowed_packet = 67108864'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
@@ -108,7 +108,7 @@ function setup(): void {
   try { if ((int) $pdo->query('SELECT @@global.max_connections')->fetchColumn() < 500) $pdo->exec('SET GLOBAL max_connections = 500'); } catch (Throwable $e) { /* يلزم تعديل my.ini يدوياً */ }
   $ready = false;
   try { $pdo->query('SELECT 1 FROM counters LIMIT 1'); $ready = true; } catch (Throwable $e) { /* أول تشغيل: إنشاء الجداول */ }
-  if ($ready) { setup_v4($pdo); if (setup_v6($pdo)) @file_put_contents($flag, 'v6'); return; }
+  if ($ready) { setup_v4($pdo); if (setup_v6($pdo) && setup_v7($pdo)) @file_put_contents($flag, 'v7'); return; }
   $pdo->exec("CREATE TABLE IF NOT EXISTS docs (
     store VARCHAR(40) NOT NULL,
     doc_id VARCHAR(120) NOT NULL,
@@ -141,7 +141,8 @@ function setup(): void {
   $pdo->prepare("INSERT IGNORE INTO counters (name, value) VALUES ('rev', 0)")->execute();
   setup_v4($pdo);
   setup_v6($pdo);
-  @file_put_contents($flag, 'v6');
+  setup_v7($pdo);
+  @file_put_contents($flag, 'v7');
 }
 
 /** الإصدار 6: كلمات المرور المحفوظة نصاً صريحاً (استيراد «الرقم العسكري» أو النظام القديم) تُجزّأ فوراً،
@@ -154,10 +155,17 @@ function setup_v6(PDO $pdo): bool {
     if (($p['algo'] ?? '') !== 'legacy' || ($p['kind'] ?? 'plain') !== 'plain') continue;
     $plain = (string) ($p['value'] ?? ''); $salt = random_bytes(16);
     $u['pass'] = ['algo' => 'pbkdf2-sha256', 'iter' => 10000, 'salt' => bin2hex($salt), 'hash' => bin2hex(hash_pbkdf2('sha256', $plain, $salt, 10000, 32, true))];
-    if (trim((string) ($u['militaryNo'] ?? '')) !== '' && trim((string) $u['militaryNo']) === $plain && !is_sys_account($u, (string) $r['doc_id'])) $u['mustChangePassword'] = 1;
+    if (pw_force() && trim((string) ($u['militaryNo'] ?? '')) !== '' && trim((string) $u['militaryNo']) === $plain && !is_sys_account($u, (string) $r['doc_id'])) $u['mustChangePassword'] = 1;
     $rev = bump_rev();
     $pdo->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?")->execute([$rev, now_ms(), json_encode($u, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $r['doc_id']]);
   }
+  return true;
+}
+
+/** الإصدار 7: لا قفل للحسابات. سجلات القفل القديمة (meta/lock:*) تُحذف مرة واحدة ويُزال أثرها من الأجهزة بالمزامنة */
+function setup_v7(PDO $pdo): bool {
+  $n = (int) $pdo->query("SELECT COUNT(*) FROM docs WHERE store = 'meta' AND deleted = 0 AND doc_id LIKE 'lock:%'")->fetchColumn();
+  if ($n > 0) { $rev = bump_rev(); $pdo->prepare("UPDATE docs SET deleted = 1, data = '{}', rev = ?, updated_at = ? WHERE store = 'meta' AND deleted = 0 AND doc_id LIKE 'lock:%'")->execute([$rev, now_ms()]); }
   return true;
 }
 
@@ -357,6 +365,33 @@ function doc_get(string $store, string $id): ?array {
   $row = $st->fetch();
   return $row ?: null;
 }
+
+/** إعداد عام من meta/settings (يُقرأ مرة واحدة لكل طلب) */
+function setting(string $k, $def = null) {
+  static $v = null;
+  if ($v === null) { $d = doc_get('meta', 'settings'); $j = ($d && !(int) $d['deleted']) ? (json_decode((string) $d['data'], true) ?: []) : []; $v = is_array($j['value'] ?? null) ? $j['value'] : []; }
+  return array_key_exists($k, $v) ? $v[$k] : $def;
+}
+/** سياسة إلزام تغيير كلمة المرور المؤقتة عند أول دخول: معطّلة افتراضياً، ويفعّلها المشرف من الإعدادات */
+function pw_force(): bool { return !empty(setting('pwForce', 0)); }
+
+/** الحسابات التي تحمل اسم الدخول نفسه (الأصل حساب واحد؛ قد توجد نسخ مكررة قديمة من قبل فرض التفرد) */
+function find_users_by_username(string $username): array {
+  $want = lc(trim($username));
+  try {
+    $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0 AND LOWER(TRIM(JSON_UNQUOTE(JSON_EXTRACT(data, '$.username')))) = ?");
+    $st->execute([$want]);
+    $rows = $st->fetchAll();
+  } catch (Throwable $e) {
+    /* MySQL قديم بلا دوال JSON */
+    $rows = db()->query("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0")->fetchAll();
+  }
+  $out = [];
+  foreach ($rows as $row) { $u = json_decode((string) $row['data'], true) ?: []; if (lc(trim((string) ($u['username'] ?? ''))) === $want) $out[] = [(string) $row['doc_id'], $u]; }
+  return $out;
+}
+/** تجزئة وهمية بالكلفة نفسها للاسم غير الموجود (تتساوى أزمنة الرد) */
+const DUMMY_PASS = ['algo' => 'pbkdf2-sha256', 'iter' => 100000, 'salt' => '5f1c0a9e3b7d2c4a8e6f1b3d5c7a9e0f', 'hash' => '0000000000000000000000000000000000000000000000000000000000000000'];
 
 /** الحقول التي لا تُرسل للعملاء */
 function strip_user(array $data): array { unset($data['pass']); return $data; }
@@ -703,49 +738,28 @@ case 'login': {
   $username = trim((string) ($b['username'] ?? ''));
   $password = (string) ($b['password'] ?? '');
   if ($username === '' || $password === '') fail('أدخل اسم المستخدم وكلمة المرور');
-  $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0");
-  $st->execute();
+  /* لا قفل للحسابات أبداً. بدلاً منه: زمن ثابت لكل محاولة خاطئة يبطئ التخمين، وتجزئة وهمية للاسم غير الموجود
+     حتى لا يُعرف من زمن الرد هل الاسم موجود أم لا. ومع وجود نسخ مكررة قديمة بالاسم نفسه يُعتمد الحساب الذي تطابق كلمة مروره */
+  $cands = find_users_by_username($username);
   $found = null;
-  foreach ($st->fetchAll() as $row) {
-    $u = json_decode($row['data'], true) ?: [];
-    if (lc(trim((string) ($u['username'] ?? ''))) === lc($username)) { $found = [$row['doc_id'], $u]; break; }
-  }
-  if (!$found) fail('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
+  foreach ($cands as $c) if (verify_password($password, $c[1]['pass'] ?? null)) { $found = $c; break; }
+  if (!$found) { if (!$cands) verify_password($password, DUMMY_PASS); usleep(300000); fail('اسم المستخدم أو كلمة المرور غير صحيحة', 401); }
   [$uid, $user] = $found;
+  /* حالة الإيقاف تُذكر لمن يعرف كلمة المرور فقط */
   if (($user['active'] ?? 1) == 0) fail('الحساب موقوف، راجع مشرف النظام', 403);
-  $lockKey = 'lock:' . $uid;
-  $lockDoc = doc_get('meta', $lockKey);
-  /* السجل محفوظ بصيغة {key, value: {tries, until}}؛ القراءة السابقة من المستوى الخطأ جعلت القفل لا يعمل أبداً */
-  $lockRec = $lockDoc ? (json_decode($lockDoc['data'], true) ?: []) : [];
-  $lock = is_array($lockRec['value'] ?? null) ? $lockRec['value'] : [];
-  if ((int) ($lock['until'] ?? 0) > now_ms()) fail('الحساب مقفل مؤقتاً بسبب محاولات خاطئة، حاول بعد قليل', 429);
-  if (!verify_password($password, $user['pass'] ?? null)) {
-    $tries = (int) ($lock['tries'] ?? 0) + 1;
-    $val = ['tries' => $tries, 'until' => $tries >= 5 ? now_ms() + 5 * 60 * 1000 : 0];
-    $rev = bump_rev();
-    $st = db()->prepare("INSERT INTO docs (store, doc_id, rev, updated_at, deleted, data) VALUES ('meta', ?, ?, ?, 0, ?) ON DUPLICATE KEY UPDATE rev = VALUES(rev), updated_at = VALUES(updated_at), data = VALUES(data), deleted = 0");
-    $st->execute([$lockKey, $rev, now_ms(), json_encode(['key' => $lockKey, 'value' => $val], JSON_UNESCAPED_UNICODE)]);
-    fail('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
-  }
-  /* ترقية كلمة المرور المحفوظة نصاً أو بتجزئة ضعيفة إلى PBKDF2 بـ100 ألف تكرار، ومن يدخل برقمه العسكري يُلزم بتغييرها */
+  /* ترقية كلمة المرور المحفوظة نصاً أو بتجزئة ضعيفة إلى PBKDF2 بـ100 ألف تكرار.
+     ومن يدخل برقمه العسكري يُلزم بتغييرها فقط إن فعّل المشرف سياسة الإلزام */
   $pw0 = is_array($user['pass'] ?? null) ? $user['pass'] : [];
   $weak = ($pw0['algo'] ?? '') !== 'pbkdf2-sha256' || (int) ($pw0['iter'] ?? 0) < 100000;
   $mil = trim((string) ($user['militaryNo'] ?? ''));
-  $byMil = $mil !== '' && hash_equals($mil, $password) && empty($user['mustChangePassword']) && !is_sys_account($user, $uid);
+  $byMil = pw_force() && $mil !== '' && hash_equals($mil, $password) && empty($user['mustChangePassword']) && !is_sys_account($user, $uid);
   if ($weak || $byMil) {
     if ($weak) $user['pass'] = make_pass($password);
     if ($byMil) $user['mustChangePassword'] = 1;
     $rev = bump_rev();
     db()->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'users' AND doc_id = ?")->execute([$rev, now_ms(), json_encode($user, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), $uid]);
   }
-  /* دخول ناجح: تصفير عداد المحاولات الخاطئة حتى لا تتراكم عبر الأيام */
-  if ((int) ($lock['tries'] ?? 0) > 0) {
-    $rev = bump_rev();
-    db()->prepare("UPDATE docs SET rev = ?, updated_at = ?, data = ? WHERE store = 'meta' AND doc_id = ?")->execute([$rev, now_ms(), json_encode(['key' => $lockKey, 'value' => ['tries' => 0, 'until' => 0]], JSON_UNESCAPED_UNICODE), $lockKey]);
-  }
-  $hours = 12;
-  $setDoc = doc_get('meta', 'settings');
-  if ($setDoc) { $s = json_decode($setDoc['data'], true) ?: []; $v = $s['value'] ?? []; $hours = (int) ($v['sessionHours'] ?? 12); }
+  $hours = (int) setting('sessionHours', 12);
   $token = bin2hex(random_bytes(32));
   $ins = db()->prepare("INSERT INTO sessions (token, user_id, created, expires, agent) VALUES (?, ?, ?, ?, ?)");
   $ins->execute([$token, $uid, now_ms(), now_ms() + max(1, $hours) * 3600 * 1000, cut((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 180)]);
@@ -778,7 +792,7 @@ case 'passwd': {
     if (!can_set_password($user, $target)) fail('لا تملك صلاحية تغيير كلمة مرور هذا الحساب', 403);
     $next = trim($next);
     if (pw_len($next) < 6) fail('كلمة المرور 6 أحرف على الأقل');
-    $must = !is_sys_account($target, $tid) && !empty($b['mustChange']) ? 1 : 0;
+    $must = pw_force() && !is_sys_account($target, $tid) && !empty($b['mustChange']) ? 1 : 0;
   }
   $t = now_ms();
   $target['pass'] = make_pass($next); $target['mustChangePassword'] = $must; $target['updatedAt'] = $t; $target['passChangedAt'] = $t;

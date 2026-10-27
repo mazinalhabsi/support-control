@@ -4350,18 +4350,11 @@ const Auth = {
     } catch (_) { return null; }
   },
   async login(username, password) {
-    const key = `lock:${String(username || '').trim().toLowerCase()}`;
-    const lock = ((await DB.get('meta', key)) || { value: { n: 0, until: 0 } }).value;
-    if (lock.until > now()) throw new AppError(`تم إيقاف الدخول مؤقتاً بسبب محاولات خاطئة متكررة. حاول بعد ${Math.ceil((lock.until - now()) / MIN)} دقيقة.`);
+    /* لا قفل للحسابات: المحاولة الخاطئة تأخذ زمناً قصيراً ثابتاً فقط */
     const name = String(username || '').trim().toLowerCase(), u = name ? (await DB.getAll('users', 'username', KR(name)))[0] : null;
     const ok = !!(u && u.pass && Crypto.verifyPassword(String(password || ''), u.pass));
-    if (!ok) {
-      lock.n += 1; if (lock.n >= 5) { lock.n = 0; lock.until = now() + 15 * MIN; }
-      await DB.put('meta', { key, value: lock });
-      throw new AppError(lock.until > now() ? 'تم إيقاف الدخول 15 دقيقة بسبب 5 محاولات خاطئة.' : 'اسم المستخدم أو كلمة المرور غير صحيحة');
-    }
+    if (!ok) { await new Promise((r) => setTimeout(r, 300)); throw new AppError('اسم المستخدم أو كلمة المرور غير صحيحة'); }
     if (!u.active) throw new AppError('هذا الحساب موقوف. تواصل مع مشرف النظام.');
-    await DB.del('meta', key);
     if (u.pass.algo !== 'pbkdf2-sha256') u.pass = Crypto.makePassword(String(password));
     u.lastLoginAt = now(); await DB.put('users', u);
     this.user = u; sessionStorage.setItem('sq_session', JSON.stringify({ uid: u.id, exp: now() + (Data.c.settings.sessionHours || 12) * HOUR }));
@@ -5267,7 +5260,7 @@ const Router = {
     const u = Auth.user;
     /* التحويلات تستبدل الخطوة الحالية ولا تضيف خطوة جديدة، حتى يرجع زر الرجوع خطوة واحدة فعلاً */
     if (u.role === 'monitor' && path !== '/monitor') return this.replace('/monitor');
-    if (u.role !== 'monitor' && u.mustChangePassword && !isSysAccount(u) && path !== '/welcome') return this.replace('/welcome');
+    if (u.role !== 'monitor' && needsPwChange(u) && path !== '/welcome') return this.replace('/welcome');
     if (['/', '/login', '/setup'].includes(path)) return this.replace(u.role === 'monitor' ? '/monitor' : '/dashboard');
     /* ترقيم كل خطوة داخل سجل المتصفح لمعرفة هل توجد خطوة سابقة داخل النظام */
     const hs = history.state && history.state.sqi;
@@ -6161,7 +6154,7 @@ Pages.profile = async (ctx) => {
     if (!ctx.alive()) return;
     const theme = localStorage.getItem('sq_theme') || 'auto', accent = document.documentElement.dataset.accent, hue = UI.hueOf(u);
     ctx.view.innerHTML = String(html`
-      ${u.mustChangePassword ? html`<div class="banner tone-amber">${UI.icon('lock')}<div class="grow"><b>يجب تغيير كلمة المرور المؤقتة قبل المتابعة</b><div class="small muted">اختر كلمة مرور خاصة بك من 8 أحرف على الأقل تتضمن حروفاً وأرقاماً.</div></div></div>` : ''}
+      ${needsPwChange(u) ? html`<div class="banner tone-amber">${UI.icon('lock')}<div class="grow"><b>يجب تغيير كلمة المرور المؤقتة قبل المتابعة</b><div class="small muted">اختر كلمة مرور خاصة بك من 8 أحرف على الأقل تتضمن حروفاً وأرقاماً.</div></div></div>` : ''}
       <section class="profile-hero"><div class="avatar-edit">${UI.avatar(u, 'av-xl')}<button class="icon-btn" data-act="photo" title="تغيير الصورة" aria-label="تغيير الصورة">${UI.icon('upload')}</button></div>
         <div><h1>${u.name}</h1><div class="row" style="margin-top:6px">${UI.chip(ROLE_TONE[u.role] || 'slate', ROLES[u.role], 'shield')}<span class="faint">@${u.username}</span><span class="faint">${Data.nameOf('departments', u.departmentId, '')}</span></div><p class="small faint" style="margin-top:6px">آخر دخول ${u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : '—'}</p></div>
         <div class="profile-stats"><div><b data-count="${m.submitted}">0</b><small>بلاغ قدّمته</small></div>${m.staff ? html`<div><b data-count="${m.resolved}">0</b><small>بلاغ حللته</small></div>` : ''}</div>
@@ -6187,7 +6180,7 @@ Pages.profile = async (ctx) => {
         if (v.next === v.current) throw new AppError('اختر كلمة مرور مختلفة عن الحالية');
         UI.busy(btn, true); await new Promise((r) => setTimeout(r, 40));
         const rec = await DB.get('users', u.id); if (!(Sync.on && Sync.token) && !(await Crypto.verifyPassword(v.current, rec.pass))) throw new AppError('كلمة المرور الحالية غير صحيحة');
-        const forced = u.mustChangePassword; await Data.users.setPassword(u.id, v.next, false, v.current); Auth.user = await DB.get('users', u.id);
+        const forced = needsPwChange(u); await Data.users.setPassword(u.id, v.next, false, v.current); Auth.user = await DB.get('users', u.id);
         UI.toast('تم تحديث كلمة المرور بنجاح'); UI.confetti();
         if (forced) { Shell.unmount(); Router.go('/dashboard'); } else pwf.reset();
       } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
@@ -6287,7 +6280,7 @@ Pages.settings = async (ctx) => {
   const tabs = [['general', 'عام', 'sliders'], ['sla', 'اتفاقية الخدمة', 'clock'], ['lookups', 'القوائم', 'layers'], ['templates', 'الردود الجاهزة', 'send'], ['data', 'البيانات والنسخ الاحتياطي', 'database']];
   const draw = async () => {
     const s = Data.c.settings; let body = '';
-    if (st.tab === 'general') body = UI.panel({ title: 'معلومات النظام', icon: 'sliders', body: html`<form id="gForm" novalidate>${UI.fields([{ name: 'orgName', label: 'اسم الجهة', wide: true }, { name: 'systemName', label: 'اسم النظام' }, { name: 'supportPhone', label: 'هاتف الدعم الفني', dir: 'ltr' }, { name: 'sessionHours', label: 'مدة الجلسة بالساعات', type: 'number', min: 1, max: 72 }, { name: 'escalateAfter', label: 'تنبيه المسؤولين بعد تجاوز الموعد بـ (دقيقة)', type: 'number', min: 5, value: s.escalateAfter || 60 }, { name: 'autoStrategy', label: 'توزيع البلاغات عند تعدد المختصين', type: 'select', placeholder: false, options: [{ value: 'least', label: 'الأقل انشغالاً' }, { value: 'round', label: 'بالتناوب' }, { value: 'notify', label: 'إشعار المختصين دون إسناد' }], value: (s.autoAssign || {}).strategy || 'least' }, { name: 'autoCloseDays', label: 'إغلاق البلاغ المحلول تلقائياً بعد (أيام)', type: 'number', min: 1, max: 30, value: s.autoCloseDays || 3 }, { name: 'autoCloseOn', type: 'switch', text: 'الإغلاق التلقائي مع تذكير المستفيد', value: s.autoClose !== 0 }, { name: 'avatars', label: 'الصور الشخصية للحسابات', type: 'select', placeholder: false, options: [{ value: 'off', label: 'معطّلة (توفير المساحة)' }, { value: 'approval', label: 'بموافقة المشرف' }, { value: 'on', label: 'مسموحة للجميع' }], value: s.avatars || 'off' }, { name: 'autoOn', type: 'switch', text: 'الإسناد التلقائي حسب تخصص الفني', value: (s.autoAssign || {}).on !== 0, wide: true }], s)}<button class="btn btn-primary mt" type="submit">${UI.icon('check')} حفظ</button></form>` });
+    if (st.tab === 'general') body = UI.panel({ title: 'معلومات النظام', icon: 'sliders', body: html`<form id="gForm" novalidate>${UI.fields([{ name: 'orgName', label: 'اسم الجهة', wide: true }, { name: 'systemName', label: 'اسم النظام' }, { name: 'supportPhone', label: 'هاتف الدعم الفني', dir: 'ltr' }, { name: 'sessionHours', label: 'مدة الجلسة بالساعات', type: 'number', min: 1, max: 72 }, { name: 'escalateAfter', label: 'تنبيه المسؤولين بعد تجاوز الموعد بـ (دقيقة)', type: 'number', min: 5, value: s.escalateAfter || 60 }, { name: 'autoStrategy', label: 'توزيع البلاغات عند تعدد المختصين', type: 'select', placeholder: false, options: [{ value: 'least', label: 'الأقل انشغالاً' }, { value: 'round', label: 'بالتناوب' }, { value: 'notify', label: 'إشعار المختصين دون إسناد' }], value: (s.autoAssign || {}).strategy || 'least' }, { name: 'autoCloseDays', label: 'إغلاق البلاغ المحلول تلقائياً بعد (أيام)', type: 'number', min: 1, max: 30, value: s.autoCloseDays || 3 }, { name: 'autoCloseOn', type: 'switch', text: 'الإغلاق التلقائي مع تذكير المستفيد', value: s.autoClose !== 0 }, { name: 'avatars', label: 'الصور الشخصية للحسابات', type: 'select', placeholder: false, options: [{ value: 'off', label: 'معطّلة (توفير المساحة)' }, { value: 'approval', label: 'بموافقة المشرف' }, { value: 'on', label: 'مسموحة للجميع' }], value: s.avatars || 'off' }, { name: 'autoOn', type: 'switch', text: 'الإسناد التلقائي حسب تخصص الفني', value: (s.autoAssign || {}).on !== 0, wide: true }, { name: 'pwForce', type: 'switch', text: 'إلزام تغيير كلمة المرور المؤقتة عند أول دخول (معطّل: يدخل المستخدم بكلمة المرور الصادرة دون إلزام بتغييرها)', value: Number(s.pwForce) === 1, wide: true }], s)}<button class="btn btn-primary mt" type="submit">${UI.icon('check')} حفظ</button></form>` });
     else if (st.tab === 'sla') body = UI.panel({ title: 'أهداف اتفاقية مستوى الخدمة', icon: 'clock', sub: 'تُحسب مواعيد البلاغات الجديدة وفق هذه الأهداف', flush: true, body: html`<form id="slaForm" novalidate><div class="table-wrap"><table class="table"><thead><tr><th>الأولوية</th><th>أول استجابة (بالدقائق)</th><th>الحل (بالساعات)</th><th>المعاينة</th></tr></thead><tbody>${Object.entries(PRIORITY).map(([k, p]) => html`<tr><td>${UI.priority(k)}</td><td><input class="input" style="max-width:140px" type="number" min="1" name="${k}_respond" value="${s.sla[k].respond}"></td><td><input class="input" style="max-width:140px" type="number" min="1" step="0.5" name="${k}_resolve" value="${s.sla[k].resolve / 60}"></td><td class="faint small">${fmtDuration(s.sla[k].respond * MIN)} / ${fmtDuration(s.sla[k].resolve * MIN)}</td></tr>`)}</tbody></table></div><div class="panel-body"><button class="btn btn-primary" type="submit">${UI.icon('check')} حفظ الأهداف</button></div></form>` });
     else if (st.tab === 'lookups') { const L = LOOKUPS[st.lookup], rows = Data.list(st.lookup); body = html`<div class="tabs">${Object.entries(LOOKUPS).map(([k, x]) => html`<button class="tab ${st.lookup === k ? 'active' : ''}" data-lookup="${k}">${UI.icon(x.icon)}${x.title}<span class="count">${fmtNum(Data.c[k].size)}</span></button>`)}</div>${UI.panel({ title: L.title, icon: L.icon, tools: html`<button class="btn btn-primary btn-sm" data-add>${UI.icon('plus')} إضافة</button>`, flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>${L.illu ? 'الرسمة' : '#'}</th><th>الاسم</th>${L.fields.map((f) => html`<th>${f.label}</th>`)}<th>الترتيب</th><th></th></tr></thead><tbody class="stagger">${rows.map((r, i) => html`<tr><td>${L.illu ? UI.illu(r.illustration || 'box', 'mini') : i + 1}</td><td><b>${r.name}</b></td>${L.fields.map((f) => html`<td>${r[f.name] || '—'}</td>`)}<td>${fmtNum(r.order || 0)}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-edit="${r.id}">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-del="${r.id}">${UI.icon('trash')}</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد عناصر')}</div>` })}`; }
     else if (st.tab === 'templates') { const rows = await DB.getAll('templates'); body = UI.panel({ title: 'الردود الجاهزة للفنيين', icon: 'send', tools: html`<button class="btn btn-primary btn-sm" data-tpl-add>${UI.icon('plus')} رد جديد</button>`, body: rows.length ? html`<div class="grid g-2">${rows.map((r) => html`<div class="kb-card" style="cursor:default"><div class="row" style="justify-content:space-between"><b>${r.name}</b><span><button class="btn btn-ghost btn-sm" data-tpl-edit="${r.id}">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-tpl-del="${r.id}">${UI.icon('trash')}</button></span></div><p>${r.body}</p></div>`)}</div>` : UI.noData('لا توجد ردود جاهزة') }); }
@@ -6309,7 +6302,7 @@ Pages.settings = async (ctx) => {
     if (!ctx.alive()) return;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الإعدادات والبيانات', sub: 'تحكم كامل في النظام وقوائمه وبياناته', illu: 'ups' })}<div class="tabs">${tabs.map(([k, l, ic]) => html`<button class="tab ${st.tab === k ? 'active' : ''}" data-tab="${k}">${UI.icon(ic)}${l}</button>`)}</div>${body}`);
     UI.hydrate(ctx.view);
-    const g = $('#gForm', ctx.view); if (g) g.addEventListener('submit', async (e) => { e.preventDefault(); const { autoOn, autoStrategy, escalateAfter, autoCloseOn, autoCloseDays, avatars, ...rest } = UI.formValues(g); await Data.saveSettings({ ...rest, sessionHours: clamp(Number(rest.sessionHours) || 12, 1, 72), escalateAfter: clamp(Number(escalateAfter) || 60, 5, 1440), autoClose: Number(autoCloseOn) ? 1 : 0, autoCloseDays: clamp(Number(autoCloseDays) || 3, 1, 30), avatars: avatars || 'off', autoAssign: { on: Number(autoOn) ? 1 : 0, strategy: autoStrategy || 'least' } }); UI.toast('تم حفظ الإعدادات'); });
+    const g = $('#gForm', ctx.view); if (g) g.addEventListener('submit', async (e) => { e.preventDefault(); const { autoOn, autoStrategy, escalateAfter, autoCloseOn, autoCloseDays, avatars, pwForce: pf, ...rest } = UI.formValues(g); await Data.saveSettings({ ...rest, pwForce: Number(pf) ? 1 : 0, sessionHours: clamp(Number(rest.sessionHours) || 12, 1, 72), escalateAfter: clamp(Number(escalateAfter) || 60, 5, 1440), autoClose: Number(autoCloseOn) ? 1 : 0, autoCloseDays: clamp(Number(autoCloseDays) || 3, 1, 30), avatars: avatars || 'off', autoAssign: { on: Number(autoOn) ? 1 : 0, strategy: autoStrategy || 'least' } }); UI.toast('تم حفظ الإعدادات'); });
     const sf = $('#slaForm', ctx.view); if (sf) sf.addEventListener('submit', async (e) => { e.preventDefault(); const v = UI.formValues(sf), sla = {}; for (const k of Object.keys(PRIORITY)) { const r = Math.round(Number(v[`${k}_respond`])), h = Number(v[`${k}_resolve`]); if (!(r > 0) || !(h > 0)) { UI.toast('أدخل قيماً صحيحة أكبر من صفر', 'warn'); return; } sla[k] = { respond: r, resolve: Math.round(h * 60) }; } await Data.saveSettings({ sla }); UI.toast('تم حفظ أهداف الخدمة'); draw(); });
   };
   UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/settings?tab=${st.tab}`); draw(); });
@@ -6628,7 +6621,7 @@ Pages.userModal = async (id) => {
     <div class="u-sec" data-spec${['technician', 'support_manager', 'supervisor'].includes(role) ? '' : raw(' hidden')}>${Pages.specSection(u, role)}</div>
     <div class="u-sec" data-perms${role === 'monitor' ? raw(' hidden') : ''}>${permsHTML()}</div>
     <div class="u-sec" data-monitor${role === 'monitor' ? '' : raw(' hidden')}>${monitorHTML()}</div>
-    <div class="u-sec"><h3>${UI.icon('lock')} الدخول</h3><div class="form-grid"><div class="field"><label for="upw">${id ? 'كلمة مرور جديدة (اتركها فارغة للإبقاء)' : 'كلمة المرور المؤقتة'}${id ? '' : html`<em>*</em>`}</label><div class="row" style="flex-wrap:nowrap"><input id="upw" name="password" type="text" dir="ltr" autocomplete="new-password" class="input"><button type="button" class="btn btn-soft" data-gen title="توليد كلمة مرور" aria-label="توليد كلمة مرور">${UI.icon('refresh')}</button></div><div class="strength" data-str><i></i><i></i><i></i><i></i></div></div><div class="stack" style="gap:12px;justify-content:center">${UI.field({ name: 'active', type: 'switch', text: 'الحساب مفعّل' }, u.active)}${UI.field({ name: 'mustChange', type: 'switch', text: 'إلزام تغيير كلمة المرور عند الدخول' }, u.mustChangePassword)}</div></div></div>
+    <div class="u-sec"><h3>${UI.icon('lock')} الدخول</h3><div class="form-grid"><div class="field"><label for="upw">${id ? 'كلمة مرور جديدة (اتركها فارغة للإبقاء)' : 'كلمة المرور المؤقتة'}${id ? '' : html`<em>*</em>`}</label><div class="row" style="flex-wrap:nowrap"><input id="upw" name="password" type="text" dir="ltr" autocomplete="new-password" class="input"><button type="button" class="btn btn-soft" data-gen title="توليد كلمة مرور" aria-label="توليد كلمة مرور">${UI.icon('refresh')}</button></div><div class="strength" data-str><i></i><i></i><i></i><i></i></div></div><div class="stack" style="gap:12px;justify-content:center">${UI.field({ name: 'active', type: 'switch', text: 'الحساب مفعّل' }, u.active)}${pwForce() ? UI.field({ name: 'mustChange', type: 'switch', text: 'إلزام تغيير كلمة المرور عند الدخول' }, u.mustChangePassword) : ''}</div></div></div>
   </div>`;
   return UI.modal({
     title: id ? `تعديل حساب ${u.name}` : 'مستخدم جديد', icon: id ? 'edit' : 'user-plus', size: 'xl', body,
@@ -6650,7 +6643,7 @@ Pages.userModal = async (id) => {
       input.categories = ['technician', 'support_manager', 'supervisor'].includes(role) ? $$('[data-spec]:checked', form).map((x) => x.dataset.spec) : [];
       if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), locations: $$('[data-mloc]:checked', form).map((x) => x.dataset.mloc), sound: Number(v.msound) ? 1 : 0 };
       const saved = await Data.users.save(input, v.password || '');
-      const rec = await DB.get('users', saved.id); if (rec && Number(rec.mustChangePassword || 0) !== Number(v.mustChange)) { rec.mustChangePassword = Number(v.mustChange) ? 1 : 0; await DB.put('users', rec); await Data.refresh('users'); }
+      const rec = await DB.get('users', saved.id); if (rec && 'mustChange' in v && Number(rec.mustChangePassword || 0) !== Number(v.mustChange)) { rec.mustChangePassword = Number(v.mustChange) ? 1 : 0; await DB.put('users', rec); await Data.refresh('users'); }
       UI.toast(id ? 'تم حفظ الحساب' : `أُنشئ حساب ${saved.name} (${ROLES[saved.role]})${v.password ? ` — كلمة المرور المؤقتة: ${v.password}` : ''}`, 'ok', 9000); return saved;
     } }]
   });
@@ -6881,7 +6874,7 @@ Pages.usersTemplate = () => {
     { name: 'المستخدمون', widths: [32, 16, 12, 28, 26, 22, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', locs[1] || '', 'مكتب 214', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '']],
       validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }, { sqref: 'H2:H10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }] },
     { name: 'القوائم', widths: [34, 30, 22], rows: lists },
-    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارات والمباني غير الموجودة في النظام تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. من لم يُحدد مبناه يختاره بنفسه عند أول دخول، ويُطلب من الجميع تغيير كلمة المرور الأولية.']] }
+    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارات والمباني غير الموجودة في النظام تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. يمكن لكل مستخدم تغيير كلمة مروره من «الملف الشخصي».']] }
   ]);
   downloadBlob(blob, 'قالب-استيراد-المستخدمين.xlsx');
 };
@@ -6896,7 +6889,7 @@ Pages.importUsers = () => new Promise((resolve) => {
   let analysis = null, result = null, filter = 'all';
   const impPw = { mode: 'random', val: '' };
   const steps = (n) => html`<div class="imp-steps">${['جهّز الملف', 'راجع البيانات', 'تم الاستيراد'].map((l, i) => html`<div class="imp-step ${n === i + 1 ? 'on' : n > i + 1 ? 'done' : ''}"><i>${n > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
-  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>، ويُلزم بتغيير كلمة المرور الأولية.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>من لم يُحدد مبناه <b>يختاره بنفسه</b> عند أول دخول.</span></div></div>`;
+  const pickView = () => html`${steps(1)}<div class="grid g-2"><div class="imp-card">${UI.illu('box')}<b>القالب الجاهز</b><p>الأعمدة المطلوبة: <b>الاسم</b>، <b>الرقم العسكري</b>، <b>الدور</b> (موظف، فني، إداري، مشرف). ويمكن إضافة: الإدارة، المبنى، المكتب، الهاتف، الرتبة.</p><button type="button" class="btn btn-soft" data-imp="template">${UI.icon('download')} تنزيل قالب Excel</button></div><div class="dropzone" data-imp="pick" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب ملف Excel هنا أو انقر للاختيار</b><span class="small faint">xlsx أو csv — ملف واحد لكل الموظفين</span></div></div><div class="imp-rules"><div>${UI.icon('key')}<span>اسم الدخول لكل مستخدم هو <b>رقمه العسكري</b>${pwForce() ? '، ويُلزم بتغيير كلمة المرور الأولية' : ''}.</span></div><div>${UI.icon('building')}<span>الإدارات والمباني الجديدة في الملف <b>تُضاف تلقائياً</b> وتُربط بأصحابها.</span></div><div>${UI.icon('refresh')}<span>المستخدم الموجود (نفس الرقم العسكري) <b>تُحدَّث بياناته</b> دون تغيير كلمة مروره.</span></div><div>${UI.icon('shield')}<span>الصف الذي <b>اسم دخوله أو رقمه العسكري مستخدم مسبقاً يُتجاوز وحده</b>، ويُسجَّل باقي الملف.</span></div><div>${UI.icon('pin')}<span>المبنى غير المحدد في الملف <b>يُحدَّد لاحقاً</b> من صفحة المستخدمين (التعديل الجماعي).</span></div></div>`;
   const reviewView = () => {
     const a = analysis, c = { new: 0, update: 0, error: 0 }; a.rows.forEach((r) => { c[r.status] += 1; });
     const roles = {}; a.rows.filter((r) => r.status !== 'error').forEach((r) => { roles[r.role] = (roles[r.role] || 0) + 1; });
@@ -6904,12 +6897,12 @@ Pages.importUsers = () => new Promise((resolve) => {
     return html`${steps(2)}<div class="imp-summary">${UI.chip('slate', `${a.fileName} — ${a.sheet}`, 'file')}${UI.chip('teal', `جديد: ${fmtNum(c.new)}`, 'user-plus')}${UI.chip('sky', `تحديث: ${fmtNum(c.update)}`, 'refresh')}${c.error ? UI.chip('red', `أخطاء: ${fmtNum(c.error)}`, 'alert') : ''}${Object.entries(roles).map(([k, n]) => UI.chip(ROLE_INFO[k] ? ROLE_INFO[k].tone : 'slate', `${ROLES[k]}: ${fmtNum(n)}`))}</div>
       ${a.newDeps.length ? html`<div class="banner tone-violet">${UI.icon('building')}<div class="grow"><b>إدارات جديدة ستُضاف تلقائياً (${fmtNum(a.newDeps.length)})</b><div class="small muted">${a.newDeps.join('، ')}</div></div></div>` : ''}
       ${a.newLocs.length ? html`<div class="banner tone-sky">${UI.icon('pin')}<div class="grow"><b>مبانٍ جديدة ستُضاف تلقائياً (${fmtNum(a.newLocs.length)})</b><div class="small muted">${a.newLocs.join('، ')}</div></div></div>` : ''}
-      <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random"${(impPw.mode || 'random') === 'random' ? raw(' checked') : ''}><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"${impPw.mode === 'military' ? raw(' checked') : ''}><span>${UI.icon('shield')} الرقم العسكري</span></label><label><input type="radio" name="pwmode" value="shared"${impPw.mode === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} موحّدة للجميع</span></label></div><div id="sharedPwRow" class="mt"${impPw.mode === 'shared' ? '' : raw(' hidden')}><input name="sharedpw" dir="ltr" class="input" placeholder="كلمة المرور الموحّدة (6 أحرف على الأقل)" value="${impPw.val || ''}" style="max-width:280px"></div><small class="hint">في كل الحالات يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small></div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
-      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الإدارة</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td class="small">${r.department || html`<span class="faint">—</span>`}</td><td class="small">${r.location || html`<span class="faint">يختاره عند الدخول</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
+      <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random"${(impPw.mode || 'random') === 'random' ? raw(' checked') : ''}><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"${impPw.mode === 'military' ? raw(' checked') : ''}><span>${UI.icon('shield')} الرقم العسكري</span></label><label><input type="radio" name="pwmode" value="shared"${impPw.mode === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} موحّدة للجميع</span></label></div><div id="sharedPwRow" class="mt"${impPw.mode === 'shared' ? '' : raw(' hidden')}><input name="sharedpw" dir="ltr" class="input" placeholder="كلمة المرور الموحّدة (6 أحرف على الأقل)" value="${impPw.val || ''}" style="max-width:280px"></div>${pwForce() ? html`<small class="hint">في كل الحالات يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small>` : ''}</div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الإدارة</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td class="small">${r.department || html`<span class="faint">—</span>`}</td><td class="small">${r.location || html`<span class="faint">غير محدد</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
       <div class="imp-progress" hidden><div class="progress"><i style="width:0%"></i></div><span>جارٍ الاستيراد...</span></div>
       <div class="row imp-actions"><button type="button" class="btn btn-ghost" data-imp="again">${UI.icon('upload')} اختيار ملف آخر</button><button type="button" class="btn btn-primary btn-lg" data-imp="run"${c.new + c.update ? '' : raw(' disabled')}>${UI.icon('check')} استيراد ${arCount(c.new + c.update, AR.user)}</button></div>`;
   };
-  const doneView = () => html`${steps(3)}<div class="success" style="padding:20px 10px"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:23px">تم الاستيراد بنجاح</h2><div class="imp-summary" style="justify-content:center">${UI.chip('teal', `حسابات جديدة: ${fmtNum(result.created)}`, 'user-plus')}${UI.chip('sky', `حُدّثت: ${fmtNum(result.updated)}`, 'refresh')}${result.skipped ? UI.chip('slate', `تُخطيت: ${fmtNum(result.skipped)}`, 'x') : ''}</div>${result.created ? html`<p class="muted" style="max-width:560px">${result.mode === 'military' ? 'كلمة المرور الأولية لكل مستخدم هي رقمه العسكري.' : result.mode === 'shared' ? 'كلمة المرور الأولية موحّدة لكل المستخدمين — سلّمها لهم بطريقة آمنة.' : 'نزّل ملف كلمات المرور الأولية ووزّعه بطريقة آمنة ثم احذفه.'} يدخل كل مستخدم برقمه العسكري، ويُطلب منه تعيين كلمة مرور خاصة واختيار مبناه.</p><button type="button" class="btn btn-primary btn-lg" data-imp="creds">${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}</div>`;
+  const doneView = () => html`${steps(3)}<div class="success" style="padding:20px 10px"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:23px">تم الاستيراد بنجاح</h2><div class="imp-summary" style="justify-content:center">${UI.chip('teal', `حسابات جديدة: ${fmtNum(result.created)}`, 'user-plus')}${UI.chip('sky', `حُدّثت: ${fmtNum(result.updated)}`, 'refresh')}${result.skipped ? UI.chip('slate', `تُخطيت: ${fmtNum(result.skipped)}`, 'x') : ''}</div>${result.created ? html`<p class="muted" style="max-width:560px">${result.mode === 'military' ? 'كلمة المرور الأولية لكل مستخدم هي رقمه العسكري.' : result.mode === 'shared' ? 'كلمة المرور الأولية موحّدة لكل المستخدمين — سلّمها لهم بطريقة آمنة.' : 'نزّل ملف كلمات المرور الأولية ووزّعه بطريقة آمنة ثم احذفه.'} يدخل كل مستخدم برقمه العسكري${pwForce() ? '، ويُطلب منه تعيين كلمة مرور خاصة' : ''}.</p><button type="button" class="btn btn-primary btn-lg" data-imp="creds">${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}</div>`;
   UI.modal({
     title: 'استيراد المستخدمين من Excel', icon: 'upload', size: 'xl', body: html`<div id="impBox">${pickView()}</div>`, actions: [{ label: 'إغلاق', kind: 'ghost', value: null }],
     onMount: (form) => {
@@ -6976,7 +6969,7 @@ Pages.bulkUsers = (ids, action) => {
 
 /* ── الترحيب عند أول دخول: كلمة مرور خاصة واختيار المبنى ── */
 Pages.welcome = async (ctx) => {
-  const u = Auth.user, needPw = !!u.mustChangePassword, info = ROLE_INFO[u.role] || ROLE_INFO.department, locs = Data.list('locations');
+  const u = Auth.user, needPw = needsPwChange(u), info = ROLE_INFO[u.role] || ROLE_INFO.department, locs = Data.list('locations');
   if (!needPw) return Router.go(u.role === 'monitor' ? '/monitor' : '/dashboard');
   ctx.view.innerHTML = String(html`<div class="login welcome"><section class="login-panel"><form class="login-card" id="wForm" novalidate>
     <div class="crest-wrap"><img class="crest" src="${ASSETS.logo}" alt=""></div>
@@ -7846,19 +7839,49 @@ const Sync = {
   loadQueue() { try { this.queue = JSON.parse(localStorage.getItem('sq_queue') || '[]'); } catch (_) { this.queue = []; } },
   setStatus(s, err = '') { this.status = s; this.lastError = err; const b = $('#syncBtn'); if (b) { b.dataset.state = s; b.title = { online: 'متصل بالخادم', syncing: 'جارٍ المزامنة', offline: 'انقطع الاتصال بالخادم', local: 'وضع محلي: البيانات على هذا الجهاز فقط' }[s] || s; } },
 
+  /* تثبيت خادم: الصفحة مفتوحة من خادم ويب، أو سبق لهذا المتصفح الاتصال بخادم. عندها لا يُسمح أبداً بالعمل على نسخة محلية منفصلة:
+     كانت الصفحة تتحول بصمت إلى نسخة المتصفح إن تأخر الخادم 6 ثوانٍ عند الفتح، فتُرفض كلمات المرور الصحيحة وتُقفل الحسابات،
+     وتضيع التعديلات (ومنها كلمات المرور التي يعيّنها المشرف) لأنها لا تصل إلى الخادم أبداً، ولا يُصلح ذلك إلا تحديث الصفحة */
+  serverExpected() {
+    if (location.protocol !== 'file:') return true;
+    try { return !!(localStorage.getItem('sq_api') || localStorage.getItem('sq_token')); } catch (_) { return false; }
+  },
+  /* محاولة اتصال واحدة: العنوان المحفوظ، ثم عنوان الصفحة نفسها (عنوان قديم أو ببروتوكول مختلف يحوّله Chrome فيُمنع الطلب) */
+  async pingOnce() {
+    try { return await this.call('ping', { timeout: 8000 }); }
+    catch (e) {
+      const auto = this.autoUrl(); if (this.url === auto || location.protocol === 'file:') throw e;
+      const saved = this.url; this.url = auto;
+      try { const r = await this.call('ping', { timeout: 8000 }); try { localStorage.removeItem('sq_api'); } catch (_) { /* تجاهل */ } return r; }
+      catch (e2) { this.url = saved; throw e2; }
+    }
+  },
+  /* الخادم لا يستجيب عند الفتح: رسالة واضحة وإعادة محاولة تلقائية حتى يعود، دون تحديث الصفحة ودون نسخة محلية */
+  async waitServer(lastErr) {
+    clearTimeout(window.__sqWatch);
+    let box = document.getElementById('srvWait'), wake = null;
+    if (!box) {
+      box = document.createElement('div'); box.id = 'srvWait'; box.setAttribute('dir', 'rtl'); box.setAttribute('role', 'alert');
+      box.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:99999;max-width:560px;margin:auto;padding:16px 18px;border-radius:14px;background:#0F1F36;color:#E9EFF7;font:14px/1.8 Tahoma,sans-serif;box-shadow:0 20px 50px rgba(0,0,0,.5);border:1px solid rgba(212,174,90,.5)';
+      document.body.appendChild(box);
+      box.addEventListener('click', (e) => { if (e.target.closest('[data-srv-retry]') && wake) wake(); });
+    }
+    for (let n = 1; ; n++) {
+      const sec = Math.min(10, n + 2), why = lastErr && lastErr instanceof AppError && lastErr.status >= 500 ? String(lastErr.message || '') : '';
+      box.innerHTML = `<b>جارٍ الاتصال بخادم النظام…</b><div>الخادم لا يستجيب الآن، وستُعاد المحاولة تلقائياً خلال ${sec} ثوانٍ (محاولة ${n}). لا حاجة لتحديث الصفحة.</div>${why ? `<div style="opacity:.8;font-size:12.5px">${esc(why)}</div>` : ''}<div style="margin-top:10px"><button type="button" data-srv-retry style="padding:8px 14px;border-radius:9px;border:0;background:#D4AE5A;color:#1B1406;font-weight:700;cursor:pointer">إعادة المحاولة الآن</button></div>`;
+      await new Promise((res) => { const t = setTimeout(res, sec * 1000); wake = () => { clearTimeout(t); res(); }; });
+      wake = null;
+      try { const r = await this.pingOnce(); if (r && r.ok) { box.remove(); return r; } } catch (e) { lastErr = e; }
+    }
+  },
   async init() {
-    const url = this.defaultUrl();
+    this.url = this.defaultUrl();
     this.loadQueue();
     try {
-      this.url = url;
-      let ping = null;
-      try { ping = await this.call('ping', { timeout: 6000 }); }
-      catch (e) {
-        /* عنوان محفوظ قديم أو بغير بروتوكول الصفحة (Chrome يحوّل http إلى https تلقائياً فيُمنع الطلب): نجرب عنوان الصفحة نفسها */
-        const auto = this.autoUrl(); if (url === auto || location.protocol === 'file:') throw e;
-        this.url = auto; ping = await this.call('ping', { timeout: 6000 }); try { localStorage.removeItem('sq_api'); } catch (_) { /* تجاهل */ }
-      }
-      if (!ping || !ping.ok) throw new AppError('استجابة غير متوقعة');
+      let ping = null, lastErr = null;
+      try { ping = await this.pingOnce(); } catch (e) { lastErr = e; }
+      if (!(ping && ping.ok) && this.serverExpected()) ping = await this.waitServer(lastErr);
+      if (!ping || !ping.ok) throw lastErr || new AppError('استجابة غير متوقعة');
       this.on = true; this.head = ping.rev || 0; this.serverEmpty = !!ping.empty;
       this.token = localStorage.getItem('sq_token') || '';
       this.rev = Number(((await DB.get('meta', 'sync:rev')) || {}).value || 0);
@@ -8039,7 +8062,9 @@ const Sync = {
       if (!this.on) return local.login(username, password);
       if (this.serverEmpty) { try { this.flush(); await this.waitIdle(); } catch (_) { /* يكمل */ } }
       if (this._bye) await Promise.race([this._bye, new Promise((res) => setTimeout(res, 9000))]);
-      const r = await this.call('login', { body: { username: String(username || '').trim(), password: String(password || '') } });
+      let r;
+      try { r = await this.call('login', { body: { username: String(username || '').trim(), password: String(password || '') } }); }
+      catch (e) { if (e instanceof AppError) throw e; throw new AppError('تعذر الوصول إلى الخادم الآن. تأكد من اتصال الشبكة ثم حاول مرة أخرى'); }
       this.token = r.token; localStorage.setItem('sq_token', r.token);
       try { const owner = localStorage.getItem('sq_queue_owner'); if (owner && owner !== r.user.id && this.queue.length) { this.queue = []; this.saveQueue(); } localStorage.setItem('sq_queue_owner', r.user.id); } catch (_) { /* تجاهل */ }
       await this.pull(this.needFull());
@@ -9315,11 +9340,11 @@ Data.users.setPassword = async (id, password, mustChange = 1) => {
   if (!self && !canSetPassword(Auth.user, target)) throw new AppError('لا تملك صلاحية تغيير كلمة مرور هذا الحساب');
   const pw = self ? String(password || '') : String(password || '').trim();
   if (self) Data.users.checkPolicy(pw); else if (pw.length < 6) throw new AppError('كلمة المرور 6 أحرف على الأقل');
-  target.pass = Crypto.makePassword(pw); target.mustChangePassword = mustChange ? 1 : 0; target.updatedAt = now();
+  target.pass = Crypto.makePassword(pw); target.mustChangePassword = pwForce() && mustChange ? 1 : 0; target.updatedAt = now();
   await DB.put('users', target); await Data.refresh('users');
   await Data.log('password', 'user', id, self ? 'تغيير كلمة المرور الشخصية' : `تعيين كلمة مرور لحساب ${target.name}`);
   if (self) Auth.user = target;
-  else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: 'راجع من أصدرها لاستلامها، وسيُطلب منك تغييرها عند الدخول.', link: '/profile', kind: 'user' });
+  else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: `راجع من أصدرها لاستلامها${pwForce() ? '، وسيُطلب منك تغييرها عند الدخول' : ''}.`, link: '/profile', kind: 'user' });
   Bus.emit('users', {});
   return pw;
 };
@@ -9335,6 +9360,10 @@ const SYS_ACCOUNTS = [
   { id: 'u_sys_monitor', username: 'monitor', name: 'شاشة المراقبة', role: 'monitor', departmentId: 'dep_18' }
 ];
 const isSysAccount = (u) => !!(u && (u.system || String(u.id || '').startsWith('u_sys_')));
+/* سياسة إلزام تغيير كلمة المرور المؤقتة عند أول دخول: معطّلة افتراضياً، ويفعّلها المشرف من «الإعدادات ← معلومات النظام».
+   العلامة mustChangePassword تبقى محفوظة في الحساب، ولا يُطلب التغيير إلا حين تكون السياسة مفعّلة */
+const pwForce = () => !!(Data.c.settings && Number(Data.c.settings.pwForce));
+const needsPwChange = (u) => !!(u && pwForce() && u.mustChangePassword && !isSysAccount(u));
 const SysAccounts = {
   async ensure() {
     const t = now();
@@ -9404,10 +9433,10 @@ Pages.passwords = async (ctx) => {
     const u = Data.c.users.get(el.dataset.pw); if (!u) return;
     const res = await UI.modal({
       title: `كلمة مرور: ${u.name}`, icon: 'key', size: 'lg',
-      body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">ستظهر كلمة المرور مرة واحدة بعد الحفظ لتسليمها لصاحب الحساب، وسيُطلب منه تغييرها عند أول دخول.</div></div>
+      body: html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow">ستظهر كلمة المرور مرة واحدة بعد الحفظ لتسليمها لصاحب الحساب${pwForce() ? '، وسيُطلب منه تغييرها عند أول دخول' : ''}.</div></div>
         <div class="field mt"><label>طريقة الإصدار</label><div class="seg">${[['random', 'توليد عشوائية', 'refresh'], ['military', 'الرقم العسكري', 'card'], ['manual', 'كتابة يدوية', 'edit']].map(([k, l, ic]) => html`<label><input type="radio" name="mode" value="${k}"${k === 'random' ? raw(' checked') : ''}><span>${UI.icon(ic)}${l}</span></label>`)}</div></div>
         ${UI.field({ name: 'pw', label: 'كلمة المرور', placeholder: 'تُملأ تلقائياً حسب الطريقة', dir: 'ltr', wide: true })}
-        ${UI.field({ name: 'must', type: 'switch', text: 'إلزامه بتغييرها عند الدخول' }, 0)}`,
+        ${pwForce() ? UI.field({ name: 'must', type: 'switch', text: 'إلزامه بتغييرها عند الدخول' }, 0) : ''}`,
       onMount: (form) => {
         const pw = form.querySelector('[name="pw"]');
         const sync = () => { const m = (form.querySelector('input[name="mode"]:checked') || {}).value; pw.value = m === 'random' ? randomPw() : m === 'military' ? String(u.militaryNo || '').trim() : ''; pw.readOnly = m !== 'manual'; };
@@ -9428,11 +9457,11 @@ Pages.bulkPassword = (ids) => {
   if (!list.length) { UI.toast('لا توجد حسابات ضمن صلاحيتك في التحديد', 'warn'); return Promise.resolve(false); }
   return UI.modal({
     title: `تعيين كلمة مرور — ${arCount(list.length, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}`, icon: 'key', size: 'lg',
-    body: html`<div class="banner tone-amber">${UI.icon('shield')}<div class="grow">سيُطلب من كل مستخدم تغيير كلمة المرور عند أول دخول. تُعرض كلمة المرور مرة واحدة بعد التنفيذ.</div></div>
+    body: html`<div class="banner tone-amber">${UI.icon('shield')}<div class="grow">${pwForce() ? 'سيُطلب من كل مستخدم تغيير كلمة المرور عند أول دخول. ' : ''}تُعرض كلمة المرور مرة واحدة بعد التنفيذ.</div></div>
       <p class="muted mt" style="line-height:1.8">${list.slice(0, 6).map((u) => u.name).join('، ')}${list.length > 6 ? ` و${fmtNum(list.length - 6)} آخرين` : ''}</p>
       <div class="field mt"><label>طريقة الإصدار</label><div class="seg">${[['shared', 'كلمة موحّدة للجميع', 'users'], ['random', 'عشوائية لكل مستخدم', 'refresh']].map(([k, l, ic]) => html`<label><input type="radio" name="mode" value="${k}"${k === 'shared' ? raw(' checked') : ''}><span>${UI.icon(ic)}${l}</span></label>`)}</div></div>
       <div id="bpwRow">${UI.field({ name: 'pw', label: 'كلمة المرور الموحّدة (6 أحرف على الأقل)', dir: 'ltr', wide: true })}</div>
-      ${UI.field({ name: 'must', type: 'switch', text: 'إلزامهم بتغييرها عند الدخول' }, 1)}`,
+      ${pwForce() ? UI.field({ name: 'must', type: 'switch', text: 'إلزامهم بتغييرها عند الدخول' }, 1) : ''}`,
     onMount: (form) => { const row = form.querySelector('#bpwRow'), sync = () => { const m = (form.querySelector('input[name="mode"]:checked') || {}).value; row.hidden = m !== 'shared'; }; UI.on(form, 'change', 'input[name="mode"]', sync); sync(); },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تنفيذ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form), mode = v.mode || 'shared', must = Number(v.must) ? 1 : 0, shared = String(v.pw || '').trim();
@@ -12201,7 +12230,7 @@ Pages.bulkAddUsers = async () => {
         <small class="hint">اسم المستخدم لكل شخص هو رقمه العسكري.</small></div>
       <div class="u-sec"><h3>${UI.icon('lock')} كلمات المرور</h3><div class="choice-pick">${[['random', 'كلمة مرور مؤقتة مختلفة لكل حساب'], ['military', 'الرقم العسكري نفسه'], ['same', 'كلمة مرور موحدة']].map(([k, l], i) => html`<label><input type="radio" name="pwMode" value="${k}"${i ? '' : raw(' checked')}><span>${l}</span></label>`)}</div>
         <div class="field mt" data-samepw hidden><label>كلمة المرور الموحدة</label><input name="samePw" dir="ltr" autocomplete="new-password" placeholder="8 أحرف على الأقل، حروف وأرقام"></div>
-        <div class="field mt">${UI.field({ name: 'mustChange', type: 'switch', text: 'إلزام كل شخص بتغيير كلمة المرور عند أول دخول' }, 1)}</div></div>`,
+        ${pwForce() ? html`<div class="field mt">${UI.field({ name: 'mustChange', type: 'switch', text: 'إلزام كل شخص بتغيير كلمة المرور عند أول دخول' }, 1)}</div>` : ''}</div>`,
     onMount: (form) => {
       UI.bindOrgChain(form, { value: '' }); renum(form);
       const rows = form.querySelector('.bp-rows');
@@ -14024,7 +14053,7 @@ const Engage = {
   const resolveBase = Router.resolve.bind(Router);
   Router.resolve = async function () {
     const u = Auth.user, path = decodeURIComponent((location.hash.slice(1) || '/').split('?')[0]);
-    if (u && u.role !== 'monitor' && !(u.mustChangePassword && !isSysAccount(u)) && !['/', '/login', '/setup', '/welcome'].includes(path)) {
+    if (u && u.role !== 'monitor' && !needsPwChange(u) && !['/', '/login', '/setup', '/welcome'].includes(path)) {
       try { const g = await Surveys.blocking(); if (g && path !== `/gate/${g.id}`) return Router.replace(`/gate/${g.id}`); } catch (e) { console.warn('survey gate', e); }
     }
     await resolveBase();
@@ -18079,7 +18108,7 @@ document.addEventListener('click', async (e) => {
     await Data.refresh('users');
     await Data.log('password', 'user', id, self ? 'تغيير كلمة المرور الشخصية' : `تعيين كلمة مرور لحساب ${target.name}`);
     if (self) Auth.user = await DB.get('users', id);
-    else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: 'راجع من أصدرها لاستلامها، وسيُطلب منك تغييرها عند الدخول.', link: '/profile', kind: 'user' });
+    else await Data.notify([id], { title: 'تم تعيين كلمة مرور جديدة لحسابك', body: `راجع من أصدرها لاستلامها${pwForce() ? '، وسيُطلب منك تغييرها عند الدخول' : ''}.`, link: '/profile', kind: 'user' });
     Bus.emit('users', {});
     return true;
   };
