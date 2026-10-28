@@ -407,6 +407,12 @@ function session_user(bool $required = true): ?array {
   $user = json_decode($doc['data'], true) ?: [];
   if (($user['active'] ?? 1) == 0) { if ($required) fail('الحساب موقوف', 403); return null; }
   $user['id'] = (string) $row['user_id'];
+  /* شاشة العرض تعمل طوال اليوم دون أحد أمامها: تتجدد جلستها ما دامت تعمل (تسأل الخادم كل دقيقة)،
+     وكانت تعود إلى صفحة الدخول بعد انتهاء مدة الجلسة (12 ساعة افتراضاً) فلا يظهر عليها شيء */
+  if (($user['role'] ?? '') === 'monitor') {
+    $ttl = max(1, (int) setting('sessionHours', 12)) * 3600 * 1000;
+    if ((int) $row['expires'] - now_ms() < $ttl / 2) db()->prepare("UPDATE sessions SET expires = ? WHERE token = ?")->execute([now_ms() + $ttl, tok_hash($token)]);
+  }
   return $user;
 }
 
