@@ -320,7 +320,9 @@ function visible_rows(array $rows, array $u): array {
     switch ($st) {
       case 'meta': $k = (string) ($d['key'] ?? $r['doc_id']); $ok = strpos($k, 'lock:') !== 0 && strpos($k, 'presence:') !== 0; break;
       case 'tickets': $ok = (string) ($d['requesterId'] ?? '') === $me; break;
-      case 'ticketEvents': case 'attachments': $ok = ($tOwn[(string) ($d['ticketId'] ?? '')] ?? '') === $me; break;
+      /* الملاحظات الداخلية وملاحظات التسليم للفنيين وحدهم: كانت الواجهة تخفيها عن مقدم البلاغ، لكنها تصل جهازه وتُقرأ من قاعدته */
+      case 'ticketEvents': $ok = ($tOwn[(string) ($d['ticketId'] ?? '')] ?? '') === $me && empty($d['internal']); break;
+      case 'attachments': $ok = ($tOwn[(string) ($d['ticketId'] ?? '')] ?? '') === $me; break;
       case 'notifications': $ok = (string) ($d['userId'] ?? '') === $me; break;
       case 'chats': $ok = (string) ($d['userId'] ?? '') === $me; break;
       case 'chatMsgs': $ok = ($cOwn[(string) ($d['chatId'] ?? '')] ?? '') === $me; break;
@@ -811,13 +813,15 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($deleted) return null;
       if (!$old) return can($user, 'tickets.create') && (string) ($data['requesterId'] ?? '') === $me ? $new : null;
       if ((string) ($old['requesterId'] ?? '') !== $me) return null;
-      $merged = keep_fields($data, $old, ['requesterId', 'number', 'createdAt', 'escalated']);
+      /* ملاحظة التسليم لا تصل جهاز مقدم البلاغ، فتُحفظ كما هي حين يكتب على بلاغه (لا تُمحى بنسخته التي تخلو منها) */
+      $merged = keep_fields($data, $old, ['requesterId', 'number', 'createdAt', 'escalated', 'handover']);
       $s0 = (string) ($old['status'] ?? 'new'); $s1 = (string) ($data['status'] ?? $s0);
       $a0 = (string) ($old['assigneeId'] ?? ''); $a1 = (string) ($data['assigneeId'] ?? '');
       /* الإسناد التلقائي بعد إنشاء البلاغ يجري على جهاز الموظف: يُقبل لفني مسؤول عن الفئة فقط */
       $auto = $a0 === '' && $s0 === 'new' && $a1 !== '' && valid_auto_assignee($a1, (string) ($old['categoryId'] ?? ''));
       if (!$auto) $merged = keep_fields($merged, $old, ['assigneeId']);
-      $okStatus = $s1 === $s0 || in_array($s1, ['cancelled', 'closed'], true) || (in_array($s0, ['resolved', 'closed'], true) && in_array($s1, ['new', 'assigned'], true)) || ($auto && $s1 === 'assigned');
+      /* «المشكلة لم تُحل» تعيد البلاغ إلى فنيه «قيد العمل» (كانت تُرفض بصمت فيبقى محلولاً)، ورده على بلاغ معلّق يعيده «قيد العمل» */
+      $okStatus = $s1 === $s0 || in_array($s1, ['cancelled', 'closed'], true) || (in_array($s0, ['resolved', 'closed'], true) && in_array($s1, ['new', 'assigned', 'in_progress'], true)) || ($auto && $s1 === 'assigned') || ($s0 === 'waiting' && $s1 === 'in_progress');
       if (!$okStatus) $merged['status'] = $s0;
       return $merged;
     }
@@ -1101,6 +1105,7 @@ case 'pull': {
   else $rows = vault_rows(survey_private_rows($rows, $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
+    if ($scope === 'self' && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
     if ($row['store'] === 'users' && is_array($data)) $data = ($scope === 'self' || ($user['role'] ?? '') === 'monitor') && $row['doc_id'] !== (string) $user['id'] ? strip_user_public($data) : strip_user($data);
     $docs[] = ['store' => $row['store'], 'id' => $row['doc_id'], 'rev' => (int) $row['rev'], 'deleted' => (int) $row['deleted'], 'data' => $data];
   }
