@@ -53,7 +53,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   n0 = (await plays(S)).length;
   await S.click('.snd-panel [data-sndtest="urgent"]'); last = await waitPlay(S, n0, 3000);
   ok('test buttons play each tone', last && last.ev === 'urgent', JSON.stringify(last));
-  await S.click('.snd-panel .seg label:has(input[value="bell"])'); await S.waitForTimeout(300);
+  await S.click('.snd-panel .snd-tones label:has(input[value="bell"])'); await S.waitForTimeout(300);
   await S.evaluate(() => { const r = document.querySelector('[name="snd_vol"]'); r.value = '30'; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); }); await S.waitForTimeout(300);
   n0 = (await plays(S)).length; await S.click('.snd-panel [data-sndtest="ticket"]'); last = await waitPlay(S, n0, 3000);
   ok('tone and volume chosen for this device', last && last.style === 'bell' && last.vol === 30, JSON.stringify(last));
@@ -68,7 +68,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.evaluate(() => { location.hash = '#/settings?s=sounds'; }); await S.waitForSelector('[data-act="sndsave"]'); await S.waitForTimeout(500);
   const cc = await S.evaluate(() => ({ evs: document.querySelectorAll('[data-ev]').length, remind: document.querySelector('[name="tv_remind"]').value, voiceHint: (document.querySelector('[name="tv_speak"]').closest('div').querySelector('.hint') || {}).textContent || '' }));
   ok('settings page lists display events and reminder', cc.evs === 7 && cc.remind === '5', JSON.stringify(cc));
-  await S.click('.seg label:has(input[name="u_style"][value="marimba"])'); await S.click('[data-act="sndsave"]'); await S.waitForTimeout(1200);
+  await S.click('.snd-tones label:has(input[name="u_style"][value="marimba"])'); await S.click('[data-act="sndsave"]'); await S.waitForTimeout(1200);
   ok('system tone saved for all users', await S.evaluate(() => App.Data.c.settings.sounds.style === 'marimba' && App.Snd.pref().style === 'marimba'));
   n0 = (await plays(S)).length; await S.click('[data-t="tv:urgent"]'); last = await waitPlay(S, n0, 3000);
   ok('display test button uses the display tone and volume', last && last.ev === 'urgent' && last.style === 'bell' && last.vol === 85, JSON.stringify(last));

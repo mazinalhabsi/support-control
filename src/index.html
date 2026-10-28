@@ -1119,6 +1119,14 @@ html[data-motion=off] *,html[data-motion=off] *::before,html[data-motion=off] *:
 .tv-alert-kicker{display:inline-block;padding:4px 16px;border-radius:999px;background:rgb(var(--t));color:#fff;font:800 18px var(--f-display);margin-bottom:10px}
 .tv-alert h2{font-size:46px;line-height:1.3}
 .tv-alert p{font-size:22px;color:var(--ink-2);margin:6px 0 14px}
+.tv-alert{cursor:pointer}.tv-alert-card{position:relative}
+.tv-alert-meta{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:19px;color:var(--ink-2)}.tv-alert-meta span{display:inline-flex;align-items:center;gap:6px}.tv-alert-meta .ic{width:20px;height:20px}
+.tv-alert-more{list-style:none;margin:18px 0 0;padding:14px 0 0;border-top:1px solid var(--line-2);display:grid;gap:8px;font-size:18px}.tv-alert-more li{display:flex;gap:12px;align-items:baseline}.tv-alert-more small{color:var(--ink-3,var(--ink-2))}
+.tv-alert-bar{position:fixed;inset-inline:0;bottom:0;height:6px;background:rgb(var(--t));transform-origin:right;animation:tvAlertBar linear forwards}
+.tv-alert-hint{position:fixed;bottom:18px;inset-inline:0;text-align:center;color:rgba(255,255,255,.55);font-size:15px}
+@keyframes tvAlertBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.tv2-tr.pinned{border-color:rgba(243,201,105,.55);background:rgba(243,201,105,.07)}
+.tv2-new{display:inline-block;margin-inline-end:8px;padding:1px 9px;border-radius:999px;background:rgb(var(--amber));color:#1b1405;font:800 12px var(--f-display);font-style:normal;vertical-align:2px}
 .tcard.fresh{box-shadow:0 0 0 2px rgba(var(--amber),.85),0 0 26px rgba(var(--amber),.45);animation:rise .45s var(--ease) both,freshglow 2.2s ease-in-out infinite}
 @keyframes alarm{0%,100%{box-shadow:0 0 0 0 rgba(var(--t),.6)}50%{box-shadow:0 0 0 24px rgba(var(--t),0)}}
 @keyframes freshglow{50%{box-shadow:0 0 0 2px rgba(var(--amber),.3),0 0 8px rgba(var(--amber),.2)}}
@@ -1859,6 +1867,13 @@ body.tv-mode:not(.tv-cursor){cursor:none}
 .tv2-th{background:none;border:0;min-height:0;padding:0 12px 4px;font-size:12.5px;color:#8FA2BE}
 .tv2-tr.late{border-color:rgba(255,93,108,.5);background:linear-gradient(90deg,rgba(255,93,108,.14),rgba(255,255,255,.03))}
 .tv2-tr.flash{animation:tvFlash 1.2s ease-in-out 8;border-color:rgba(243,201,105,.8)}
+.snd-tones{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.snd-tones label{position:relative;cursor:pointer}.snd-tones input{position:absolute;opacity:0;pointer-events:none}
+.snd-tones span{display:flex;align-items:center;gap:7px;padding:9px 11px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-2);font-weight:600;font-size:13px;transition:border-color .15s,background .15s}
+.snd-tones span .ic{width:15px;height:15px;opacity:.55;flex:none}
+.snd-tones label:hover span{border-color:rgba(var(--accent),.5)}
+.snd-tones input:checked+span{border-color:rgb(var(--accent));background:rgba(var(--accent),.12);color:rgb(var(--accent))}.snd-tones input:checked+span .ic{opacity:1}
+.snd-tones input:focus-visible+span{outline:2px solid rgb(var(--accent));outline-offset:2px}
 @keyframes tvFlash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px rgba(243,201,105,.45),0 0 28px rgba(243,201,105,.35)}}
 @keyframes tvBlink{50%{opacity:.35}}
 .tv2-n{font-weight:800;font-size:18px;font-family:var(--f-num,inherit);color:#8FA2BE;text-align:center}
@@ -6399,7 +6414,17 @@ async function boot() {
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if (!localStorage.getItem('sq_theme')) UI.theme.apply(); });
   ['departments', 'categories', 'warehouses', 'itemCategories', 'printers', 'ranks', 'users'].forEach((k) => Bus.on(k === 'users' ? 'users' : `data:${k}`, (e) => { if (e.detail && e.detail.remote && !e.detail.synced) Data.refresh(k); }));
   Bus.on('settings', (e) => { if (e.detail && e.detail.remote) Data.refresh('settings'); });
-  setInterval(async () => { if (Auth.user && Sync.on && Sync.token) { try { await Sync.call('me', { timeout: 8000 }); return; } catch (e) { if (!e || e.status !== 401) return; } } if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); } }, 60000);
+  setInterval(async () => {
+    if (Auth.user && Sync.on && Sync.token) {
+      try {
+        await Sync.call('me', { timeout: 8000 });
+        /* شاشة العرض: جلستها تتجدد على الخادم ما دامت تعمل، فتتجدد هنا أيضاً حتى لا تخرج عند إعادة تحميل الصفحة */
+        if (Auth.user.role === 'monitor') try { sessionStorage.setItem('sq_session', JSON.stringify({ uid: Auth.user.id, exp: now() + (Data.c.settings.sessionHours || 12) * HOUR })); } catch (_) { /* تجاهل */ }
+        return;
+      } catch (e) { if (!e || e.status !== 401) return; }
+    }
+    if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
+  }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
   window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog };
   const b = $('#boot'); if (b) b.remove();
@@ -6632,7 +6657,7 @@ Data.users.save = async function (input, password) {
     }
   }
   if (Array.isArray(input.categories)) { const cats = ['technician', 'support_manager', 'supervisor'].includes(rec.role) ? input.categories.filter((c) => Data.c.categories.has(c)) : []; if (JSON.stringify(cats) !== JSON.stringify(rec.categories || [])) { rec.categories = cats; changed = true; } }
-  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [...new Set(input.monitor.locations || [])], sound: input.monitor.sound ? 1 : 0 }; changed = true; }
+  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [...new Set(input.monitor.locations || [])], sound: input.monitor.sound ? 1 : 0, style: SND_TIMBRE[input.monitor.style] ? input.monitor.style : '' }; changed = true; }
   if (before && before.role !== rec.role) await Data.log('update', 'user', rec.id, `تغيير دور ${rec.username} من ${ROLES[before.role]} إلى ${ROLES[rec.role]}`);
   if (changed) { rec.updatedAt = now(); await DB.put('users', rec); await Data.refresh('users'); Bus.emit('users'); }
   return rec;
@@ -6655,7 +6680,7 @@ Pages.userModal = async (id) => {
     const defaults = new Set(roleDefaults(role)), all = role === 'supervisor';
     return html`<h3>${UI.icon('key')} الصلاحيات ${sup ? html`<small class="faint">فعّل أي صلاحية إضافية لهذا المستخدم أو اسحب صلاحية من دوره</small>` : html`<small class="faint">(يعدّلها المشرف فقط)</small>`}</h3>${all ? html`<div class="banner tone-brass">${UI.icon('key')}<div class="grow">المشرف يملك كل الصلاحيات دون استثناء.</div></div>` : ''}${sup && role !== 'supervisor' ? html`<div class="perm-presets"><span class="faint small">حزم جاهزة:</span>${PERM_PRESETS.map((p) => html`<button type="button" class="qchip" data-preset="${p.id}">${UI.icon(p.icon)}${p.label}</button>`)}</div>` : ''}<div class="perm-groups">${PERM_GROUPS.map((g) => html`<div class="perm-group"><div class="pg-head">${UI.icon(g.icon)}${g.title}</div>${g.items.map(([k, label, hint]) => { const on = all || perms.has(k), isDef = defaults.has(k); return html`<label class="perm${all ? '' : isDef && !on ? ' x-off' : !isDef && on ? ' x-mod' : ''}"><input type="checkbox" data-perm="${k}"${on ? raw(' checked') : ''}${all || !sup ? raw(' disabled') : ''}><i></i><span><b>${label}</b>${hint ? html`<small>${hint}</small>` : ''}</span>${all ? '' : isDef ? (on ? html`<em class="perm-tag">من الدور</em>` : html`<em class="perm-tag off">مسحوبة</em>`) : on ? html`<em class="perm-tag extra">إضافية</em>` : ''}</label>`; })}</div>`)}</div>`;
   };
-  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والمواقع التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>المواقع</label><div class="chip-pick">${Data.list('locations').map((l) => html`<label><input type="checkbox" data-mloc="${l.id}"${mcfg.locations.includes(l.id) ? raw(' checked') : ''}><span>${l.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div>`;
+  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والمواقع التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>المواقع</label><div class="chip-pick">${Data.list('locations').map((l) => html`<label><input type="checkbox" data-mloc="${l.id}"${mcfg.locations.includes(l.id) ? raw(' checked') : ''}><span>${l.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div><div class="field mt"><label>نغمة هذه الشاشة <small class="faint">(تُسمع عند اختيارها)</small></label><select name="mstyle" data-tone-preview><option value="">— نغمة شاشات العرض من «الأصوات والتنبيهات» —</option>${SND_STYLES.map(([k, l]) => html`<option value="${k}"${mcfg.style === k ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
   const body = html`<div class="umodal">
     <div class="u-sec"><h3>${UI.icon('user')} البيانات الأساسية</h3>${UI.fields([{ name: 'name', label: 'الاسم الكامل', required: true }, { name: 'username', label: 'اسم المستخدم للدخول', required: true, dir: 'ltr', autocomplete: 'off' }, { name: 'militaryNo', label: 'الرقم العسكري', dir: 'ltr' }, { name: 'rankId', label: 'الرتبة', type: 'select', options: UI.opts('ranks') }, { name: 'phone', label: 'الهاتف', type: 'tel', dir: 'ltr' }, { name: 'email', label: 'البريد الإلكتروني', type: 'email', dir: 'ltr' }], u)}</div>
     <div class="u-sec"><h3>${UI.icon('pin')} الانتماء والموقع</h3>${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments') }, { name: 'unitId', label: 'القسم / الشعبة / المكتب', type: 'select', options: [] }, { name: 'locationId', label: 'الموقع / المبنى', type: 'select', options: UI.opts('locations') }, { name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214 - الطابق الثاني', wide: true }], u)}</div>
@@ -6684,7 +6709,7 @@ Pages.userModal = async (id) => {
       const input = { ...v, id, role };
       if (sup) { if (role === 'supervisor' || role === 'monitor') { input.extraPerms = []; input.deniedPerms = []; } else { const d = new Set(roleDefaults(role)); input.extraPerms = [...perms].filter((p) => !d.has(p)); input.deniedPerms = [...d].filter((p) => !perms.has(p) && !BASE_PERMS.includes(p)); } }
       input.categories = ['technician', 'support_manager', 'supervisor'].includes(role) ? $$('[data-spec]:checked', form).map((x) => x.dataset.spec) : [];
-      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), locations: $$('[data-mloc]:checked', form).map((x) => x.dataset.mloc), sound: Number(v.msound) ? 1 : 0 };
+      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), locations: $$('[data-mloc]:checked', form).map((x) => x.dataset.mloc), sound: Number(v.msound) ? 1 : 0, style: v.mstyle || '' };
       const saved = await Data.users.save(input, v.password || '');
       const rec = await DB.get('users', saved.id); if (rec && 'mustChange' in v && Number(rec.mustChangePassword || 0) !== Number(v.mustChange)) { rec.mustChangePassword = Number(v.mustChange) ? 1 : 0; await DB.put('users', rec); await Data.refresh('users'); }
       UI.toast(id ? 'تم حفظ الحساب' : `أُنشئ حساب ${saved.name} (${ROLES[saved.role]})${v.password ? ` — كلمة المرور المؤقتة: ${v.password}` : ''}`, 'ok', 9000); return saved;
@@ -12252,10 +12277,13 @@ Pages.monitor = async (ctx) => {
   const s = Data.c.settings, isMonitor = Auth.user.role === 'monitor';
   document.documentElement.dataset.theme = 'dark'; ctx.onCleanup(() => UI.theme.apply());
   document.body.classList.add('tv-mode'); ctx.onCleanup(() => document.body.classList.remove('tv-mode'));
+  /* إبقاء الشاشة مضاءة: المتصفح يُسقط الطلب كلما اختفت الصفحة، فيُطلب من جديد عند عودتها */
   let wake = null;
-  try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch (_) { /* تجاهل */ }
-  ctx.onCleanup(() => { try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
-  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set() };
+  const keepAwake = async () => { try { if (navigator.wakeLock && !document.hidden && (!wake || wake.released)) wake = await navigator.wakeLock.request('screen'); } catch (_) { /* تجاهل */ } };
+  await keepAwake();
+  document.addEventListener('visibilitychange', keepAwake);
+  ctx.onCleanup(() => { document.removeEventListener('visibilitychange', keepAwake); try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
+  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map() };
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
@@ -12286,18 +12314,19 @@ Pages.monitor = async (ctx) => {
   const PER = 9;
   const drawRows = () => {
     const box = $v('[data-rows]'); if (!box) return;
-    const rows = st.rows, pages = Math.max(1, Math.ceil(rows.length / PER));
+    /* الوارد الجديد ثابت أعلى كل صفحة مدة تثبيته، وتتناوب بقية القائمة تحته */
+    const rows = st.rows, pins = rows.filter((r) => st.pin.has(r.key)).slice(0, 4), rest = pins.length ? rows.filter((r) => !pins.includes(r)) : rows, per = PER - pins.length, pages = Math.max(1, Math.ceil(rest.length / per));
     if (st.page >= pages) st.page = 0;
-    const slice = rows.slice(st.page * PER, st.page * PER + PER);
+    const slice = [...pins, ...rest.slice(st.page * per, st.page * per + per)];
     const info = $v('[data-qinfo]'); if (info) info.textContent = rows.length ? `${fmtNum(rows.length)} في الانتظار${pages > 1 ? ` — صفحة ${st.page + 1} من ${pages}` : ''}` : '';
-    box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r, i) => {
+    box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r) => {
       const pr = PRIORITY[r.priority] || {}, stt = r.kind === 'chat' ? { label: r.status === 'new' ? 'بانتظار الرد' : 'قيد المتابعة', tone: 'violet' } : (STATUS[r.status] || { label: r.status, tone: 'slate' });
       const sla = r.due ? Math.min(100, Math.max(0, ((now() - r.at) / Math.max(1, r.due - r.at)) * 100)) : 0;
       const late = r.due && now() > r.due;
-      return html`<div class="tv2-tr${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}">
-        <span class="tv2-n">${st.page * PER + i + 1}</span>
+      return html`<div class="tv2-tr${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}">
+        <span class="tv2-n">${rows.indexOf(r) + 1}</span>
         <span class="tv2-kind k-${r.kind}">${UI.icon(r.kind === 'chat' ? 'bell' : 'ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
-        <span class="tv2-subj"><b>${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span>
+        <span class="tv2-subj"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span>
         <span class="tv2-dep">${r.dep || '—'}${r.office ? html`<small>${r.office}</small>` : ''}</span>
         <span>${r.kind === 'chat' ? html`<i class="tv2-pr p-low"></i>—` : html`<i class="tv2-pr p-${r.priority}"></i>${pr.label || ''}`}</span>
         <span><em class="tv2-st tone-${stt.tone || 'slate'}">${stt.label}</em></span>
@@ -12315,11 +12344,16 @@ Pages.monitor = async (ctx) => {
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
-      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, cat: Data.nameOf('categories', t.categoryId, ''), dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
-      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', cat: 'استفسار', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
+      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
+      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
+    /* الوارد الجديد يتصدر القائمة ثلاث دقائق، وتعود الشاشة إلى صفحتها الأولى ليُرى فوراً.
+       القائمة مرتبة من الأقدم، فكان الجديد يقع في آخر صفحة ولا يظهر حين يكثر المفتوح */
+    const tn = now(); st.fresh.forEach((r) => st.pin.set(r.key, tn + 3 * MIN)); st.pin.forEach((until, k) => { if (until < tn) st.pin.delete(k); });
+    if (st.fresh.length) st.page = 0;
+    rows.sort((a, b) => (st.pin.has(b.key) - st.pin.has(a.key)) || (st.pin.has(a.key) ? b.at - a.at : a.at - b.at));
     st.rows = rows;
     const overdue = open.filter((t) => t.dueAt && t.dueAt < now()).length;
     const doneToday = tickets.filter((t) => (t.resolvedAt || t.closedAt || 0) >= t0).length;
@@ -12357,6 +12391,7 @@ Pages.monitor = async (ctx) => {
     const text = items.length ? items.join('   •   ') : 'لا توجد مستجدات مهمة حالياً';
     if (track && track.dataset.text !== text) { track.dataset.text = text; track.innerHTML = `<span>${text.replace(/</g, '&lt;')}</span><span aria-hidden="true">${text.replace(/</g, '&lt;')}</span>`; track.style.animationDuration = `${Math.max(30, text.length / 6)}s`; }
     drawRows();
+    if (st.fresh.length) TvAlert.show(st.fresh);
     TvSound.tick(st, { open, tickets, svcs, live });
   };
   UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
@@ -18728,8 +18763,8 @@ Pages.ccFavicon = (ctx) => {
 Fav.apply();
 /* ══════════ الجولة 24: أصوات الإشعارات وشاشة العرض ══════════ */
 
-/* ── محرك الأصوات: نغمات تُولَّد داخل المتصفح (لا ملفات صوت)، بأربعة أنماط ومستوى صوت ── */
-const SND_STYLES = [['chime', 'جرس ناعم'], ['bell', 'جرس كلاسيكي'], ['marimba', 'خشبية دافئة'], ['digital', 'رقمية واضحة']];
+/* ── محرك الأصوات: نغمات تُولَّد داخل المتصفح (لا ملفات صوت)، بعدة أنماط ومستوى صوت ── */
+const SND_STYLES = [['chime', 'جرس ناعم'], ['bell', 'جرس كلاسيكي'], ['marimba', 'خشبية دافئة'], ['digital', 'رقمية واضحة'], ['glass', 'زجاجية صافية'], ['harp', 'قيثارة'], ['piano', 'بيانو هادئ'], ['drop', 'قطرات'], ['pop', 'فقاعات'], ['retro', 'ألعاب قديمة'], ['soft', 'هادئة منخفضة']];
 const SND_EVENTS = {
   success: { label: 'إنجاز', rank: 0, n: [[523.25, 0], [659.25, 0.1], [783.99, 0.2]] },
   error: { label: 'خطأ', rank: 0, n: [[311.13, 0], [233.08, 0.14]] },
@@ -18739,14 +18774,27 @@ const SND_EVENTS = {
   warn: { label: 'تأخر أو تنبيه', rank: 4, n: [[880, 0], [622.25, 0.2], [880, 0.4], [622.25, 0.6]] },
   urgent: { label: 'عاجل', rank: 5, n: [[987.77, 0], [739.99, 0.15], [987.77, 0.3], [739.99, 0.45], [987.77, 0.6], [739.99, 0.75]] }
 };
+/* w: الموجة، h: التوافقيات، dec: مدة الخفوت، pk: الذروة، flat: ثابتة ثم تنقطع، lp: مرشح للحدة،
+   tr: نقل الطبقة (2 = أعلى بديوان)، gl: انزلاق الطبقة خلال النغمة (أقل من 1 هبوط)، sp: تباعد النغمات (أكبر من 1 أبطأ) */
 const SND_TIMBRE = {
   chime: { w: 'sine', h: [[2, 0.18]], dec: 0.7, pk: 0.32 },
   bell: { w: 'sine', h: [[2.76, 0.42], [5.4, 0.16]], dec: 1.3, pk: 0.3 },
   marimba: { w: 'sine', h: [[4, 0.08]], dec: 0.32, pk: 0.45 },
-  digital: { w: 'square', h: [], dec: 0.15, pk: 0.1, flat: 1, lp: 2600 }
+  digital: { w: 'square', h: [], dec: 0.15, pk: 0.1, flat: 1, lp: 2600 },
+  glass: { w: 'sine', h: [[3, 0.24], [6.27, 0.08]], dec: 0.95, pk: 0.26, tr: 1.5 },
+  harp: { w: 'triangle', h: [[2, 0.26], [3, 0.1]], dec: 1.05, pk: 0.34, sp: 1.45 },
+  piano: { w: 'triangle', h: [[2, 0.4], [3, 0.16], [4, 0.07]], dec: 1.15, pk: 0.3, lp: 3200 },
+  drop: { w: 'sine', h: [], dec: 0.24, pk: 0.5, tr: 1.5, gl: 0.55 },
+  pop: { w: 'sine', h: [[2, 0.1]], dec: 0.13, pk: 0.48, gl: 1.9, sp: 0.85 },
+  retro: { w: 'square', h: [], dec: 0.11, pk: 0.09, flat: 1, lp: 3000, tr: 0.5, sp: 0.8 },
+  soft: { w: 'sine', h: [[2, 0.06]], dec: 1.5, pk: 0.36, tr: 0.5, lp: 1400, sp: 1.25 }
 };
-const SND_TV_DEF = { on: 1, ticket: 1, urgent: 1, chat: 1, late: 1, service: 1, ann: 1, done: 0, remind: 10, speak: 0, vol: 85, style: 'bell' };
+const SND_TV_DEF = { on: 1, ticket: 1, urgent: 1, chat: 1, late: 1, service: 1, ann: 1, done: 0, remind: 10, speak: 0, vol: 85, style: 'bell', popup: 1 };
 const SND_DEF = { on: 1, style: 'chime', vol: 70 };
+/* اختيار النغمة: زر لكل نغمة، والتجربة عند الاختيار يتولاها من يستخدمه */
+UI.tonePick = (name, cur) => html`<div class="snd-tones" role="radiogroup">${SND_STYLES.map(([k, l]) => html`<label><input type="radio" name="${name}" value="${k}"${cur === k ? raw(' checked') : ''}><span>${UI.icon('sound')}${l}</span></label>`)}</div>`;
+/* قائمة نغمات منسدلة تُسمع النغمة عند اختيارها (حقل نغمة شاشة العرض في حسابها) */
+document.addEventListener('change', (e) => { const el = e.target; if (el.matches && el.matches('select[data-tone-preview]') && SND_TIMBRE[el.value]) Snd.play('ticket', { style: el.value }); });
 const Snd = {
   _ctx: null, _last: 0, _lastRank: -1, played: [],
   central() { const s = (Data.c && Data.c.settings && Data.c.settings.sounds) || {}; return { ...SND_DEF, ...s, tv: { ...SND_TV_DEF, ...(s.tv || {}) } }; },
@@ -18772,8 +18820,8 @@ const Snd = {
     this.played.push({ ev, style, vol: Math.round(vol * 100), at: Date.now(), state: A.state }); if (this.played.length > 30) this.played.shift();
     if (vol <= 0) return false;
     const out = A.createGain(); out.gain.value = Math.pow(vol, 1.6); out.connect(A.destination);
-    const reps = Math.max(1, o.repeat || 1), span = E.n[E.n.length - 1][1] + SND_TIMBRE[style].dec + 0.2;
-    for (let r = 0; r < reps; r++) E.n.forEach(([f, d]) => this.note(A, out, style, f, A.currentTime + 0.03 + r * span + d));
+    const sp = SND_TIMBRE[style].sp || 1, reps = Math.max(1, o.repeat || 1), span = E.n[E.n.length - 1][1] * sp + SND_TIMBRE[style].dec + 0.2;
+    for (let r = 0; r < reps; r++) E.n.forEach(([f, d]) => this.note(A, out, style, f, A.currentTime + 0.03 + r * span + d * sp));
     return true;
   },
   note(A, out, style, f, t) {
@@ -18785,7 +18833,11 @@ const Snd = {
     g.gain.exponentialRampToValueAtTime(P.pk, t + 0.012);
     if (P.flat) { g.gain.setValueAtTime(P.pk, t + P.dec); g.gain.exponentialRampToValueAtTime(0.0001, t + P.dec + 0.05); } else g.gain.exponentialRampToValueAtTime(0.0001, t + P.dec);
     const end = t + P.dec + 0.08;
-    [[1, 1], ...P.h].forEach(([m, a]) => { const o = A.createOscillator(), og = A.createGain(); o.type = m === 1 ? P.w : 'sine'; o.frequency.value = f * m; og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(end); });
+    [[1, 1], ...P.h].forEach(([m, a]) => {
+      const o = A.createOscillator(), og = A.createGain(), hz = f * m * (P.tr || 1);
+      o.type = m === 1 ? P.w : 'sine'; o.frequency.setValueAtTime(hz, t); if (P.gl) o.frequency.exponentialRampToValueAtTime(hz * P.gl, t + P.dec);
+      og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(end);
+    });
   },
   /* تنبيه: ما يصل معاً يُدمج في صوت واحد، والأهم يغلب */
   alert(ev, o = {}) {
@@ -18817,8 +18869,8 @@ const Snd = {
   }
 };
 ['pointerdown', 'keydown', 'touchstart'].forEach((t) => window.addEventListener(t, () => Snd.unlock(), true));
-/* التبويب في الخلفية: سحب كل 30 ثانية ليصل الإشعار وصوته (التبويب الظاهر يسحب كل 5 إلى 15 ثانية كما هو) */
-Sync.bgDue = function () { if (!Snd.pref().on) return false; const t = Date.now(); if (t - (this._bgAt || 0) < 30000) return false; this._bgAt = t; return true; };
+/* التبويب في الخلفية: سحب كل 30 ثانية ليصل الإشعار وصوته (التبويب الظاهر يسحب كل 5 إلى 15 ثانية كما هو). شاشة العرض تسحب دائماً */
+Sync.bgDue = function () { if (!Snd.pref().on && !(Auth.user && Auth.user.role === 'monitor')) return false; const t = Date.now(); if (t - (this._bgAt || 0) < 30000) return false; this._bgAt = t; return true; };
 
 /* ── شاشة العرض: نطاقها (الفئات والمواقع المحددة في حسابها) ── */
 const MonScope = {
@@ -18832,7 +18884,8 @@ const MonScope = {
 const TvSound = {
   st: null,
   cfg() { return Snd.central().tv; },
-  opts() { const c = this.cfg(); return { style: c.style, vol: c.vol }; },
+  /* نغمة الشاشة من حسابها إن اختيرت، وإلا نغمة شاشات العرض العامة */
+  opts() { const c = this.cfg(), own = MonScope.cfg().style; return { style: SND_TIMBRE[own] ? own : c.style, vol: c.vol }; },
   enabled() {
     const l = Snd.ls('sq_tv_sound'); if (l === '1') return true; if (l === '0') return false;
     const u = Auth.user, c = this.cfg();
@@ -18896,6 +18949,32 @@ const TvSound = {
     document.body.appendChild(b);
   }
 };
+/* ── شاشة العرض: بطاقة كبيرة للوارد الجديد تُرى من بعيد، ثم تختفي وحدها أو بلمسة ── */
+const TvAlert = {
+  timer: 0, list: [],
+  enabled() { return TvSound.cfg().popup !== 0; },
+  show(fresh) {
+    if (!fresh.length || !this.enabled() || !document.body.classList.contains('tv-mode')) return;
+    this.list = [...fresh, ...this.list.filter((x) => !fresh.some((f) => f.key === x.key))].slice(0, 12);
+    this.draw();
+  },
+  draw() {
+    const l = this.list, urgent = l.filter((r) => r.kind === 'ticket' && r.priority === 'urgent'), top = urgent[0] || l[0], rest = l.filter((r) => r !== top);
+    const [tone, kick, ic] = urgent.length ? ['red', 'بلاغ عاجل', 'alert'] : top.kind === 'chat' ? ['violet', 'استفسار جديد', 'bell'] : ['amber', 'بلاغ جديد', 'ticket'];
+    const ms = urgent.length ? 30000 : 15000;
+    let el = document.getElementById('tvAlert');
+    if (!el) { el = document.createElement('div'); el.id = 'tvAlert'; el.className = 'tv-alert'; el.setAttribute('role', 'alert'); el.addEventListener('click', () => this.hide()); document.body.appendChild(el); }
+    el.style.setProperty('--t', `var(--${tone})`);
+    el.innerHTML = String(html`<div class="tv-alert-card"><div class="tv-alert-ic">${UI.icon(ic)}</div><div class="grow" style="min-width:0">
+      <span class="tv-alert-kicker">${kick}${rest.length ? ` · ومعه ${fmtNum(rest.length)} غيره` : ''}</span><h2>${top.title}</h2>
+      <p>${[top.dep, top.office, top.cat].filter(Boolean).join(' · ') || '—'}</p>
+      <div class="tv-alert-meta">${top.number ? html`<span class="ltr">${top.number}</span>` : ''}${top.by ? html`<span>${UI.icon('user')} ${top.by}</span>` : ''}<span>${UI.icon('clock')} ${new Date(top.at).toTimeString().slice(0, 5)}</span></div>
+      ${rest.length ? html`<ul class="tv-alert-more">${rest.slice(0, 3).map((r) => html`<li><b>${r.title}</b>${r.dep ? html`<small>${r.dep}</small>` : ''}</li>`)}</ul>` : ''}
+      </div></div><i class="tv-alert-bar" style="animation-duration:${ms}ms"></i><small class="tv-alert-hint">المس الشاشة للإغلاق</small>`);
+    clearTimeout(this.timer); this.timer = setTimeout(() => this.hide(), ms);
+  },
+  hide() { clearTimeout(this.timer); this.list = []; const el = document.getElementById('tvAlert'); if (el) el.remove(); }
+};
 {
   const mon0 = Pages.monitor;
   Pages.monitor = async (ctx) => {
@@ -18904,7 +18983,7 @@ const TvSound = {
     ctx.onCleanup(Bus.on('snd:state', () => TvSound.banner()));
     UI.on(ctx.view, 'click', '[data-act="sound"]', () => setTimeout(() => TvSound.banner(), 300));
     const tb = setTimeout(() => TvSound.banner(), 700);
-    ctx.onCleanup(() => { clearTimeout(tb); TvSound.st = null; const b = document.getElementById('tvUnmute'); if (b) b.remove(); try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (_) { /* تجاهل */ } });
+    ctx.onCleanup(() => { clearTimeout(tb); TvSound.st = null; TvAlert.hide(); const b = document.getElementById('tvUnmute'); if (b) b.remove(); try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (_) { /* تجاهل */ } });
   };
 }
 
@@ -18924,7 +19003,7 @@ const TvSound = {
           <div class="stack" style="gap:14px">
             ${UI.field({ name: 'snd_on', type: 'switch', text: 'أصوات التنبيه: الإشعارات والبلاغات الجديدة والرسائل' }, p.on)}
             ${UI.field({ name: 'snd_ui', type: 'switch', text: 'أصوات العمليات: الحفظ والمسح والأخطاء' }, p.ui)}
-            <div class="field"><label>النغمة</label><div class="seg">${SND_STYLES.map(([k, l]) => html`<label><input type="radio" name="snd_style" value="${k}"${p.style === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+            <div class="field"><label>النغمة <small class="faint">(تُسمع عند اختيارها)</small></label>${UI.tonePick('snd_style', p.style)}</div>
             <div class="field snd-vol"><label>مستوى الصوت <b data-sndv>${p.vol}%</b></label><input type="range" name="snd_vol" min="0" max="100" step="5" value="${p.vol}"></div>
           </div>
           <div class="snd-tests"><span class="faint">تجربة:</span>${['notify', 'ticket', 'message', 'warn', 'urgent'].map((k) => html`<button type="button" class="btn btn-soft btn-sm" data-sndtest="${k}">${UI.icon('play')} ${SND_EVENTS[k].label}</button>`)}<p class="hint">الإعداد لهذا الجهاز فقط. إن لم تسمع شيئاً فتحقق من مستوى صوت Windows والسماعات.</p></div>
@@ -18950,43 +19029,46 @@ const TvSound = {
 const TV_EVENTS = [['ticket', 'بلاغ جديد', 'ticket'], ['urgent', 'بلاغ عاجل (إنذار مكرر)', 'urgent'], ['chat', 'استفسار جديد', 'message'], ['late', 'بلاغ تجاوز موعده', 'warn'], ['service', 'توقف خدمة أو عودتها', 'urgent'], ['ann', 'تعميم جديد', 'notify'], ['done', 'حل بلاغ', 'success']];
 Pages.ccSounds = (ctx) => {
   const st = { c: Snd.central() };
-  const styleSeg = (name, cur) => html`<div class="seg">${SND_STYLES.map(([k, l]) => html`<label><input type="radio" name="${name}" value="${k}"${cur === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>`;
   const draw = () => {
     const c = st.c, tv = c.tv, voice = TvSound.voice();
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الأصوات والتنبيهات', sub: 'أصوات الإشعارات لكل المستخدمين، وتنبيهات شاشات العرض الصوتية', illu: 'bell' })}
       <div class="grid g-2">
         ${UI.panel({ title: 'إشعارات المستخدمين', icon: 'bell', body: html`<div class="stack" style="gap:14px">
           ${UI.field({ name: 'u_on', type: 'switch', text: 'تشغيل أصوات الإشعارات لكل المستخدمين' }, c.on !== 0)}
-          <div class="field"><label>النغمة</label>${styleSeg('u_style', c.style)}</div>
+          <div class="field"><label>النغمة <small class="faint">(تُسمع عند اختيارها)</small></label>${UI.tonePick('u_style', c.style)}</div>
           <div class="field snd-vol"><label>مستوى الصوت <b data-v="u">${c.vol}%</b></label><input type="range" name="u_vol" min="0" max="100" step="5" value="${c.vol}"></div>
           <div class="snd-tests">${['notify', 'ticket', 'message', 'warn', 'urgent'].map((k) => html`<button type="button" class="btn btn-soft btn-sm" data-t="u:${k}">${UI.icon('play')} ${SND_EVENTS[k].label}</button>`)}</div>
           <p class="hint">لكل نوع إشعار نغمته: البلاغ الجديد والإسناد، الرسائل، التأخر، والعاجل (إنذار مكرر). ويستطيع كل مستخدم تغيير الإعداد لجهازه من «الملف الشخصي ← الأصوات».</p></div>` })}
         ${UI.panel({ title: 'شاشات العرض', icon: 'monitor', body: html`<div class="stack" style="gap:14px">
+          ${UI.field({ name: 'tv_popup', type: 'switch', text: 'بطاقة كبيرة على الشاشة عند وصول بلاغ أو استفسار جديد' }, tv.popup !== 0)}
           ${UI.field({ name: 'tv_on', type: 'switch', text: 'تنبيهات صوتية على شاشات العرض' }, tv.on !== 0)}
           <div class="field"><label>الأحداث التي تُصدر صوتاً</label><div class="chip-pick">${TV_EVENTS.map(([k, l]) => html`<label><input type="checkbox" data-ev="${k}"${tv[k] ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
           ${UI.field({ name: 'tv_remind', label: 'تذكير صوتي بالبلاغات غير المستلمة', type: 'select', placeholder: false, options: [{ value: '0', label: 'إيقاف' }, ...[5, 10, 15, 30].map((m) => ({ value: String(m), label: `كل ${m} دقائق` }))], value: String(tv.remind || 0) })}
           <div>${UI.field({ name: 'tv_speak', type: 'switch', text: 'قراءة البلاغ الجديد بصوت عربي بعد النغمة' }, !!tv.speak)}<small class="hint">${voice ? `الصوت المتاح على هذا الجهاز: ${voice.name}` : 'لا يوجد صوت عربي على هذا الجهاز. يعمل على شاشة العرض إن ثُبّتت عليها اللغة العربية بميزة «تحويل النص إلى كلام» في Windows.'}</small></div>
-          <div class="field"><label>النغمة</label>${styleSeg('tv_style', tv.style)}</div>
+          <div class="field"><label>النغمة <small class="faint">(ولكل شاشة نغمتها الخاصة من حسابها في «المستخدمون»)</small></label>${UI.tonePick('tv_style', tv.style)}</div>
           <div class="field snd-vol"><label>مستوى الصوت <b data-v="tv">${tv.vol}%</b></label><input type="range" name="tv_vol" min="0" max="100" step="5" value="${tv.vol}"></div>
           <div class="snd-tests">${TV_EVENTS.filter(([k]) => k !== 'service').map(([k, l, ev]) => html`<button type="button" class="btn btn-soft btn-sm" data-t="tv:${ev}">${UI.icon('play')} ${l.replace(' (إنذار مكرر)', '')}</button>`)}</div>
           <p class="hint">يُوقف الصوت لشاشة بعينها من حسابها في «المستخدمون»، أو من زر الجرس على الشاشة نفسها.</p></div>` })}
       </div>
-      ${UI.panel({ title: 'تشغيل الصوت على شاشة العرض دون نقرة', icon: 'sound', cls: 'mt', body: html`
+      ${UI.panel({ title: 'تشغيل شاشة العرض دون أحد أمامها', icon: 'sound', cls: 'mt', body: html`
         <p class="muted">المتصفح يمنع أي صوت في الصفحة حتى ينقر أحد عليها مرة. فإذا أُعيد تشغيل شاشة العرض ولم يلمسها أحد، يظهر عليها زر «اضغط لتفعيل الصوت». لتعمل الأصوات دون أي نقرة:</p>
         <ol class="hp-steps">
           <li><b>سياسة المتصفح:</b> أضف عنوان النظام إلى سياسة <code class="hp-code in">AutoplayAllowlist</code> في Chrome و Edge (عبر Group Policy على جهاز الشاشة).</li>
           <li><b>أو اختصار المتصفح على جهاز الشاشة:</b><code class="hp-code">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk --autoplay-policy=no-user-gesture-required http://it/</code></li>
-        </ol>` })}
+          <li><b>إبقاء الشاشة مضاءة:</b> في جهاز الشاشة اجعل «إيقاف تشغيل الشاشة» و«السكون» على «أبداً» من إعدادات الطاقة في Windows. المتصفح لا يستطيع منع إطفاء الشاشة على عنوان http، فتنطفئ ولا يُرى ما يصل.</li>
+        </ol>
+        <p class="hint">جلسة حساب الشاشة تتجدد ما دامت الشاشة تعمل، فلا تعود إلى صفحة الدخول بعد انتهاء مدة الجلسة.</p>` })}
       <div class="row mt"><button type="button" class="btn btn-primary" data-act="sndsave">${UI.icon('check')} حفظ الإعدادات</button></div>`);
   };
   const read = () => {
     const q = (s) => ctx.view.querySelector(s), r = (n) => (q(`[name="${n}"]:checked`) || {}).value;
-    const tv = { on: q('[name="tv_on"]').checked ? 1 : 0, remind: Number(q('[name="tv_remind"]').value) || 0, speak: q('[name="tv_speak"]').checked ? 1 : 0, vol: Number(q('[name="tv_vol"]').value), style: r('tv_style') || SND_TV_DEF.style };
+    const tv = { popup: q('[name="tv_popup"]').checked ? 1 : 0, on: q('[name="tv_on"]').checked ? 1 : 0, remind: Number(q('[name="tv_remind"]').value) || 0, speak: q('[name="tv_speak"]').checked ? 1 : 0, vol: Number(q('[name="tv_vol"]').value), style: r('tv_style') || SND_TV_DEF.style };
     TV_EVENTS.forEach(([k]) => { tv[k] = q(`[data-ev="${k}"]`).checked ? 1 : 0; });
     return { on: q('[name="u_on"]').checked ? 1 : 0, style: r('u_style') || SND_DEF.style, vol: Number(q('[name="u_vol"]').value), tv };
   };
   UI.on(ctx.view, 'input', 'input[type="range"]', (e, el) => { const b = ctx.view.querySelector(`[data-v="${el.name === 'u_vol' ? 'u' : 'tv'}"]`); if (b) b.textContent = `${el.value}%`; });
   UI.on(ctx.view, 'click', '[data-t]', (e, el) => { const [who, ev] = el.dataset.t.split(':'), v = read(), o = who === 'tv' ? v.tv : v; Snd.play(ev, { style: o.style, vol: o.vol, repeat: ev === 'urgent' ? 2 : 1 }); });
+  UI.on(ctx.view, 'change', '[name="u_style"],[name="tv_style"]', (e, el) => { const v = read(), o = el.name === 'tv_style' ? v.tv : v; Snd.play('ticket', { style: o.style, vol: o.vol }); });
   UI.on(ctx.view, 'click', '[data-act="sndsave"]', async (e, btn) => {
     UI.busy(btn, true);
     try { st.c = read(); await Data.saveSettings({ sounds: st.c }); UI.toast('حُفظت إعدادات الأصوات، وتصل كل الأجهزة مع المزامنة'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
