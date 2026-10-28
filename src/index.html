@@ -3960,7 +3960,7 @@ const PERMS = {
   supervisor: ['*'],
   monitor: ['monitor']
 };
-const STATUS = { new: { label: 'جديد', tone: 'sky' }, assigned: { label: 'مُسند', tone: 'violet' }, in_progress: { label: 'قيد العمل', tone: 'amber' }, waiting: { label: 'بانتظار', tone: 'slate' }, resolved: { label: 'تم الحل', tone: 'teal' }, closed: { label: 'مغلق', tone: 'muted' }, cancelled: { label: 'ملغى', tone: 'red' } };
+const STATUS = { new: { label: 'جديد', tone: 'sky' }, assigned: { label: 'مُسند', tone: 'violet' }, in_progress: { label: 'قيد العمل', tone: 'amber' }, waiting: { label: 'معلّق', tone: 'slate' }, resolved: { label: 'تم الحل', tone: 'teal' }, closed: { label: 'مغلق', tone: 'muted' }, cancelled: { label: 'ملغى', tone: 'red' } };
 const OPEN = ['new', 'assigned', 'in_progress', 'waiting'];
 const PRIORITY = { urgent: { label: 'عاجل', tone: 'red', rank: 4 }, high: { label: 'عالية', tone: 'amber', rank: 3 }, medium: { label: 'متوسطة', tone: 'sky', rank: 2 }, low: { label: 'منخفضة', tone: 'teal', rank: 1 } };
 const MOVES = { receive: { label: 'استلام', sign: 1 }, issue: { label: 'صرف', sign: -1 }, transfer_out: { label: 'تحويل صادر', sign: -1 }, transfer_in: { label: 'تحويل وارد', sign: 1 }, adjust: { label: 'تسوية جرد', sign: 0 }, loan_out: { label: 'تسليم عهدة', sign: -1 }, loan_return: { label: 'إرجاع عهدة', sign: 1 } };
@@ -4106,7 +4106,8 @@ const Data = {
   async notify(userIds, n) {
     const me = Auth.user && Auth.user.id, ids = [...new Set(userIds.filter((x) => x && x !== me))];
     if (!ids.length) return; const at = now();
-    await DB.bulkPut('notifications', ids.map((userId) => ({ id: uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '' })));
+    /* key: معرّف ثابت للحدث، فإن أرسله جهازان معاً (استلام متزامن) قبِل الخادم الأول ورفض الثاني، ولا يصل المستفيدَ إشعاران */
+    await DB.bulkPut('notifications', ids.map((userId) => ({ id: n.key ? `nt:${n.key}:${userId}` : uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '' })));
     Bus.emit('notifications');
   },
   async saveSettings(patch) { const s = { ...this.c.settings, ...patch }; await DB.put('meta', { key: 'settings', value: s }); this.c.settings = s; await this.log('update', 'settings', '', 'تحديث إعدادات النظام'); Bus.emit('settings'); },
@@ -4160,10 +4161,20 @@ Data.tickets = {
       await T.put('tickets', this.finalize(t));
       for (const e of evs) await T.put('ticketEvents', { id: uid('ev'), ticketId: id, at: now(), userId: Auth.user.id, text: '', ...e });
     });
-    if (notify) await Data.notify(notify(t), { title: `${t.number}: ${notify.title || 'تحديث على البلاغ'}`, body: t.title, link: `/tickets/${id}`, kind: 'ticket' });
+    if (notify) await Data.notify(notify(t), { title: `${t.number}: ${notify.title || 'تحديث على البلاغ'}`, body: (notify.body && notify.body(t)) || t.title, link: `/tickets/${id}`, kind: 'ticket', key: notify.key || '' });
     Bus.emit('tickets', { id }); return t;
   },
-  claim(id) { const me = Auth.user.id; const n = (t) => [t.requesterId]; n.title = 'استلم فني البلاغ'; return this.mutate(id, (t) => { if (!OPEN.includes(t.status)) throw new AppError('لا يمكن استلام بلاغ مغلق'); t.assigneeId = me; if (t.status === 'new') t.status = 'assigned'; return { type: 'assigned', to: me }; }, n); },
+  /* الاستلام لبلاغ غير مستلم فقط: كان الاستلام يكتب فوق فني استلمه قبلك (وصل استلامه للجهاز ولم تُحدَّث الصفحة بعد)، فيأخذه منه دون علمه */
+  claim(id) {
+    const me = Auth.user.id; let took = false;
+    const n = (t) => (took ? [t.requesterId] : []); n.title = 'استلم فني البلاغ';
+    return this.mutate(id, (t) => {
+      if (!OPEN.includes(t.status)) throw new AppError('لا يمكن استلام بلاغ مغلق');
+      if (t.assigneeId === me) return [];
+      if (t.assigneeId) throw new AppError(`استلم ${Data.userName(t.assigneeId)} هذا البلاغ قبلك. يمكنك استكماله إن أتاحه أو توقف نشاطه`);
+      took = true; n.key = `claim:${t.id}:${t._rev || 0}`; t.assigneeId = me; if (t.status === 'new') t.status = 'assigned'; return { type: 'assigned', to: me };
+    }, n);
+  },
   /* استكمال بلاغ استلمه فني آخر ولم ينجزه: يُسند إلى الفني الحالي ويُبلَّغ الفني السابق والمستفيد */
   takeOver(id, reason = '') {
     const me = Auth.user.id; let prev = '';
@@ -4177,20 +4188,43 @@ Data.tickets = {
       return { type: 'takeover', from: prev, to: me, text: String(reason || '').trim() };
     }, n);
   },
-  assign(id, userId) { const n = (t) => [t.assigneeId, t.requesterId]; n.title = 'تم إسناد البلاغ'; return this.mutate(id, (t) => { if (!Data.c.users.get(userId)) throw new AppError('اختر فنياً صحيحاً'); t.assigneeId = userId; if (t.status === 'new') t.status = 'assigned'; return { type: 'assigned', to: userId }; }, n); },
+  /* الإسناد: الفني الذي سُحب منه البلاغ يُبلَّغ بذلك، وكان لا يعلم */
+  async assign(id, userId) {
+    let prev = '', same = false;
+    const n = (t) => (same ? [] : [t.assigneeId, t.requesterId]); n.title = 'تم إسناد البلاغ';
+    const t = await this.mutate(id, (x) => {
+      if (!Data.c.users.get(userId)) throw new AppError('اختر فنياً صحيحاً');
+      if (x.assigneeId === userId) { same = true; return []; }
+      prev = x.assigneeId || ''; x.assigneeId = userId; if (x.status === 'new') x.status = 'assigned'; return { type: 'assigned', from: prev, to: userId };
+    }, n);
+    if (prev) await Data.notify([prev], { title: `${t.number}: أُعيد إسناد البلاغ إلى ${Data.userName(userId)}`, body: t.title, link: `/tickets/${id}`, kind: 'ticket' });
+    return t;
+  },
   setStatus(id, status, text = '') {
     const n = (t) => [t.requesterId, t.assigneeId]; n.title = `الحالة: ${STATUS[status].label}`;
+    /* سبب التعليق وملخص الحل في نص الإشعار: كان المستفيد يصله «الحالة: بانتظار» دون أن يعرف ما المطلوب منه */
+    if (String(text).trim()) n.body = (t) => `${t.title} — ${String(text).trim()}`;
     return this.mutate(id, (t) => {
       const from = t.status; if (from === status) return [];
       if (status === 'resolved' && !String(text).trim()) throw new AppError('اكتب ملخص الحل قبل إغلاق البلاغ كمحلول');
+      if (status === 'waiting' && !String(text).trim()) throw new AppError('اكتب سبب التعليق: يصل المستفيد ليعرف ما المطلوب أو ما يُنتظر');
       if (status === 'resolved') t.resolvedAt = now();
       if (status === 'closed') { t.closedAt = now(); if (!t.resolvedAt) t.resolvedAt = now(); }
-      if (OPEN.includes(status) && !OPEN.includes(from)) { t.resolvedAt = 0; t.closedAt = 0; t.rating = 0; t.ratingTags = []; t.ratingComment = ''; t.resolveMethod = ''; }
+      if (OPEN.includes(status) && !OPEN.includes(from)) { t.resolvedAt = 0; t.closedAt = 0; t.rating = 0; t.ratingTags = []; t.ratingComment = ''; t.resolveMethod = ''; if (t.requesterId === Auth.user.id) n.title = 'أعاد المستفيد فتح البلاغ: المشكلة لم تُحل'; }
       if ((status === 'in_progress' || status === 'waiting') && !t.assigneeId) t.assigneeId = Auth.user.id;
       t.status = status; return { type: 'status', from, to: status, text: String(text).trim() };
     }, n);
   },
-  comment(id, text, internal = false) { text = String(text || '').trim(); if (!text) return Promise.reject(new AppError('اكتب نص الرد')); const n = (t) => (internal ? [t.assigneeId] : [t.requesterId, t.assigneeId]); n.title = 'رد جديد'; return this.mutate(id, () => ({ type: 'comment', text, internal: internal ? 1 : 0 }), n); },
+  /* رد المستفيد على بلاغ معلّق يعيده «قيد العمل» ويُبلَّغ الفني بذلك؛ كان يبقى معلّقاً حتى ينتبه الفني ويستأنفه بنفسه */
+  comment(id, text, internal = false) {
+    text = String(text || '').trim(); if (!text) return Promise.reject(new AppError('اكتب نص الرد'));
+    const n = (t) => (internal ? [t.assigneeId] : [t.requesterId, t.assigneeId]); n.title = 'رد جديد';
+    return this.mutate(id, (t) => {
+      const ev = [{ type: 'comment', text, internal: internal ? 1 : 0 }];
+      if (!internal && t.status === 'waiting' && t.requesterId === Auth.user.id) { t.status = 'in_progress'; n.title = 'ردّ المستفيد على البلاغ المعلّق'; ev.push({ type: 'status', from: 'waiting', to: 'in_progress', text: '' }); }
+      return ev;
+    }, n);
+  },
   setPriority(id, p) { return this.mutate(id, (t) => { const from = t.priority; if (from === p) return []; const s = Data.c.settings.sla[p]; t.priority = p; t.respondBy = t.createdAt + s.respond * MIN; t.dueAt = t.createdAt + s.resolve * MIN; return { type: 'priority', from, to: p }; }); },
   rate(id, stars, comment) { const n = (t) => [t.assigneeId]; n.title = `تقييم ${stars}/5`; return this.mutate(id, (t) => { if (t.requesterId !== Auth.user.id) throw new AppError('التقييم متاح لمقدم البلاغ فقط'); t.rating = clamp(Math.round(stars), 1, 5); t.ratingComment = String(comment || '').trim(); t.status = 'closed'; t.closedAt = now(); return { type: 'rating', stars: t.rating, text: t.ratingComment }; }, n); },
   async addAttachments(id, files) {
@@ -5279,7 +5313,8 @@ const Shell = {
     if (!this.mounted) return;
     const set = (k, n) => { const b = $(`[data-badge="${k}"]`); if (b) { b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); } };
     try {
-      if (Auth.can('tickets.work')) set('tickets', await DB.count('tickets', 'status', KR('new')));
+      /* ما ينتظر الفني: غير المستلم، وما أُسند إليه ولم يبدأه (الإسناد التلقائي يجعل أغلب الجديد «مُسنداً» فكان العداد صفراً) */
+      if (Auth.can('tickets.work')) { const [neu, mine] = await Promise.all([DB.count('tickets', 'status', KR('new')), DB.count('tickets', 'assignee_status', KR([Auth.user.id, 'assigned']))]); set('tickets', neu + mine); }
       if (Auth.can('inventory.read')) { const s = await Data.inv.summary(); set('low', s.low + s.out); set('overdue', s.overdue); }
     } catch (e) { console.warn(e); }
   },
@@ -5387,7 +5422,7 @@ const Board = {
       { key: 'new', title: 'غير مسندة', tone: 'sky', icon: 'inbox', q: { status: 'new' } },
       { key: 'assigned', title: all ? 'مسندة' : 'مسندة إليّ', tone: 'violet', icon: 'user', q: all ? { status: 'assigned' } : { assigneeId: me, status: 'assigned' } },
       { key: 'in_progress', title: 'قيد العمل', tone: 'amber', icon: 'play', q: all ? { status: 'in_progress' } : { assigneeId: me, status: 'in_progress' } },
-      { key: 'waiting', title: 'بانتظار', tone: 'slate', icon: 'pause', q: all ? { status: 'waiting' } : { assigneeId: me, status: 'waiting' } }
+      { key: 'waiting', title: 'معلّق', tone: 'slate', icon: 'pause', q: all ? { status: 'waiting' } : { assigneeId: me, status: 'waiting' } }
     ];
   },
   card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b><div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
@@ -5407,7 +5442,12 @@ const Board = {
       const to = lane.dataset.lane, tid = id; id = null;
       try {
         if (to === 'new') throw new AppError('لا يمكن إرجاع البلاغ إلى «غير مسندة» بالسحب');
-        if (to === 'assigned') await Data.tickets.claim(tid); else await Data.tickets.setStatus(tid, to);
+        /* قواعد صفحة البلاغ نفسها: بلاغ زميلك يغيّر حالته هو أو مشرف البلاغات، والتعليق بسبب يصل المستفيد */
+        const t = await Data.tickets.get(tid); if (!t) return;
+        if (t.assigneeId && t.assigneeId !== Auth.user.id && !Auth.can('tickets.manage')) throw new AppError(`البلاغ مع ${Data.userName(t.assigneeId)}، ويغيّر حالته هو أو مشرف البلاغات`);
+        if (to === 'assigned') await (t.assigneeId ? Data.tickets.setStatus(tid, 'assigned') : Data.tickets.claim(tid));
+        else if (to === 'waiting') { const r = await Pages.holdModal(); if (!r) return; await Data.tickets.setStatus(tid, 'waiting', r.text); }
+        else await Data.tickets.setStatus(tid, to);
         UI.toast(`نُقل البلاغ إلى «${lane.dataset.title}»`); UI.sound('success');
       } catch (ex) { UI.error(ex); }
     });
@@ -5637,8 +5677,10 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
 /* ── البلاغات: القائمة ───────────────────────────────────────── */
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
-  const st = { scope: q.scope || (staff ? 'unassigned' : 'all'), view: q.view || localStorage.getItem(staff ? 'sq_tview' : 'sq_tview_e') || 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
-  const scopes = staff ? [['unassigned', 'البلاغات المستلمة', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
+  /* الفني يبدأ بما ينتظر الاستلام، فإن لم يكن شيء فبالمسند إليه */
+  const first = !staff ? 'all' : q.scope ? '' : (await DB.count('tickets', 'status', KR('new'))) ? 'unassigned' : 'mine';
+  const st = { scope: q.scope || first, view: q.view || localStorage.getItem(staff ? 'sq_tview' : 'sq_tview_e') || 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
+  const scopes = staff ? [['unassigned', 'بانتظار الاستلام', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
     ${UI.pageHead({ title: staff ? 'البلاغات' : 'بلاغاتي', sub: staff ? 'تابع البلاغات ووزّعها وأنجزها ضمن مواعيدها' : 'كل البلاغات التي قدّمتها وحالتها لحظة بلحظة', illu: 'bell', actions: html`${Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : ''}<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button>` })}
@@ -5841,6 +5883,8 @@ const EVENT_VIEW = {
   takeover: (e) => ['swap', 'amber', html`<b>${Data.userName(e.to)}</b> استكمل البلاغ بدلاً من <b>${Data.userName(e.from)}</b>`],
   handover: (e) => ['clipboard', 'violet', html`<b>${Data.userName(e.userId)}</b> ${e.text ? 'كتب ملاحظة تسليم' : 'أزال ملاحظة التسليم'}${e.release ? html` ${UI.chip('violet', 'أتاح البلاغ للاستكمال', 'swap')}` : ''}`]
 };
+/* سبب تعليق البلاغ: من صفحته ومن لوحة البلاغات */
+Pages.holdModal = () => UI.modal({ title: 'تعليق البلاغ', icon: 'pause', body: html`<div class="quick-chips" style="margin-bottom:10px">${['بانتظار رد المستفيد', 'بانتظار قطعة غيار', 'بانتظار جهة خارجية', 'بانتظار موعد زيارة'].map((x) => html`<button type="button" class="qchip" data-hold="${x}">${x}</button>`)}</div>${UI.field({ name: 'text', label: 'سبب التعليق (يصل المستفيد)', type: 'textarea', rows: 3, required: true })}`, onMount: (form) => UI.on(form, 'click', '[data-hold]', (e, b) => { const ta = form.querySelector('textarea'); ta.value = b.dataset.hold; ta.focus(); }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تعليق', kind: 'primary', icon: 'pause', submit: true, handler: (form) => { const text = UI.formValues(form).text.trim(); if (!text) throw new AppError('اكتب سبب التعليق'); return { text }; } }] });
 Pages.ticket = async (ctx) => {
   const id = ctx.params.id, me = Auth.user, staff = Auth.can('tickets.work'), mgr = Auth.can('tickets.manage'), view = ctx.view, urls = [];
   ctx.onCleanup(() => urls.forEach((x) => URL.revokeObjectURL(x)));
@@ -5903,7 +5947,7 @@ Pages.ticket = async (ctx) => {
     if (a === 'handover') { await Pages.handoverModal(id); return; }
     if (a === 'hoclear') { if (await UI.confirm('إزالة ملاحظة التسليم؟', { ok: 'إزالة' })) run(() => Data.tickets.handover(id, '', false), 'أُزيلت ملاحظة التسليم'); return; }
     if (a === 'start') return run(() => Data.tickets.setStatus(id, 'in_progress'), 'بدأ العمل على البلاغ');
-    if (a === 'wait') { const r = await textModal('تعليق البلاغ', 'pause', 'سبب التعليق (يظهر للمستفيد)', false, 'تعليق'); if (r) run(() => Data.tickets.setStatus(id, 'waiting', r.text), 'تم تعليق البلاغ'); return; }
+    if (a === 'wait') { const r = await Pages.holdModal(); if (r) run(() => Data.tickets.setStatus(id, 'waiting', r.text), 'تم تعليق البلاغ'); return; }
     if (a === 'resolve') { const r = await Pages.resolveModal(t, templates); if (r) { await run(async () => { await Data.tickets.setStatus(id, 'resolved', r.text); if (r.method) await Data.tickets.mutate(id, (x) => { x.resolveMethod = r.method; return []; }); }, r.kept ? 'تم تسجيل الحل وحُفظ كرد جاهز' : 'تم تسجيل الحل وإشعار المستفيد'); UI.sound('success'); } return; }
     if (a === 'close') return run(() => Data.tickets.setStatus(id, 'closed'), 'تم إغلاق البلاغ');
     if (a === 'reopen' || a === 'notfixed') { const r = await textModal(a === 'notfixed' ? 'المشكلة لم تُحل' : 'إعادة فتح البلاغ', 'undo', 'ما الذي ما زال لا يعمل؟', a === 'notfixed', 'إعادة الفتح', 'danger'); if (r) run(() => Data.tickets.setStatus(id, t.assigneeId ? 'in_progress' : 'new', r.text), 'أُعيد فتح البلاغ'); return; }
@@ -7244,10 +7288,12 @@ const createTicketBase = Data.tickets.create.bind(Data.tickets);
 Data.tickets.create = async function (input, files = []) {
   if (catFormRequired(input.categoryId) && !files.length) throw new AppError('هذه الفئة تتطلب إرفاق مستندها بعد تعبئته');
   if (Forms.attachReq(input.categoryId) && !files.length) throw new AppError(Forms.attachMsg(input.categoryId));
-  Data.tickets.routeCat = input.categoryId || '';
-  let t; try { t = await createTicketBase(input, files); } finally { Data.tickets.routeCat = ''; }
+  /* المسؤول يُختار قبل الإنشاء، فيصله إشعار «أُسند إليك» وحده؛ كان يصله معه «بلاغ جديد» للبلاغ نفسه (إشعاران وصوتان) */
+  let owner = null;
+  try { owner = await Spec.pick(input.categoryId || 'other'); } catch (e) { console.warn('auto assign', e); }
+  Data.tickets.routeCat = input.categoryId || ''; Data.tickets.routeSkip = owner || '';
+  let t; try { t = await createTicketBase(input, files); } finally { Data.tickets.routeCat = ''; Data.tickets.routeSkip = ''; }
   try {
-    const owner = await Spec.pick(t.categoryId);
     if (owner) {
       await DB.run(['tickets', 'ticketEvents'], async (T) => {
         const rec = await T.get('tickets', t.id); if (!rec || rec.assigneeId) return;
@@ -7263,7 +7309,7 @@ Data.tickets.create = async function (input, files = []) {
   return t;
 };
 const staffIdsBase = Data.tickets.staffIds;
-Data.tickets.staffIds = () => { const owners = Data.tickets.routeCat ? Spec.owners(Data.tickets.routeCat) : []; return owners.length ? owners.map((u) => u.id) : staffIdsBase(); };
+Data.tickets.staffIds = () => { const owners = Data.tickets.routeCat ? Spec.owners(Data.tickets.routeCat) : []; return owners.length ? owners.map((u) => u.id).filter((x) => x !== Data.tickets.routeSkip) : staffIdsBase(); };
 
 Pages.specSection = (u, role) => {
   const mine = new Set(u.categories || []), staff = ['technician', 'support_manager', 'supervisor'].includes(role);
@@ -8081,15 +8127,18 @@ const Sync = {
   localKey(store, id) { const k = (DB.SCHEMA[store] || {}).key || 'id'; return Array.isArray(k) ? id.split('|') : id; },
 
   async resolve(conflicts) {
-    const big = []; let denied = 0;
+    const big = [], lost = []; let denied = 0;
     for (const c of conflicts) {
       if (c.reason === 'too_large') { big.push(c); continue; }
       if (c.reason === 'no_permission') { denied += 1; if (!c.data) continue; }
+      /* استلام متزامن: فني آخر سبقك إلى البلاغ نفسه */
+      if (c.store === 'tickets' && c.data && Auth.user && c.data.assigneeId && c.data.assigneeId !== Auth.user.id) { const mine = await DB.get('tickets', c.id).catch(() => null); if (mine && mine.assigneeId === Auth.user.id) lost.push(c.data); }
       if (c.deleted) { try { await this.raw.del(c.store, this.localKey(c.store, c.id)); } catch (_) { /* غير موجود */ } } else if (c.data) { c.data._rev = c.rev; await this.raw.put(c.store, c.data); }
     }
     const stores = [...new Set(conflicts.map((c) => c.store))];
     this.notifyStores(stores);
-    if (big.length) UI.toast(`لم يُحفظ على الخادم ${big.length === 1 ? 'ملف كبير' : `${fmtNum(big.length)} ملفات كبيرة`} (${fmtBytes(Math.max(...big.map((c) => c.size || 0)))}). ارفع قيمة max_allowed_packet في إعدادات MySQL إلى 64M`, 'warn', 12000);
+    if (lost.length) UI.toast(lost.length === 1 ? `استلم ${Data.userName(lost[0].assigneeId)} البلاغ ${lost[0].number} قبلك بلحظات، فبقي معه` : `سبقك فنيون آخرون إلى ${fmtNum(lost.length)} بلاغات`, 'warn', 8000);
+    else if (big.length) UI.toast(`لم يُحفظ على الخادم ${big.length === 1 ? 'ملف كبير' : `${fmtNum(big.length)} ملفات كبيرة`} (${fmtBytes(Math.max(...big.map((c) => c.size || 0)))}). ارفع قيمة max_allowed_packet في إعدادات MySQL إلى 64M`, 'warn', 12000);
     else if (denied && denied === conflicts.length) UI.toast('رفض الخادم بعض التغييرات لعدم وجود صلاحية، وأُعيدت إلى آخر نسخة معتمدة', 'warn', 7000);
     else UI.toast('حُدِّثت بعض البيانات من جهاز آخر، راجع الشاشة قبل إعادة المحاولة', 'warn', 6000);
   },
