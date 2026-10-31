@@ -267,23 +267,50 @@ function survey_private_rows(array $rows, array $user): array {
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
 const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault'];
-function sync_scope(array $u): string {
-  return (($u['role'] ?? '') === 'department' && empty($u['extraPerms'])) ? 'self' : 'all';
+/*
+ * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
+ * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
+ */
+function pull_full(array $u): array {
+  $full = [];
+  $grant = function (array $perms, array $stores) use ($u, &$full) { if (can_any($u, $perms)) foreach ($stores as $s) $full[$s] = 1; };
+  $grant(['tickets.all', 'tickets.work', 'tickets.manage', 'reports'], ['tickets', 'ticketEvents', 'attachments']);
+  $grant(['chat.answer', 'tickets.work', 'reports'], ['chats', 'chatMsgs']);
+  $grant(['activity'], ['activity']);
+  $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
+  $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
+  $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
+  $grant(['vault.read', 'vault.manage'], ['vault']);
+  $grant(['surveys.manage', 'reports'], ['surveyResponses', 'surveyMarks']);
+  $grant(['org.manage'], ['orgLog']);
+  return $full;
 }
-/** شرط SQL لنطاق الموظف: يستبعد في قاعدة البيانات نفسها ما لا يخصه، فلا يُنقل ولا يُفك في PHP */
-function self_sql(array $u): array {
-  $skip = implode(',', array_map(fn($x) => db()->quote($x), SELF_SKIP));
+/** من يستلم كل البيانات: المشرف، ومن يملك الإعدادات أو النسخ الاحتياطي (النسخة تشمل كل شيء) */
+function pull_everything(array $u): bool { return is_sup($u) || can_any($u, ['settings', 'backup.manage']); }
+function sync_scope(array $u): string {
+  if (($u['role'] ?? '') !== 'department' || pull_everything($u)) return 'all';
+  if (empty($u['extraPerms'])) return 'self';
+  $f = array_keys(pull_full($u)); sort($f);
+  return 'self:' . implode(',', $f);
+}
+function is_self_scope(string $scope): bool { return strpos($scope, 'self') === 0; }
+/** شرط SQL لنطاق الموظف: يستبعد في قاعدة البيانات نفسها ما لا يخصه، فلا يُنقل ولا يُفك في PHP. $full: جداول تصله كاملة بصلاحياته */
+function self_sql(array $u, array $full = []): array {
+  $skip = implode(',', array_map(fn($x) => db()->quote($x), array_values(array_diff(SELF_SKIP, array_keys($full)))));
   $j = fn(string $f) => "JSON_UNQUOTE(JSON_EXTRACT(data, '$.$f'))";
   $me = (string) ($u['id'] ?? ''); $dep = (string) ($u['departmentId'] ?? '');
-  $cond = " AND (deleted = 1 OR (store NOT IN ($skip)"
-    . " AND (store <> 'tickets' OR {$j('requesterId')} = ?)"
-    . " AND (store NOT IN ('notifications', 'chats') OR {$j('userId')} = ?)"
-    . " AND (store <> 'loans' OR {$j('borrowerId')} = ?)"
-    . " AND (store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?)"
-    . " AND (store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?)"
-    . " AND (store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?)"
-    . " AND (store <> 'orgLog' OR {$j('userId')} = ?)))";
-  return [$cond, [$me, $me, $me, $me, $dep === '' ? "\0" : $dep, $me, $me, $me]];
+  $own = fn(string $store) => empty($full[$store]);
+  $cond = " AND (deleted = 1 OR (store NOT IN ($skip)"; $args = [];
+  $add = function (bool $on, string $sql, array $a) use (&$cond, &$args) { if ($on) { $cond .= " AND ($sql)"; array_push($args, ...$a); } };
+  $add($own('tickets'), "store <> 'tickets' OR {$j('requesterId')} = ?", [$me]);
+  $add(true, "store <> 'notifications' OR {$j('userId')} = ?", [$me]);
+  $add($own('chats'), "store <> 'chats' OR {$j('userId')} = ?", [$me]);
+  $add($own('loans'), "store <> 'loans' OR {$j('borrowerId')} = ?", [$me]);
+  $add($own('assets'), "store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?", [$me, $dep === '' ? "\0" : $dep]);
+  $add($own('surveyResponses'), "store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?", [$me]);
+  $add(true, "store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?", [$me]);
+  $add($own('orgLog'), "store <> 'orgLog' OR {$j('userId')} = ?", [$me]);
+  return [$cond . '))', $args];
 }
 /** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
 function owners_of(string $store, array $ids, string $field, array $known): array {
@@ -298,7 +325,7 @@ function owners_of(string $store, array $ids, string $field, array $known): arra
   return $out;
 }
 /** يُبقي من دفعة السحب ما يخص الموظف فقط. $rows: صفوف فيها '_d' (البيانات بعد فك JSON) */
-function visible_rows(array $rows, array $u): array {
+function visible_rows(array $rows, array $u, array $full = []): array {
   $me = (string) ($u['id'] ?? ''); $dep = (string) ($u['departmentId'] ?? '');
   $tKnown = []; $cKnown = []; $tNeed = []; $cNeed = [];
   foreach ($rows as $r) {
@@ -314,9 +341,10 @@ function visible_rows(array $rows, array $u): array {
   $out = [];
   foreach ($rows as $r) {
     $st = $r['store']; $d = $r['_d'];
-    if (in_array($st, SELF_SKIP, true)) continue;
+    if (in_array($st, SELF_SKIP, true) && empty($full[$st])) continue;
     /* حذف سجل: لا بيانات لمعرفة صاحبه، ويُرسل (لا ضرر من حذف ما ليس عند الجهاز) */
     if ((int) $r['deleted'] || !is_array($d)) { $out[] = $r; continue; }
+    if (!empty($full[$st])) { $out[] = $r; continue; }
     switch ($st) {
       case 'meta': $k = (string) ($d['key'] ?? $r['doc_id']); $ok = strpos($k, 'lock:') !== 0 && strpos($k, 'presence:') !== 0; break;
       case 'tickets': $ok = (string) ($d['requesterId'] ?? '') === $me; break;
@@ -337,6 +365,17 @@ function visible_rows(array $rows, array $u): array {
     if ($ok) $out[] = $r;
   }
   return $out;
+}
+/** الفنيون والإداريون وشاشات العرض: إشعارات غيرهم لا تقرؤها أي صفحة، وسجل النشاط لمن يملك «سجل النشاط» */
+function staff_rows(array $rows, array $u): array {
+  if (pull_everything($u)) return $rows;
+  $me = (string) ($u['id'] ?? ''); $acts = can($u, 'activity');
+  return array_values(array_filter($rows, function ($r) use ($me, $acts) {
+    if ((int) $r['deleted'] || !is_array($r['_d'])) return true;
+    if ($r['store'] === 'notifications') return (string) ($r['_d']['userId'] ?? '') === $me;
+    if ($r['store'] === 'activity' && !$acts) return (string) ($r['_d']['userId'] ?? '') === $me;
+    return true;
+  }));
 }
 /** الملاحظات الإدارية: لمن يملك صلاحية الاطلاع فقط، والخاصة لكاتبها وحده. والردود الجاهزة الخاصة لصاحبها */
 function vault_rows(array $rows, array $user): array {
@@ -1097,8 +1136,8 @@ case 'pull': {
   /* لا جديد منذ آخر سحب: رد فوري دون استعلام (أغلب طلبات الأجهزة الدورية) */
   $head = current_rev();
   if ($since >= $head) out(['rev' => $since, 'head' => $head, 'docs' => [], 'more' => false, 'scope' => sync_scope($user)] + $extra);
-  $scope = sync_scope($user);
-  [$cond, $args] = $scope === 'self' ? self_sql($user) : ['', []];
+  $scope = sync_scope($user); $self = is_self_scope($scope); $full = $self ? pull_full($user) : [];
+  [$cond, $args] = $self ? self_sql($user, $full) : ['', []];
   $fetch = function (string $where, array $params, string $limit = '') use (&$cond, &$args) {
     try { $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE $where$cond ORDER BY rev ASC$limit"); $st->execute(array_merge($params, $args)); }
     catch (Throwable $e) { /* MySQL قديم بلا دوال JSON: التصفية في PHP وحدها */ $cond = ''; $args = []; $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE $where ORDER BY rev ASC$limit"); $st->execute($params); }
@@ -1118,12 +1157,12 @@ case 'pull': {
   /* رقم التقدم يشمل الصفوف المحجوبة عن هذا المستخدم، وإلا أعاد طلبها في كل سحب.
      بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
   if (!$more) $max = max($max, $head);
-  if ($scope === 'self') $rows = visible_rows($rows, $user);
-  else $rows = vault_rows(survey_private_rows($rows, $user), $user);
+  if ($self) $rows = visible_rows($rows, $user, $full);
+  else $rows = vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
-    if ($scope === 'self' && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
-    if ($row['store'] === 'users' && is_array($data)) $data = ($scope === 'self' || ($user['role'] ?? '') === 'monitor') && $row['doc_id'] !== (string) $user['id'] ? strip_user_public($data) : strip_user($data);
+    if ($self && empty($full['tickets']) && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
+    if ($row['store'] === 'users' && is_array($data)) $data = ($self || ($user['role'] ?? '') === 'monitor') && $row['doc_id'] !== (string) $user['id'] ? strip_user_public($data) : strip_user($data);
     $docs[] = ['store' => $row['store'], 'id' => $row['doc_id'], 'rev' => (int) $row['rev'], 'deleted' => (int) $row['deleted'], 'data' => $data];
   }
   out(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more, 'scope' => $scope] + $extra);
@@ -1355,7 +1394,7 @@ case 'file': {
   $path = rtrim($CONFIG['files_dir'], '/\\') . DIRECTORY_SEPARATOR . $id . '.bin';
   if (!$row || !is_file($path)) fail('الملف غير موجود', 404);
   /* الموظف ينزّل مرفقاته ومرفقات بلاغاته فقط؛ معرّف الملف وحده لم يعد يكفي لتنزيل مرفقات الآخرين */
-  if (sync_scope($user) === 'self' && !file_visible($user, $id, $row)) fail('الملف غير موجود', 404);
+  if (is_self_scope(sync_scope($user)) && empty(pull_full($user)['attachments']) && !file_visible($user, $id, $row)) fail('الملف غير موجود', 404);
   /* تُعرض داخل المتصفح الأنواع الآمنة فقط؛ HTML وSVG وغيرها تُنزّل كملف ولا تُنفّذ داخل نطاق النظام (حماية من XSS) */
   $type = strtolower(trim(explode(';', (string) $row['type'])[0]));
   $inline = in_array($type, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf', 'video/mp4', 'audio/mpeg'], true);

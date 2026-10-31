@@ -4414,6 +4414,8 @@ Pages.vouchers = async (ctx) => {
 document.addEventListener('click', (e) => { const el = e.target.closest('[data-cart-add]'); if (!el) return; e.preventDefault(); Cart.add(el.dataset.cartAdd, 1); });
 
 /* ── المزامنة مع خادم XAMPP: قاعدة بيانات مركزية مع ذاكرة محلية سريعة ── */
+/* الجداول التي يتوقف ما يستلمه الجهاز منها على صلاحيات الحساب */
+const SYNC_SCOPED = ['tickets', 'ticketEvents', 'attachments', 'chats', 'chatMsgs', 'notifications', 'activity', 'worklog', 'workFolders', 'workItems', 'stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets', 'extmaint', 'vault', 'surveyResponses', 'surveyMarks', 'orgLog', 'backups'];
 const Sync = {
   url: '', token: '', on: false, rev: 0, queue: [], flushing: false, applying: false, status: 'local', lastAt: 0, lastError: '', pullTimer: 0, head: 0,
   autoUrl() { const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
@@ -4534,6 +4536,24 @@ const Sync = {
     if (had) { try { Shell.unmount(); } catch (_) { /* تجاهل */ } if (!quiet) UI.toast('انتهت جلستك أو سُجّل خروجك من جهاز أو تبويب آخر، سجّل الدخول من جديد', 'warn', 7000); Router.go('/login'); }
     setTimeout(() => { this._ending = false; }, 1500);
   },
+  /* تغيّر ما يحق للحساب استلامه (صلاحيات أُضيفت أو سُحبت): تُمحى الجداول التابعة للنطاق ويُعاد سحبها كاملة،
+     فيصل ما صار متاحاً ويُزال ما لم يعد كذلك */
+  async rescope() {
+    await this.waitIdle();
+    for (const st of SYNC_SCOPED) { try { await DB.clear(st); } catch (_) { /* غير موجود */ } }
+    await this.pull(true);
+    this.notifyStores(SYNC_SCOPED);
+  },
+  /* أجهزة استلمت قبل هذا التحديث إشعارات غيرها وسجل نشاط الجميع: يُزال ذلك مرة واحدة */
+  async prune() {
+    const u = Auth.user; if (!u || u.role === 'supervisor' || canUser(u, 'settings') || canUser(u, 'backup.manage')) return;
+    const key = `sync:pruned:${u.id}`; if (await DB.get('meta', key).catch(() => null)) return;
+    const gone = [];
+    await DB.each('notifications', {}, (n) => { if (n.userId !== u.id) gone.push(['notifications', n.id]); });
+    if (!canUser(u, 'activity')) await DB.each('activity', {}, (a) => { if (a.userId !== u.id) gone.push(['activity', a.id]); });
+    for (const [st, id] of gone) await this.raw.del(st, id);
+    await this.raw.put('meta', { key, value: now() });
+  },
   async waitIdle(ms = 15000) { const t0 = Date.now(); while ((this.flushing || this.queue.length) && Date.now() - t0 < ms) { await new Promise((r) => setTimeout(r, 120)); if (!this.flushing && this.queue.length) this.flush(); } },
   async flush() {
     if (!this.on || this.flushing || !this.queue.length || (!this.token && (!this.serverEmpty || this.setupBlocked))) return;
@@ -4621,7 +4641,7 @@ const Sync = {
         const wantPres = guard === 0 && Date.now() - (this.presAt || 0) > 20000; if (wantPres) this.presAt = Date.now();
         const res = await this.call('pull', { query: `&since=${full && guard === 0 ? 0 : this.rev}&limit=1500${wantPres ? '&pres=1' : ''}` });
         if (Array.isArray(res.presence)) { Sync.presence = true; Presence.setList(res.presence); }
-        if (res.scope && res.scope !== this.scope) { if (this.scope === 'self' && res.scope === 'all') this._widen = true; this.scope = res.scope; await this.raw.put('meta', { key: 'sync:scope', value: res.scope }); }
+        if (res.scope && res.scope !== this.scope) { if (this.scope) this._rescope = true; this.scope = res.scope; await this.raw.put('meta', { key: 'sync:scope', value: res.scope }); }
         const docs = res.docs || [];
         if (docs.length) {
           const alerts = this.newArrivals(docs);
@@ -4645,7 +4665,8 @@ const Sync = {
         if (!res.more || ++guard > 40) break;
       }
       this.lastAt = now(); if (this.status !== 'syncing') this.setStatus('online');
-      if (this._widen) { this._widen = false; setTimeout(() => this.pull(true), 50); }
+      if (this._rescope) { this._rescope = false; setTimeout(() => this.rescope(), 50); }
+      if (!this._pruned) { this._pruned = true; setTimeout(() => this.prune(), 3000); }
       return total;
     } catch (e) { this.setStatus('offline', e && e.message); return 0; } finally { this._pulling = false; }
   },
