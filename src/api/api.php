@@ -522,7 +522,7 @@ function can_set_password(array $actor, array $target): bool {
   if (is_sup($actor) || can($actor, 'users.manage')) return true;
   if (!can($actor, 'users.password')) return false;
   if (($actor['role'] ?? '') === 'support_manager') return in_array($target['role'] ?? '', ['department', 'technician'], true);
-  if (($actor['role'] ?? '') === 'technician') return ($target['role'] ?? '') === 'department';
+  if (in_array($actor['role'] ?? '', ['technician', 'department'], true)) return ($target['role'] ?? '') === 'department';
   return false;
 }
 
@@ -695,6 +695,12 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if (($old['id'] ?? '') === ($user['id'] ?? '')) {
         /* صاحب الحساب: الملف الشخصي وكلمة مروره فقط */
         foreach ($data as $k => $v) if (!in_array($k, USER_PROTECTED, true) && $k !== 'mustChangePassword' && $k !== 'pass' && $k !== 'passChangedAt') $merged[$k] = $v;
+        /* الصورة الشخصية حسب سياسة المشرف: صورة جديدة تُحفظ مباشرة إن كانت «مسموحة للجميع» فقط، وبموافقته تبقى طلباً معلقاً،
+           ومعطّلة لا يُحفظ شيء. كانت تُكتب مباشرة لمن يرسلها خارج الواجهة. إزالة الصورة متاحة دائماً */
+        $pol = (string) setting('avatars', 'off');
+        $keep = function (string $k) use (&$merged, $old) { if (array_key_exists($k, $old)) $merged[$k] = $old[$k]; else unset($merged[$k]); };
+        if ($pol !== 'on' && !empty($merged['avatar']) && ($merged['avatar'] ?? '') !== ($old['avatar'] ?? '')) $keep('avatar');
+        if ($pol === 'off' && !empty($merged['avatarPending']) && ($merged['avatarPending'] ?? '') !== ($old['avatarPending'] ?? '')) $keep('avatarPending');
         return $merged;
       }
       $any = false;
@@ -737,7 +743,12 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     }
     case 'locations': return can_any($user, ['settings', 'users.manage', 'inventory.manage']) ? $new : null;
     case 'ranks': case 'printers': case 'warehouses': case 'itemCategories': return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
-    case 'forms': return can_any($user, ['settings', 'forms.manage', 'users.manage']) ? $new : null;
+    case 'forms': {
+      if (can_any($user, ['settings', 'forms.manage', 'users.manage'])) return $new;
+      /* «إخفاء المستندات»: إظهار النموذج وإخفاؤه فقط (كان يُرفض فيعود كما كان) */
+      if (!can($user, 'forms.hide') || $deleted || !$old) return null;
+      return array_merge($old, ['hidden' => empty($data['hidden']) ? 0 : 1, 'updatedAt' => $data['updatedAt'] ?? ($old['updatedAt'] ?? 0)]);
+    }
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'surveys': return can($user, 'surveys.manage') ? $new : null;
     case 'extmaint': return can($user, 'extmaint.manage') ? $new : null;
@@ -782,7 +793,13 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     }
     case 'meta': {
       $key = (string) ($data['key'] ?? ($old['key'] ?? ''));
-      if ($key === 'settings') return can($user, 'settings') ? $new : null;
+      if ($key === 'settings') {
+        if (can($user, 'settings')) return $new;
+        /* «النسخ الاحتياطي»: جدول النسخ التلقائي وحده من الإعدادات (كان حفظه يُرفض) */
+        if (!can($user, 'backup.manage') || $deleted || !$old || !is_array($data['value']['backupPlan'] ?? null)) return null;
+        $m = $old; $m['value'] = (array) ($old['value'] ?? []); $m['value']['backupPlan'] = $data['value']['backupPlan'];
+        return $m;
+      }
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
       if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
@@ -1188,6 +1205,9 @@ case 'push': {
         $cur = $sel->fetch();
         $curData = $cur ? (json_decode($cur['data'], true) ?: []) : null;
         $deleted = !empty($op['deleted']) ? 1 : 0;
+        /* حذف سجل لا وجود له على الخادم (أُنشئ وحُذف قبل أن يُرسل، فيُرسل الحذف وحده): لا شيء يُحذف.
+           كان يُفحص على سجل فارغ فيُرفض في الجداول التي تتحقق من صاحب السجل، وتظهر «رفض الخادم» دون خطأ */
+        if ($deleted && (!$cur || (int) $cur['deleted'])) { $uA[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0]; continue; }
         /* الحذف لا يحمل بيانات: يُفحص على السجل الحالي، وإلا رُفض كل حذف من غير المشرف (كان authorize يعيد null).
            والبيانات تحمل مفتاحها: كل جهاز يحفظ السجل بمفتاح بياناته، فسجل بمفتاح غير مفتاح عمليته كان يكتب فوق سجل آخر
            لا يملكه صاحب الطلب، في كل جهاز يستلمه */

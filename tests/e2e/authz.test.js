@@ -44,6 +44,8 @@ const docOf = async (tok, store, id) => { /* سحب كامل من الخادم �
   const depLogin = (await api('login', { username: 'dep', password: 'Passw0rd!' })).j, dep = depLogin.token, depId = depLogin.user.id;
   /* كل سجل يحمل مفتاحه في بياناته (كما يكتبه المتصفح)، فيُرفض ما يُرفض بسبب الصلاحية لا بسبب المفتاح */
   const T = Date.now(), other = (await api('push', { ops: [{ store: 'tickets', id: 'tk_other_' + T, rev: 0, data: { id: 'tk_other_' + T, title: 'بلاغ موظف آخر', requesterId: techId, status: 'new' } }] }, sup)).j.applied[0].id;
+  /* سجلات موجودة فعلاً لمحاولات الحذف (حذف ما لا وجود له لا يفعل شيئاً، فلا يختبر الصلاحية) */
+  await api('push', { ops: [{ store: 'activity', id: 'act_t_' + T, rev: 0, data: { id: 'act_t_' + T, at: T, userId: techId, action: 'update', entity: 'test', entityId: '', summary: 'سجل' } }, { store: 'notifications', id: 'nt_t_' + T, rev: 0, data: { id: 'nt_t_' + T, userId: techId, at: T, read: 0, title: 'إشعار فني', body: '', link: '', kind: 'info', tone: '' } }] }, sup);
   /* «إعادة» العداد تعني إنقاصه: يُرفع العداد أولاً حتى لا يعتمد الفحص على بيانات قديمة في القاعدة */
   const sq = await docOf(sup, 'meta', 'seq:ticket');
   if (!sq || Number((sq.data || {}).value || 0) < 10) await api('push', { ops: [{ store: 'meta', id: 'seq:ticket', rev: -1, data: { key: 'seq:ticket', value: 10 } }] }, sup);
@@ -51,11 +53,11 @@ const docOf = async (tok, store, id) => { /* سحب كامل من الخادم �
     ['edit another user\'s ticket', [{ store: 'tickets', id: other, rev: -1, data: { id: other, title: 'عبث', requesterId: techId, status: 'closed' } }]],
     ['create an inventory item', [{ store: 'items', id: 'it_t_' + T, rev: 0, data: { id: 'it_t_' + T, name: 'صنف' } }]],
     ['write a stock balance', [{ store: 'stock', id: 'w|i' + T, rev: 0, data: { warehouseId: 'w', itemId: 'i' + T, qty: 99 } }]],
-    ['delete an activity entry', [{ store: 'activity', id: 'act_any', rev: -1, deleted: 1 }]],
+    ['delete an activity entry', [{ store: 'activity', id: 'act_t_' + T, rev: -1, deleted: 1 }]],
     ['publish an announcement', [{ store: 'announcements', id: 'an_' + T, rev: 0, data: { id: 'an_' + T, title: 'إعلان' } }]],
     ['write a KB article', [{ store: 'kb', id: 'kb_t_' + T, rev: 0, data: { id: 'kb_t_' + T, title: 'مقال' } }]],
     ['write an unknown settings key', [{ store: 'meta', id: 'feat:x', rev: -1, data: { key: 'feat:x', value: 1 } }]],
-    ['delete another user\'s notification', [{ store: 'notifications', id: 'nt_x', rev: -1, deleted: 1 }]],
+    ['delete another user\'s notification', [{ store: 'notifications', id: 'nt_t_' + T, rev: -1, deleted: 1 }]],
     /* بلاغه الجديد بمفتاح بلاغ غيره: كل جهاز يحفظ السجل بمفتاح بياناته، فكان يكتب فوق بلاغ غيره */
     ['overwrite another ticket through a forged record key', [{ store: 'tickets', id: 'tk_mine_' + T, rev: 0, data: { id: other, title: 'عبث', requesterId: depId, status: 'new' } }]]
   ];
@@ -85,6 +87,6 @@ const docOf = async (tok, store, id) => { /* سحب كامل من الخادم �
   ok('display account can still report its own presence', (m2.applied || []).length === 1);
   console.log(res.join('\n'));
   console.log('page errors:', JSON.stringify([...S.errs, ...D.errs, ...Tq.errs].slice(0, 5)));
-  await api('push', { ops: [{ store: 'users', id: 'u_mon_t', rev: -1, deleted: 1 }, { store: 'tickets', id: other, rev: -1, deleted: 1 }, { store: 'activity', id: aid, rev: -1, deleted: 1 }] }, sup);
+  await api('push', { ops: [{ store: 'users', id: 'u_mon_t', rev: -1, deleted: 1 }, { store: 'tickets', id: other, rev: -1, deleted: 1 }, { store: 'activity', id: 'act_t_' + T, rev: -1, deleted: 1 }, { store: 'notifications', id: 'nt_t_' + T, rev: -1, deleted: 1 }, { store: 'activity', id: aid, rev: -1, deleted: 1 }] }, sup);
   await b.close();
 })().catch((e) => { console.log(res.join('\n')); console.log('CRASH', e.stack); process.exit(1); });

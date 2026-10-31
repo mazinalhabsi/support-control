@@ -5255,7 +5255,7 @@ const Shell = {
     return [
       { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/surveys', label: 'الاستبيانات', icon: 'poll', perm: '', badge: 'surveys' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/ext-maint', label: (Data.c.xmCfg && Data.c.xmCfg.name) || 'الصيانة الخارجية', icon: 'external', perm: 'extmaint.read' }, { path: '/printers', label: 'الطابعات والأحبار', icon: 'printer', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
-      { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: '' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }, { path: '/vault', label: 'الملاحظات الإدارية', icon: 'key', perm: 'vault.read' }] },
+      { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: 'forms|forms.manage|forms.hide|users.manage' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }, { path: '/vault', label: 'الملاحظات الإدارية', icon: 'key', perm: 'vault.read' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
       { group: 'الإدارة', items: [{ path: '/settings', label: 'الإعدادات ومركز التحكم', icon: 'sliders', perm: CC_PERM }] }
     ];
@@ -6450,7 +6450,7 @@ async function boot() {
   }
   const R = (p, perm, fn, t, bare) => Router.add(p, perm, fn, t, bare);
   R('/dashboard', 'dashboard', Pages.dashboard, 'لوحة القيادة'); R('/tickets', 'tickets.view', Pages.tickets, 'البلاغات'); R('/tickets/new', 'tickets.create', Pages.newTicket, 'بلاغ جديد'); R('/tickets/:id', 'tickets.view', Pages.ticket, 'تفاصيل البلاغ');
-  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read|custody.direct', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read|custody.direct', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', '', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read', Pages.maintenance, 'الصيانة'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
+  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read|custody.direct', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read|custody.direct', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', 'forms|forms.manage|forms.hide|users.manage', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read', Pages.maintenance, 'الصيانة'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
   R('/kb', 'kb.read', Pages.kb, 'قاعدة المعرفة'); R('/org', 'org.manage|org.assign|org.head', Pages.org, 'الهيكل التنظيمي'); R('/reports', 'reports', Pages.reports, 'التقارير'); R('/users', 'users.manage', Pages.users, 'المستخدمون'); R('/activity', 'activity', Pages.activity, 'سجل النشاط'); R('/settings', 'settings', Pages.settings, 'الإعدادات');
   R('/notifications', null, Pages.notifications, 'الإشعارات'); R('/profile', null, Pages.profile, 'الملف الشخصي'); R('/welcome', null, Pages.welcome, 'أكمل بياناتك', true); R('/monitor', null, Pages.monitor, 'شاشة المراقبة', true);
   window.addEventListener('hashchange', () => Router.resolve());
@@ -6470,7 +6470,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog };
+  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -9447,7 +9447,8 @@ const canSetPassword = (actor, target) => {
   if (actor.role === 'supervisor' || canUser(actor, 'users.manage')) return true;
   if (!canUser(actor, 'users.password')) return false;
   if (actor.role === 'support_manager') return ['department', 'technician'].includes(target.role);
-  if (actor.role === 'technician') return target.role === 'department';
+  /* الفني، والموظف الذي مُنح «كلمات المرور»: حسابات الموظفين فقط (كانت الصلاحية لا تعمل للموظف) */
+  if (['technician', 'department'].includes(actor.role)) return target.role === 'department';
   return false;
 };
 Data.users.setPassword = async (id, password, mustChange = 0) => {
@@ -10315,7 +10316,10 @@ Pages.formsPage = async (ctx) => {
   };
   UI.on(ctx.view, 'click', '[data-view]', async (e, el) => { const f = await DB.get('forms', el.dataset.view); if (f && f.file) Pages.previewFile(f.file); });
   UI.on(ctx.view, 'click', '[data-lockdl]', async (e, el) => { const f = await DB.get('forms', el.dataset.lockdl); if (!f) return; f.noDownload = f.noDownload ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); Bus.emit('forms', {}); UI.toast(f.noDownload ? `أُوقف تحميل «${f.title}» للموظفين` : `أصبح «${f.title}» متاحاً للتحميل`); draw(); });
-  UI.on(ctx.view, 'click', '[data-hideform]', async (e, el) => { if (!canHideForms()) return; const f = await DB.get('forms', el.dataset.hideform); if (!f) return; f.hidden = f.hidden ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); await Data.log('update', 'settings', f.id, `${f.hidden ? 'إخفاء' : 'إظهار'} نموذج: ${f.title}`); Bus.emit('forms', {}); UI.toast(f.hidden ? `أُخفي «${f.title}» عن الموظفين` : `أصبح «${f.title}» ظاهراً للموظفين`); draw(); });
+  UI.on(ctx.view, 'click', '[data-hideform]', async (e, el) => { if (!canHideForms()) return; const f = await DB.get('forms', el.dataset.hideform); if (!f) return;
+    /* نموذج مدمج لم يُسجَّل على الخادم بعد (يسجّله من يملك إدارة النماذج عند فتحه هذه الصفحة): إخفاؤه وحده يُرفض */
+    if (Sync.on && !f._rev && !canManageForms()) { UI.toast('هذا النموذج لم يُسجَّل على الخادم بعد. يفتح المشرف أو مسؤول النماذج هذه الصفحة مرة فيُسجَّل، ثم يمكن إخفاؤه', 'warn', 8000); return; }
+    f.hidden = f.hidden ? 0 : 1; f.updatedAt = now(); await DB.put('forms', f); await Data.log('update', 'settings', f.id, `${f.hidden ? 'إخفاء' : 'إظهار'} نموذج: ${f.title}`); Bus.emit('forms', {}); UI.toast(f.hidden ? `أُخفي «${f.title}» عن الموظفين` : `أصبح «${f.title}» ظاهراً للموظفين`); draw(); });
   UI.on(ctx.view, 'click', '[data-dl]', async (e, el) => { const f = await DB.get('forms', el.dataset.dl); if (f && (f.noDownload || docLocked(f.categoryId)) && !canManageForms()) { UI.toast('التحميل موقوف لهذا النموذج', 'warn'); return; } if (f && f.file) { downloadBlob(dataToBlob(f.file.data), f.file.name); UI.toast('تم التحميل'); } });
   UI.on(ctx.view, 'click', '[data-edit]', async (e, el) => { if (await Pages.formModal(el.dataset.edit)) draw(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.formModal()) draw(); });
@@ -14745,7 +14749,7 @@ Router.add('/surveys/:id/results', 'surveys.manage', Pages.surveyResults, 'نت�
 Router.add('/survey/:id', null, (ctx) => Pages.surveyAnswer(ctx, false), 'استبيان');
 Router.add('/gate/:id', null, (ctx) => Pages.surveyAnswer(ctx, true), 'استبيان مطلوب', true);
 Router.add('/ratings', 'ratings.manage', Pages.ratingsCenter, 'مركز التقييم');
-Router.add('/replies', 'tickets.work', Pages.repliesAdmin, 'الردود الجاهزة');
+Router.add('/replies', 'tickets.work|replies.manage|users.manage', Pages.repliesAdmin, 'الردود الجاهزة');
 
 /* ══════════ كتالوج الطابعات والأحبار: ماركة ← موديلات ← أحبار متوافقة ══════════ */
 const INK_COLORS_MAP = { black: ['أسود', '#20242c'], cyan: ['أزرق', '#1f6fd1'], magenta: ['أحمر', '#d42a3c'], yellow: ['أصفر', '#e8b10c'], color: ['ثلاثي الألوان', 'conic-gradient(#1f6fd1 0 33%,#d42a3c 0 66%,#e8b10c 0)'], other: ['أخرى', '#8a94a6'] };
@@ -15068,7 +15072,7 @@ document.addEventListener('keydown', (e) => {
   });
 }
 
-Router.add('/printers', 'inventory.read', Pages.printers, 'الطابعات والأحبار');
+Router.add('/printers', 'inventory.read|inventory.manage|settings', Pages.printers, 'الطابعات والأحبار');
 /* نقل الكتالوج تلقائياً عند أول دخول لمن يملك الصلاحية، حتى يظهر في نموذج البلاغ دون فتح الصفحة */
 { const r0 = Router.resolve; Router.resolve = async function () { await r0.apply(this, arguments); if (!PrintCat._seeded && PrintCat.can()) { PrintCat._seeded = 1; setTimeout(() => PrintCat.seed().catch(() => { PrintCat._seeded = 0; }), 5000); } }; }
 
