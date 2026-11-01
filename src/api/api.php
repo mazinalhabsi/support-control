@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -280,7 +280,7 @@ function pull_full(array $u): array {
   $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
   $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
   $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
-  $grant(['vault.read', 'vault.manage'], ['vault']);
+  $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups']);
   $grant(['surveys.manage', 'reports'], ['surveyResponses', 'surveyMarks']);
   $grant(['org.manage'], ['orgLog']);
   return $full;
@@ -377,16 +377,82 @@ function staff_rows(array $rows, array $u): array {
     return true;
   }));
 }
-/** الملاحظات الإدارية: لمن يملك صلاحية الاطلاع فقط، والخاصة لكاتبها وحده. والردود الجاهزة الخاصة لصاحبها */
+/* ── الملاحظات: من يرى كل ملاحظة ──
+   الخاصة لكاتبها وحده. «الجميع» لكل من يملك الاطلاع على الملاحظات. «المحددون» لمن اختارهم الكاتب بالاسم أو بالدور أو بمجموعة.
+   القديمة («مشتركة» قبل الجولة 37) تبقى لمن كان يراها: المشرفون والإداريون ومن مُنح الاطلاع بالاسم، فلا يتسع من يراها حين صارت
+   الملاحظات متاحة للفنيين افتراضياً. والمؤقتة تختفي عن الجميع بانتهاء مدتها. */
+const NOTE_ROLES = ['supervisor', 'support_manager', 'technician'];
+function note_groups(bool $fresh = false): array {
+  static $g = null; if ($g !== null && !$fresh) return $g;
+  $g = [];
+  foreach (db()->query("SELECT doc_id, data FROM docs WHERE store = 'noteGroups' AND deleted = 0")->fetchAll() as $r) {
+    $d = json_decode((string) $r['data'], true); if (is_array($d)) $g[(string) $r['doc_id']] = array_map('strval', (array) ($d['members'] ?? []));
+  }
+  return $g;
+}
+function note_legacy(array $u): bool { return is_sup($u) || ($u['role'] ?? '') === 'support_manager' || in_array('vault.read', (array) ($u['extraPerms'] ?? []), true); }
+function note_visible(array $d, array $u): bool {
+  if (!can($u, 'vault.read')) return false;
+  $until = (int) ($d['until'] ?? 0); if ($until > 0 && $until <= now_ms()) return false;
+  $me = (string) ($u['id'] ?? '');
+  if ((string) ($d['createdBy'] ?? '') === $me) return true;
+  $vis = (string) ($d['visibility'] ?? 'shared');
+  if ($vis === 'private') return false;
+  if ($vis === 'all') return true;
+  if ($vis !== 'custom') return note_legacy($u);
+  $a = is_array($d['audience'] ?? null) ? $d['audience'] : [];
+  if (in_array($me, array_map('strval', (array) ($a['users'] ?? [])), true)) return true;
+  if (in_array((string) ($u['role'] ?? ''), array_map('strval', (array) ($a['roles'] ?? [])), true)) return true;
+  $gs = (array) ($a['groups'] ?? []);
+  if ($gs) { $g = note_groups(); foreach ($gs as $gid) if (in_array($me, $g[(string) $gid] ?? [], true)) return true; }
+  return false;
+}
+/** يضبط حقول من يرى الملاحظة: قيم معروفة وأحجام معقولة */
+function note_clean(array $d): array {
+  $vis = (string) ($d['visibility'] ?? 'custom');
+  $d['visibility'] = in_array($vis, ['private', 'all', 'custom'], true) ? $vis : 'custom';
+  $a = is_array($d['audience'] ?? null) ? $d['audience'] : [];
+  $list = fn($x, int $n) => array_values(array_slice(array_unique(array_filter(array_map('strval', (array) $x), fn($v) => $v !== '')), 0, $n));
+  $d['audience'] = ['users' => $list($a['users'] ?? [], 3000), 'roles' => array_values(array_intersect($list($a['roles'] ?? [], 5), NOTE_ROLES)), 'groups' => $list($a['groups'] ?? [], 100)];
+  $d['until'] = max(0, (int) ($d['until'] ?? 0));
+  return $d;
+}
+/** الملاحظات والردود الجاهزة في السحب. الملاحظة التي لا تصل المستخدم تُرسل له حذفاً: إن كانت عنده (تغيّر من يراها، أو خرج من
+    مجموعتها، أو انتهت مدتها) تُمسح من جهازه، وإن لم تكن فلا ضرر. والردود الخاصة لصاحبها وحده */
 function vault_rows(array $rows, array $user): array {
-  $read = can($user, 'vault.read'); $me = (string) ($user['id'] ?? '');
-  return array_values(array_filter($rows, function ($r) use ($read, $me) {
-    if ((int) $r['deleted'] || !in_array($r['store'], ['vault', 'replies'], true)) return true;
+  $me = (string) ($user['id'] ?? ''); $out = [];
+  foreach ($rows as $r) {
+    if ((int) $r['deleted'] || !in_array($r['store'], ['vault', 'replies'], true)) { $out[] = $r; continue; }
     $d = is_array($r['_d']) ? $r['_d'] : [];
-    /* الردود والأوصاف الجاهزة الخاصة لا تصل إلا لصاحبها */
-    if ($r['store'] === 'replies') return ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me;
-    return $read && (($d['visibility'] ?? 'shared') !== 'private' || (string) ($d['createdBy'] ?? '') === $me);
-  }));
+    if ($r['store'] === 'replies') { if (($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me) $out[] = $r; continue; }
+    if (!note_visible($d, $user)) { $r['deleted'] = 1; $r['_d'] = null; }
+    $out[] = $r;
+  }
+  return $out;
+}
+/** صيانة الملاحظات مع النبضات (مرة في الدقيقة على الأكثر): تُحذف المؤقتة المنتهية من الخادم ومن كل الأجهزة،
+    وتُحوَّل «المشتركة» القديمة إلى قائمة صريحة بمن كان يراها، فتظهر في محرر الملاحظة ويمكن تعديلها */
+function notes_maintain(): void {
+  $mark = bk_base() . DIRECTORY_SEPARATOR . 'notes-check';
+  if (is_file($mark) && time() - (int) @filemtime($mark) < 60) return;
+  @touch($mark);
+  $pdo = db(); $t = now_ms(); $legacy = null;
+  foreach ($pdo->query("SELECT doc_id, data FROM docs WHERE store = 'vault' AND deleted = 0")->fetchAll() as $r) {
+    $d = json_decode((string) $r['data'], true); if (!is_array($d)) continue;
+    $until = (int) ($d['until'] ?? 0);
+    if ($until > 0 && $until <= $t) { $rev = bump_rev(); $pdo->prepare("UPDATE docs SET deleted = 1, data = '{}', rev = ?, updated_at = ? WHERE store = 'vault' AND doc_id = ? AND deleted = 0")->execute([$rev, $t, $r['doc_id']]); continue; }
+    if (in_array((string) ($d['visibility'] ?? 'shared'), ['private', 'all', 'custom'], true)) continue;
+    if ($legacy === null) {
+      $legacy = [];
+      foreach ($pdo->query("SELECT doc_id, data FROM docs WHERE store = 'users' AND deleted = 0")->fetchAll() as $u) {
+        $ud = json_decode((string) $u['data'], true); if (!is_array($ud) || !in_array((string) ($ud['role'] ?? ''), ['technician', 'department'], true)) continue;
+        if (in_array('vault.read', (array) ($ud['extraPerms'] ?? []), true)) $legacy[] = (string) $u['doc_id'];
+      }
+    }
+    $d['visibility'] = 'custom'; $d['audience'] = ['users' => $legacy, 'roles' => ['supervisor', 'support_manager'], 'groups' => []]; $d['legacy'] = 1;
+    $rev = bump_rev();
+    $pdo->prepare("UPDATE docs SET data = ?, rev = ?, updated_at = ? WHERE store = 'vault' AND doc_id = ? AND deleted = 0")->execute([json_encode($d, JSON_UNESCAPED_UNICODE), $rev, $t, $r['doc_id']]);
+  }
 }
 /** المتواجدون الآن. الموظف العادي لا يرى الصفحة التي يتصفحها غيره */
 const STAFF_ROLES = ['supervisor', 'support_manager', 'technician'];
@@ -538,7 +604,7 @@ const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work
 function role_perms(string $role): array {
   switch ($role) {
     case 'department': return ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'];
-    case 'technician': return TECH_PERMS;
+    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage']);
     case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage']);
     case 'supervisor': return ['*'];
     case 'monitor': return ['monitor'];
@@ -794,13 +860,31 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'surveys': return can($user, 'surveys.manage') ? $new : null;
     case 'extmaint': return can($user, 'extmaint.manage') ? $new : null;
+    /* الملاحظات: الإضافة والتعديل لمن يملك «إضافة الملاحظات وتعديلها» ويرى الملاحظة. من يرى الملاحظة يعدّل محتواها (مثل إنجاز مهمة)،
+       ومن يراها ومدتها وكاتبها لا يغيّرها إلا كاتبها. والحذف لكاتبها (وللمشرف) */
     case 'vault': {
       if (!can($user, 'vault.manage')) return null;
-      $me = (string) ($user['id'] ?? ''); $tgt = $old ?: $data;
-      /* الملاحظة الخاصة لا يعدّلها ولا يحذفها إلا كاتبها */
-      if ($old && ($old['visibility'] ?? 'shared') === 'private' && (string) ($old['createdBy'] ?? '') !== $me) return null;
-      if (!$deleted && ($data['visibility'] ?? 'shared') === 'private' && (string) ($tgt['createdBy'] ?? '') !== $me) return null;
-      return $new;
+      if ($old) {
+        $author = (string) ($old['createdBy'] ?? '') === $me;
+        if (!$author && !note_visible($old, $user)) return null;
+        if ($deleted) return $author ? $new : null;
+        if (!$author) return ($old['visibility'] ?? 'shared') === 'private' ? null : keep_fields($data, $old, ['visibility', 'audience', 'until', 'createdBy', 'createdAt', 'legacy']);
+        return note_clean(keep_fields($data, $old, ['createdBy', 'createdAt']));
+      }
+      if ($deleted) return null;
+      $data['createdBy'] = $me;
+      return note_clean($data);
+    }
+    /* مجموعات الملاحظات: يراها كل من يصل إلى الملاحظات، ويعدّلها ويحذفها منشئها (والمشرف) */
+    case 'noteGroups': {
+      if (!can($user, 'vault.manage')) return null;
+      if ($old && (string) ($old['createdBy'] ?? '') !== $me) return null;
+      if ($deleted) return $old ? $new : null;
+      $data = $old ? keep_fields($data, $old, ['createdBy', 'createdAt']) : array_merge($data, ['createdBy' => $me]);
+      $data['name'] = cut(trim((string) ($data['name'] ?? '')), 80);
+      if ($data['name'] === '') return null;
+      $data['members'] = array_values(array_slice(array_unique(array_filter(array_map('strval', (array) ($data['members'] ?? [])), fn($v) => $v !== '')), 0, 3000));
+      return $data;
     }
     case 'surveyResponses': {
       if ($deleted) return can($user, 'surveys.manage') ? $new : null;
@@ -1213,6 +1297,20 @@ case 'logout': {
   out(['ok' => true]);
 }
 
+/* الملاحظات الظاهرة للمستخدم الآن ومجموعاتها، كاملة وبغض النظر عن رقم التغيير: السحب العادي لا يعيد ملاحظة لم تتغير،
+   فمن أُضيف إلى مجموعة أو مُنح الوصول لا تصله الملاحظات القديمة. يطلبها الجهاز عند الدخول وحين يتغير وصوله أو تتغير المجموعات */
+case 'notes_sync': {
+  $user = session_user();
+  if (!can($user, 'vault.read')) out(['docs' => [], 'head' => current_rev()]);
+  $docs = [];
+  foreach (db()->query("SELECT store, doc_id, rev, data FROM docs WHERE store IN ('vault', 'noteGroups') AND deleted = 0")->fetchAll() as $r) {
+    $d = json_decode((string) $r['data'], true); if (!is_array($d)) continue;
+    if ($r['store'] === 'vault' && !note_visible($d, $user)) continue;
+    $docs[] = ['store' => $r['store'], 'id' => $r['doc_id'], 'rev' => (int) $r['rev'], 'data' => $d];
+  }
+  out(['docs' => $docs, 'head' => current_rev()]);
+}
+
 case 'pull': {
   $user = session_user();
   $since = (int) ($_GET['since'] ?? (body()['since'] ?? 0));
@@ -1274,6 +1372,7 @@ case 'beat': {
   if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - PRESENCE_TTL]);
   $list = presence_list($user);
   try { bk_maybe_run(); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
+  try { notes_maintain(); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
   out(['ok' => true, 'presence' => $list]);
 }
 
@@ -1547,7 +1646,7 @@ case 'wipe': {
     'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
     'announcements' => ['announcements'],
     'extmaint' => ['extmaint'],
-    'vault' => ['vault'],
+    'vault' => ['vault', 'noteGroups'],
     'org' => ['departments', 'deptUnits', 'locations', 'orgLog'],
     'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
     'kb' => ['kb', 'replies', 'templates'],

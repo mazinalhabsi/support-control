@@ -191,7 +191,7 @@ const STORE_EVENTS = {
 
 /* ── قاعدة البيانات IndexedDB ───────────────────────────────── */
 const DB = (() => {
-  const NAME = 'sqapa_it_system', VERSION = 14;
+  const NAME = 'sqapa_it_system', VERSION = 15;
   const SCHEMA = {
     meta: { key: 'key' },
     users: { key: 'id', idx: { username: { path: 'username' }, role: 'role' } },
@@ -231,7 +231,8 @@ const DB = (() => {
     surveyResponses: { key: 'id', idx: { surveyId: 'surveyId', at: 'at' } },
     surveyMarks: { key: 'id', idx: { surveyId: 'surveyId', userId: 'userId' } },
     extmaint: { key: 'id', idx: { status: 'status', sentAt: 'sentAt', assetId: 'assetId', batch: 'batch' } },
-    vault: { key: 'id', idx: { type: 'type', updatedAt: 'updatedAt' } }
+    vault: { key: 'id', idx: { type: 'type', updatedAt: 'updatedAt' } },
+    noteGroups: { key: 'id' }
   };
   let db = null;
   const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -423,7 +424,8 @@ const ROLES = { department: 'موظف قسم', technician: 'فني دعم', supp
 const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work', 'tickets.all', 'kb.read', 'forms', 'profile', 'notifications', 'users.password', 'chat.answer', 'worklog'];
 const PERMS = {
   department: ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'],
-  technician: TECH_PERMS,
+  /* الملاحظات للفنيين والإداريين والمشرفين؛ وكل ملاحظة يراها من اختارهم كاتبها */
+  technician: [...TECH_PERMS, 'vault.read', 'vault.manage'],
   support_manager: [...TECH_PERMS, 'reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage'],
   supervisor: ['*'],
   monitor: ['monitor']
@@ -4532,7 +4534,7 @@ document.addEventListener('click', (e) => { const el = e.target.closest('[data-c
 
 /* ── المزامنة مع خادم XAMPP: قاعدة بيانات مركزية مع ذاكرة محلية سريعة ── */
 /* الجداول التي يتوقف ما يستلمه الجهاز منها على صلاحيات الحساب */
-const SYNC_SCOPED = ['tickets', 'ticketEvents', 'attachments', 'chats', 'chatMsgs', 'notifications', 'activity', 'worklog', 'workFolders', 'workItems', 'stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets', 'extmaint', 'vault', 'surveyResponses', 'surveyMarks', 'orgLog', 'backups'];
+const SYNC_SCOPED = ['tickets', 'ticketEvents', 'attachments', 'chats', 'chatMsgs', 'notifications', 'activity', 'worklog', 'workFolders', 'workItems', 'stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets', 'extmaint', 'vault', 'noteGroups', 'surveyResponses', 'surveyMarks', 'orgLog', 'backups'];
 const Sync = {
   url: '', token: '', on: false, rev: 0, queue: [], flushing: false, applying: false, status: 'local', lastAt: 0, lastError: '', pullTimer: 0, head: 0,
   autoUrl() { const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
@@ -12287,7 +12289,7 @@ const WIPE_GROUPS = [
   ['surveys', 'الاستبيانات وإجاباتها', 'poll', ['surveys', 'surveyResponses', 'surveyMarks']],
   ['announcements', 'الإعلانات والتعاميم', 'bell', ['announcements']],
   ['extmaint', 'الصيانة الخارجية', 'external', ['extmaint']],
-  ['vault', 'الملاحظات الإدارية', 'key', ['vault']],
+  ['vault', 'الملاحظات ومجموعاتها', 'key', ['vault', 'noteGroups']],
   ['activity', 'سجل النشاط', 'clock', ['activity']],
   ['org', 'الهيكل التنظيمي: الإدارات والأقسام والمكاتب والمواقع والمباني', 'layers', ['departments', 'deptUnits', 'locations'], 1],
   ['catalog', 'تصنيفات الأصناف والمخازن وكتالوج الطابعات وأيقونات الماركات', 'box', ['itemCategories', 'warehouses', 'printers', 'brandIcons'], 1],
@@ -12707,7 +12709,7 @@ Shell.remountSoon = () => { clearTimeout(Shell._rmT); Shell._rmT = setTimeout(()
 /* أحداث المزامنة للمخازن الجديدة */
 {
   const n0 = Sync.notifyStores.bind(Sync);
-  Sync.notifyStores = function (stores) { n0(stores); const s = new Set(stores); if (s.has('extmaint')) Bus.emit('extmaint', { remote: true }); if (s.has('vault')) Bus.emit('vault', { remote: true }); };
+  Sync.notifyStores = function (stores) { n0(stores); const s = new Set(stores); if (s.has('extmaint')) Bus.emit('extmaint', { remote: true }); if (s.has('vault') || s.has('noteGroups')) Bus.emit('vault', { remote: true, groups: s.has('noteGroups') }); };
 }
 
 /* ══════════ الصيانة الخارجية: أجهزة وأغراض تُرسل إلى جهات خارجية (وكيل، ضمان، شركة) — بلا أي تكاليف ══════════ */
@@ -13132,7 +13134,7 @@ const VAULT = {
   async save(rec) {
     if (!VAULT.canManage()) throw new AppError('لا تملك صلاحية إدارة الملاحظات الإدارية');
     const t = now(), T = VT_TYPES[rec.type] || VT_TYPES.general;
-    const out = { id: rec.id || uid('vn'), type: rec.type in VT_TYPES ? rec.type : 'general', title: String(rec.title || '').trim(), icon: rec.icon || '', tone: rec.tone || T.tone, f: rec.f || {}, body: String(rec.body || '').trim(), tags: (rec.tags || []).map((x) => String(x).trim()).filter(Boolean).slice(0, 12), pinned: rec.pinned ? 1 : 0, visibility: rec.visibility === 'private' ? 'private' : 'shared', archived: rec.archived ? 1 : 0, createdBy: rec.createdBy || Auth.user.id, createdAt: rec.createdAt || t, updatedBy: Auth.user.id, updatedAt: t, _rev: rec._rev };
+    const out = { id: rec.id || uid('vn'), type: rec.type in VT_TYPES ? rec.type : 'general', title: String(rec.title || '').trim(), icon: rec.icon || '', tone: rec.tone || T.tone, f: rec.f || {}, body: String(rec.body || '').trim(), tags: (rec.tags || []).map((x) => String(x).trim()).filter(Boolean).slice(0, 12), pinned: rec.pinned ? 1 : 0, visibility: ['private', 'custom'].includes(rec.visibility) ? rec.visibility : 'all', audience: rec.audience || { users: [], roles: [], groups: [] }, until: Number(rec.until) || 0, archived: rec.archived ? 1 : 0, createdBy: rec.createdBy || Auth.user.id, createdAt: rec.createdAt || t, updatedBy: Auth.user.id, updatedAt: t, _rev: rec._rev };
     if (!out.title) { const f = T.fields.find(([k]) => out.f[k] && T.fields[0][0] === k); out.title = f ? String(out.f[f[0]]) : ''; }
     if (!out.title) throw new AppError('اكتب عنواناً للملاحظة');
     await DB.put('vault', out);
