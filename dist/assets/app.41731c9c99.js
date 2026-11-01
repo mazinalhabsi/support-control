@@ -6885,6 +6885,14 @@ Pages.formModal = async (id = '') => {
   });
 };
 Pages.formsPage = async (ctx) => {
+  /* إعدادات التعبئة الفورية في مكتبة النماذج نفسها (كانت في صفحة «تشغيل الخصائص» منفصلة عن النماذج) */
+  const ffCan = () => ['formfill.manage', 'forms.manage', 'settings'].some((p) => canUser(Auth.user, p));
+  ctx.view.addEventListener('change', async (e) => {
+    const el = e.target.closest('[data-ffsw]'); if (!el) return;
+    const key = { ffon: 'off', ffsign: 'noSign', ffdl: 'hideDl' }[el.dataset.ffsw], on = el.checked;
+    try { await XCFG.save('formfill', 'formFill', { ...(Data.c.formFill || {}), [key]: on ? 0 : 1 }, 'تحديث إعدادات التعبئة الفورية'); UI.toast(on ? 'فُعّل' : 'أُوقف'); } catch (err) { el.checked = !on; UI.error(err); }
+    st.ffOpen = true; draw();
+  });
   const st = { q: '', cat: '' };
   const draw = async () => {
     const all = await Data.forms.list();
@@ -6895,6 +6903,7 @@ Pages.formsPage = async (ctx) => {
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'النماذج والاستمارات', sub: 'استمارات جاهزة للمعاينة والتحميل والطباعة', illu: 'paper', actions: html`${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}<button class="btn btn-ghost" data-blankcard>${UI.icon('print')} استمارة بطاقة فارغة</button>` })}
       ${manage || hider ? UI.stateLegend(['off', 'lock'], { off: 'مخفي عن الموظفين', lock: 'التحميل موقوف' }) : ''}
+      ${ffCan() ? html`<details class="panel ff-set"${st.ffOpen ? raw(' open') : ''}><summary>${UI.icon('edit')}<b>التعبئة الفورية</b><span class="cc-st ${FF.on() ? 'on' : 'off'}"><i></i>${FF.on() ? 'مفعّلة' : 'موقوفة'}</span><span class="faint small grow">تعبئة المستند داخل النظام وإرفاقه بالبلاغ مباشرة</span></summary><div class="panel-body ff-sws">${[['ffon', FF.on(), 'إتاحة التعبئة الفورية للموظفين'], ['ffsign', FF.signOn(), 'السماح بالتوقيع بخط اليد داخل الاستمارة'], ['ffdl', !FF.hideDl(), 'إبقاء زر «تحميل» بجانب التعبئة الفورية']].map(([k, on, t]) => html`<label class="switch"><input type="checkbox" data-ffsw="${k}"${on ? raw(' checked') : ''}><i></i><span>${t}</span></label>`)}</div></details>` : ''}
       <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="fq" type="search" placeholder="ابحث باسم النموذج" value="${st.q}"></div><select id="fcat"><option value="">كل الفئات</option>${UI.opts('categories').map((o) => html`<option value="${o.value}"${st.cat === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><span class="faint small">${arCount(rows.length, AR.item).replace('صنف', 'نموذج').replace('أصناف', 'نماذج')}</span></div>
       ${rows.length ? html`<div class="forms-grid">${rows.map((f) => html`<article class="form-card${f.hidden ? ' off x-off' : ''}${(manage || hider) && (f.noDownload || docLocked(f.categoryId)) ? ' x-lock' : ''}">${UI.illu(f.icon || 'paper')}<div class="fc-body"><b>${f.title}</b>${f.desc ? html`<p class="t-sub">${f.desc}</p>` : ''}<div class="row" style="gap:6px;flex-wrap:wrap">${f.categoryId ? UI.chip('sky', Data.nameOf('categories', f.categoryId), 'tag') : ''}${f.file ? UI.chip('slate', fmtBytes(f.file.size)) : ''}${f.hidden ? UI.chip('red', 'مخفي عن الموظفين', 'eye-off') : ''}${(manage || hider) && (f.noDownload || docLocked(f.categoryId)) ? UI.chip('amber', 'التحميل موقوف', 'lock') : ''}</div></div>
         <div class="fc-actions">${FF.on() && FF.fillable(f.file) && !((f.noDownload || docLocked(f.categoryId)) && !manage) ? html`<button class="btn btn-sm btn-primary" data-ffill="${f.id}">${UI.icon('edit')} تعبئة فورية</button>` : ''}${f.categoryId && eformOn(f.categoryId) && Data.c.categories.get(f.categoryId) && !Data.c.categories.get(f.categoryId).hidden ? html`<a class="btn btn-sm btn-primary" href="#/tickets/new?cat=${f.categoryId}">${UI.icon('edit')} تعبئة إلكترونية</a>` : ''}${!manage && (f.noDownload || docLocked(f.categoryId)) ? html`<span class="chip tone-slate">${UI.icon('lock')} التحميل موقوف</span>` : html`<button class="btn btn-sm btn-soft" data-view="${f.id}">${UI.icon('eye')} معاينة</button><button class="btn btn-sm btn-soft" data-dl="${f.id}">${UI.icon('download')} تحميل</button>`}${hider ? html`<button class="btn btn-sm btn-ghost" data-hideform="${f.id}" title="${f.hidden ? 'إظهار المستند للموظفين' : 'إخفاء المستند عن الموظفين'}">${UI.icon(f.hidden ? 'eye' : 'eye-off')} ${f.hidden ? 'إظهار' : 'إخفاء'}</button>` : ''}${manage ? html`<button class="btn btn-sm btn-ghost" data-lockdl="${f.id}" title="${f.noDownload ? 'السماح بالتحميل للموظفين' : 'إيقاف التحميل للموظفين'}">${UI.icon(f.noDownload ? 'lock' : 'download')} ${f.noDownload ? 'موقوف' : 'متاح'}</button><button class="btn btn-sm btn-ghost" data-edit="${f.id}">${UI.icon('edit')}</button>` : ''}</div></article>`)}</div>`
@@ -11252,7 +11261,7 @@ Pages.ratingsCenter = async (ctx) => {
     const item = (t) => html`<a class="rt-item" href="#/tickets/${t.id}">${UI.avatar(t.requesterId, 'av-sm')}<div class="grow"><div class="row" style="gap:8px;flex-wrap:wrap"><b>${Data.userName(t.requesterId)}</b>${UI.stars(t.rating)}<span class="faint small">${timeAgo(t.ratedAt || t.closedAt)}</span></div><small>${t.number} — ${t.title}${t.assigneeId ? ` · الفني: ${Data.userName(t.assigneeId)}` : ''}</small>${(t.ratingTags || []).length ? html`<div class="rt-evtags">${t.ratingTags.map((g) => html`<i>${g}</i>`)}</div>` : ''}${t.ratingComment ? html`<p>«${t.ratingComment}»</p>` : ''}</div></a>`;
     const seg = (name, opts, v) => html`<div class="seg">${opts.map(([k, l]) => html`<label><input type="radio" name="${name}" value="${k}"${String(v) === String(k) ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'مركز التقييم', sub: 'رضا المستفيدين عن خدمات الدعم الفني، وإعدادات تقييم البلاغات', illu: 'stamp', actions: seg('rtdays', [[7, '7 أيام'], [30, '30 يوماً'], [90, '90 يوماً'], [365, 'سنة'], [0, 'الكل']], st.days) })}
-      ${!c.on ? html`<div class="banner tone-red">${UI.icon('eye-off')}<div class="grow"><b>تقييم البلاغات موقوف</b><div class="small">لا يُطلب من المستفيدين تقييم الخدمة. فعّله من الإعدادات أسفل الصفحة.</div></div></div>` : ''}
+      ${!c.on ? html`<div class="banner tone-red">${UI.icon('eye-off')}<div class="grow"><b>تقييم البلاغات موقوف</b><div class="small">لا يُطلب من المستفيدين تقييم الخدمة. فعّله من «إعدادات التقييم» أسفل الصفحة.</div></div></div>` : ''}
       <div class="kpis">
         ${UI.kpi({ label: 'متوسط التقييم', icon: 'star', tone: avg >= 4 ? 'teal' : avg >= 3 ? 'amber' : 'red', value: avg, dec: 1, suffix: ' من 5', foot: rated.length ? UI.stars(Math.round(avg)) : 'لا توجد تقييمات' })}
         ${UI.kpi({ label: 'نسبة الرضا (4–5 نجوم)', icon: 'smile', tone: csat >= 80 ? 'teal' : csat >= 60 ? 'amber' : 'red', value: csat, suffix: '%' })}
@@ -11270,7 +11279,7 @@ Pages.ratingsCenter = async (ctx) => {
         ${UI.panel({ title: 'أحدث الملاحظات', icon: 'message', body: notes.length ? html`<div class="rt-feed">${notes.map(item)}</div>` : html`<div class="empty-mini">${UI.icon('info')} لم يكتب المستفيدون ملاحظات بعد</div>` })}
       </div>
       ${UI.panel({ title: 'إعدادات التقييم', icon: 'sliders', cls: 'mt rt-settings', sub: Ratings.can() ? 'تُطبَّق فوراً على كل المستخدمين' : 'لا تملك صلاحية تعديل الإعدادات', body: html`<form id="rtForm" class="stack" style="gap:16px">
-        <div class="rt-set-row">${UI.field({ name: 'on', type: 'switch', text: 'تفعيل تقييم البلاغات' }, c.on)}</div>
+        <div class="rt-set-row">${UI.field({ name: 'on', type: 'switch', text: 'تفعيل تقييم البلاغات' }, c.on)}${UI.field({ name: 'center', type: 'switch', text: 'إظهار مركز التقييم في القائمة لمن يملك صلاحيته' }, c.center !== 0 ? 1 : 0)}</div>
         <div class="form-grid">
           <div class="field"><label>طريقة طلب التقييم</label>${seg('prompt', [['popup', 'نافذة تلقائية بعد الحل'], ['banner', 'شريط في الصفحة فقط']], c.prompt)}</div>
           <div class="field"><label>الملاحظة المكتوبة</label>${seg('comment', [['off', 'لا تظهر'], ['optional', 'اختيارية'], ['low', 'إلزامية عند التقييم المنخفض'], ['required', 'إلزامية دائماً']], c.comment)}</div>
@@ -11292,7 +11301,8 @@ Pages.ratingsCenter = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="rtsave"]', async (e, btn) => {
     const v = UI.formValues($('#rtForm', ctx.view)), lines = (s) => String(s || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).slice(0, 12);
     UI.busy(btn, true);
-    try { await Ratings.save({ on: v.on, prompt: v.prompt || 'popup', comment: v.comment || 'low', low: Number(v.low) || 2, good: lines(v.good), bad: lines(v.bad), required: v.required, alertLow: v.alertLow, closeOnRate: v.closeOnRate, submit: v.submit }); UI.toast('حُفظت إعدادات التقييم'); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+    const menu = Number(v.center) ? 1 : 0, menuWas = Ratings.cfg().center !== 0 ? 1 : 0;
+    try { await Ratings.save({ on: v.on, center: menu, prompt: v.prompt || 'popup', comment: v.comment || 'low', low: Number(v.low) || 2, good: lines(v.good), bad: lines(v.bad), required: v.required, alertLow: v.alertLow, closeOnRate: v.closeOnRate, submit: v.submit }); if (menu !== menuWas) Shell.remountSoon(); UI.toast('حُفظت إعدادات التقييم'); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
   });
   ctx.onCleanup(Bus.on('tickets', debounce(draw, 800)));
   await draw();
@@ -13596,44 +13606,28 @@ const FEAT = {
   const h0 = Nav.hidden.bind(Nav);
   Nav.hidden = (path) => FEAT.off(path) || h0(path);
 }
-Pages.features = async (ctx) => {
+/* الملاحظات الإدارية في مركز الإعدادات: تشغيل القسم ومدة التنبيه ومن يصل إليها. المنح والسحب من «الصلاحيات» كبقية الصلاحيات */
+Pages.ccVault = (ctx) => {
   const draw = () => {
-    const rc = Ratings.cfg(), ff = Data.c.formFill || {}, can = (p) => canUser(Auth.user, p) || canUser(Auth.user, 'settings');
-    const sw = (key, on, text, perm) => html`<label class="switch${perm ? '' : ' is-off'}"><input type="checkbox" data-fsw="${key}"${on ? raw(' checked') : ''}${perm ? '' : raw(' disabled')}><i></i><span>${text}</span></label>`;
-    const card = ({ icon, tone, title, desc, perm, body, link }) => html`<article class="ft-card tone-${tone}${perm ? '' : ' ro'}"><header><span class="ft-ic">${UI.icon(icon)}</span><div class="grow"><b>${title}</b><small>${desc}</small></div>${link || ''}</header><div class="ft-body">${body}${perm ? '' : html`<p class="faint small">${UI.icon('lock')} لا تملك صلاحية تغيير هذا الإعداد</p>`}</div></article>`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'التحكم بالخصائص', sub: 'تفعيل الأقسام والخصائص أو إيقافها وإخفاؤها لجميع المستخدمين، ويظهر لكل مسؤول ما يملك صلاحيته فقط', illu: 'key' })}
-      <div class="ft-grid">
-        ${card({ icon: 'star', tone: 'brass', title: 'مركز التقييم', desc: 'صفحة رضا المستفيدين وتقييم البلاغات', perm: can('ratings.manage'), link: rc.center !== 0 && canUser(Auth.user, 'ratings.manage') ? html`<a class="btn btn-sm btn-ghost" href="#/ratings">${UI.icon('external')} فتح</a>` : '',
-          body: html`${sw('rcenter', rc.center !== 0, 'إظهار مركز التقييم في القائمة', can('ratings.manage'))}${sw('ron', !!rc.on, 'طلب تقييم الخدمة من المستفيدين بعد حل البلاغ', can('ratings.manage'))}<p class="faint small">عند الإخفاء تختفي الصفحة من القائمة لجميع المستخدمين، وتبقى التقييمات السابقة محفوظة.</p>` })}
-        ${card({ icon: 'edit', tone: 'teal', title: 'التعبئة الفورية للاستمارات', desc: 'تعبئة المستند داخل النظام وإرفاقه بالبلاغ مباشرة', perm: can('formfill.manage') || can('forms.manage'),
-          body: html`${sw('ffon', ff.off !== 1, 'إتاحة التعبئة الفورية للموظفين', can('formfill.manage') || can('forms.manage'))}${sw('ffsign', ff.noSign !== 1, 'السماح بالتوقيع بخط اليد داخل الاستمارة', can('formfill.manage') || can('forms.manage'))}${sw('ffdl', ff.hideDl !== 1, 'إبقاء زر «تحميل» بجانب التعبئة الفورية', can('formfill.manage') || can('forms.manage'))}` })}
-        ${card({ icon: 'tools', tone: 'sky', title: XM.name(), desc: 'الأجهزة المرسلة إلى الوكلاء ومراكز الضمان', perm: can('extmaint.manage'), link: XM.on() && canUser(Auth.user, 'extmaint.read') ? html`<a class="btn btn-sm btn-ghost" href="#/ext-maint">${UI.icon('external')} فتح</a>` : '',
-          body: html`${sw('xmon', XM.on(), 'إظهار القسم في القائمة', can('extmaint.manage'))}<div class="ft-row"><label class="small">اسم القسم</label><input data-xmname value="${XM.name()}"${can('extmaint.manage') ? '' : raw(' disabled')}><button type="button" class="btn btn-sm btn-soft" data-act="xmname"${can('extmaint.manage') ? '' : raw(' disabled')}>${UI.icon('check')} حفظ الاسم</button></div>` })}
-        ${card({ icon: 'key', tone: 'violet', title: 'الملاحظات الإدارية', desc: 'الحسابات والاشتراكات والبريد والتراخيص', perm: can('vault.manage'), link: VAULT.on() && canUser(Auth.user, 'vault.read') ? html`<a class="btn btn-sm btn-ghost" href="#/vault">${UI.icon('external')} فتح</a>` : '',
-          body: html`${sw('vaulton', VAULT.on(), 'إظهار القسم للمخوّلين', can('vault.manage'))}<div class="ft-row"><label class="small">التنبيه قبل انتهاء الاشتراك بـ</label><input type="number" min="1" max="365" data-vremind value="${VAULT.remindDays()}" style="width:90px"${can('vault.manage') ? '' : raw(' disabled')}><span class="small">يوماً</span><button type="button" class="btn btn-sm btn-soft" data-act="vremind"${can('vault.manage') ? '' : raw(' disabled')}>${UI.icon('check')}</button></div>` })}
-        ${card({ icon: 'file', tone: 'amber', title: 'الاستمارات الرسمية', desc: 'تصميم سندات الصرف والإعارة والنقل والاستبدال', perm: can('vouchers.design'), link: canUser(Auth.user, 'vouchers.design') ? html`<a class="btn btn-sm btn-primary" href="#/voucher-designer">${UI.icon('edit')} فتح المصمم</a>` : '',
-          body: html`<p class="small muted">الشعار والترويسة والخطوط والإطارات والتواقيع لكل سند، مع معاينة فورية.</p>` })}
-      </div>`);
+    const ed = canUser(Auth.user, 'vault.manage') || canUser(Auth.user, 'settings'), um = canUser(Auth.user, 'users.manage');
+    const people = Data.list('users').filter((u) => u.active && !isSysAccount(u) && !['monitor', 'supervisor'].includes(u.role));
+    const readers = people.filter((u) => canUser(u, 'vault.read')), editors = people.filter((u) => canUser(u, 'vault.manage'));
+    const who = (list, perm, label, hint, ic) => UI.panel({ title: `${label} (${fmtNum(list.length)})`, icon: ic, sub: hint, tools: um ? html`<a class="btn btn-sm btn-soft" href="#/settings?s=perms&p=${perm}">${UI.icon('key')} منح وسحب</a>` : '', body: list.length ? html`<div class="list pm-scroll">${list.slice(0, 12).map((u) => html`<div class="list-row">${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub">${ROLES[u.role] || u.role}</div></div></div>`)}</div>${list.length > 12 ? html`<p class="faint small mt">و${fmtNum(list.length - 12)} غيرهم</p>` : ''}` : UI.noData('لا أحد غير المشرف') });
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الملاحظات الإدارية', sub: 'تشغيل القسم، ومدة التنبيه قبل انتهاء الاشتراكات والتراخيص، ومن يصل إلى الملاحظات المشتركة. الخاصة يراها كاتبها وحده', illu: 'key', actions: VAULT.on() && canUser(Auth.user, 'vault.read') ? html`<a class="btn btn-ghost" href="#/vault">${UI.icon('external')} فتح الملاحظات</a>` : '' })}
+      <div class="grid g-main">${UI.panel({ title: 'القسم', icon: 'sliders', body: html`<div class="form-grid">${UI.field({ name: 'on', type: 'switch', text: 'تشغيل القسم وإظهاره للمخوّلين', wide: true }, VAULT.on() ? 1 : 0)}${UI.field({ name: 'remind', label: 'التنبيه قبل انتهاء الاشتراك أو الترخيص بـ (يوم)', type: 'number', min: 1, max: 365 }, VAULT.remindDays())}</div>${ed ? html`<button class="btn btn-primary mt" data-act="vsave">${UI.icon('check')} حفظ</button>` : html`<p class="faint small mt">${UI.icon('lock')} لا تملك صلاحية تغيير هذا الإعداد</p>`}` })}
+      <div class="stack">${who(readers, 'vault.read', 'يطّلعون عليها', 'يرون الملاحظات المشتركة', 'eye')}${who(editors, 'vault.manage', 'يضيفون ويعدّلون', 'يضيفون الملاحظات المشتركة ويعدّلونها', 'edit')}</div></div>`);
+    if (!ed) $$('input', ctx.view).forEach((i) => { i.disabled = true; });
     UI.hydrate(ctx.view);
   };
-  UI.on(ctx.view, 'change', '[data-fsw]', async (e, el) => {
-    const k = el.dataset.fsw, on = el.checked;
-    try {
-      if (k === 'rcenter') { await Ratings.save({ center: on ? 1 : 0 }); Shell.remountSoon(); }
-      else if (k === 'ron') await Ratings.save({ on: on ? 1 : 0 });
-      else if (['ffon', 'ffsign', 'ffdl'].includes(k)) { const key = { ffon: 'off', ffsign: 'noSign', ffdl: 'hideDl' }[k]; await XCFG.save('formfill', 'formFill', { ...(Data.c.formFill || {}), [key]: on ? 0 : 1 }, 'تحديث إعدادات التعبئة الفورية'); }
-      else if (k === 'xmon') await XM.saveCfg({ off: on ? 0 : 1 });
-      else if (k === 'vaulton') { await XCFG.save('vaultcfg', 'vaultCfg', { ...(Data.c.vaultCfg || {}), off: on ? 0 : 1 }, 'تحديث إعدادات الملاحظات الإدارية'); Shell.remountSoon(); }
-      UI.toast(on ? 'فُعّلت الخاصية' : 'أُوقفت الخاصية');
-    } catch (err) { el.checked = !on; UI.error(err); }
-    setTimeout(() => { if (ctx.alive()) draw(); }, 200);
+  UI.on(ctx.view, 'click', '[data-act="vsave"]', async (e, btn) => {
+    const g = (n) => ctx.view.querySelector(`[name="${n}"]`), was = VAULT.on(), on = g('on').checked; UI.busy(btn, true);
+    try { await XCFG.save('vaultcfg', 'vaultCfg', { ...(Data.c.vaultCfg || {}), off: on ? 0 : 1, remindDays: clamp(Number(g('remind').value) || 30, 1, 365) }, 'تحديث إعدادات الملاحظات الإدارية'); if (was !== on) Shell.remountSoon(); UI.toast('حُفظت إعدادات الملاحظات الإدارية'); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
   });
-  UI.on(ctx.view, 'click', '[data-act="xmname"]', async () => { const v = String($('[data-xmname]', ctx.view).value || '').trim(); if (!v) { UI.toast('اكتب اسم القسم', 'warn'); return; } try { await XM.saveCfg({ name: v }); UI.toast('حُفظ اسم القسم'); draw(); } catch (err) { UI.error(err); } });
-  UI.on(ctx.view, 'click', '[data-act="vremind"]', async () => { const n = clamp(Number($('[data-vremind]', ctx.view).value) || 30, 1, 365); try { await XCFG.save('vaultcfg', 'vaultCfg', { ...(Data.c.vaultCfg || {}), remindDays: n }, 'تحديث مدة تنبيه الاشتراكات'); UI.toast('حُفظ'); } catch (err) { UI.error(err); } });
-  ctx.onCleanup(Bus.on('xcfg', () => { if (ctx.alive()) draw(); }));
+  ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
   draw();
 };
-Router.add('/features', 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design', Pages.features, 'التحكم بالخصائص');
+/* صفحة «تشغيل الخصائص» كانت تكرر مفاتيح موجودة في صفحات أصحابها؛ أصبح لكل خاصية مكانها، وحالتها في النظرة العامة */
+Router.add('/features', 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design', () => Router.replace('/settings'), 'الإعدادات');
 /* المهام الدورية للأقسام الجديدة (بعد الدخول وبهدوء) */
 Bus.on('session', () => setTimeout(() => { XM.overdueJob().catch(() => {}); VAULT.remindJob().catch(() => {}); }, 8000));
 setTimeout(function tick() { if (Auth.user) { XM.overdueJob().catch(() => {}); VAULT.remindJob().catch(() => {}); } setTimeout(tick, 3 * HOUR); }, 45000);
@@ -14445,14 +14439,12 @@ Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تص�
 
 /* ══════════ مركز الإعدادات والتحكم: مكان واحد لكل التعديلات والإضافات ══════════
    كل قسم يظهر لمن يملك صلاحيته فقط، ويُفتح داخل المركز نفسه دون مغادرته. */
-const CC_FEAT = 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design';
 /* قسم من الإعدادات العامة: [المفتاح، العنوان، الأيقونة، الصلاحية، الوصف، المسار، العرض] */
 const ccPart = (k, perm = 'settings') => [k, SETTINGS_PARTS[k][0], SETTINGS_PARTS[k][2], perm, SETTINGS_PARTS[k][1], '', (c) => Pages.settings(c, k)];
 const CC_GROUPS = [
   ['النظام', 'sliders', [
     ccPart('info'),
-    ['nav', 'إظهار أقسام القائمة', 'eye', 'nav.manage', 'ما يظهر للموظفين والفنيين والإداريين من صفحات', '/nav-visibility', (c) => Pages.navVisibility(c)],
-    ['features', 'تشغيل الخصائص وإيقافها', 'toggle', CC_FEAT, 'مركز التقييم، التعبئة الفورية، الصيانة الخارجية، الملاحظات الإدارية', '/features', (c) => Pages.features(c)]
+    ['nav', 'إظهار أقسام القائمة', 'eye', 'nav.manage', 'ما يظهر للموظفين والفنيين والإداريين من صفحات', '/nav-visibility', (c) => Pages.navVisibility(c)]
   ]],
   ['الحسابات والصلاحيات', 'users', [
     ['users', 'المستخدمون', 'users', 'users.manage', 'إضافة الحسابات وتعديلها، وصلاحيات كل حساب، والتعديل الجماعي', '/users', (c) => Pages.users(c)],
@@ -14469,17 +14461,18 @@ const CC_GROUPS = [
     ccPart('handling'),
     ccPart('sla'),
     ['replies', 'الردود الجاهزة', 'message', 'replies.manage|users.manage', 'ردود وحلول جاهزة للفنيين في البلاغات والاستفسارات وتسجيل الحل', '/replies', (c) => Pages.repliesAdmin(c)],
-    ['ratings', 'مركز التقييم', 'star', 'ratings.manage', 'رضا المستفيدين وإعدادات تقييم البلاغات', '/ratings', (c) => Pages.ratingsCenter(c)],
+    ['ratings', 'مركز التقييم', 'star', 'ratings.manage', 'رضا المستفيدين، وتشغيل طلب التقييم وإظهار المركز في القائمة', '/ratings', (c) => Pages.ratingsCenter(c)],
     ['surveys', 'الاستبيانات', 'poll', 'surveys.manage', 'إنشاء الاستبيانات والاختبارات ونشرها ونتائجها', '/surveys/manage', (c) => Pages.surveysManage(c)]
   ]],
-  ['النماذج والاستمارات', 'file', [
-    ['forms', 'مكتبة النماذج', 'file', 'forms.manage|forms.hide|users.manage', 'رفع الاستمارات وإخفاؤها وقوالب التعبئة الفورية', '/forms', (c) => Pages.formsPage(c)],
-    ['vouchers', 'تصميم الاستمارات الرسمية', 'print', 'vouchers.design', 'محرر حر لسندات الصرف والإعارة والنقل والاستبدال وقوالبها', '/voucher-designer', (c) => Pages.voucherDesigner(c)]
+  ['النماذج والملاحظات', 'file', [
+    ['forms', 'مكتبة النماذج والتعبئة الفورية', 'file', 'forms.manage|forms.hide|formfill.manage|users.manage', 'رفع الاستمارات وإخفاؤها، وتشغيل التعبئة الفورية والتوقيع', '/forms', (c) => Pages.formsPage(c)],
+    ['vouchers', 'تصميم الاستمارات الرسمية', 'print', 'vouchers.design', 'محرر حر لسندات الصرف والإعارة والنقل والاستبدال وقوالبها', '/voucher-designer', (c) => Pages.voucherDesigner(c)],
+    ['vault', 'الملاحظات الإدارية', 'key', 'vault.manage|settings', 'تشغيل القسم، ومدة تنبيه الاشتراكات، ومن يصل إلى الملاحظات', '', (c) => Pages.ccVault(c)]
   ]],
   ['المخازن والعهد', 'warehouse', [
     ccPart('invlists', 'settings|inventory.manage'),
     ['printers', 'الطابعات والأحبار', 'printer', 'inventory.manage|settings', 'الماركات والموديلات والأحبار المتوافقة', '/printers', (c) => Pages.printers(c)],
-    ['extmaint', 'إعدادات الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'اسم القسم والمدة المعتادة والجهات', '', (c) => Pages.ccExtMaint(c)],
+    ['extmaint', 'الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'تشغيل القسم، واسمه، والمدة المعتادة، والجهات', '', (c) => Pages.ccExtMaint(c)],
     ['locks', 'أقفال المخزن والعهد', 'lock', 'custody.lock|settings', 'الإضافة المباشرة لعهد الإدارات وقفل حذف الأجهزة', '', (c) => Pages.ccLocks(c)]
   ]],
   ['البيانات', 'database', [

@@ -1662,6 +1662,13 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-tonepick span{display:block;width:30px;height:30px;border-radius:50%;background:rgb(var(--t));border:3px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--line-2)}
 .org-tonepick input:checked+span{box-shadow:0 0 0 2.5px rgb(var(--t))}
 .org-addmode{margin-bottom:10px}
+.ff-set{margin-bottom:14px}
+.ff-set>summary{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;list-style:none;flex-wrap:wrap}
+.ff-set>summary::-webkit-details-marker{display:none}
+.ff-set>summary::after{content:'▾';margin-inline-start:auto;color:var(--ink-3);transition:transform .2s var(--ease)}
+.ff-set[open]>summary::after{transform:rotate(180deg)}
+.ff-set .grow{flex:1;min-width:160px}
+.ff-sws{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line)}
 .set-form{display:flex;flex-direction:column;gap:6px}
 .set-blk{padding:4px 0 14px;border-bottom:1px dashed var(--line)}
 .set-blk:last-of-type{border-bottom:0}
@@ -2777,17 +2784,6 @@ td .rank{display:inline-grid}
 .vt-tones i{display:block;width:26px;height:26px;border-radius:50%;background:rgb(var(--t));border:3px solid var(--surface-solid);box-shadow:0 0 0 1px var(--line-2)}
 .vt-tones input:checked+i{box-shadow:0 0 0 3px rgb(var(--t))}
 @media (max-width:640px){.vt-tf{grid-template-columns:minmax(0,1fr)}.vt-grid{grid-template-columns:minmax(0,1fr)}}
-
-/* ═══════════ التحكم بالخصائص ═══════════ */
-.ft-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.ft-card{border-radius:18px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
-.ft-card header{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(var(--t),.12),transparent)}
-.ft-card header b{display:block;font-size:15.5px}.ft-card header small{font-size:12px;color:var(--ink-3)}
-.ft-ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgba(var(--t),.18);color:rgb(var(--t));flex:none}
-.ft-body{display:grid;gap:12px;padding:16px}
-.ft-card.ro .switch{opacity:.6;cursor:not-allowed}
-.ft-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ft-row input:not([type=number]){flex:1;min-width:140px}
 
 /* ═══════════ التعبئة الفورية ═══════════ */
 dialog.modal.ff-modal{max-width:calc(100vw - 24px)}
