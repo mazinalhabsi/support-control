@@ -1782,6 +1782,7 @@ const Shell = {
     $('#userBtn').onclick = toggle('#userBtn', '#userPop');
     if ($('#presBtn')) $('#presBtn').onclick = toggle('#presBtn', '#presPop', () => { Presence.fill(); if (Presence.refresh) Presence.refresh(); });
     Presence.start();
+    setTimeout(() => { if (Auth.user) VAULT.cleanLocal().catch(() => {}); }, 4000);
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
     this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
     document.addEventListener('click', this._doc);
@@ -13099,6 +13100,15 @@ const VAULT = {
   async remove(id) { if (!VAULT.canManage()) throw new AppError('لا تملك الصلاحية'); const r = await DB.get('vault', id); await DB.del('vault', id); await Data.log('delete', 'settings', id, `حذف ملاحظة إدارية: ${r ? r.title : id}`); Bus.emit('vault', {}); },
   async patch(id, p) { const r = await DB.get('vault', id); if (!r) return; Object.assign(r, p, { updatedAt: now(), updatedBy: Auth.user.id }); await DB.put('vault', r); Bus.emit('vault', {}); },
   async audit(n, what) { await Data.log('update', 'settings', n.id, `${what} في الملاحظة الإدارية: ${n.title}`); },
+  /* مع الخادم: ملاحظات غيرك الخاصة لا مكان لها على جهازك. وصلت أجهزةَ الحسابات الإدارية قبل إصلاح تصفيتها في الخادم،
+     فتُمسح منها محلياً (دون مزامنة: لا تُحذف من الخادم ولا من أجهزة أصحابها) */
+  async cleanLocal() {
+    const me = Auth.user; if (!me || !Sync.on || !Sync.raw) return 0;
+    const rows = (await DB.getAll('vault')).filter((n) => !canUser(me, 'vault.read') || (n.visibility === 'private' && n.createdBy !== me.id));
+    for (const n of rows) { try { await Sync.raw.del('vault', Sync.localKey('vault', n.id)); } catch (_) { /* تجاهل */ } }
+    if (rows.length) Bus.emit('vault', {});
+    return rows.length;
+  },
   /* مستوى وصول حساب: لا شيء، أو اطلاع، أو اطلاع وتعديل. يغيّره المشرف وحده (والخادم يفرض ذلك) */
   level: (u) => (canUser(u, 'vault.manage') && canUser(u, 'vault.read') ? 'manage' : canUser(u, 'vault.read') ? 'read' : 'none'),
   holders: () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && u.role !== 'monitor' && canUser(u, 'vault.read')),

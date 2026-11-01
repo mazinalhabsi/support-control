@@ -56,6 +56,9 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const rej = await api('push', { ops: [{ store: 'vault', id: ids.s, rev: sharedDoc.rev, data: { ...sharedDoc.data, title: 'تعديل غير مسموح' } }] }, adTok);
   ok('the server refuses an edit from an account with view only', (rej.conflicts || []).length === 1 && !(rej.applied || []).length, JSON.stringify(rej).slice(0, 120));
 
+  /* نسخة خاصة لغيره وصلت جهازه قبل الإصلاح تُمسح من جهازه محلياً، ولا تُمس على الخادم */
+  const stray = await D.evaluate(async (ids) => { const n = { id: `vn_stray_${Date.now()}`, type: 'general', title: 'خاصة لغيري', visibility: 'private', createdBy: 'u_sup', f: {}, tags: [], updatedAt: Date.now() }; await App.Sync.raw.put('vault', n); const before = !!(await App.DB.get('vault', n.id)); const removed = await App.VAULT.cleanLocal(); return { before, removed, after: !!(await App.DB.get('vault', n.id)), shared: !!(await App.DB.get('vault', ids.s)) }; }, ids);
+  ok('another person\'s private note already on a device is removed locally, shared notes stay', stray.before && stray.removed >= 1 && !stray.after && stray.shared, JSON.stringify(stray));
   /* 4) فني آخر له التعديل: يعدّل المشتركة، ولا يرى الخاصة */
   const Bp = await login(TB);
   await until(Bp, (id) => App.DB.get('vault', id).then(Boolean), ids.s);
