@@ -7381,6 +7381,9 @@ UNIT_TYPES.branch = { label: 'شعبة', icon: 'layers', tone: 'teal' };
 UNIT_TYPES.unit = { label: 'وحدة', icon: 'grid', tone: 'amber' };
 const ORG_TYPE_ORDER = ['section', 'branch', 'unit', 'office'];
 const ORG_MAX_DEPTH = 10;
+/* اسم ما يُضاف داخل فرع بحسب نوعه، بدل «تحته» */
+const ORG_COMPACT_N = 12;
+const ORG_KID_LABEL = { section: 'قسم تابع', branch: 'شعبة تابعة', unit: 'وحدة تابعة', office: 'مكتب تابع' };
 const ORG_ICONS = ['building', 'layers', 'grid', 'pin', 'users', 'user', 'shield', 'key', 'lock', 'monitor', 'network', 'database', 'printer', 'card', 'mail', 'phone', 'folder', 'archive', 'book', 'clipboard', 'chart', 'pulse', 'tools', 'settings', 'warehouse', 'box', 'calendar', 'star', 'bell', 'scan'];
 const ORG_TONES = ['sky', 'violet', 'teal', 'brass', 'amber', 'green', 'red', 'pink', 'slate'];
 const canOrg = () => canUser(Auth.user, 'org.manage');
@@ -7666,7 +7669,7 @@ Data.org = {
     if (!cur || moved) this.guardNode(out.departmentId, out.parentId);
     if (cur && OrgScope.isTop(cur.departmentId, cur.id) && (moved || (cur.headId || '') !== out.headId)) throw new AppError('نقل الفرع الذي ترأسه أو تغيير رئيسه لمن يملك تعديل الهيكل');
     const depth = out.parentId ? orgDepth(all, out.parentId) + 1 : 1, height = cur ? orgHeight(all, cur.id) : 1;
-    if (depth + height - 1 > ORG_MAX_DEPTH) throw new AppError(`الحد الأقصى ${ORG_MAX_DEPTH} مستويات تحت الإدارة`);
+    if (depth + height - 1 > ORG_MAX_DEPTH) throw new AppError(`الحد الأقصى ${ORG_MAX_DEPTH} مستويات داخل الإدارة`);
     const label = `${UNIT_TYPES[out.type].label} «${out.name}» (${Data.nameOf('departments', out.departmentId)})`;
     return OrgLog.run(cur ? (moved ? 'move' : 'update') : 'create', `${cur ? (moved ? 'نقل' : 'تعديل') : 'إضافة'} ${label}`, async () => {
       if (cur && cur.departmentId !== out.departmentId) {
@@ -7724,7 +7727,7 @@ Data.org = {
       if (OrgScope.isTop(u.departmentId, u.id)) throw new AppError(`«${u.name}» هو الفرع الذي ترأسه، وحذفه لمن يملك تعديل الهيكل`);
       const sub = orgSubtree(all, u.id); if (stock.some((r) => sub.has(r.unitId) && r.qty > 0)) throw new AppError(`على «${u.name}» أو فروعه عهدة مسجلة، انقلها أولاً`);
     }
-    return OrgLog.run('delete', `حذف ${fmtNum(roots.length)} فرع بما تحتها`, async () => {
+    return OrgLog.run('delete', `حذف ${fmtNum(roots.length)} فرع بكل ما يتبعها`, async () => {
       const out = { units: 0, accounts: 0 };
       for (const u of roots) { const r = await this.removeUnit(u.id, { keepKids: false }); if (r) { out.units += r.units + 1; out.accounts += r.accounts; } }
       return out;
@@ -7805,7 +7808,7 @@ Data.org = {
     units.forEach((u) => { if (u.parentId) { if (!kids.has(u.parentId)) kids.set(u.parentId, []); kids.get(u.parentId).push(u); } });
     const isBusy = (u, g = 0) => { if (busy.has(u.id)) return busy.get(u.id); const v = used.has(u.id) || stock.has(u.id) || !!u.headId || (g < 60 && (kids.get(u.id) || []).some((k) => isBusy(k, g + 1))); busy.set(u.id, v); return v; };
     const byId = new Map(units.map((u) => [u.id, u]));
-    const empty = units.filter((u) => !isBusy(u) && (!u.parentId || !byId.has(u.parentId) || isBusy(byId.get(u.parentId))) && ok(u.departmentId, u.id)).map((u) => ({ kind: 'unit', id: u.id, name: u.name, path: label(u), note: kids.has(u.id) ? `ومعه ${fmtNum(orgSubtree(units, u.id).size - 1)} فرع تحته` : '' }));
+    const empty = units.filter((u) => !isBusy(u) && (!u.parentId || !byId.has(u.parentId) || isBusy(byId.get(u.parentId))) && ok(u.departmentId, u.id)).map((u) => ({ kind: 'unit', id: u.id, name: u.name, path: label(u), note: kids.has(u.id) ? `ومعه ${fmtNum(orgSubtree(units, u.id).size - 1)} فرع تابع له` : '' }));
     const accounts = (await this.unassigned()).length;
     /* العدد على الزر: الأخطاء فقط (المكرر، والرئيس المحذوف، والحسابات في غير موضعها)، لا ما ينقصه رئيس أو الفارغ */
     return { noHead, badHead, dupes, empty, accounts, count: badHead.length + dupes.length + accounts };
@@ -8015,7 +8018,7 @@ UI.bindOrgCascade = async (form, { dep = 'departmentId', unit = 'unitId', value 
 const orgHeadField = (cur, here, locked) => {
   const people = orgPeople().filter((u) => !isSysAccount(u)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), mine = people.filter(here);
   const opt = (u) => html`<option value="${u.id}"${u.id === cur ? raw(' selected') : ''}>${u.name}${u.militaryNo ? ` — ${u.militaryNo}` : ''}</option>`;
-  return html`<div class="form-grid mt"><div class="field wide"><label>حساب الرئيس</label>${locked ? '' : html`<input type="search" data-headq placeholder="ابحث بالاسم أو الرقم العسكري" style="margin-bottom:6px">`}<select name="headId"${locked ? raw(' disabled') : ''}><option value="">— بلا رئيس —</option>${mine.length ? html`<optgroup label="من هذا الموضع">${mine.map(opt)}</optgroup>` : ''}<optgroup label="حسابات أخرى">${people.filter((u) => !here(u)).map(opt)}</optgroup></select><small class="hint">${locked || 'يدير هذا الموضع وكل ما تحته من فروع وحسابات، ويرى ذلك في صفحة الهيكل'}</small></div></div>`;
+  return html`<div class="form-grid mt"><div class="field wide"><label>حساب الرئيس</label>${locked ? '' : html`<input type="search" data-headq placeholder="ابحث بالاسم أو الرقم العسكري" style="margin-bottom:6px">`}<select name="headId"${locked ? raw(' disabled') : ''}><option value="">— بلا رئيس —</option>${mine.length ? html`<optgroup label="من هذا الموضع">${mine.map(opt)}</optgroup>` : ''}<optgroup label="حسابات أخرى">${people.filter((u) => !here(u)).map(opt)}</optgroup></select><small class="hint">${locked || 'يدير هذا الموضع وكل ما يتبعه من فروع وحسابات، ويرى ذلك في صفحة الهيكل'}</small></div></div>`;
 };
 UI.bindHeadSearch = (form) => {
   const q = form.querySelector('[data-headq]'), sel = form.querySelector('[name="headId"]'); if (!q || !sel) return;
@@ -8122,11 +8125,11 @@ Pages.orgMembers = async ({ departmentId, unitId = '' }) => {
 /* حذف إدارة: نقل أقسامها وحساباتها إلى الإدارة الأقرب (أو أي إدارة)، أو إبقاء حساباتها بلا إدارة */
 Pages.orgDeleteDept = async (d) => {
   const units = await DB.getAll('deptUnits'), nUnits = units.filter((u) => u.departmentId === d.id).length, nUsers = orgPeople().filter((u) => u.departmentId === d.id).length;
-  if (!nUnits && !nUsers) return (await UI.confirm(`حذف الإدارة «${d.name}»؟ لا أقسام ولا حسابات تحتها.`, { danger: true, ok: 'حذف' })) ? Data.org.removeDept(d.id) : false;
+  if (!nUnits && !nUsers) return (await UI.confirm(`حذف الإدارة «${d.name}»؟ لا أقسام ولا حسابات تابعة لها.`, { danger: true, ok: 'حذف' })) ? Data.org.removeDept(d.id) : false;
   const near = Data.org.nearestDept(d.id), others = Data.list('departments').filter((x) => x.id !== d.id);
   return UI.modal({
     title: `حذف الإدارة: ${d.name}`, icon: 'trash',
-    body: html`<p class="muted">تحت هذه الإدارة ${fmtNum(nUnits)} فرع و${fmtNum(nUsers)} حساب. ماذا يحدث لها بعد الحذف؟</p>
+    body: html`<p class="muted">يتبع هذه الإدارة ${fmtNum(nUnits)} فرع و${fmtNum(nUsers)} حساب. ماذا يحدث لها بعد الحذف؟</p>
       <div class="stack" style="gap:12px">
         <label class="check"><input type="radio" name="mode" value="move"${near ? raw(' checked') : ''}${others.length ? '' : raw(' disabled')}><span><b>نقلها إلى إدارة أخرى</b> — تُدمج الأقسام المتماثلة الاسم، ويبقى كل حساب في قسمه</span></label>
         <select name="moveTo"${others.length ? '' : raw(' disabled')}>${near ? '' : html`<option value="">— اختر الإدارة —</option>`}${others.map((x) => html`<option value="${x.id}"${x.id === near ? raw(' selected') : ''}>${x.name}${x.id === near ? ' (الأقرب بالاسم)' : ''}</option>`)}</select>
@@ -8149,7 +8152,7 @@ Pages.orgDeleteUnit = async (u, units) => {
   if (!kids) return (await UI.confirm(`حذف «${u.name}»؟${n ? ` ينتقل ${fmtNum(n)} حساب إلى «${up}».` : ''}`, { danger: true, ok: 'حذف' })) ? Data.org.removeUnit(u.id) : false;
   return UI.modal({
     title: `حذف: ${u.name}`, icon: 'trash',
-    body: html`<p class="muted">تحت «${u.name}» ${fmtNum(sub.size - 1)} فرع. حساباته تنتقل إلى «${up}».</p>
+    body: html`<p class="muted">يتبع «${u.name}» ${fmtNum(sub.size - 1)} فرع. حساباته تنتقل إلى «${up}».</p>
       <div class="stack" style="gap:10px"><label class="check"><input type="radio" name="kids" value="keep" checked><span><b>رفع الفروع التابعة مستوى واحداً</b> لتتبع «${up}» مع حساباتها</span></label>
       <label class="check"><input type="radio" name="kids" value="drop"><span><b>حذف الفروع التابعة معه</b> — وتنتقل حساباتها أيضاً إلى «${up}»</span></label></div>`,
     actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'حذف', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => { const r = await Data.org.removeUnit(u.id, { keepKids: UI.formValues(form).kids !== 'drop' }); UI.toast(`حُذف «${u.name}»${r.accounts ? ` ونُقل ${fmtNum(r.accounts)} حساب` : ''}`); return true; } }]
@@ -8195,7 +8198,9 @@ const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange =
   const endOf = (i) => { let j = i + 1; while (j < rows.length && rows[j].depth > rows[i].depth) j++; return j; };
   const at = (el) => rows.findIndex((r) => r.k === Number((el.closest('[data-k]') || {}).dataset.k));
   const hint = (r) => (kind === 'dept' && r.depth === 0 ? 'اسم الإدارة' : 'اسم الفرع');
-  const row = (r) => html`<div class="orow${r.depth ? ' sub' : ''}" data-k="${r.k}" style="--d:${r.depth}">${kind === 'dept' && r.depth === 0 ? html`<span class="orow-type">${UI.icon('building')}إدارة</span>` : html`<select class="input orow-type" data-type aria-label="النوع">${ORG_TYPE_ORDER.map((k) => html`<option value="${k}"${typeOf(r) === k ? raw(' selected') : ''}>${UNIT_TYPES[k].label}</option>`)}</select>`}<input class="input" data-name value="${r.name}" placeholder="${hint(r)}" aria-label="${hint(r)}" autocomplete="off"><span class="orow-st" data-st></span>${r.depth < maxDepth ? html`<button type="button" class="btn btn-ghost btn-sm" data-sub title="إضافة خانة فرع داخل هذه" aria-label="إضافة خانة فرع داخل هذه">${UI.icon('plus')}<span class="orow-lbl">تحته</span></button>` : ''}<button type="button" class="icon-btn" data-del title="حذف الخانة" aria-label="حذف الخانة">${UI.icon('x')}</button></div>`;
+  /* ما يضيفه زر الخانة الداخلية: النوع التالي لنوع الخانة (إدارة ← قسم ← شعبة ← وحدة ← مكتب) */
+  const kidType = (r) => { if (kind === 'dept' && r.depth === 0) return 'section'; const i = ORG_TYPE_ORDER.indexOf(typeOf(r)); return ORG_TYPE_ORDER[Math.min((i < 0 ? 0 : i) + 1, ORG_TYPE_ORDER.length - 1)]; };
+  const row = (r) => html`<div class="orow${r.depth ? ' sub' : ''}" data-k="${r.k}" style="--d:${r.depth}">${kind === 'dept' && r.depth === 0 ? html`<span class="orow-type">${UI.icon('building')}إدارة</span>` : html`<select class="input orow-type" data-type aria-label="النوع">${ORG_TYPE_ORDER.map((k) => html`<option value="${k}"${typeOf(r) === k ? raw(' selected') : ''}>${UNIT_TYPES[k].label}</option>`)}</select>`}<input class="input" data-name value="${r.name}" placeholder="${hint(r)}" aria-label="${hint(r)}" autocomplete="off"><span class="orow-st" data-st></span>${r.depth < maxDepth ? html`<button type="button" class="btn btn-ghost btn-sm" data-sub title="إضافة ${ORG_KID_LABEL[kidType(r)]} داخل هذه الخانة" aria-label="إضافة ${ORG_KID_LABEL[kidType(r)]}">${UI.icon('plus')}<span class="orow-lbl">${ORG_KID_LABEL[kidType(r)]}</span></button>` : ''}<button type="button" class="icon-btn" data-del title="حذف الخانة" aria-label="حذف الخانة">${UI.icon('x')}</button></div>`;
   const draw = (focus) => {
     if (!rows.length) rows.push(mk());
     host.innerHTML = String(html`<div class="orows">${rows.map(row)}</div><div class="orow-foot"><button type="button" class="btn btn-soft btn-sm" data-addrow>${UI.icon('plus')} ${kind === 'dept' ? 'خانة إدارة' : 'خانة فرع'}</button><span class="faint small">أو أضف</span><input type="number" class="input" data-n min="1" max="50" value="3" aria-label="عدد الخانات"><button type="button" class="btn btn-ghost btn-sm" data-addn>خانات مرة واحدة</button></div>`);
@@ -8214,10 +8219,10 @@ const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange =
   host.addEventListener('input', (e) => {
     if (!e.target.matches('[data-name]')) return;
     const r = rows[at(e.target)]; r.name = e.target.value;
-    const sel = e.target.parentNode.querySelector('[data-type]'); if (sel && !r.manual) sel.value = typeOf(r);
+    const sel = e.target.parentNode.querySelector('[data-type]'); if (sel && !r.manual) sel.value = typeOf(r); const lb = e.target.parentNode.querySelector('.orow-lbl'); if (lb) lb.textContent = ORG_KID_LABEL[kidType(r)];
     onChange();
   });
-  host.addEventListener('change', (e) => { if (!e.target.matches('[data-type]')) return; const r = rows[at(e.target)]; r.type = e.target.value; r.manual = true; onChange(); });
+  host.addEventListener('change', (e) => { if (!e.target.matches('[data-type]')) return; const r = rows[at(e.target)]; r.type = e.target.value; r.manual = true; const lb = e.target.parentNode.querySelector('.orow-lbl'); if (lb) lb.textContent = ORG_KID_LABEL[kidType(r)]; onChange(); });
   host.addEventListener('keydown', (e) => {
     if (!e.target.matches('[data-name]')) return;
     const i = at(e.target);
@@ -8256,8 +8261,8 @@ const orgModeSeg = (mode) => html`<div class="seg sm org-addmode" role="radiogro
 Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return UI.modal({
   title: 'إضافة إدارات', icon: 'building', size: 'lg',
   body: html`${orgModeSeg(mode)}
-    <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل إدارة، و«تحته» لأقسامها وما تحت كل قسم. Enter في الخانة يفتح التالية. ما هو موجود في الهيكل لا يتكرر.</p><div data-rowsbox></div></div>
-    <div data-text${mode === 'text' ? '' : raw(' hidden')}><p class="muted small">اكتب كل إدارة في سطر. ولإضافة أقسامها معها اكتبها تحتها بإزاحة (زر Tab، أو مسافتين، أو «-» في أول السطر)، وتحت كل قسم شُعبه ومكاتبه بإزاحة أكبر. أو الصق من Excel أعمدة: الإدارة ثم القسم ثم الشعبة. ما هو موجود في الهيكل لا يتكرر.</p>
+    <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل إدارة، وزر «+ قسم تابع» في كل خانة لأقسامها، ثم داخل كل قسم ما يتبعه. Enter في الخانة يفتح التالية. ما هو موجود في الهيكل لا يتكرر.</p><div data-rowsbox></div></div>
+    <div data-text${mode === 'text' ? '' : raw(' hidden')}><p class="muted small">اكتب كل إدارة في سطر. ولإضافة أقسامها معها اكتبها في الأسطر التالية بإزاحة (زر Tab، أو مسافتين، أو «-» في أول السطر)، وتحت كل قسم شُعبه ومكاتبه بإزاحة أكبر. أو الصق من Excel أعمدة: الإدارة ثم القسم ثم الشعبة. ما هو موجود في الهيكل لا يتكرر.</p>
     <div class="field"><textarea name="outline" rows="10" dir="rtl" placeholder="الموارد البشرية&#10;  قسم شؤون الموظفين&#10;  قسم التدريب&#10;    مكتب التطوير&#10;الشؤون المالية&#10;  قسم الحسابات"></textarea></div></div>
     <div class="field"><label>وأضف لكل إدارة في القائمة أقسام إدارة قائمة <small class="faint">(اختياري)</small></label><select name="copyfrom"><option value="">— بلا —</option>${Data.list('departments').map((d) => html`<option value="${d.id}">${d.name}</option>`)}</select></div>
     <div class="mt" data-prev></div>`,
@@ -8309,7 +8314,7 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
     body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${where}</b><div class="t-sub">تُضاف الفروع داخل هذا الموضع</div></div></div>
       <div class="field"><label>نوع المستوى الأول <small class="faint">(إن لم يبدأ الاسم بنوعه: قسم، شعبة، وحدة، مكتب)</small></label><div class="choice-pick">${ORG_TYPE_ORDER.map((k, i) => html`<label><input type="radio" name="type" value="${k}"${(type ? k === type : i === Math.min(base, ORG_TYPE_ORDER.length - 1)) ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
       ${orgModeSeg(mode)}
-      <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل فرع، و«تحته» لما بداخله. Enter في الخانة يفتح التالية.</p><div data-rowsbox></div></div>
+      <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل فرع، وزر «+ … تابع» في كل خانة لما يتبعها. Enter في الخانة يفتح التالية.</p><div data-rowsbox></div></div>
       <div class="field" data-text${mode === 'text' ? '' : raw(' hidden')}><label>الفروع: كل فرع في سطر، وأزِح السطر (مسافتين أو Tab أو «-») ليصبح داخل ما فوقه</label><textarea name="lines" rows="9" dir="rtl" placeholder="قسم الشبكات&#10;  شعبة الخوادم&#10;  مكتب الدعم الميداني&#10;قسم البرمجيات&#10;  شعبة الأنظمة"></textarea></div>
       <div class="field"><label>أو ابدأ بفروع موضع قائم ثم عدّلها <small class="faint">(اختياري)</small></label><select data-copyfrom>${orgPlaceOptions(units, '', '— اختر الموضع —')}</select></div>
       <div class="mt" data-prev></div>`,
@@ -8330,7 +8335,7 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
       });
       UI.on(form, 'change', '[data-copyfrom]', (e, el) => {
         if (!el.value) return; const p = orgPlaceOf(el.value), rows = Data.org.branchRows(p.departmentId, p.unitId);
-        if (!rows.length) { UI.toast('لا فروع تحت هذا الموضع', 'warn'); return; }
+        if (!rows.length) { UI.toast('لا فروع تابعة لهذا الموضع', 'warn'); return; }
         rows.forEach((r) => { r.tooDeep = base + r.depth + 1 > ORG_MAX_DEPTH; });
         if (orgAddMode.get() === 'rows') R.set(rows, true); else { st.copied = rows; st.text = Data.org.branchText(rows); ta.value = st.text; }
         show();
@@ -8375,7 +8380,7 @@ Pages.orgCopy = ({ departmentId = '', unitIds = [] }) => {
   const units = Data.list('deptUnits'), { rows, roots, skip } = Data.org.copyPlan({ departmentId, unitIds }), dept = !roots.length;
   if (!rows.length && !dept) { UI.toast('لا فروع لنسخها', 'warn'); return Promise.resolve(false); }
   const one = roots.length === 1 ? units.find((u) => u.id === roots[0]) : null, src = Data.nameOf('departments', departmentId);
-  const what = dept ? `إدارة «${src}» بكل أقسامها وفروعها` : one ? `«${one.name}» بكل ما تحته` : `${fmtNum(roots.length)} فروع بكل ما تحتها`;
+  const what = dept ? `إدارة «${src}» بكل أقسامها وفروعها` : one ? `«${one.name}» بكل ما يتبعه` : `${fmtNum(roots.length)} فروع بكل ما يتبعها`;
   const canNew = dept && canOrg(), st = { mode: canNew ? 'new' : 'place' };
   return UI.modal({
     title: dept ? `نسخ إدارة «${src}»` : one ? `نسخ «${one.name}»` : `نسخ ${fmtNum(roots.length)} فروع`, icon: 'copy', size: 'lg',
@@ -8413,8 +8418,8 @@ Pages.orgHealth = async () => {
       ${H.accounts ? html`<div class="form-bar">${UI.icon('users')}<div class="grow"><b>${fmtNum(H.accounts)} حساب بلا إدارة أو في موضع غير صحيح</b><div class="t-sub">إدارته محذوفة، أو قسمه في إدارة أخرى</div></div><button type="button" class="btn btn-soft btn-sm" data-hlost>${UI.icon('users')} إصلاحها</button></div>` : ''}
       ${group('dupes', 'أسماء مكررة في الإدارة نفسها', 'red', H.dupes, html`${H.dupes.map((g) => html`<div class="org-hdup">${g.map((x, i) => item(x, i ? html`<button type="button" class="btn btn-soft btn-sm" data-hmerge="${x.id}|${g[0].id}" title="تنتقل فروعه وحساباته إلى الأول">${UI.icon('swap')} دمج في الأول</button>` : UI.chip('slate', 'الأول')))}</div>`)}`, 'غالباً من إضافة أو استيراد متكرر')}
       ${group('bad', 'رئيس محذوف أو موقوف', 'red', H.badHead, html`${H.badHead.map((x) => item(x))}`)}
-      ${group('nohead', 'إدارات وأقسام بلا رئيس', 'amber', H.noHead, html`${H.noHead.map((x) => item(x))}`, 'الرئيس يدير فرعه وما تحته')}
-      ${group('empty', 'فروع فارغة', 'slate', H.empty, html`${H.empty.length ? html`<div class="row" style="padding:6px 0"><button type="button" class="btn btn-ghost btn-sm" data-hempty>${UI.icon('trash')} حذفها كلها</button><small class="faint">ليس فيها ولا تحتها حساب ولا عهدة ولا رئيس. يمكن التراجع من السجل</small></div>` : ''}${H.empty.map((x) => item(x))}`, 'قد تكون مقصودة، كمكتب لم يُسكَن بعد')}`);
+      ${group('nohead', 'إدارات وأقسام بلا رئيس', 'amber', H.noHead, html`${H.noHead.map((x) => item(x))}`, 'الرئيس يدير فرعه وكل ما يتبعه')}
+      ${group('empty', 'فروع فارغة', 'slate', H.empty, html`${H.empty.length ? html`<div class="row" style="padding:6px 0"><button type="button" class="btn btn-ghost btn-sm" data-hempty>${UI.icon('trash')} حذفها كلها</button><small class="faint">ليس فيها ولا في ما يتبعها حساب ولا عهدة ولا رئيس. يمكن التراجع من السجل</small></div>` : ''}${H.empty.map((x) => item(x))}`, 'قد تكون مقصودة، كمكتب لم يُسكَن بعد')}`);
   };
   return UI.modal({
     title: 'فحص الهيكل', icon: 'pulse', size: 'lg',
@@ -8438,7 +8443,7 @@ Pages.orgMoveMany = async (ids) => {
   const people = orgPeople().filter((u) => inside.has(u.unitId)).length;
   return UI.modal({
     title: `نقل ${fmtNum(roots.length)} فرع`, icon: 'swap', size: 'lg',
-    body: html`<p class="muted">تُنقل الفروع المحددة بكل ما تحتها${people ? html`، <b>ومعها حساباتها (${fmtNum(people)} حساب)</b>` : ''}. النقل يحفظ الحسابات والرؤساء والرموز، بخلاف النسخ.</p><div class="field"><label>إلى</label>${orgPlacePicker(units, (t) => inside.has(t.unitId), { single: true })}</div>`,
+    body: html`<p class="muted">تُنقل الفروع المحددة بكل ما يتبعها${people ? html`، <b>ومعها حساباتها (${fmtNum(people)} حساب)</b>` : ''}. النقل يحفظ الحسابات والرؤساء والرموز، بخلاف النسخ.</p><div class="field"><label>إلى</label>${orgPlacePicker(units, (t) => inside.has(t.unitId), { single: true })}</div>`,
     onMount: orgBindPicker,
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نقل', kind: 'primary', icon: 'swap', submit: true, handler: async (form) => {
       const v = $('[data-place]:checked', form); if (!v) throw new AppError('اختر الموضع الجديد');
@@ -8457,7 +8462,7 @@ Pages.orgHeadMany = (ids) => {
   const set = new Set(ids);
   return UI.modal({
     title: `رئيس ${fmtNum(ids.length)} فرع`, icon: 'user', size: 'lg',
-    body: html`<p class="muted small">يصبح الحساب رئيساً لكل الفروع المحددة، فيدير ما تحتها. اختر «بلا رئيس» لإزالة الرئيس منها.</p>${orgHeadField('', (u) => set.has(u.unitId), '')}`,
+    body: html`<p class="muted small">يصبح الحساب رئيساً لكل الفروع المحددة، فيدير ما يتبعها. اختر «بلا رئيس» لإزالة الرئيس منها.</p>${orgHeadField('', (u) => set.has(u.unitId), '')}`,
     onMount: UI.bindHeadSearch,
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const h = UI.formValues(form).headId || '', who = h ? Data.userName(h) : '';
@@ -8468,7 +8473,7 @@ Pages.orgHeadMany = (ids) => {
 };
 Pages.orgDeleteMany = async (ids) => {
   const units = await DB.getAll('deptUnits'), roots = orgRoots(units, ids), inside = new Set(roots.flatMap((id) => [...orgSubtree(units, id)])), people = orgPeople().filter((u) => inside.has(u.unitId)).length;
-  if (!(await UI.confirm(`حذف ${fmtNum(roots.length)} فرع بكل ما تحتها (${fmtNum(inside.size)} فرع في المجموع)؟${people ? ` تنتقل حساباتها (${fmtNum(people)}) إلى الموضع الذي فوق كل فرع محذوف.` : ''} ويمكن التراجع من سجل التغييرات.`, { danger: true, ok: 'حذف' }))) return false;
+  if (!(await UI.confirm(`حذف ${fmtNum(roots.length)} فرع بكل ما يتبعها (${fmtNum(inside.size)} فرع في المجموع)؟${people ? ` تنتقل حساباتها (${fmtNum(people)}) إلى الموضع الذي فوق كل فرع محذوف.` : ''} ويمكن التراجع من سجل التغييرات.`, { danger: true, ok: 'حذف' }))) return false;
   const r = await Data.org.removeMany(ids); UI.toast(`حُذف ${fmtNum(r.units)} فرع${r.accounts ? `، وانتقل ${fmtNum(r.accounts)} حساب` : ''}`); return true;
 };
 
@@ -8524,7 +8529,7 @@ Pages.orgUnassigned = async () => {
 /* ما يرأسه المستخدم، أعلى صفحة الهيكل */
 const orgHeadBanner = (units) => {
   const sc = OrgScope.of(), led = [...Data.list('departments').filter((d) => sc.deps.has(d.id)).map((d) => d.name), ...units.filter((u) => sc.tops.has(u.id)).map((u) => orgLabel(u.departmentId, u.id, units))];
-  return html`<div class="form-bar mb">${UI.icon('shield')}<div class="grow"><b>رئاستك: ${led.join('، ')}</b><div class="t-sub">تضيف الفروع تحتها وتعدّلها وتنقلها وتعيّن رؤساءها، وتوزّع حساباتها، وتراجع تغييراتك من «سجل التغييرات»</div></div></div>`;
+  return html`<div class="form-bar mb">${UI.icon('shield')}<div class="grow"><b>رئاستك: ${led.join('، ')}</b><div class="t-sub">تضيف الفروع التابعة لها وتعدّلها وتنقلها وتعيّن رؤساءها، وتوزّع حساباتها، وتراجع تغييراتك من «سجل التغييرات»</div></div></div>`;
 };
 
 /* سجل تغييرات الهيكل: كل إجراء بما غيّره، والتراجع عنه لصاحبه أو لمن يملك تعديل الهيكل */
@@ -8579,7 +8584,8 @@ Pages.org = async (ctx) => {
   let lsMode = 'chart'; try { lsMode = localStorage.getItem('sq_org_mode') || 'chart'; } catch (_) { /* تجاهل */ }
   let lsDir = 'side'; try { lsDir = localStorage.getItem('sq_org_dir') || 'side'; } catch (_) { /* تجاهل */ }
   let lsDrag = 'move'; try { lsDrag = localStorage.getItem('sq_org_dragmode') === 'copy' ? 'copy' : 'move'; } catch (_) { /* تجاهل */ }
-  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set(), full: false, drag: lsDrag };
+  let lsCompact = false; try { lsCompact = localStorage.getItem('sq_org_compact') === '1'; } catch (_) { /* تجاهل */ }
+  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set(), full: false, drag: lsDrag, compact: lsCompact };
   const draw = async () => {
     const { deps, units, users } = await Data.org.load(); if (!ctx.alive()) return;
     { const live = new Set(units.map((u) => u.id)); [...st.sel].forEach((id) => { if (!live.has(id)) st.sel.delete(id); }); }
@@ -8600,20 +8606,31 @@ Pages.org = async (ctx) => {
     const unitActs = (d, u, depth, i, n) => {
       if (!mine(d, u)) return '';
       const fixed = OrgScope.isTop(d.id, u.id);
-      return html`<span class="org-acts">${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فروع تحته">${UI.icon('plus')}</button>` : ''}${!fixed && i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${!fixed && i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-copy="${d.id}|${u.id}" title="نسخه بما تحته">${UI.icon('copy')}</button>${fixed ? '' : html`<button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button>`}</span>`;
+      return html`<span class="org-acts">${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فروع تابعة له">${UI.icon('plus')}</button>` : ''}${st.mode === 'chart' && kidsOf(d.id, u.id).length > 1 ? html`<button type="button" class="icon-btn" data-kv="u:${u.id}" title="طريقة عرض الفروع التابعة له">${UI.icon('grid')}</button>` : ''}${!fixed && i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${!fixed && i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-copy="${d.id}|${u.id}" title="نسخه بكل ما يتبعه">${UI.icon('copy')}</button>${fixed ? '' : html`<button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button>`}</span>`;
     };
-    const depActs = (d) => (mine(d) ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ الإدارة بهيكلها">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>` : '');
+    const depActs = (d) => (mine(d) ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button>${st.mode === 'chart' && kidsOf(d.id, '').length > 1 ? html`<button type="button" class="icon-btn" data-kv="d:${d.id}" title="طريقة عرض أقسامها">${UI.icon('grid')}</button>` : ''}<button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ الإدارة بهيكلها">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>` : '');
     const people = (n, key) => { const [a, b] = key.split('|'); return assign || OrgScope.covers(a, b) ? html`<button type="button" class="oc-people" data-members="${key}" title="عرض الحسابات ونقلها">${UI.icon('users')}${fmtNum(n)}</button>` : n ? html`<span title="موظفون">${UI.icon('users')}${fmtNum(n)}</span>` : ''; };
     const meta = (n, cnt, key) => html`${cnt ? html`<span title="فروع">${UI.icon('layers')}${fmtNum(cnt)}</span>` : ''}${people(n, key)}`;
     /* المخطط الشجري */
-    const cnode = (d, u, depth, i, n) => { const kids = kidsOf(d.id, u.id), open = isOpen('c' + u.id); return html`<li><div class="oc-box tone-${toneOf(u)}${hl(u.name)}${selCls(u)}" draggable="${movable(d, u) ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}">${selBox(d, u)}<span class="oc-ic">${UI.icon(icOf(u))}</span><em>${T(u).label}${u.code ? html` · <span class="ltr">${u.code}</span>` : ''}</em><b>${u.name}</b>${u.head ? html`<small>${u.head}</small>` : ''}<span class="oc-meta">${meta(usersIn(u), kids.length, `${d.id}|${u.id}`)}</span>${kids.length ? html`<button type="button" class="oc-tg" data-tg="c${u.id}">${open ? '−' : `+${kids.length}`}</button>` : ''}${unitActs(d, u, depth, i, n)}</div>${kids.length && open ? html`<ul>${ord(kids).map((k) => cnode(d, k, depth + 1, kids.indexOf(k), kids.length))}</ul>` : ''}</li>`; };
-    const chart = () => { const shown = deps.filter(depMatch); return html`<div class="oc-wrap ${st.dir}"><div class="oc ${st.dir}" style="zoom:${st.zoom}"><ul><li><div class="oc-box oc-rootbox" data-drop="root:"><img src="${ASSETS.logo}" alt=""><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} فرع</small>${edit ? html`<span class="org-acts on"><button type="button" class="btn btn-soft btn-sm" data-act="adddep">${UI.icon('plus')} إدارة</button></span>` : ''}</div>${shown.length ? html`<ul>${ord(shown).map((d) => { const top = kidsOf(d.id, ''), open = isOpen('d' + d.id); return html`<li><div class="oc-box oc-dep tone-${d.tone || 'brass'}${hl(d.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}" data-drop="dept:${d.id}"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة${d.code ? html` · <span class="ltr">${d.code}</span>` : ''}</em><b>${d.name}</b>${d.head ? html`<small>${d.head}</small>` : ''}<span class="oc-meta">${meta(usersDep(d), units.filter((u) => u.departmentId === d.id).length, `${d.id}|`)}</span>${top.length ? html`<button type="button" class="oc-tg" data-tg="d${d.id}">${open ? '−' : `+${top.length}`}</button>` : ''}${selDep(d)}${depActs(d)}</div>${top.length && open ? html`<ul>${ord(top).map((u) => cnode(d, u, 1, top.indexOf(u), top.length))}</ul>` : ''}</li>`; })}</ul>` : ''}</li></ul></div></div>`; };
+    const cnode = (d, u, depth, i, n) => { const kids = kidsOf(d.id, u.id), open = isOpen('c' + u.id); return html`<li><div class="oc-box tone-${toneOf(u)}${hl(u.name)}${selCls(u)}" draggable="${movable(d, u) ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}">${selBox(d, u)}<span class="oc-ic">${UI.icon(icOf(u))}</span><em>${T(u).label}${u.code ? html` · <span class="ltr">${u.code}</span>` : ''}</em><b>${u.name}</b>${u.head ? html`<small>${u.head}</small>` : ''}<span class="oc-meta">${meta(usersIn(u), kids.length, `${d.id}|${u.id}`)}</span>${kids.length ? html`<button type="button" class="oc-tg" data-tg="c${u.id}">${open ? '−' : `+${kids.length}`}</button>` : ''}${unitActs(d, u, depth, i, n)}</div>${kids.length && open ? kidsHtml(d, u, kids, depth + 1) : ''}</li>`; };
+    /* عرض الفروع التابعة لموضع: حسب العرض العام، أو عكسه (ينعكس معه إذا تغيّر)، أو قائمة أو شبكة مضغوطة دائماً.
+       «ضغط الكثير» يعرض ما يتجاوز ORG_COMPACT_N فرعاً بعكس العرض العام ما لم يُحدَّد له عرض */
+    const kidsMode = (node, n) => { const v = (node && node.kidsView) || ''; if (v === 'flip') return st.dir === 'down' ? 'list' : 'grid'; if (v === 'list' || v === 'grid') return v; if (v !== 'auto' && st.compact && n > ORG_COMPACT_N) return st.dir === 'down' ? 'list' : 'grid'; return ''; };
+    const frows = (d, list, depth) => html`<div class="ocf-list">${list.map((u, i) => { const kids = kidsOf(d.id, u.id), open = isOpen('c' + u.id); return html`<div class="ocf-item"><div class="ocf-row tone-${toneOf(u)}${hl(u.name)}${selCls(u)}" draggable="${movable(d, u) ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}" data-axis="v">${selBox(d, u)}<span class="ocf-ic">${UI.icon(icOf(u))}</span><div class="grow"><b>${u.name}</b><small>${T(u).label}${u.code ? ` · ${u.code}` : ''}${u.head ? ` — ${u.head}` : ''}</small></div><span class="oc-meta">${meta(usersIn(u), kids.length, `${d.id}|${u.id}`)}</span>${kids.length ? html`<button type="button" class="ocf-tg" data-tg="c${u.id}" title="${open ? 'طي' : 'توسيع'}">${open ? '−' : `+${kids.length}`}</button>` : ''}${unitActs(d, u, depth, i, list.length)}</div>${kids.length && open ? html`<div class="ocf-sub">${frows(d, kids, depth + 1)}</div>` : ''}</div>`; })}</div>`;
+    const fcells = (d, list, depth) => html`<div class="ocf-grid">${list.map((u, i) => { const kids = kidsOf(d.id, u.id), open = isOpen('c' + u.id); return html`<div class="ocf-cell tone-${toneOf(u)}${hl(u.name)}${selCls(u)}" draggable="${movable(d, u) ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}" data-axis="h">${selBox(d, u)}<div class="ocf-ch"><span class="ocf-ic">${UI.icon(icOf(u))}</span><div class="grow"><em>${T(u).label}${u.code ? ` · ${u.code}` : ''}</em><b>${u.name}</b>${u.head ? html`<small>${u.head}</small>` : ''}</div>${kids.length ? html`<button type="button" class="ocf-tg" data-tg="c${u.id}" title="${open ? 'طي' : 'توسيع'}">${open ? '−' : `+${kids.length}`}</button>` : ''}</div><span class="oc-meta">${meta(usersIn(u), kids.length, `${d.id}|${u.id}`)}</span>${unitActs(d, u, depth, i, list.length)}${kids.length && open ? html`<div class="ocf-sub">${frows(d, kids, depth + 1)}</div>` : ''}</div>`; })}</div>`;
+    const kidsHtml = (d, u, kids, depth) => {
+      const mode = kidsMode(u || d, kids.length);
+      if (!mode) return html`<ul>${ord(kids).map((k) => cnode(d, k, depth, kids.indexOf(k), kids.length))}</ul>`;
+      const types = [...new Set(kids.map((k) => T(k).label))];
+      return html`<ul class="oc-fl"><li class="oc-fli"><div class="oc-frame ${mode}" data-frame="${u ? u.id : d.id}"><div class="ocf-head">${UI.icon(mode === 'list' ? 'list' : 'grid')}<span>${fmtNum(kids.length)} ${types.length === 1 ? types[0] : 'فرع'}</span>${['flip', 'list', 'grid'].includes((u || d).kidsView) ? '' : html`<small>عُرضت مضغوطة لكثرتها</small>`}</div>${mode === 'list' ? frows(d, kids, depth) : fcells(d, kids, depth)}</div></li></ul>`;
+    };
+    const chart = () => { const shown = deps.filter(depMatch); return html`<div class="oc-wrap ${st.dir}"><div class="oc ${st.dir}" style="zoom:${st.zoom}"><ul><li><div class="oc-box oc-rootbox" data-drop="root:"><img src="${ASSETS.logo}" alt=""><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} فرع</small>${edit ? html`<span class="org-acts on"><button type="button" class="btn btn-soft btn-sm" data-act="adddep">${UI.icon('plus')} إدارة</button></span>` : ''}</div>${shown.length ? html`<ul>${ord(shown).map((d) => { const top = kidsOf(d.id, ''), open = isOpen('d' + d.id); return html`<li><div class="oc-box oc-dep tone-${d.tone || 'brass'}${hl(d.name)}" draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}" data-drop="dept:${d.id}"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة${d.code ? html` · <span class="ltr">${d.code}</span>` : ''}</em><b>${d.name}</b>${d.head ? html`<small>${d.head}</small>` : ''}<span class="oc-meta">${meta(usersDep(d), units.filter((u) => u.departmentId === d.id).length, `${d.id}|`)}</span>${top.length ? html`<button type="button" class="oc-tg" data-tg="d${d.id}">${open ? '−' : `+${top.length}`}</button>` : ''}${selDep(d)}${depActs(d)}</div>${top.length && open ? kidsHtml(d, null, top, 1) : ''}</li>`; })}</ul>` : ''}</li></ul></div></div>`; };
     /* البطاقات */
     const vnode = (d, u, depth, i, n) => { const kids = kidsOf(d.id, u.id), open = isOpen(u.id); return html`<li><div class="org-node tone-${toneOf(u)}${hl(u.name)}${selCls(u)}" draggable="${movable(d, u) ? 'true' : 'false'}" data-drag="unit:${u.id}" data-drop="unit:${u.id}">${selBox(d, u)}${kids.length ? html`<button type="button" class="org-tg" data-tg="${u.id}">${UI.icon(open ? 'chevron-down' : 'chevron-left')}</button>` : html`<span class="org-tg"></span>`}<span class="org-ic">${UI.icon(icOf(u))}</span><div class="grow"><b>${u.name}${u.code ? html` <span class="org-code ltr">${u.code}</span>` : ''}</b><small>${T(u).label}${u.head ? ` — ${u.head}` : ''}</small></div>${people(usersIn(u), `${d.id}|${u.id}`)}${unitActs(d, u, depth, i, n)}</div>${kids.length && open ? html`<ul>${kids.map((k, j) => vnode(d, k, depth + 1, j, kids.length))}</ul>` : ''}</li>`; };
     const cards = () => html`<div class="org-root" data-drop="root:"><img src="${ASSETS.logo}" alt=""><div><b>${s.orgName}</b><small>${fmtNum(deps.length)} إدارة · ${fmtNum(units.length)} فرع تنظيمي · ${fmtNum(users.length)} مستخدم</small></div></div><div class="org-stem"></div>
       <div class="org-grid">${deps.filter(depMatch).map((d) => { const top = kidsOf(d.id, ''), cnt = units.filter((u) => u.departmentId === d.id).length; return html`<section class="org-dept tone-${d.tone || 'brass'}${hl(d.name)}" data-drop="dept:${d.id}"><header draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}"><span class="org-dic">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}${d.code ? html` <span class="org-code ltr">${d.code}</span>` : ''}</b><small>${d.head ? `${d.head} · ` : ''}${fmtNum(cnt)} فرع</small></div>${people(usersDep(d), `${d.id}|`)}${selDep(d)}${mine(d) ? html`<span class="org-acts on">${depActs(d)}</span>` : ''}</header>
         ${top.length ? html`<ul class="org-tree">${top.map((u, j) => vnode(d, u, 1, j, top.length))}</ul>` : html`<div class="org-none">${mine(d) ? html`<button type="button" class="chip-add" data-addunit="${d.id}" data-parent="">${UI.icon('plus')} أضف أول قسم</button>` : 'لا توجد أقسام مسجلة'}</div>`}</section>`; })}</div>`;
-    const legend = html`<div class="org-legend">${ORG_TYPE_ORDER.map((k) => html`<span class="tone-${UNIT_TYPES[k].tone}"><i>${UI.icon(UNIT_TYPES[k].icon)}</i>${UNIT_TYPES[k].label}</span>`)}<span class="faint">${UI.icon('info')} حتى ${ORG_MAX_DEPTH} مستويات تحت كل إدارة</span></div>`;
+    const legend = html`<div class="org-legend">${ORG_TYPE_ORDER.map((k) => html`<span class="tone-${UNIT_TYPES[k].tone}"><i>${UI.icon(UNIT_TYPES[k].icon)}</i>${UNIT_TYPES[k].label}</span>`)}<span class="faint">${UI.icon('info')} حتى ${ORG_MAX_DEPTH} مستويات داخل كل إدارة</span></div>`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الهيكل التنظيمي', sub: 'خطّط هيكل الأكاديمية: أضف الإدارات وفروعها، وغيّر الأيقونات والألوان والرموز، واسحب أي فرع أو إدارة لإعادة تنظيمها', illu: 'building', actions: html`${edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إضافة إدارات</button>` : ''}${assign || head ? html`<button class="btn ${lost ? 'btn-soft' : 'btn-ghost'}" data-act="lost">${UI.icon('users')} حسابات بلا إدارة${lost ? ` (${fmtNum(lost)})` : ''}</button>` : ''}${edit || head ? html`<button class="btn ${health ? 'btn-soft' : 'btn-ghost'}" data-act="health">${UI.icon('pulse')} فحص الهيكل${health ? ` (${fmtNum(health)})` : ''}</button>` : ''}<button class="btn btn-ghost" data-act="log">${UI.icon('clock')} سجل التغييرات</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة الهيكل</button>` })}
       ${head ? orgHeadBanner(units) : ''}
       <section class="panel org-panel${st.selMode ? ' org-selmode' : ''}"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="oq" type="search" placeholder="ابحث باسم أو رمز أو رئيس" value="${st.q}"></div>
@@ -8622,11 +8639,11 @@ Pages.org = async (ctx) => {
         ${edit || head ? html`<div class="seg sm org-dragmode" role="radiogroup" aria-label="ما يفعله السحب" title="أو اضغط Ctrl أثناء الإفلات للنسخ"><label><input type="radio" name="odrag" value="move"${st.drag === 'move' ? raw(' checked') : ''}><span>${UI.icon('swap')} السحب ينقل</span></label><label><input type="radio" name="odrag" value="copy"${st.drag === 'copy' ? raw(' checked') : ''}><span>${UI.icon('copy')} السحب ينسخ</span></label></div>` : ''}
         ${edit || head ? html`<button type="button" class="btn ${st.selMode ? 'btn-soft' : 'btn-ghost'} btn-sm" data-act="select" aria-pressed="${st.selMode ? 'true' : 'false'}">${UI.icon('check')} تحديد متعدد</button>` : ''}
         <button type="button" class="btn btn-ghost btn-sm" data-act="expand">${UI.icon(st.all ? 'chevron-down' : 'chevron-left')} ${st.all ? 'طي الكل' : 'توسيع الكل'}</button>
-        ${st.mode === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="odir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label><label><input type="radio" name="odir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label></div><div class="org-zoom"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button><button type="button" class="btn btn-soft btn-sm" data-act="fit">${UI.icon('grid')} عرض الشجرة كاملة</button></div>` : ''}</div>
+        ${st.mode === 'chart' ? html`<button type="button" class="btn ${st.compact ? 'btn-soft' : 'btn-ghost'} btn-sm" data-act="compact" aria-pressed="${st.compact ? 'true' : 'false'}" title="ما يتجاوز ${ORG_COMPACT_N} فرعاً تابعاً لموضع واحد يُعرض قائمة أو شبكة مضغوطة، ما لم تحدد له عرضاً">${UI.icon('grid')} ضغط الكثير</button>` : ''}${st.mode === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="odir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label><label><input type="radio" name="odir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label></div><div class="org-zoom"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button><button type="button" class="btn btn-soft btn-sm" data-act="fit">${UI.icon('grid')} عرض الشجرة كاملة</button></div>` : ''}</div>
         ${legend}
         ${st.selMode ? html`<div class="org-selbar" role="toolbar" aria-label="إجراءات المحدد"><b data-selcount></b><button type="button" class="btn btn-primary btn-sm" data-selact="move">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-soft btn-sm" data-selact="copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-selact="type">${UI.icon('layers')} النوع</button><button type="button" class="btn btn-ghost btn-sm" data-selact="head">${UI.icon('user')} الرئيس</button><button type="button" class="btn btn-ghost btn-sm" data-selact="del">${UI.icon('trash')} حذف</button><button type="button" class="btn btn-ghost btn-sm" data-selact="clear">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
         <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
-        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما تحته وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وللنسخ بدل النقل اختر «السحب ينسخ» أو اضغط Ctrl أثناء الإفلات (لا تُنسخ الحسابات). وعلى الهاتف: «تحديد متعدد» ثم «نقل» أو «نسخ». اسحب خلفية المخطط لتحريكه، وCtrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
+        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما يتبعه وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وللنسخ بدل النقل اختر «السحب ينسخ» أو اضغط Ctrl أثناء الإفلات (لا تُنسخ الحسابات). وعلى الهاتف: «تحديد متعدد» ثم «نقل» أو «نسخ». اسحب خلفية المخطط لتحريكه، وCtrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     ctx.data = { deps, units }; selSync();
     const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view);
     if (wrap && oc) {
@@ -8671,7 +8688,7 @@ Pages.org = async (ctx) => {
   document.addEventListener('fullscreenchange', onFs); document.addEventListener('keydown', onKey);
   ctx.onCleanup(() => { document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('keydown', onKey); ctx.view.classList.remove('org-full'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => setFull(!st.full));
-  UI.on(ctx.view, 'change', 'input[name="odrag"]', (e, el) => { st.drag = el.value; try { localStorage.setItem('sq_org_dragmode', st.drag); } catch (_) { /* تجاهل */ } UI.toast(st.drag === 'copy' ? 'السحب الآن ينسخ الفرع بما تحته، دون الحسابات' : 'السحب الآن ينقل الفرع بما تحته وحساباته', 'info'); });
+  UI.on(ctx.view, 'change', 'input[name="odrag"]', (e, el) => { st.drag = el.value; try { localStorage.setItem('sq_org_dragmode', st.drag); } catch (_) { /* تجاهل */ } UI.toast(st.drag === 'copy' ? 'السحب الآن ينسخ الفرع بكل ما يتبعه، دون الحسابات' : 'السحب الآن ينقل الفرع بكل ما يتبعه وحساباته', 'info'); });
   /* التحديد المتعدد: المربعات، أو الضغط على الفرع نفسه، و«أقسامها» لتحديد أقسام إدارة كلها، ثم إجراء واحد على المحدد */
   function selSync() {
     const bar = $('.org-selbar', ctx.view); if (!bar) return; const n = st.sel.size;
@@ -8697,6 +8714,27 @@ Pages.org = async (ctx) => {
     run(async () => done(await acts[el.dataset.selact]()));
   });
   UI.on(ctx.view, 'change', 'input[name="omode"]', (e, el) => { st.mode = el.value; st.scroll = null; if (st.mode === 'chart') st.fit = true; try { localStorage.setItem('sq_org_mode', st.mode); } catch (_) { /* تجاهل */ } draw(); });
+  UI.on(ctx.view, 'click', '[data-act="compact"]', () => { st.compact = !st.compact; st.fit = true; try { localStorage.setItem('sq_org_compact', st.compact ? '1' : '0'); } catch (_) { /* تجاهل */ } draw(); });
+  /* طريقة عرض الفروع التابعة لموضع: تُحفظ على الإدارة أو الفرع فيراها الجميع، ولا تُسجَّل في سجل تغييرات الهيكل (عرض لا بنية) */
+  UI.on(ctx.view, 'click', '[data-kv]', async (e, el) => {
+    e.stopPropagation();
+    const [k, id] = el.dataset.kv.split(':'), units = (ctx.data && ctx.data.units) || [];
+    const node = k === 'd' ? Data.c.departments.get(id) : units.find((x) => x.id === id); if (!node) return;
+    const depId = k === 'd' ? id : node.departmentId, kids = units.filter((x) => x.departmentId === depId && (x.parentId || '') === (k === 'd' ? '' : id));
+    const kt = [...new Set(kids.map((x) => (UNIT_TYPES[x.type] || UNIT_TYPES.section).label))].join(' و') || 'الفروع';
+    const down = st.dir === 'down', cur = node.kidsView || '', sameType = k === 'u' ? units.filter((x) => x.departmentId === depId && x.type === node.type && x.id !== id) : [];
+    const opts = [['auto', 'حسب العرض العام', down ? 'متجاورة في صف تحت الموضع، كبقية المخطط' : 'بعضها فوق بعض بجانب الموضع، كبقية المخطط'], ['flip', 'عكس العرض العام', `${down ? 'قائمة مضغوطة بعضها فوق بعض' : 'شبكة مضغوطة متجاورة'} الآن، وتنعكس تلقائياً إذا غيّرت العرض العام`], ['list', 'قائمة مضغوطة دائماً', 'بعضها فوق بعض في إطار واحد، أياً كان العرض العام'], ['grid', 'شبكة مضغوطة دائماً', 'متجاورة في صفوف داخل إطار واحد، أياً كان العرض العام']];
+    const v = await UI.modal({ title: `عرض ${kt} في «${node.name}»`, icon: 'grid', size: 'sm',
+      body: html`<p class="muted small">${fmtNum(kids.length)} فرع تابع. العرض يُحفظ للجميع، ولا يغيّر الهيكل نفسه.</p><div class="kv-opts">${opts.map(([val, l, h]) => html`<label class="kv-opt"><input type="radio" name="kv" value="${val}"${cur === val || (val === 'auto' && !['flip', 'list', 'grid'].includes(cur)) ? raw(' checked') : ''}><span><b>${l}</b><small>${h}</small></span></label>`)}</div>${sameType.length && OrgScope.covers(depId, '') ? UI.field({ name: 'kvall', type: 'switch', text: `تطبيقه على كل ${(UNIT_TYPES[node.type] || UNIT_TYPES.section).label} في هذه الإدارة (${fmtNum(sameType.length + 1)})` }, 0) : ''}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: (form) => UI.formValues(form) }] });
+    if (!v) return;
+    const val = ['flip', 'list', 'grid'].includes(v.kv) ? v.kv : 'auto', t = now();
+    try {
+      if (k === 'd') { await DB.put('departments', { ...node, kidsView: val, updatedAt: t }); await Data.refresh('departments'); }
+      else for (const x of [node, ...(Number(v.kvall) ? sameType : [])]) await DB.put('deptUnits', { ...x, kidsView: val, updatedAt: t });
+      Bus.emit('org', {}); st.fit = true; UI.toast(val !== 'auto' ? `تغيّر عرض ${kt}` : 'عاد العرض حسب العرض العام'); draw();
+    } catch (ex) { UI.error(ex); }
+  });
   UI.on(ctx.view, 'change', 'input[name="odir"]', (e, el) => { st.dir = el.value; st.fit = true; st.scroll = null; try { localStorage.setItem('sq_org_dir', st.dir); } catch (_) { /* تجاهل */ } draw(); });
   UI.on(ctx.view, 'click', '[data-tg]', (e, el) => { e.stopPropagation(); const k = el.dataset.tg; if (st.all) { st.all = false; ctx.data.units.forEach((u) => st.open.add(u.id).add('c' + u.id)); ctx.data.deps.forEach((d) => st.open.add('d' + d.id)); } if (st.open.has(k)) st.open.delete(k); else st.open.add(k); draw(); });
   UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; st.open.clear(); st.fit = st.mode === 'chart'; draw(); });
@@ -8740,7 +8778,7 @@ Pages.org = async (ctx) => {
       }
       const to = tk === 'dept' ? { departmentId: target, unitId: '' } : { departmentId: (units.find((x) => x.id === target) || {}).departmentId, unitId: target };
       if (tk === 'dept' && target === id) return false;
-      if (!(await UI.confirm(`نسخ أقسام «${d.name}» بكل ما تحتها إلى «${orgLabel(to.departmentId, to.unitId, units)}»؟ لا تُنسخ الحسابات.`, { ok: 'نسخ' }))) return false;
+      if (!(await UI.confirm(`نسخ أقسام «${d.name}» بكل ما يتبعها إلى «${orgLabel(to.departmentId, to.unitId, units)}»؟ لا تُنسخ الحسابات.`, { ok: 'نسخ' }))) return false;
       const r = await Data.org.copyTo({ departmentId: id }, [to]); UI.toast(`نُسخ ${fmtNum(r.added)} فرع${r.found ? `، و${fmtNum(r.found)} موجود أصلاً` : ''}`); return;
     }
     const u = units.find((x) => x.id === id); if (!u) return false;
@@ -8751,14 +8789,14 @@ Pages.org = async (ctx) => {
     const r = await Data.org.copyTo({ unitIds: [id] }, [place], { rename: name });
     if (p && z !== 'in' && r.firstId) await Data.org.place(r.firstId, { departmentId: place.departmentId, parentId: place.unitId, [z === 'before' ? 'beforeId' : 'afterId']: p.id });
     if (place.unitId) st.open.add(place.unitId).add('c' + place.unitId);
-    UI.toast(`نُسخ «${name}» بما تحته (${fmtNum(r.added)} فرع)، دون الحسابات`);
+    UI.toast(`نُسخ «${name}» بكل ما يتبعه (${fmtNum(r.added)} فرع)، دون الحسابات`);
   }
   /* السحب والإفلات: وسط الإدارة أو الفرع ينقل إلى داخله، وطرف الفرع يضعه قبله أو بعده بين أخواته،
      والإدارة على إدارة أخرى تُرتَّب قبلها أو تُنقل إلى داخلها، وعلى فرع تُنقل إلى داخله */
   let drag = '', zone = 'in';
   const DROP = ['drop-ok', 'drop-top', 'drop-bottom', 'drop-left', 'drop-right'], clearDrop = (keep) => $$(DROP.map((c) => `.${c}`).join(','), ctx.view).forEach((x) => { if (x !== keep) x.classList.remove(...DROP); });
   const zoneOf = (t, e) => {
-    const r = t.getBoundingClientRect(), across = st.mode === 'chart' && st.dir === 'down', f = across ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+    const r = t.getBoundingClientRect(), across = t.dataset.axis ? t.dataset.axis === 'h' : st.mode === 'chart' && st.dir === 'down', f = across ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
     if (f > 0.25 && f < 0.75) return ['in', 'drop-ok'];
     /* في المخطط العمودي يبدأ الإخوة من اليمين: طرف الفرع الأيمن قبله والأيسر بعده */
     if (across) return f >= 0.75 ? ['before', 'drop-right'] : ['after', 'drop-left'];
@@ -8811,7 +8849,7 @@ Pages.org = async (ctx) => {
         if (z === 'in') { moved = await Data.org.place(id, { departmentId: p.departmentId, parentId: p.id }); st.open.add(p.id).add('c' + p.id); }
         else moved = await Data.org.place(id, { departmentId: p.departmentId, parentId: p.parentId || '', [z === 'before' ? 'beforeId' : 'afterId']: p.id });
       }
-      UI.toast(moved ? `نُقل «${u.name}» بما تحته وحساباته` : `تغيّر ترتيب «${u.name}»`);
+      UI.toast(moved ? `نُقل «${u.name}» بكل ما يتبعه وحساباته` : `تغيّر ترتيب «${u.name}»`);
     });
   });
   /* تغيير وصل من جهاز آخر أثناء السحب: يُؤجَّل رسمه حتى ينتهي السحب، وإلا أُلغي السحب */
