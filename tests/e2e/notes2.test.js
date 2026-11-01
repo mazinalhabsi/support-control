@@ -73,7 +73,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await open(P); await P.click('[data-act="new"]'); await P.waitForSelector('dialog [name="lkind"]'); await P.selectOption('dialog [name="lkind"]', 'ticket'); await P.fill('dialog [name="lticket"]', String(seq)); await P.fill('dialog [name="title"]', `بالرقم القصير ${T}`); await P.click('dialog .btn-primary'); await P.waitForTimeout(1000);
   ok('a ticket can be linked by its sequence alone', await P.evaluate(async ({ T, id }) => (await App.VAULT.list()).some((n) => n.title === `بالرقم القصير ${T}` && n.link && n.link.id === id), { T, id: tk.id }));
   const S = await login('sup');
-  const dep = await S.evaluate(async (T) => { await App.Data.org.buildOutline(App.Data.org.planOutline(`إدارة الملاحظات ${T}\n  قسم أ`)); await App.Sync.flush(); return App.Data.list('departments').find((d) => d.name === `إدارة الملاحظات ${T}`).id; }, T);
+  const dep = await S.evaluate(async (T) => { await App.Data.org.buildOutline(App.Data.org.planOutline(`إدارة الملاحظات ${T}\n  قسم ملاحظات ${T}`)); await App.Sync.flush(); return App.Data.list('departments').find((d) => d.name === `إدارة الملاحظات ${T}`).id; }, T);
   await sync(P);
   await P.evaluate(async (dep) => { await App.VAULT.save({ type: 'general', title: 'مفاتيح مستودع الإدارة', visibility: 'all', link: { kind: 'dept', id: dep, label: 'الإدارة' } }); await App.VAULT.save({ type: 'general', title: 'ملاحظتي عن الإدارة', visibility: 'private', link: { kind: 'dept', id: dep, label: 'الإدارة' } }); await App.Sync.flush(); }, dep);
   await sync(S); await S.evaluate((d) => { location.hash = `#/org/people?d=${d}`; }, dep); await S.waitForSelector('.dp-stats'); await S.waitForTimeout(700);
