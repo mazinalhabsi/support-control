@@ -6770,6 +6770,8 @@ Bus.on('users', async () => {
   const sig = (u) => JSON.stringify([u.role, u.extraPerms || [], u.deniedPerms || [], u.active, u.monitor || null, u.locationId || '', u.office || '']);
   const permSig = (u) => JSON.stringify([u.role, u.extraPerms || [], u.deniedPerms || [], u.active]);
   if (sig(fresh) !== sig(Auth.user)) { const remount = permSig(fresh) !== permSig(Auth.user); Auth.user = fresh; if (remount && Shell.mounted) { Shell.unmount(); Router.resolve(); } }
+  /* سُحبت صلاحية الملاحظات الإدارية: تُمسح نسختها من هذا الجهاز (محلياً فقط). كان الخادم يتوقف عن إرسالها، لكن ما وصل قبل السحب يبقى في قاعدة الجهاز */
+  if (!canUser(fresh, 'vault.read')) { try { if ((await DB.getAll('vault')).length) { await DB.clear('vault'); Bus.emit('vault', {}); } } catch (_) { /* تجاهل */ } }
 });
 
 /* ── صفحة المستخدمين ── */
@@ -7447,7 +7449,8 @@ const PERM_PRESETS = [
   { id: 'tickets', label: 'إدارة البلاغات والإسناد', icon: 'ticket', perms: ['tickets.all', 'tickets.manage'] },
   { id: 'reports', label: 'التقارير والتحليلات', icon: 'chart', perms: ['reports'] },
   { id: 'kb', label: 'كتابة قاعدة المعرفة', icon: 'book', perms: ['kb.write'] },
-  { id: 'users', label: 'إدارة المستخدمين', icon: 'users', perms: ['users.manage'] }
+  { id: 'users', label: 'إدارة المستخدمين', icon: 'users', perms: ['users.manage'] },
+  { id: 'vault', label: 'الملاحظات الإدارية', icon: 'key', perms: ['vault.read', 'vault.manage'] }
 ];
 
 /* ── مسؤولو الفئة من صفحة الإعدادات ── */
@@ -16547,6 +16550,35 @@ const VAULT = {
   async remove(id) { if (!VAULT.canManage()) throw new AppError('لا تملك الصلاحية'); const r = await DB.get('vault', id); await DB.del('vault', id); await Data.log('delete', 'settings', id, `حذف ملاحظة إدارية: ${r ? r.title : id}`); Bus.emit('vault', {}); },
   async patch(id, p) { const r = await DB.get('vault', id); if (!r) return; Object.assign(r, p, { updatedAt: now(), updatedBy: Auth.user.id }); await DB.put('vault', r); Bus.emit('vault', {}); },
   async audit(n, what) { await Data.log('update', 'settings', n.id, `${what} في الملاحظة الإدارية: ${n.title}`); },
+  /* مستوى وصول حساب: لا شيء، أو اطلاع، أو اطلاع وتعديل. يغيّره المشرف وحده (والخادم يفرض ذلك) */
+  level: (u) => (canUser(u, 'vault.manage') && canUser(u, 'vault.read') ? 'manage' : canUser(u, 'vault.read') ? 'read' : 'none'),
+  holders: () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && u.role !== 'monitor' && canUser(u, 'vault.read')),
+  /* يُحدَّث سجل الحساب من الخادم قبل الكتابة ويُتحقق بعدها: حساب نشط يعدّل جهازه سجله (عند الدخول مثلاً)، فكانت نسخة المشرف القديمة
+     تتعارض معه ويُرفض التغيير، فيضيع سحب الصلاحية مع تنبيه عام لا يذكره */
+  async setAccess(changes) {
+    if (!Auth.user || Auth.user.role !== 'supervisor') throw new AppError('منح صلاحية الملاحظات الإدارية للمشرف وحده');
+    const label = (l) => (l === 'manage' ? 'اطلاع وتعديل' : l === 'read' ? 'اطلاع' : 'بلا وصول');
+    const apply = async (list, t) => {
+      for (const [id, level] of list) {
+        const u = await DB.get('users', id); if (!u || ['supervisor', 'monitor'].includes(u.role)) continue;
+        const extra = new Set(u.extraPerms || []), denied = new Set(u.deniedPerms || []), want = level === 'manage' ? ['vault.read', 'vault.manage'] : level === 'read' ? ['vault.read'] : [];
+        ['vault.read', 'vault.manage'].forEach((k) => { const base = (PERMS[u.role] || []).includes(k); if (want.includes(k)) { denied.delete(k); if (!base) extra.add(k); } else { extra.delete(k); if (base) denied.add(k); } });
+        await DB.put('users', { ...u, extraPerms: [...extra], deniedPerms: [...denied], updatedAt: t });
+      }
+    };
+    const left = async (list) => { const out = []; for (const c of list) { const u = await DB.get('users', c[0]); if (u && !['supervisor', 'monitor'].includes(u.role) && VAULT.level(u) !== c[1]) out.push(c); } return out; };
+    let todo = changes;
+    for (let i = 0; i < 3 && todo.length; i++) {
+      if (Sync.on) { await Sync.flush().catch(() => null); await Sync.pull().catch(() => null); }
+      await apply(todo, now());
+      if (Sync.on) await Sync.flush().catch(() => null);
+      todo = await left(todo);
+    }
+    if (todo.length) throw new AppError(`لم يُحفظ وصول ${todo.map((c) => Data.userName(c[0])).join('، ')}. أعد المحاولة بعد قليل`);
+    for (const [id, level] of changes) await Data.log('update', 'users', id, `الملاحظات الإدارية لـ${Data.userName(id)}: ${label(level)}`);
+    await Data.refresh('users'); Bus.emit('users', {}); Bus.emit('vault', {});
+    return changes.length;
+  },
   gen(len = 16) { const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%*?-_', a = new Uint32Array(len); crypto.getRandomValues(a); return [...a].map((x) => cs[x % cs.length]).join(''); },
   async remindJob() {
     if (!VAULT.on() || !VAULT.canRead()) return;
@@ -16607,6 +16639,34 @@ Pages.vaultModal = async (id = '', type = 'account') => {
     } }]
   });
 };
+/* من يصل إلى الملاحظات الإدارية: المشرف يمنحها للفنيين والإداريين (أو أي حساب) اطلاعاً أو اطلاعاً وتعديلاً، ويسحبها */
+Pages.vaultAccess = () => {
+  const LV = [['none', 'بلا وصول'], ['read', 'اطلاع'], ['manage', 'اطلاع وتعديل']], st = { q: '', changed: new Map() };
+  const pool = () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && !['supervisor', 'monitor'].includes(u.role));
+  const row = (u) => { const cur = st.changed.get(u.id) || VAULT.level(u); return html`<div class="list-row">${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub ellipsis">${ROLES[u.role] || ''}${u.departmentId ? ` · ${Data.nameOf('departments', u.departmentId, '')}` : ''}</div></div><select data-lv="${u.id}" aria-label="وصول ${u.name}" style="max-width:150px">${LV.map(([k, l]) => html`<option value="${k}"${k === cur ? raw(' selected') : ''}>${l}</option>`)}</select></div>`; };
+  return UI.modal({
+    title: 'من يصل إلى الملاحظات الإدارية', icon: 'key', size: 'lg',
+    body: html`<p class="muted small">الملاحظة المشتركة يراها كل من له «اطلاع»، ويعدّلها من له «اطلاع وتعديل». والملاحظة الخاصة لكاتبها وحده. تظهر هنا الحسابات الفنية والإدارية ومن له وصول؛ وابحث لإضافة أي حساب آخر.</p>
+      <div class="search-box">${UI.icon('search')}<input type="search" data-vq placeholder="ابحث بالاسم أو الرقم العسكري"></div><div class="list mt" data-vlist style="max-height:380px;overflow:auto"></div><div class="small faint mt" data-vcount></div>`,
+    onMount: (form) => {
+      const draw = () => {
+        const q = normalizeAr(st.q), all = pool();
+        const list = q ? all.filter((u) => normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(q)).slice(0, 60) : all.filter((u) => ['technician', 'support_manager'].includes(u.role) || canUser(u, 'vault.read') || st.changed.has(u.id));
+        const rank = (u) => ({ manage: 0, read: 1, none: 2 })[st.changed.get(u.id) || VAULT.level(u)];
+        list.sort((a, b) => rank(a) - rank(b) || (ROLES[a.role] || '').localeCompare(ROLES[b.role] || '', 'ar') || a.name.localeCompare(b.name, 'ar'));
+        $('[data-vlist]', form).innerHTML = list.length ? String(html`${list.map(row)}`) : String(UI.empty({ illu: 'user', title: 'لا توجد حسابات مطابقة' }));
+        $('[data-vcount]', form).textContent = st.changed.size ? `${fmtNum(st.changed.size)} تغيير لم يُحفظ بعد` : '';
+      };
+      form.addEventListener('input', (e) => { if (e.target.matches('[data-vq]')) { st.q = e.target.value.trim(); draw(); } });
+      form.addEventListener('change', (e) => { const s = e.target.closest('[data-lv]'); if (!s) return; const u = Data.c.users.get(s.dataset.lv); if (u && s.value === VAULT.level(u)) st.changed.delete(u.id); else st.changed.set(s.dataset.lv, s.value); $('[data-vcount]', form).textContent = st.changed.size ? `${fmtNum(st.changed.size)} تغيير لم يُحفظ بعد` : ''; });
+      draw();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async () => {
+      if (!st.changed.size) return true;
+      const n = await VAULT.setAccess([...st.changed]); UI.toast(`تغيّر وصول ${fmtNum(n)} حساب`); return true;
+    } }]
+  });
+};
 Pages.vault = async (ctx) => {
   const st = { q: '', type: '', f: ctx.query.f || '', tag: '', arch: false };
   const reveal = new Set();
@@ -16642,7 +16702,7 @@ Pages.vault = async (ctx) => {
     const live = all.filter((n) => !n.archived), due = live.filter((n) => ['soon', 'expired'].includes(VAULT.state(n)));
     const tags = [...new Set(live.flatMap((n) => n.tags || []))].sort((a, b) => AR_COLL.compare(a, b));
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'الملاحظات الإدارية', sub: 'الحسابات والاشتراكات والبريد والتراخيص وكل ما يحتاج الإداريون الرجوع إليه — مرئية للمخوّلين فقط', illu: 'key', actions: html`${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
+      ${UI.pageHead({ title: 'الملاحظات الإدارية', sub: `الحسابات والاشتراكات والبريد والتراخيص وكل ما يحتاج الإداريون الرجوع إليه. المشتركة يراها ${fmtNum(VAULT.holders().length)} حساب مخوّل، والخاصة لكاتبها وحده`, illu: 'key', actions: html`${Auth.user.role === 'supervisor' ? html`<button class="btn btn-ghost" data-act="access">${UI.icon('users')} من يصل إليها</button>` : ''}${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
       ${manage ? html`<div class="vt-quick">${UI.icon('sparkle')}<span class="faint small">إضافة سريعة:</span>${Object.entries(VT_TYPES).map(([k, T]) => html`<button type="button" class="vt-qb tone-${T.tone}" data-qnew="${k}">${UI.icon(T.icon)} ${T.label}</button>`)}</div>` : ''}
       ${due.length ? html`<div class="banner tone-amber mt">${UI.icon('clock')}<div class="grow"><b>${fmtNum(due.length)} اشتراك أو ترخيص انتهى أو يقترب انتهاؤه خلال ${fmtNum(VAULT.remindDays())} يوماً</b><div class="small">${due.slice(0, 5).map((n) => n.title).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-f="due">عرضها</button></div>` : ''}
       <section class="panel mt"><div class="toolbar">
@@ -16660,6 +16720,7 @@ Pages.vault = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-arch]', () => { st.arch = !st.arch; st.f = ''; draw(); });
   UI.on(ctx.view, 'click', '[data-vtag]', (e, el) => { st.tag = st.tag === el.dataset.vtag ? '' : el.dataset.vtag; draw(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.vaultModal('', st.type || 'account')) draw(); });
+  UI.on(ctx.view, 'click', '[data-act="access"]', async () => { try { if (await Pages.vaultAccess()) draw(); } catch (ex) { UI.error(ex); } });
   UI.on(ctx.view, 'click', '[data-qnew]', async (e, el) => { if (await Pages.vaultModal('', el.dataset.qnew)) draw(); });
   UI.on(ctx.view, 'click', '[data-vedit]', async (e, el) => { if (await Pages.vaultModal(el.dataset.vedit)) draw(); });
   UI.on(ctx.view, 'click', '[data-pin]', async (e, el) => { const n = await DB.get('vault', el.dataset.pin); if (n) { await VAULT.patch(n.id, { pinned: n.pinned ? 0 : 1 }); draw(); } });

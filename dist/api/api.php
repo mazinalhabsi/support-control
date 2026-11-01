@@ -1160,7 +1160,9 @@ case 'pull': {
   /* رقم التقدم يشمل الصفوف المحجوبة عن هذا المستخدم، وإلا أعاد طلبها في كل سحب.
      بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
   if (!$more) $max = max($max, $head);
-  if ($self) $rows = visible_rows($rows, $user, $full);
+  /* الملاحظات الخاصة لكاتبها وحده في النطاقين: كان الحساب الإداري (نطاق الموظف) الممنوح «الاطلاع» يستلم جدول الملاحظات كاملاً بلا تصفية،
+     فتصل جهازَه ملاحظات غيره الخاصة */
+  if ($self) $rows = vault_rows(visible_rows($rows, $user, $full), $user);
   else $rows = vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
