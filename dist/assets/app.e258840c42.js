@@ -8725,15 +8725,15 @@ Pages.org = async (ctx) => {
     const kt = [...new Set(kids.map((x) => (UNIT_TYPES[x.type] || UNIT_TYPES.section).label))].join(' و') || 'الفروع';
     const down = st.dir === 'down', cur = node.kidsView || '', sameType = k === 'u' ? units.filter((x) => x.departmentId === depId && x.type === node.type && x.id !== id) : [];
     const opts = [['auto', 'حسب العرض العام', down ? 'متجاورة في صف تحت الموضع، كبقية المخطط' : 'بعضها فوق بعض بجانب الموضع، كبقية المخطط'], ['flip', 'عكس العرض العام', `${down ? 'قائمة مضغوطة بعضها فوق بعض' : 'شبكة مضغوطة متجاورة'} الآن، وتنعكس تلقائياً إذا غيّرت العرض العام`], ['list', 'قائمة مضغوطة دائماً', 'بعضها فوق بعض في إطار واحد، أياً كان العرض العام'], ['grid', 'شبكة مضغوطة دائماً', 'متجاورة في صفوف داخل إطار واحد، أياً كان العرض العام']];
-    const v = await UI.modal({ title: `عرض ${kt} في «${node.name}»`, icon: 'grid', size: 'sm',
-      body: html`<p class="muted small">${fmtNum(kids.length)} فرع تابع. العرض يُحفظ للجميع، ولا يغيّر الهيكل نفسه.</p><div class="kv-opts">${opts.map(([val, l, h]) => html`<label class="kv-opt"><input type="radio" name="kv" value="${val}"${cur === val || (val === 'auto' && !['flip', 'list', 'grid'].includes(cur)) ? raw(' checked') : ''}><span><b>${l}</b><small>${h}</small></span></label>`)}</div>${sameType.length && OrgScope.covers(depId, '') ? UI.field({ name: 'kvall', type: 'switch', text: `تطبيقه على كل ${(UNIT_TYPES[node.type] || UNIT_TYPES.section).label} في هذه الإدارة (${fmtNum(sameType.length + 1)})` }, 0) : ''}`,
+    const v = await UI.modal({ title: `طريقة عرض ما يتبع «${node.name}»`, icon: 'grid', size: 'sm',
+      body: html`<p class="muted small">${fmtNum(kids.length)} فرع تابع (${kt}). العرض يُحفظ للجميع، ولا يغيّر الهيكل نفسه.</p><div class="kv-opts">${opts.map(([val, l, h]) => html`<label class="kv-opt"><input type="radio" name="kv" value="${val}"${cur === val || (val === 'auto' && !['flip', 'list', 'grid'].includes(cur)) ? raw(' checked') : ''}><span><b>${l}</b><small>${h}</small></span></label>`)}</div>${sameType.length && OrgScope.covers(depId, '') ? UI.field({ name: 'kvall', type: 'switch', text: `تطبيقه على كل ${(UNIT_TYPES[node.type] || UNIT_TYPES.section).label} في هذه الإدارة (${fmtNum(sameType.length + 1)})` }, 0) : ''}`,
       actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: (form) => UI.formValues(form) }] });
     if (!v) return;
     const val = ['flip', 'list', 'grid'].includes(v.kv) ? v.kv : 'auto', t = now();
     try {
       if (k === 'd') { await DB.put('departments', { ...node, kidsView: val, updatedAt: t }); await Data.refresh('departments'); }
       else for (const x of [node, ...(Number(v.kvall) ? sameType : [])]) await DB.put('deptUnits', { ...x, kidsView: val, updatedAt: t });
-      Bus.emit('org', {}); st.fit = true; UI.toast(val !== 'auto' ? `تغيّر عرض ${kt}` : 'عاد العرض حسب العرض العام'); draw();
+      Bus.emit('org', {}); st.fit = true; UI.toast(val !== 'auto' ? `تغيّر عرض ما يتبع «${node.name}»` : 'عاد العرض حسب العرض العام'); draw();
     } catch (ex) { UI.error(ex); }
   });
   UI.on(ctx.view, 'change', 'input[name="odir"]', (e, el) => { st.dir = el.value; st.fit = true; st.scroll = null; try { localStorage.setItem('sq_org_dir', st.dir); } catch (_) { /* تجاهل */ } draw(); });
