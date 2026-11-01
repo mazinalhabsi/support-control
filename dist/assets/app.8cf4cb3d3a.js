@@ -684,12 +684,22 @@ Data.tickets = {
     }, n);
   },
   /* رد المستفيد على بلاغ معلّق يعيده «قيد العمل» ويُبلَّغ الفني بذلك؛ كان يبقى معلّقاً حتى ينتبه الفني ويستأنفه بنفسه */
+  /* الملاحظة الظاهرة (غير الداخلية) تُحفظ آخرَها على البلاغ نفسه (من كتبها ومتى ونصها)، فتظهر علامة في القوائم وشريط في صفحة البلاغ.
+     ومن يكتب من الفنيين يصبح متابعاً للبلاغ: كان رد الموظف يصل الفني المسؤول وحده، فإن كتب فنيٌ ملاحظة قبل الاستلام لم يصله الرد */
   comment(id, text, internal = false) {
     text = String(text || '').trim(); if (!text) return Promise.reject(new AppError('اكتب نص الرد'));
-    const n = (t) => (internal ? [t.assigneeId] : [t.requesterId, t.assigneeId]); n.title = 'رد جديد';
+    const me = Auth.user.id, cut = text.length > 160 ? `${text.slice(0, 160)}…` : text; let followers = [];
+    const n = (t) => (internal ? [t.assigneeId, ...followers] : [t.requesterId, t.assigneeId, ...followers]); n.title = 'رد جديد';
+    n.body = (t) => `«${cut}» — ${t.title}`;
     return this.mutate(id, (t) => {
-      const ev = [{ type: 'comment', text, internal: internal ? 1 : 0 }];
-      if (!internal && t.status === 'waiting' && t.requesterId === Auth.user.id) { t.status = 'in_progress'; n.title = 'ردّ المستفيد على البلاغ المعلّق'; ev.push({ type: 'status', from: 'waiting', to: 'in_progress', text: '' }); }
+      const fromReq = me === t.requesterId, ev = [{ type: 'comment', text, internal: internal ? 1 : 0 }];
+      followers = (t.followers || []).slice();
+      if (!fromReq && !(t.followers || []).includes(me)) t.followers = [...(t.followers || []), me].slice(-20);
+      if (!internal) {
+        n.title = fromReq ? (t.noteFrom === 'staff' ? 'ردّ الموظف على الملاحظة' : 'رد جديد من الموظف') : `ملاحظة من ${Data.userName(me)}`;
+        Object.assign(t, { noteAt: now(), noteBy: me, noteFrom: fromReq ? 'requester' : 'staff', noteText: text.slice(0, 300) });
+      } else n.title = `ملاحظة داخلية من ${Data.userName(me)}`;
+      if (!internal && t.status === 'waiting' && fromReq) { t.status = 'in_progress'; n.title = 'ردّ المستفيد على البلاغ المعلّق'; ev.push({ type: 'status', from: 'waiting', to: 'in_progress', text: '' }); }
       return ev;
     }, n);
   },
@@ -1893,7 +1903,7 @@ const Board = {
       { key: 'waiting', title: 'معلّق', tone: 'slate', icon: 'pause', q: all ? { status: 'waiting' } : { assigneeId: me, status: 'waiting' } }
     ];
   },
-  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b><div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
+  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b>${Pages.noteChip(t)}<div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
   async render(el, { all = false, limit = 10, animate = true } = {}) {
     const data = await Promise.all(this.lanes(all).map(async (l) => ({ ...l, count: l.q.assigneeId ? await DB.count('tickets', 'assignee_status', KR([l.q.assigneeId, l.q.status])) : await DB.count('tickets', 'status', KR(l.q.status)), rows: (await Data.tickets.list({ ...l.q, limit })).rows })));
     el.innerHTML = String(html`<div class="lanes">${data.map((l) => html`<section class="lane tone-${l.tone}" data-lane="${l.key}" data-title="${l.title}"><header class="lane-head"><i class="lbar"></i>${l.title}<span class="lane-count" data-count="${l.count}">${fmtNum(l.count)}</span></header><div class="lane-body">${l.rows.length ? l.rows.map((t) => this.card(t)) : html`<div class="lane-empty">${UI.icon(l.icon)}لا توجد بلاغات</div>`}</div></section>`)}</div>`);
@@ -2134,7 +2144,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
     </div>
     ${UI.panel({ cls: 'mt', body: html`<div class="tiles">${Nav.hidden('/chat') ? '' : Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
-      ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
+      ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)} ${Pages.noteChip(t)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
       <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
     </div>`);
 }, null);
@@ -2143,6 +2153,13 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
 
 
 /* ── البلاغات: القائمة ───────────────────────────────────────── */
+/* علامة آخر ملاحظة على البلاغ: لمقدم البلاغ «ملاحظة من الفني» تنتظر رده، وللفنيين «ردّ الموظف». تختفي حين يرد الطرف الآخر أو يُغلق البلاغ */
+Pages.notePending = (t) => {
+  const me = Auth.user; if (!me || !t.noteAt || ['closed', 'cancelled'].includes(t.status)) return '';
+  if (me.id === t.requesterId) return t.noteFrom === 'staff' ? 'staff' : '';
+  return t.noteFrom === 'requester' && canUser(me, 'tickets.work') ? 'requester' : '';
+};
+Pages.noteChip = (t) => { const k = Pages.notePending(t); return k === 'staff' ? UI.chip('amber', 'ملاحظة من الفني', 'send') : k === 'requester' ? UI.chip('teal', 'ردّ الموظف', 'send') : ''; };
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
   /* الفني يبدأ بما ينتظر الاستلام، فإن لم يكن شيء فبالمسند إليه */
@@ -2185,7 +2202,7 @@ Pages.tickets = async (ctx) => {
     if (f.status === '') delete f.status;
     return Data.tickets.list(f);
   };
-  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) ? raw(' class="t-live"') : ''}><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''}</div></div></div></td>
+  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) ? raw(' class="t-live"') : ''}><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''} ${Pages.noteChip(t)}</div></div></div></td>
     <td>${staff ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.requesterId, 'av-sm')}<div><div>${Data.userName(t.requesterId)}</div><div class="t-sub">${Data.nameOf('departments', t.departmentId, '')}</div></div></div>` : Data.nameOf('departments', t.departmentId)}</td>
     <td>${UI.priority(t.priority)}</td><td>${UI.status(t.status)}</td>
     <td>${t.assigneeId ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.assigneeId, 'av-sm')}<span>${Data.userName(t.assigneeId)}</span>${liveOn(t) ? html`<span class="live-chip" title="الفني متصل ونشط الآن">قيد العمل</span>` : ''}${staff && t.handover && t.handover.text && OPEN.includes(t.status) ? html`<span class="ho-dot" title="ملاحظة تسليم: ${t.handover.text}">${UI.icon('clipboard')}</span>` : ''}</div>` : html`<span class="faint">لم يُسند بعد</span>`}</td>
@@ -2381,6 +2398,7 @@ Pages.ticket = async (ctx) => {
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
       ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}${Ratings.ticketBar(t, staff)}
+      ${Pages.notePending(t) ? html`<div class="banner tone-${Pages.notePending(t) === 'staff' ? 'amber' : 'teal'} note-bar">${UI.icon('send')}<div class="grow"><b>${Pages.notePending(t) === 'staff' ? `ملاحظة من ${Data.userName(t.noteBy)}` : `ردّ ${Data.userName(t.noteBy)}`}</b> <span class="faint small">${timeAgo(t.noteAt)}</span><p class="note-text">${t.noteText}</p></div><button type="button" class="btn btn-sm ${Pages.notePending(t) === 'staff' ? 'btn-primary' : 'btn-soft'}" data-act="replynote">${UI.icon('send')} ${Pages.notePending(t) === 'staff' ? 'الرد على الملاحظة' : 'الرد'}</button></div>` : ''}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -2422,6 +2440,7 @@ Pages.ticket = async (ctx) => {
     if (a === 'cancel') { if (await UI.confirm('هل تريد إلغاء هذا البلاغ؟ يمكن للفنيين إعادة فتحه لاحقاً.', { ok: 'إلغاء البلاغ', danger: true })) run(() => Data.tickets.setStatus(id, 'cancelled'), 'تم إلغاء البلاغ'); return; }
     if (a === 'rate') return Pages.rateModal(id);
     if (a === 'confirmfix') return run(() => Data.tickets.confirmFix(id), 'شكراً لتأكيدك، أُغلق البلاغ');
+    if (a === 'replynote') { const box = $('#cmt', view); if (box) { box.scrollIntoView({ block: 'center', behavior: UI.reduced() ? 'auto' : 'smooth' }); box.focus(); } return; }
     if (a === 'send') { const box = $('#cmt', view), internal = $('#internal', view); if (!box.value.trim()) { box.focus(); return; } UI.busy(el, true); try { await Data.tickets.comment(id, box.value, !!(internal && internal.checked)); UI.toast('تم إرسال الرد'); } catch (ex) { UI.error(ex); UI.busy(el, false); } return; }
     if (a === 'attach') { const fl = (await UI.pickFiles({ accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt' })).filter((f) => f.size <= 10 * 1048576).slice(0, 5); if (fl.length) run(() => Data.tickets.addAttachments(id, fl), 'تمت إضافة المرفقات'); return; }
     if (a === 'parts') { const mv = await Pages.moveModal({ type: 'issue', ref: t.number }); if (mv) { const it = await DB.get('items', mv.itemId); run(() => Data.tickets.comment(id, `تم صرف ${mv.qty} ${it ? it.unit : ''} من «${it ? it.name : ''}» لهذا البلاغ.`, true)); } return; }

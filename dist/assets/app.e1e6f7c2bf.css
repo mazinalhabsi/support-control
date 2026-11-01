@@ -1808,6 +1808,8 @@ html[data-lite="1"] .app-bg i{animation:none!important;will-change:auto!importan
 .head-illu.cat-ic{width:66px;height:66px}
 /* المتواجدون الآن */
 .pres-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;border:1px solid rgba(var(--teal),.4);background:rgba(var(--teal),.1);color:rgb(var(--teal-ink));font:700 13.5px var(--f-display);cursor:pointer;flex:none}
+.note-bar{align-items:flex-start;margin-bottom:12px}.note-bar .note-text{margin:4px 0 0;white-space:pre-wrap;line-height:1.8}
+.tcard .chip{align-self:flex-start;margin-top:4px}
 .pres-err{margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(var(--amber),.12);color:rgb(var(--amber-ink));font-size:12px;line-height:1.7}.pres-err .ic{width:13px;height:13px;vertical-align:-2px}
 .pres-btn i{width:9px;height:9px;border-radius:50%;background:rgb(var(--teal));box-shadow:0 0 0 3px rgba(var(--teal),.25);animation:beat 2s infinite;--t:var(--teal)}
 .pres-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 6px 10px}

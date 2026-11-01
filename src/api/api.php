@@ -873,7 +873,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if (!$old) return can($user, 'tickets.create') && (string) ($data['requesterId'] ?? '') === $me ? $new : null;
       if ((string) ($old['requesterId'] ?? '') !== $me) return null;
       /* ملاحظة التسليم لا تصل جهاز مقدم البلاغ، فتُحفظ كما هي حين يكتب على بلاغه (لا تُمحى بنسخته التي تخلو منها) */
-      $merged = keep_fields($data, $old, ['requesterId', 'number', 'createdAt', 'escalated', 'handover']);
+      $merged = keep_fields($data, $old, ['requesterId', 'number', 'createdAt', 'escalated', 'handover', 'followers']);
       $s0 = (string) ($old['status'] ?? 'new'); $s1 = (string) ($data['status'] ?? $s0);
       $a0 = (string) ($old['assigneeId'] ?? ''); $a1 = (string) ($data['assigneeId'] ?? '');
       /* الإسناد التلقائي بعد إنشاء البلاغ يجري على جهاز الموظف: يُقبل لفني مسؤول عن الفئة فقط */
