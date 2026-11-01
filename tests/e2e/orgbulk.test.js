@@ -81,8 +81,8 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   /* 7) نسخ فرع بكل ما تحته إلى إدارات أخرى، مرتين دون تكرار */
   await go(); const tr = (await struct()).units.find((u) => u.departmentId === svc.id && u.name === 'قسم النقل');
   for (let i = 0; i < 2; i++) {
-    await S.click(`[data-copy="${svc.id}|${tr.id}"]`); await S.waitForSelector('dialog [data-target]');
-    await S.check(`dialog [data-target="${da.id}"]`); await S.check(`dialog [data-target="${db.id}"]`); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+    await S.click(`[data-copy="${svc.id}|${tr.id}"]`); await S.waitForSelector('dialog [data-place]');
+    await S.check(`dialog [data-place="${da.id}|"]`); await S.check(`dialog [data-place="${db.id}|"]`); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
   }
   st = await struct();
   const copied = (d) => { const t = st.kids(d.id).filter((u) => u.name === 'قسم النقل'); return t.length === 1 && st.kids(d.id, t[0].id).length === 2; };

@@ -1,11 +1,14 @@
 /* اختبار طرفي: تنظيم الهيكل.
    - خانات الإضافة: خانة لكل إدارة أو فرع، و«تحته»، وEnter، وعدد من الخانات مرة واحدة، والتحويل إلى «لصق قائمة» وعكسه
    - «اسم آخر» في النافذة الكاملة
+   - النسخ: إدارة إلى إدارات جديدة بهيكلها، وفرع إلى فرع في إدارة أخرى أو بجانبه باسم آخر، دون الحسابات
    التشغيل: BASE=http://127.0.0.1:8106/ CHROME=/path/to/chrome node tests/e2e/orgedit.test.js */
 const { chromium } = require('playwright');
+const crypto = require('crypto');
 const BASE = process.env.BASE || 'http://127.0.0.1:8106/', B = BASE + 'api/api.php', U = BASE;
 const api = async (a, body, tok) => { const r = await fetch(`${B}?a=${a}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tok ? { 'X-Token': tok } : {}) }, body: JSON.stringify(body || {}) }); return r.json().catch(() => ({})); };
 const pull = async (tok) => { let since = 0; const out = []; for (;;) { const r = await fetch(`${B}?a=pull&since=${since}&limit=3000`, { headers: { 'X-Token': tok } }).then((x) => x.json()); out.push(...r.docs); since = r.rev; if (!r.more) return out; } };
+const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(16), hash = crypto.pbkdf2Sync('Passw0rd!', salt, 1000, 32, 'sha256').toString('hex'); return { store: 'users', id, rev: -1, data: { id, username, name: 'حساب ' + username, role: 'department', active: 1, mustChangePassword: 0, extraPerms: [], deniedPerms: [], pass: { algo: 'pbkdf2-sha256', iter: 1000, salt: salt.toString('hex'), hash }, createdAt: Date.now(), updatedAt: Date.now(), ...extra } }; };
 const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  ' : 'FAIL'} ${name}${info ? ' — ' + info : ''}`); };
 (async () => {
   const T = String(Date.now() % 100000), sup = (await api('login', { username: 'sup', password: 'Passw0rd!' })).token;
@@ -67,6 +70,30 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
   st = await struct(); const halls = st.kids(col.id).filter((u) => /^قاعة \d$/.test(u.name));
   ok('«another name» adds every name with the same settings in one history entry', halls.length === 3 && halls.every((u) => u.type === 'office') && (await logCount()) === logs1 + 1, halls.map((u) => `${u.name}:${u.type}`).join(','));
+
+  /* 4) نسخ إدارة إلى إدارتين جديدتين بهيكلها كاملاً، دون حساباتها */
+  const P = `oe${T}`; await api('push', { ops: [mkUser(P, P, { departmentId: col.id, unitId: adm.id })] }, sup); await settle();
+  await go(); await S.click(`[data-copy="${col.id}|"]`); await S.waitForSelector('dialog [data-newname]');
+  await S.fill('dialog [data-newname]', D('نسخة الكلية')); await S.click('dialog [data-morename]'); await S.keyboard.type(D('نسخة ثانية'));
+  const logs2 = await logCount(); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const c1 = st.dep(D('نسخة الكلية')), c2 = st.dep(D('نسخة ثانية')); deps0.push(c1, c2);
+  const shape = (d) => { const walk = (pid) => st.kids(d.id, pid).map((u) => `${u.name}:${u.type}[${walk(u.id)}]`).sort().join(','); return walk(''); };
+  ok('a department is copied as new departments with its whole structure, in one history entry', !!(c1 && c2) && shape(c1) === shape(col) && shape(c2) === shape(col) && (await logCount()) === logs2 + 1, shape(c1 || { id: '' }).slice(0, 120));
+  ok('accounts are not copied: the account stays in the original only', !st.users.some((u) => [c1, c2].some((d) => d && u.departmentId === d.id)) && st.users.find((u) => u.id === P).unitId === adm.id);
+  /* 5) نسخ فرع بما تحته إلى فرع في إدارة أخرى باسم جديد، وما تحته لا يظهر وجهةً */
+  await go(); await S.click(`[data-copy="${col.id}|${adm.id}"]`); await S.waitForSelector('dialog [data-place]');
+  const own = await S.$$eval(`dialog [data-place^="${col.id}|"]`, (x) => x.map((e) => e.dataset.place));
+  ok('a branch cannot be copied into itself or what is under it', !own.some((v) => st.kids(col.id, adm.id).some((u) => v.endsWith(`|${u.id}`)) || v === `${col.id}|${adm.id}`), own.length + ' own places');
+  const cls = st.kids(c1.id).find((u) => u.name === 'الفصول');
+  await S.fill('dialog [data-cpq]', 'الفصول'); await S.waitForTimeout(300); await S.check(`dialog [data-place="${c1.id}|${cls.id}"]`);
+  await S.fill('dialog [data-rename]', 'إداريو الفصول'); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const cp = st.kids(c1.id, cls.id).find((u) => u.name === 'إداريو الفصول');
+  ok('a branch with its offices is copied under a branch of another department, renamed', !!cp && st.kids(c1.id, cp.id).length === 3 && !st.users.some((u) => u.unitId === (cp || {}).id));
+  /* 6) نسخ فرع بجانبه في الموضع نفسه باسم آخر */
+  await S.click(`[data-copy="${col.id}|${adm.id}"]`); await S.waitForSelector('dialog [data-place]'); await S.check(`dialog [data-place="${col.id}|"]`); await S.fill('dialog [data-rename]', 'الإداريون 2');
+  await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const twin = st.kids(col.id).find((u) => u.name === 'الإداريون 2');
+  ok('a branch is copied next to itself under another name', !!twin && st.kids(col.id, twin.id).length === 3 && st.kids(col.id).filter((u) => u.name === 'الإداريون').length === 1);
 
   /* تنظيف */
   await S.evaluate(async (ids) => { for (const id of ids) await App.Data.org.removeDept(id, {}).catch(() => null); }, deps0.filter(Boolean).map((d) => d.id));

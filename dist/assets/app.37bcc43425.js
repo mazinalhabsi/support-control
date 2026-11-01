@@ -7338,6 +7338,8 @@ Data.units.tree = async (departmentId) => {
 /* مستوى الوحدة (1 = تتبع الإدارة مباشرة) وعمق الفروع تحتها */
 const orgDepth = (units, id) => { let d = 0, cur = units.find((u) => u.id === id), g = 0; while (cur && g++ < 60) { d++; cur = cur.parentId ? units.find((u) => u.id === cur.parentId) : null; } return d; };
 const orgHeight = (units, id) => { const kids = units.filter((u) => u.parentId === id); return 1 + (kids.length ? Math.max(...kids.map((k) => orgHeight(units, k.id))) : 0); };
+/* أصول المحدد: ما ليس تحت فرع آخر محدد (يُنقل أو يُنسخ أو يُحذف مع أصله) */
+const orgRoots = (units, ids) => { const set = new Set(ids), byId = new Map(units.map((u) => [u.id, u])); return ids.filter((id) => { let u = byId.get(id), g = 0; if (!u) return false; while (u && u.parentId && g++ < 60) { if (set.has(u.parentId)) return false; u = byId.get(u.parentId); } return true; }); };
 const orgSubtree = (units, id) => { const set = new Set([id]); let grew = true; while (grew) { grew = false; units.forEach((u) => { if (set.has(u.parentId) && !set.has(u.id)) { set.add(u.id); grew = true; } }); } return set; };
 /* ── مطابقة اسم إدارة أو قسم مكتوب (في ملف الاستيراد مثلاً) مع الهيكل التنظيمي ──
    مطابق: الاسم نفسه بعد توحيد الكتابة (الهمزات والتاء المربوطة و«ال» وكلمات مثل «إدارة» و«قسم»)، أو اسم بديل له، أو رمزه.
@@ -7749,16 +7751,45 @@ Data.org = {
       return { added, found, skipped };
     });
   },
-  /* نسخ فروع موضع إلى إدارات أخرى: الفرع بما تحته، أو كل أقسام الإدارة */
-  async copyBranch(depId, unitId, targets) {
-    this.guard();
-    const rows = this.branchRows(depId, unitId, !!unitId), what = unitId ? `«${(Data.list('deptUnits').find((u) => u.id === unitId) || {}).name || ''}»` : `أقسام «${Data.nameOf('departments', depId)}»`;
-    const out = { added: 0, found: 0 };
-    await OrgLog.run('create', `نسخ ${what} إلى ${fmtNum(targets.length)} إدارة`, async () => {
-      /* الأسطر نفسها لكل إدارة: الأب يسبق أبناءه فيُعرف موضعه في الإدارة الحالية قبل أن يحتاجه أبناؤه */
-      for (const t of targets.filter((x) => x !== depId)) { const r = await this.buildBranch(rows, t, ''); out.added += r.added; out.found += r.found; }
+  /* النسخ: فروع (كل منها بما تحته) أو كل أقسام إدارة، إلى أي موضع: إدارة أو فرع. لا تُنسخ الحسابات ولا الرؤساء ولا الرموز.
+     ما يقع تحت فرع آخر محدد يُنسخ مع أصله مرة واحدة، ولا يُنسخ فرع داخل نفسه، ولا أقسام إدارة داخلها.
+     rename: اسم الفرع المنسوخ في مواضعه الجديدة (لفرع واحد)، فيمكن نسخه بجانب الأصل باسم آخر */
+  copyPlan({ departmentId = '', unitIds = [] }) {
+    const all = Data.list('deptUnits'), roots = orgRoots(all, unitIds);
+    const rows = roots.length ? roots.flatMap((id) => { const u = all.find((x) => x.id === id); return this.branchRows(u.departmentId, id, true); }) : this.branchRows(departmentId, '');
+    const skip = (t) => (roots.length ? roots.some((id) => orgSubtree(all, id).has(t.unitId)) : t.departmentId === departmentId);
+    return { rows, roots, skip };
+  },
+  async copyTo(source, targets, { rename = '' } = {}) {
+    const { rows, roots, skip } = this.copyPlan(source);
+    if (!rows.length) throw new AppError('لا فروع لنسخها');
+    if (rename && roots.length === 1) rows[0].name = String(rename).trim() || rows[0].name;
+    const places = targets.filter((t) => !skip(t)), what = roots.length === 1 ? `«${rows[0].name}»` : roots.length ? `${fmtNum(roots.length)} فروع` : `أقسام «${Data.nameOf('departments', source.departmentId)}»`;
+    if (!places.length) throw new AppError('اختر موضعاً خارج ما يُنسخ');
+    const out = { added: 0, found: 0, skipped: 0, places: places.length };
+    await OrgLog.run('create', `نسخ ${what} إلى ${fmtNum(places.length)} موضع`, async () => {
+      /* الأسطر نفسها لكل موضع: الأب يسبق أبناءه فيُعرف مكانه في الموضع الحالي قبل أن يحتاجه أبناؤه */
+      for (const t of places) {
+        const base = t.unitId ? orgDepth(Data.list('deptUnits'), t.unitId) : 0;
+        rows.forEach((r) => { r.tooDeep = base + r.depth + 1 > ORG_MAX_DEPTH; });
+        const r = await this.buildBranch(rows, t.departmentId, t.unitId || ''); out.added += r.added; out.found += r.found; out.skipped += r.skipped;
+      }
     });
     return out;
+  },
+  /* إدارة جديدة بالهيكل نفسه: لكل اسم إدارة بأيقونة الأصل ولونه ومبناه، وتحتها كل أقسامها وفروعها، دون حسابات أو رؤساء أو رموز */
+  async cloneDept(depId, names) {
+    this.guard();
+    const src = Data.c.departments.get(depId); if (!src) throw new AppError('الإدارة غير موجودة');
+    const list = [...new Map(names.map((n) => String(n || '').trim()).filter(Boolean).map((n) => [normalizeAr(n), n])).values()];
+    if (!list.length) throw new AppError('اكتب اسم الإدارة الجديدة');
+    const taken = list.filter((n) => Data.list('departments').some((d) => normalizeAr(d.name) === normalizeAr(n)));
+    if (taken.length) throw new AppError(`توجد إدارة بالاسم: ${taken.join('، ')}`);
+    const rows = this.branchRows(depId, '');
+    return OrgLog.run('create', `نسخ «${src.name}» بهيكلها إلى ${list.map((n) => `«${n}»`).join('، ')}`, async () => {
+      for (const name of list) { const d = await this.saveDept({ name, icon: src.icon, tone: src.tone, locationId: src.locationId || '' }); if (rows.length) await this.buildBranch(rows, d.id, ''); }
+      return { deps: list.length, units: rows.length * list.length };
+    });
   },
   async buildOutline(rows) {
     this.guard();
@@ -8053,7 +8084,7 @@ Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return 
     const names = rows.filter((r) => r.depth === 0).map((r) => r.name);
     const r = await OrgLog.run('create', `إضافة ${fmtNum(names.length)} إدارة: ${names.slice(0, 3).join('، ')}${names.length > 3 ? '…' : ''}`, async () => {
       const out = await Data.org.buildOutline(rows);
-      if (from) out.copied = (await Data.org.copyBranch(from, '', [...new Set(rows.filter((x) => x.depth === 0).map((x) => x.departmentId))])).added;
+      if (from) out.copied = (await Data.org.copyTo({ departmentId: from }, [...new Set(rows.filter((x) => x.depth === 0).map((x) => x.departmentId))].map((id) => ({ departmentId: id, unitId: '' })))).added;
       return out;
     });
     UI.toast(r.deps + r.units + (r.copied || 0) ? `أُضيف ${fmtNum(r.deps)} إدارة و${fmtNum(r.units + (r.copied || 0))} فرع` : 'كل ما في القائمة موجود في الهيكل');
@@ -8132,21 +8163,56 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
   });
 };
 
-/* نسخ فرع بكل ما تحته، أو كل أقسام إدارة، إلى إدارات أخرى دفعة واحدة. لا تُنسخ الحسابات ولا الرؤساء، ولا يتكرر الموجود */
-Pages.orgCopy = (depId, unitId = '') => {
-  const unit = unitId ? Data.list('deptUnits').find((u) => u.id === unitId) : null, rows = Data.org.branchRows(depId, unitId, !!unitId);
-  if (!rows.length) { UI.toast('لا فروع لنسخها', 'warn'); return Promise.resolve(false); }
-  const others = Data.list('departments').filter((d) => d.id !== depId);
+/* النسخ: فرع أو عدة فروع بكل ما تحتها، أو إدارة كاملة، إلى إدارة جديدة أو مواضع قائمة (إدارات أو فروع) تختارها بالبحث.
+   لا تُنسخ الحسابات ولا الرؤساء ولا الرموز؛ النقل وحده ينقل الحسابات */
+const orgPlacePicker = (units, skip) => {
+  const ok = canAssign() ? () => true : (a, b) => OrgScope.covers(a, b), rows = [];
+  Data.list('departments').forEach((d) => {
+    const kids = orgUnitsFlat(units, d.id).filter(({ u }) => ok(d.id, u.id) && !skip({ departmentId: d.id, unitId: u.id })), self = ok(d.id, '') && !skip({ departmentId: d.id, unitId: '' });
+    if (!self && !kids.length) return;
+    rows.push(html`<label class="opk-row dep" data-dep="${d.id}" data-q="${normalizeAr(d.name)}"><input type="checkbox" data-place="${d.id}|"${self ? '' : raw(' disabled')}><span>${UI.icon(d.icon || 'building')}${d.name}</span></label>`);
+    kids.forEach(({ u, depth, path }) => rows.push(html`<label class="opk-row" style="--d:${depth + 1}" data-dep="${d.id}" data-q="${normalizeAr(`${d.name} ${path}`)}"><input type="checkbox" data-place="${d.id}|${u.id}"><span>${UI.icon(u.icon || (UNIT_TYPES[u.type] || UNIT_TYPES.section).icon)}${u.name}</span></label>`));
+  });
+  return html`<div class="opk-bar"><div class="search-box">${UI.icon('search')}<input type="search" data-cpq placeholder="ابحث عن إدارة أو فرع"></div><button type="button" class="btn btn-ghost btn-sm" data-cpall="1">${UI.icon('check')} كل الإدارات</button><button type="button" class="btn btn-ghost btn-sm" data-cpall="0">${UI.icon('x')} إلغاء التحديد</button></div><div class="opk-list" data-cplist>${rows.length ? rows : html`<p class="hint">لا توجد مواضع متاحة</p>`}</div><div class="small faint mt" data-cpcount></div>`;
+};
+const orgBindPicker = (form) => {
+  const count = () => { const n = $$('[data-place]:checked', form).length, c = $('[data-cpcount]', form); if (c) c.textContent = n ? `المحدد: ${fmtNum(n)} موضع` : ''; };
+  form.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-cpq]')) return; const q = normalizeAr(e.target.value.trim());
+    const hit = new Set($$('.opk-row', form).filter((r) => !q || r.dataset.q.includes(q)).map((r) => r.dataset.dep));
+    $$('.opk-row', form).forEach((r) => { r.hidden = !!q && !(r.dataset.q.includes(q) || (r.classList.contains('dep') && hit.has(r.dataset.dep))); });
+  });
+  form.addEventListener('change', (e) => { if (e.target.matches('[data-place]')) count(); });
+  UI.on(form, 'click', '[data-cpall]', (e, el) => { $$('.opk-row.dep:not([hidden]) [data-place]:not(:disabled)', form).forEach((c) => { c.checked = el.dataset.cpall === '1'; }); if (el.dataset.cpall === '0') $$('[data-place]', form).forEach((c) => { c.checked = false; }); count(); });
+};
+Pages.orgCopy = ({ departmentId = '', unitIds = [] }) => {
+  const units = Data.list('deptUnits'), { rows, roots, skip } = Data.org.copyPlan({ departmentId, unitIds }), dept = !roots.length;
+  if (!rows.length && !dept) { UI.toast('لا فروع لنسخها', 'warn'); return Promise.resolve(false); }
+  const one = roots.length === 1 ? units.find((u) => u.id === roots[0]) : null, src = Data.nameOf('departments', departmentId);
+  const what = dept ? `إدارة «${src}» بكل أقسامها وفروعها` : one ? `«${one.name}» بكل ما تحته` : `${fmtNum(roots.length)} فروع بكل ما تحتها`;
+  const canNew = dept && canOrg(), st = { mode: canNew ? 'new' : 'place' };
   return UI.modal({
-    title: unit ? `نسخ «${unit.name}» إلى إدارات أخرى` : `نسخ أقسام «${Data.nameOf('departments', depId)}»`, icon: 'copy', size: 'lg',
-    body: html`<p class="muted">يُنسخ ${unit ? `«${unit.name}» بكل ما تحته` : 'كل أقسام الإدارة وفروعها'} (${fmtNum(rows.length)} فرع) إلى الإدارات التي تختارها. ما يوجد فيها بالاسم نفسه لا يتكرر، ولا تُنسخ الحسابات ولا الرؤساء.</p>
-      <div class="row" style="gap:8px"><button type="button" class="btn btn-ghost btn-sm" data-all="1">${UI.icon('check')} تحديد كل الإدارات</button><button type="button" class="btn btn-ghost btn-sm" data-all="0">${UI.icon('x')} إلغاء التحديد</button></div>
-      <div class="chip-pick mt">${others.map((d) => html`<label><input type="checkbox" data-target="${d.id}"><span>${d.name}</span></label>`)}</div>`,
-    onMount: (form) => UI.on(form, 'click', '[data-all]', (e, el) => $$('[data-target]', form).forEach((c) => { c.checked = el.dataset.all === '1'; })),
+    title: dept ? `نسخ إدارة «${src}»` : one ? `نسخ «${one.name}»` : `نسخ ${fmtNum(roots.length)} فروع`, icon: 'copy', size: 'lg',
+    body: html`<p class="muted">يُنسخ ${what} (${fmtNum(rows.length)} فرع). <b>لا تُنسخ الحسابات ولا الرؤساء ولا الرموز</b>؛ النقل وحده ينقل الحسابات. وما يوجد في الموضع الجديد بالاسم نفسه لا يتكرر.</p>
+      ${canNew ? html`<div class="seg sm mt" role="radiogroup" aria-label="وجهة النسخ"><label><input type="radio" name="cpmode" value="new" checked><span>${UI.icon('plus')} إدارة جديدة بالهيكل نفسه</span></label><label><input type="radio" name="cpmode" value="place"><span>${UI.icon('layers')} إلى إدارات أو فروع قائمة</span></label></div>
+      <div class="mt" data-cpnew><div class="field"><label>اسم الإدارة الجديدة</label><input class="input" data-newname placeholder="مثال: ${src} - فرع الشمال" autocomplete="off"></div><div class="org-more" data-more></div><button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" data-morename>${UI.icon('plus')} إدارة أخرى بالهيكل نفسه</button></div>` : ''}
+      <div class="mt" data-cpplace${canNew ? raw(' hidden') : ''}>${one ? html`<div class="field"><label>الاسم في المواضع الجديدة</label><input class="input" data-rename value="${one.name}" autocomplete="off"><small class="hint">غيّره لتنسخه بجانب الأصل في الموضع نفسه</small></div>` : ''}<div class="field mt"><label>انسخ إلى</label>${orgPlacePicker(units, skip)}</div></div>`,
+    onMount: (form) => {
+      orgBindPicker(form);
+      UI.on(form, 'change', '[name="cpmode"]', (e, el) => { st.mode = el.value; $('[data-cpnew]', form).hidden = st.mode !== 'new'; $('[data-cpplace]', form).hidden = st.mode !== 'place'; });
+      const more = $('[data-more]', form); if (!more) return;
+      const add = () => { const d = document.createElement('div'); d.className = 'org-more-row'; d.innerHTML = String(html`<input class="input" data-newname placeholder="اسم إدارة أخرى" autocomplete="off"><button type="button" class="icon-btn" data-less aria-label="حذف الخانة">${UI.icon('x')}</button>`); more.appendChild(d); d.querySelector('input').focus(); };
+      UI.on(form, 'click', '[data-morename]', add); UI.on(form, 'click', '[data-less]', (e, b) => b.parentNode.remove());
+      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-newname]')) { e.preventDefault(); add(); } });
+    },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نسخ', kind: 'primary', icon: 'copy', submit: true, handler: async (form) => {
-      const targets = $$('[data-target]:checked', form).map((x) => x.dataset.target); if (!targets.length) throw new AppError('اختر إدارة واحدة على الأقل');
-      const r = await Data.org.copyBranch(depId, unitId, targets);
-      UI.toast(`أُضيف ${fmtNum(r.added)} فرع في ${fmtNum(targets.length)} إدارة${r.found ? `، و${fmtNum(r.found)} موجود أصلاً` : ''}`); return true;
+      if (st.mode === 'new') {
+        const r = await Data.org.cloneDept(departmentId, $$('[data-newname]', form).map((x) => x.value));
+        UI.toast(`أُضيفت ${fmtNum(r.deps)} إدارة بهيكل «${src}»`); return true;
+      }
+      const targets = $$('[data-place]:checked', form).map((x) => orgPlaceOf(x.dataset.place)); if (!targets.length) throw new AppError('اختر موضعاً واحداً على الأقل');
+      const r = await Data.org.copyTo({ departmentId, unitIds: roots }, targets, { rename: one ? $('[data-rename]', form).value : '' });
+      UI.toast(`أُضيف ${fmtNum(r.added)} فرع في ${fmtNum(r.places)} موضع${r.found ? `، و${fmtNum(r.found)} موجود أصلاً` : ''}${r.skipped ? `، وتُرك ${fmtNum(r.skipped)} يتجاوز الحد` : ''}`); return true;
     } }]
   });
 };
@@ -8273,9 +8339,9 @@ Pages.org = async (ctx) => {
     const unitActs = (d, u, depth, i, n) => {
       if (!mine(d, u)) return '';
       const fixed = OrgScope.isTop(d.id, u.id);
-      return html`<span class="org-acts">${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فروع تحته">${UI.icon('plus')}</button>` : ''}${!fixed && i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${!fixed && i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|${u.id}" title="نسخه إلى إدارات أخرى">${UI.icon('copy')}</button>` : ''}${fixed ? '' : html`<button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button>`}</span>`;
+      return html`<span class="org-acts">${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فروع تحته">${UI.icon('plus')}</button>` : ''}${!fixed && i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${!fixed && i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-copy="${d.id}|${u.id}" title="نسخه بما تحته">${UI.icon('copy')}</button>${fixed ? '' : html`<button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button>`}</span>`;
     };
-    const depActs = (d) => (mine(d) ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ أقسامها إلى إدارات أخرى">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>` : '');
+    const depActs = (d) => (mine(d) ? html`<span class="org-acts"><button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ الإدارة بهيكلها">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>` : '');
     const people = (n, key) => { const [a, b] = key.split('|'); return assign || OrgScope.covers(a, b) ? html`<button type="button" class="oc-people" data-members="${key}" title="عرض الحسابات ونقلها">${UI.icon('users')}${fmtNum(n)}</button>` : n ? html`<span title="موظفون">${UI.icon('users')}${fmtNum(n)}</span>` : ''; };
     const meta = (n, cnt, key) => html`${cnt ? html`<span title="فروع">${UI.icon('layers')}${fmtNum(cnt)}</span>` : ''}${people(n, key)}`;
     /* المخطط الشجري */
@@ -8323,7 +8389,7 @@ Pages.org = async (ctx) => {
     e.stopPropagation(); const p = el.dataset.parent, departmentId = el.dataset.addunit; if (p) st.open.add(p).add('c' + p); else st.open.add('d' + departmentId);
     run(async () => { const r = await Pages.orgAddBranches({ departmentId, parentId: p }); return r === 'one' ? !!(await Pages.orgNodeModal({ kind: 'unit', departmentId, parentId: p })) : !!r; });
   });
-  UI.on(ctx.view, 'click', '[data-copy]', (e, el) => { e.stopPropagation(); const [d, u] = el.dataset.copy.split('|'); run(() => Pages.orgCopy(d, u).then((r) => !!r)); });
+  UI.on(ctx.view, 'click', '[data-copy]', (e, el) => { e.stopPropagation(); const [d, u] = el.dataset.copy.split('|'); run(() => Pages.orgCopy({ departmentId: d, unitIds: u ? [u] : [] }).then((r) => !!r)); });
   UI.on(ctx.view, 'click', '[data-act="export"]', () => Data.org.exportExcel().catch(UI.error));
   UI.on(ctx.view, 'click', '[data-editunit]', (e, el) => { e.stopPropagation(); run(() => Pages.orgNodeModal({ kind: 'unit', id: el.dataset.editunit }).then((r) => !!r)); });
   UI.on(ctx.view, 'click', '[data-shift]', (e, el) => { e.stopPropagation(); run(() => Data.org.shift(el.dataset.shift, Number(el.dataset.dir))); });
