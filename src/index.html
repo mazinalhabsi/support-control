@@ -3219,6 +3219,8 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .cc-pane>.page-head .head-illu{width:64px;height:64px}
 .cc-pane>.page-head h1{font-size:24px}
 .cc-status{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+button.cc-st{cursor:pointer;color:inherit;font:inherit;font-size:12.5px;font-weight:700;transition:border-color .15s,transform .15s var(--ease)}button.cc-st:hover{border-color:var(--accent);transform:translateY(-1px)}
+.cc-none{padding:8px 12px;margin:0}
 .cc-st{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--surface-2);border:1px solid var(--line)}
 .cc-st i{width:8px;height:8px;border-radius:50%;background:rgb(var(--green))}
 .cc-st.off i{background:rgb(var(--red))}.cc-st.off{color:var(--ink-3)}
@@ -18077,6 +18079,16 @@ const CC_GROUPS = [
 ];
 /* الروابط القديمة: ?s=system و ?tab=… من صفحة الإعدادات ذات التبويبات */
 const CC_ALIAS = { system: 'info', general: 'info', lookups: 'orglists', templates: 'replies' };
+/* كلمات بحث لكل قسم: أسماء الإعدادات التي فيه، فيصل البحث عن «الإغلاق التلقائي» أو «كلمة المرور المؤقتة» إلى مكانها */
+const CC_KEYS = {
+  info: 'اسم الجهة اسم النظام هاتف الدعم الترويسة الهوية', favicon: 'ايقونة التبويب رمز المتصفح', sounds: 'صوت نغمة تنبيه اشعار شاشة العرض', nav: 'القائمة اخفاء اظهار الصفحات',
+  users: 'حساب حسابات موظف فني اضافة استيراد تعطيل تعديل جماعي', perms: 'صلاحية صلاحيات منح سحب دور مصفوفة الادوار وصول', passwords: 'كلمة المرور اعادة تعيين', security: 'الجلسة مدة الجلسة كلمة المرور المؤقتة اول دخول الصور الشخصية',
+  org: 'ادارة اقسام شعبة مكتب هيكل رئيس القسم', orglists: 'موقع مواقع مبنى مباني رتبة رتب',
+  tickets: 'فئة فئات حقول مستندات بلاغ', handling: 'اسناد تلقائي توزيع تناوب الاقل انشغالا تصعيد تاخر الاغلاق التلقائي', sla: 'اتفاقية مستوى الخدمة موعد استجابة حل اولوية', replies: 'رد ردود جاهزة قوالب حلول', ratings: 'تقييم رضا نجوم', surveys: 'استبيان اختبار',
+  forms: 'نموذج نماذج استمارة تعبئة فورية توقيع تحميل', vouchers: 'سند سندات صرف اعارة نقل استبدال قالب ترويسة طباعة', vault: 'ملاحظات ادارية اشتراكات تراخيص بريد تنبيه انتهاء',
+  invlists: 'مخزن مخازن امين تصنيف تصنيفات اصناف', printers: 'طابعة طابعات حبر احبار ماركة موديل', extmaint: 'صيانة خارجية وكيل ضمان جهات', locks: 'قفل اقفال عهدة حذف الاجهزة',
+  backup: 'نسخة نسخ احتياطية استعادة جدولة مجلد الخادم', data: 'قاعدة البيانات بيانات تجريبية تنظيف التجربة عهد الادارات ترحيل'
+};
 const CC_ALL = CC_GROUPS.flatMap(([, , items]) => items);
 const CC_PERM = [...new Set(CC_ALL.flatMap((x) => x[3].split('|')))].join('|');
 Pages.ccExtMaint = (ctx) => {
@@ -18174,11 +18186,11 @@ Pages.controlCenter = async (ctx) => {
   ctx.view.innerHTML = String(html`<div class="cc"><aside class="cc-nav"><div class="cc-head"><span class="cc-hi">${UI.icon('sliders')}</span><div><b>الإعدادات</b><small>مركز التحكم بالنظام</small></div><button type="button" class="icon-btn cc-fold" data-ccfold title="طي القائمة">${UI.icon('menu')}</button></div>
       <div class="search-box cc-q">${UI.icon('search')}<input type="search" placeholder="ابحث في الإعدادات" data-ccq></div>
       <button type="button" class="cc-item" data-cc="home">${UI.icon('grid')}<span>نظرة عامة</span></button>
-      ${groups.map(([g, , items]) => html`<div class="cc-grp"><span class="cc-gl">${g}</span>${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-item" data-cc="${k}" title="${dsc}" data-ccs="${normalizeAr(`${l} ${dsc}`)}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`)}</aside>
+      ${groups.map(([g, , items]) => html`<div class="cc-grp"><span class="cc-gl">${g}</span>${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-item" data-cc="${k}" title="${dsc}" data-ccs="${normalizeAr(`${l} ${dsc} ${CC_KEYS[k] || ''}`)}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`)}<p class="cc-none faint small" hidden>لا يوجد إعداد بهذا الاسم</p></aside>
     <main class="cc-main"></main></div>`);
   const main = $('.cc-main', ctx.view), nav = $('.cc-nav', ctx.view);
   const home = () => html`${UI.pageHead({ title: 'الإعدادات ومركز التحكم', sub: 'كل التعديلات والإضافات في مكان واحد — يظهر لك ما تملك صلاحيته فقط', illu: 'ups' })}
-    <div class="cc-status">${[['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0], ['طلب التقييم', Ratings.cfg().on], ['التعبئة الفورية', FF.on()], [XM.name(), XM.on()], ['الملاحظات الإدارية', VAULT.on()], ['قوالب الاستمارات', !!(VL.data().tpls || []).length]].map(([l, on]) => html`<span class="cc-st ${on ? 'on' : 'off'}"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</span>`)}</div>
+    <div class="cc-status">${[['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0, 'ratings'], ['طلب التقييم', Ratings.cfg().on, 'ratings'], ['الإسناد التلقائي', (Data.c.settings.autoAssign || {}).on !== 0, 'handling'], ['الإغلاق التلقائي', Data.c.settings.autoClose !== 0, 'handling'], ['التعبئة الفورية', FF.on(), 'forms'], [XM.name(), XM.on(), 'extmaint'], ['الملاحظات الإدارية', VAULT.on(), 'vault'], ['قوالب الاستمارات', !!(VL.data().tpls || []).length, 'vouchers']].map(([l, on, k]) => (allowed.some((x) => x[0] === k) ? html`<button type="button" class="cc-st ${on ? 'on' : 'off'}" data-cc="${k}" title="فتح الإعداد"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</button>` : html`<span class="cc-st ${on ? 'on' : 'off'}"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</span>`))}</div>
     ${groups.map(([g, gi, items]) => html`<section class="cc-sec"><h3>${UI.icon(gi)} ${g}</h3><div class="cc-tiles">${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-tile" data-cc="${k}"><span class="cc-ti">${UI.icon(ic)}</span><b>${l}</b><small>${dsc}</small></button>`)}</div></section>`)}`;
   const open = async (s) => {
     st.cleanups.splice(0).forEach((f) => { try { f(); } catch (_) { /* تجاهل */ } });
@@ -18198,7 +18210,10 @@ Pages.controlCenter = async (ctx) => {
   };
   UI.on(ctx.view, 'click', '[data-cc]', (e, el) => { const k = el.dataset.cc; if (k === st.s) return; Router.go(`/settings${k === 'home' ? '' : `?s=${k}`}`); });
   UI.on(ctx.view, 'click', '[data-ccfold]', () => ctx.view.querySelector('.cc').classList.toggle('folded'));
-  nav.querySelector('[data-ccq]').addEventListener('input', (e) => { const q = normalizeAr(e.target.value.trim()); $$('.cc-item[data-ccs]', nav).forEach((b) => { b.hidden = !!q && !b.dataset.ccs.includes(q); }); $$('.cc-grp', nav).forEach((g) => { g.hidden = !!q && !$$('.cc-item:not([hidden])', g).length; }); });
+  /* البحث: كل كلمة مكتوبة يجب أن تطابق اسم القسم أو وصفه أو أسماء إعداداته، وEnter يفتح أول نتيجة */
+  const qin = nav.querySelector('[data-ccq]');
+  qin.addEventListener('input', (e) => { const ws = normalizeAr(e.target.value.trim()).split(/\s+/).filter(Boolean).map((w) => (w.length > 3 ? w.replace(/^ال/, '') : w)); $$('.cc-item[data-ccs]', nav).forEach((b) => { b.hidden = ws.length > 0 && !ws.every((w) => b.dataset.ccs.includes(w)); }); $$('.cc-grp', nav).forEach((g) => { g.hidden = ws.length > 0 && !$$('.cc-item:not([hidden])', g).length; }); $('.cc-none', nav).hidden = !ws.length || !!$('.cc-item[data-ccs]:not([hidden])', nav); });
+  qin.addEventListener('keydown', (e) => { if (e.key !== 'Enter') return; const b = $('.cc-item[data-ccs]:not([hidden])', nav); if (b) { e.preventDefault(); b.click(); } });
   ctx.onCleanup(() => st.cleanups.splice(0).forEach((f) => { try { f(); } catch (_) { /* تجاهل */ } }));
   await open(st.s);
 };

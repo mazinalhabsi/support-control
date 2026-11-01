@@ -3172,6 +3172,8 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .cc-pane>.page-head .head-illu{width:64px;height:64px}
 .cc-pane>.page-head h1{font-size:24px}
 .cc-status{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+button.cc-st{cursor:pointer;color:inherit;font:inherit;font-size:12.5px;font-weight:700;transition:border-color .15s,transform .15s var(--ease)}button.cc-st:hover{border-color:var(--accent);transform:translateY(-1px)}
+.cc-none{padding:8px 12px;margin:0}
 .cc-st{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--surface-2);border:1px solid var(--line)}
 .cc-st i{width:8px;height:8px;border-radius:50%;background:rgb(var(--green))}
 .cc-st.off i{background:rgb(var(--red))}.cc-st.off{color:var(--ink-3)}
