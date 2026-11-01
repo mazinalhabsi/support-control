@@ -39,7 +39,7 @@ function cut(string $s, int $n): string { return function_exists('mb_substr') ? 
 $CONFIG = require __DIR__ . '/config.php';
 
 /* ضغط الردود (JSON يصغر 5 إلى 10 مرات) — لا يُطبق على تنزيل الملفات */
-if (($_GET['a'] ?? '') !== 'file' && function_exists('ob_gzhandler') && !ini_get('zlib.output_compression')) @ob_start('ob_gzhandler');
+if (!in_array($_GET['a'] ?? '', ['file', 'backup_srv_get'], true) && function_exists('ob_gzhandler') && !ini_get('zlib.output_compression')) @ob_start('ob_gzhandler');
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -995,6 +995,89 @@ function verify_password(string $password, $pass): bool {
 setup();
 $action = (string) ($_GET['a'] ?? $_GET['action'] ?? 'ping');
 
+/* ══ النسخ الاحتياطي على الخادم ══
+   مجلد على جهاز الخادم يختاره المشرف من الواجهة، والنسخة المجدولة تُحفظ فيه دون متصفح مفتوح ودون نقرة.
+   كان الحفظ التلقائي يعتمد على اختيار مجلد من المتصفح: غير متاح على http، ويفقد إذنه بعد إعادة تحميل الصفحة (يحتاج نقرة)،
+   فلا تُحفظ النسخة المجدولة أبداً ويصل بدلها إشعار. الحالة (المجلد وآخر نسخة) في ملف داخل مجلد المرفقات (خارج الموقع) */
+function bk_base(): string { global $CONFIG; return rtrim((string) ($CONFIG['files_dir'] ?? ''), '/\\'); }
+function bk_state(): array { $f = bk_base() . DIRECTORY_SEPARATOR . 'backup-state.json'; $s = is_file($f) ? json_decode((string) @file_get_contents($f), true) : null; return is_array($s) ? $s : []; }
+function bk_save_state(array $patch): array { $s = array_replace(bk_state(), $patch); @mkdir(bk_base(), 0775, true); @file_put_contents(bk_base() . DIRECTORY_SEPARATOR . 'backup-state.json', json_encode($s, JSON_UNESCAPED_UNICODE)); return $s; }
+function bk_default_dir(): string { return dirname(bk_base()) . DIRECTORY_SEPARATOR . 'sqapa_backups'; }
+function bk_dir(): string { return (string) (bk_state()['dir'] ?? '') ?: bk_default_dir(); }
+function bk_norm(string $p): string { $p = rtrim(str_replace('\\', '/', $p), '/'); return DIRECTORY_SEPARATOR === '\\' ? strtolower($p) : $p; }
+function bk_tz(): void { global $CONFIG; @date_default_timezone_set((string) ($CONFIG['timezone'] ?? '') ?: 'Asia/Muscat'); }
+/** مجلد صالح: مسار كامل، خارج مجلد الموقع (النسخة فيها بيانات الحسابات فلا يجوز أن تُنزَّل من المتصفح)، ويُكتب فيه. يعيد سبب الرفض أو '' */
+function bk_check_dir(string $dir): string {
+  if ($dir === '') return 'اكتب مسار المجلد';
+  if (!preg_match('~^([A-Za-z]:[\\\\/]|/|\\\\\\\\)~', $dir)) return 'اكتب مساراً كاملاً على جهاز الخادم، مثل D:\\IT-Backups';
+  if (strpos($dir, '..') !== false) return 'المسار لا يقبل «..»';
+  if (!is_dir($dir) && !@mkdir($dir, 0775, true)) return 'تعذّر إنشاء المجلد: تأكد من المسار ومن أن الخادم يملك صلاحية الكتابة فيه';
+  $real = realpath($dir) ?: $dir;
+  foreach (array_filter([(string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), dirname(__DIR__)]) as $root) {
+    $r = realpath($root) ?: $root;
+    if (strpos(bk_norm($real) . '/', bk_norm($r) . '/') === 0) return 'المجلد داخل مجلد الموقع، فتصبح النسخ قابلة للتنزيل من المتصفح. اختر مجلداً خارجه (مثل D:\\IT-Backups)';
+  }
+  $t = $real . DIRECTORY_SEPARATOR . '.write-test';
+  if (@file_put_contents($t, 'ok') === false) return 'لا يمكن الكتابة في هذا المجلد';
+  @unlink($t);
+  return '';
+}
+function bk_files(string $dir): array {
+  $out = [];
+  foreach ((array) @glob($dir . DIRECTORY_SEPARATOR . 'sqapa-*.json.gz') as $f) $out[] = ['name' => basename($f), 'size' => (int) @filesize($f), 'at' => (int) @filemtime($f) * 1000];
+  usort($out, fn($a, $b) => $b['at'] <=> $a['at']);
+  return $out;
+}
+function bk_plan(): array { $s = doc_data('meta', 'settings'); $p = is_array($s) ? (($s['value'] ?? [])['backupPlan'] ?? []) : []; return is_array($p) ? $p : []; }
+/** نسخة كاملة: كل السجلات بصيغة ملف النسخة في الواجهة (فتُسترد من مركز النسخ)، ومرآة للمرفقات بجانبها، وحذف الأقدم من العدد المحدد */
+function bk_run(string $note, string $by = '', string $byName = ''): array {
+  bk_tz();
+  $dir = bk_dir(); $err = bk_check_dir($dir); if ($err !== '') throw new RuntimeException($err);
+  $lock = @fopen(bk_base() . DIRECTORY_SEPARATOR . 'backup.lock', 'c');
+  if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) throw new RuntimeException('نسخة أخرى قيد الإنشاء الآن');
+  try {
+    $real = realpath($dir) ?: $dir; $name = 'sqapa-' . date('Y-m-d_Hi') . '.json.gz'; $path = $real . DIRECTORY_SEPARATOR . $name;
+    $gz = gzopen($path . '.part', 'wb6'); if (!$gz) throw new RuntimeException('تعذّر إنشاء ملف النسخة');
+    $pdo = db(); $pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+    $counts = []; $cur = null; $rows = 0;
+    gzwrite($gz, '{"data":{');
+    $st = $pdo->query("SELECT store, data FROM docs WHERE deleted = 0 AND store <> 'sessions' ORDER BY store, doc_id");
+    while ($r = $st->fetch()) {
+      if ($r['store'] !== $cur) { gzwrite($gz, ($cur === null ? '' : '],') . json_encode((string) $r['store']) . ':['); $cur = (string) $r['store']; $counts[$cur] = 0; }
+      else gzwrite($gz, ',');
+      gzwrite($gz, (string) $r['data']); $counts[$cur]++; $rows++;
+    }
+    $st->closeCursor(); $pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+    if ($cur !== null) gzwrite($gz, ']');
+    $meta = ['app' => 'sqapa-it', 'version' => 1, 'at' => now_ms(), 'by' => $by, 'byName' => $byName, 'scope' => 'full', 'from' => 0, 'to' => now_ms(), 'note' => $note, 'server' => 1, 'counts' => $counts, 'rows' => $rows];
+    gzwrite($gz, '},"meta":' . json_encode($meta, JSON_UNESCAPED_UNICODE) . '}');
+    gzclose($gz);
+    if (!@rename($path . '.part', $path)) throw new RuntimeException('تعذّر حفظ ملف النسخة');
+    /* المرفقات لا تتغير بعد رفعها: مرآة واحدة تُضاف إليها الجديدة فقط */
+    $copied = 0; $src = bk_base(); $mirror = $real . DIRECTORY_SEPARATOR . 'files';
+    if (is_dir($src)) { @mkdir($mirror, 0775, true); foreach ((array) @glob($src . DIRECTORY_SEPARATOR . '*.bin') as $f) { $t = $mirror . DIRECTORY_SEPARATOR . basename($f); if (!is_file($t) || filesize($t) !== filesize($f)) { if (@copy($f, $t)) $copied++; } } }
+    $keep = max(1, (int) (bk_plan()['keep'] ?? 8));
+    foreach (array_slice(bk_files($real), $keep) as $old) @unlink($real . DIRECTORY_SEPARATOR . $old['name']);
+    $size = (int) filesize($path);
+    bk_save_state(['lastAt' => now_ms(), 'lastName' => $name, 'lastSize' => $size, 'lastRows' => $rows, 'lastError' => '', 'lastBy' => $byName ?: 'تلقائي']);
+    return ['name' => $name, 'size' => $size, 'rows' => $rows, 'files' => $copied];
+  } finally { flock($lock, LOCK_UN); fclose($lock); }
+}
+/** النسخة المجدولة: تُفحص مع نبضات المتصلين (مرة في الدقيقة على الأكثر)، وتُنشأ إن حان موعدها بتوقيت الخادم */
+function bk_maybe_run(): void {
+  $mark = bk_base() . DIRECTORY_SEPARATOR . 'backup-check';
+  if (is_file($mark) && time() - (int) @filemtime($mark) < 60) return;
+  @touch($mark);
+  $p = bk_plan(); if (empty($p['on'])) return;
+  bk_tz();
+  $gap = ($p['every'] ?? 'weekly') === 'daily' ? 86400000 : (($p['every'] ?? '') === 'monthly' ? 30 * 86400000 : 7 * 86400000);
+  $last = (int) (bk_state()['lastAt'] ?? 0);
+  if ($last && now_ms() - $last < $gap - 2 * 3600000) return;
+  if ((int) date('G') < (int) ($p['hour'] ?? 22)) return;
+  try { bk_run('نسخة تلقائية مجدولة'); } catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); }
+}
+function can_backup(array $u): bool { return is_sup($u) || can_any($u, ['backup.manage', 'users.manage']); }
+
 switch ($action) {
 
 case 'ping': {
@@ -1189,7 +1272,37 @@ case 'beat': {
   ];
   db()->prepare("REPLACE INTO presence (user_id, at, role, data) VALUES (?, ?, ?, ?)")->execute([$uid, $t, (string) ($user['role'] ?? ''), json_encode($val, JSON_UNESCAPED_UNICODE)]);
   if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - PRESENCE_TTL]);
-  out(['ok' => true, 'presence' => presence_list($user)]);
+  $list = presence_list($user);
+  try { bk_maybe_run(); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
+  out(['ok' => true, 'presence' => $list]);
+}
+
+/* النسخ على الخادم: الحالة والمجلد والنسخ الموجودة */
+case 'backup_srv': {
+  $user = session_user(); if (!can_backup($user)) fail('للمشرف ومن يملك صلاحية البيانات', 403);
+  bk_tz(); $dir = bk_dir(); $err = bk_check_dir($dir); $s = bk_state();
+  out(['dir' => $dir, 'default' => bk_default_dir(), 'custom' => !empty($s['dir']), 'error' => $err, 'state' => $s, 'files' => $err === '' ? array_slice(bk_files(realpath($dir) ?: $dir), 0, 30) : [], 'serverTime' => date('Y-m-d H:i'), 'canSet' => is_sup($user)]);
+}
+case 'backup_srv_dir': {
+  $user = session_user(); if (!is_sup($user)) fail('اختيار مجلد النسخ للمشرف وحده', 403);
+  $dir = trim((string) (body()['dir'] ?? ''));
+  $err = bk_check_dir($dir); if ($err !== '') fail($err, 400);
+  bk_save_state(['dir' => realpath($dir) ?: $dir]);
+  out(['ok' => true, 'dir' => bk_dir()]);
+}
+case 'backup_srv_run': {
+  $user = session_user(); if (!can_backup($user)) fail('للمشرف ومن يملك صلاحية البيانات', 403);
+  @set_time_limit(600);
+  try { out(['ok' => true] + bk_run('نسخة يدوية على الخادم', (string) $user['id'], (string) ($user['name'] ?? ''))); }
+  catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); fail($e->getMessage(), 400); }
+}
+case 'backup_srv_get': {
+  $user = session_user(); if (!can_backup($user)) fail('للمشرف ومن يملك صلاحية البيانات', 403);
+  $name = (string) ($_GET['name'] ?? '');
+  if (!preg_match('/^sqapa-[0-9_-]+\.json\.gz$/', $name)) fail('اسم غير صالح', 400);
+  $f = (realpath(bk_dir()) ?: bk_dir()) . DIRECTORY_SEPARATOR . $name; if (!is_file($f)) fail('النسخة غير موجودة', 404);
+  header('Content-Type: application/gzip'); header('Content-Length: ' . filesize($f)); header('Content-Disposition: attachment; filename="' . $name . '"');
+  readfile($f); exit;
 }
 
 case 'lease': {

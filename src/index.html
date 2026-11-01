@@ -12406,8 +12406,22 @@ Data.backup = {
     const h = new Date().getHours();
     return h >= Number(p.hour || 22);
   },
+  /* النسخ على الخادم (مع خادم المزامنة): مجلد على جهاز الخادم، والنسخة المجدولة يحفظها الخادم نفسه */
+  server: () => Sync.on && !!Sync.token,
+  srv: {
+    status: () => Sync.call('backup_srv'),
+    setDir: (dir) => Sync.call('backup_srv_dir', { body: { dir } }),
+    run: () => Sync.call('backup_srv_run', { body: {}, timeout: 600000 }),
+    async download(name) {
+      const r = await fetch(`${Sync.url}?a=backup_srv_get&name=${encodeURIComponent(name)}`, { headers: { 'X-Token': Sync.token } });
+      if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch (_) { /* تجاهل */ } throw new AppError(m || `تعذّر التنزيل (${r.status})`); }
+      downloadBlob(await r.blob(), name);
+    }
+  },
   async autoRun() {
     try {
+      /* مع الخادم: يحفظ الخادم النسخة المجدولة في مجلده، فلا يكررها المتصفح */
+      if (Data.backup.server() && Data.backup._srvOk !== false) return;
       if (!Auth.user || !canBackup() || !Data.backup.due()) return;
       if (!(await Jobs.claim('backup:at', 6 * HOUR))) return;
       const bk = await Data.backup.create({ scope: 'full', note: 'نسخة تلقائية مجدولة' });
@@ -12425,8 +12439,18 @@ setInterval(() => Data.backup.autoRun(), 60 * MIN);
 Pages.backup = async (ctx) => {
   const draw = async () => {
     const [st, hist, folder] = await Promise.all([Data.backup.storage(), DB.getAll('backups'), Data.backup.folder()]);
+    let srv = null;
+    if (Data.backup.server()) { try { srv = await Data.backup.srv.status(); Data.backup._srvOk = true; } catch (e) { if (e.status === 404) Data.backup._srvOk = false; else srv = { failed: e.message }; } }
     if (!ctx.alive()) return;
     const plan = Data.backup.schedule();
+    const srvPanel = !srv ? '' : srv.failed ? UI.panel({ title: 'النسخ على الخادم', icon: 'drive', body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow">${srv.failed}</div></div>` }) : UI.panel({ title: 'مجلد النسخ على الخادم', icon: 'drive', sub: 'تُحفظ فيه النسخ المجدولة تلقائياً دون متصفح مفتوح، ومعها مرآة للمرفقات', body: html`
+      <div class="form-bar">${UI.icon('folder')}<div class="grow" style="min-width:0"><b class="ltr ellipsis" style="display:block">${srv.dir}</b><div class="t-sub">${srv.custom ? 'المجلد الذي اخترته' : 'المجلد الافتراضي بجانب مجلد المرفقات'} · توقيت الخادم الآن ${srv.serverTime}</div></div>${srv.error ? UI.chip('red', 'لا يصلح', 'alert') : UI.chip('green', 'جاهز', 'check')}</div>
+      ${srv.error ? html`<div class="banner tone-red mt">${UI.icon('alert')}<div class="grow">${srv.error}</div></div>` : ''}
+      ${srv.canSet ? html`<div class="field mt"><label>مسار المجلد على جهاز الخادم</label><div class="row" style="flex-wrap:nowrap;gap:6px"><input class="input ltr" data-srvdir value="${srv.dir}" placeholder="D:\IT-Backups" dir="ltr"><button type="button" class="btn btn-soft" data-act="srvdir">${UI.icon('check')} حفظ</button></div><small class="hint">مسار كامل على الجهاز الذي يعمل عليه XAMPP: قرص آخر أو قرص خارجي موصول به أو مجلد شبكة. يجب أن يكون خارج مجلد الموقع (htdocs) حتى لا تُنزَّل النسخ من المتصفح.</small></div>` : ''}
+      <button class="btn btn-primary btn-block mt" data-act="srvrun"${srv.error ? raw(' disabled') : ''}>${UI.icon('drive')} نسخة الآن على الخادم</button>
+      ${srv.state && srv.state.lastError && (srv.state.errorAt || 0) > (srv.state.lastAt || 0) ? html`<div class="banner tone-amber mt">${UI.icon('alert')}<div class="grow"><b>تعذّرت آخر نسخة ${timeAgo(srv.state.errorAt)}</b><div class="small">${srv.state.lastError}</div></div></div>` : ''}
+      ${srv.state && srv.state.lastAt ? html`<p class="hint mt">آخر نسخة على الخادم: ${timeAgo(srv.state.lastAt)} (${fmtBytes(srv.state.lastSize || 0)}، ${fmtNum(srv.state.lastRows || 0)} سجل) — ${srv.state.lastBy || ''}</p>` : ''}
+      ${(srv.files || []).length ? html`<div class="list mt">${srv.files.slice(0, 10).map((f) => html`<div class="list-row"><div class="grow" style="min-width:0"><b class="ltr ellipsis" style="display:block">${f.name}</b><div class="t-sub">${fmtDateTime(f.at)} · ${fmtBytes(f.size)}</div></div><button type="button" class="btn btn-ghost btn-sm" data-srvget="${f.name}">${UI.icon('download')} تنزيل</button></div>`)}</div><p class="hint">للاسترداد: نزّل النسخة ثم اختر «استرداد».</p>` : ''}` });
     const rows = hist.sort((a, b) => b.at - a.at).slice(0, 12);
     const pct = st.quota ? Math.min(100, (st.usage / st.quota) * 100) : 0;
     const counts = {};
@@ -12441,6 +12465,7 @@ Pages.backup = async (ctx) => {
       </div>
       <div class="grid g-side mt">
         <div class="stack">
+          ${srvPanel}
           ${UI.panel({ title: 'مساحة التخزين', icon: 'database', body: html`<div class="store-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
             <dl class="kv mt"><dt>${UI.icon('database')} المستخدم</dt><dd>${fmtBytes(st.usage)}</dd><dt>${UI.icon('drive')} السعة المتاحة</dt><dd>${st.quota ? fmtBytes(st.quota) : 'غير معروفة'}</dd><dt>${UI.icon('shield')} التخزين الدائم</dt><dd>${st.persisted ? UI.chip('teal', 'مفعّل', 'check') : UI.chip('amber', 'غير مفعّل', 'alert')}</dd></dl>
             ${st.persisted ? '' : html`<button class="btn btn-soft btn-block mt" data-act="persist">${UI.icon('shield')} تفعيل التخزين الدائم</button>`}
@@ -12448,9 +12473,11 @@ Pages.backup = async (ctx) => {
           ${UI.panel({ title: 'النسخ التلقائي المجدول', icon: 'clock', body: html`<div class="form-grid">
               ${UI.field({ name: 'on', type: 'switch', text: 'تفعيل النسخ التلقائي' }, plan.on ? 1 : 0)}
               ${UI.field({ name: 'every', label: 'التكرار', type: 'select', placeholder: false, options: [{ value: 'daily', label: 'يومياً' }, { value: 'weekly', label: 'أسبوعياً' }, { value: 'monthly', label: 'شهرياً' }], value: plan.every })}
-              ${UI.field({ name: 'hour', label: 'بعد الساعة', type: 'number', min: 0, max: 23, value: plan.hour })}
+              ${UI.field({ name: 'hour', label: srv && !srv.failed ? 'بعد الساعة (بتوقيت الخادم)' : 'بعد الساعة', type: 'number', min: 0, max: 23, value: plan.hour })}
+              ${srv && !srv.failed ? UI.field({ name: 'keep', label: 'عدد النسخ المحفوظة على الخادم', type: 'number', min: 1, max: 365, value: plan.keep || 8 }) : ''}
             </div>
-            <div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : window.isSecureContext ? 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً' : `${httpBlocked('الحفظ التلقائي في مجلد')}. ستصلك تذكيرات لحفظ النسخة يدوياً، ونسخ الخادم المجدولة تعمل دائماً`}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
+            ${srv && !srv.failed ? html`<div class="form-bar mt">${UI.icon('drive')}<div class="grow"><b>تُحفظ النسخ المجدولة في مجلد الخادم</b><div class="t-sub">يحفظها الخادم في موعدها ما دام أحد متصلاً بالنظام، ولا يلزم فتح هذه الصفحة</div></div></div>` : html`<div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : window.isSecureContext ? 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً' : `${httpBlocked('الحفظ التلقائي في مجلد')}. ستصلك تذكيرات لحفظ النسخة يدوياً، ونسخ الخادم المجدولة تعمل دائماً`}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
+            `}
             <button class="btn btn-primary btn-block mt" data-act="saveplan">${UI.icon('check')} حفظ الجدولة</button>
             ${plan.lastAt ? html`<p class="hint mt">آخر نسخة تلقائية: ${timeAgo(plan.lastAt)}</p>` : ''}` })}
           ${UI.panel({ title: 'سجل النسخ والاسترداد', icon: 'pulse', flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>العملية</th><th>الملف</th><th>الحجم</th><th>السجلات</th><th>التاريخ</th></tr></thead><tbody>${rows.map((r) => html`<tr><td>${r.kind === 'restore' ? UI.chip('violet', 'استرداد', 'upload') : r.kind === 'auto' ? UI.chip('teal', 'تلقائية', 'clock') : UI.chip('sky', 'يدوية', 'download')}</td><td class="small ltr" style="text-align:start">${r.name || '—'}</td><td class="nowrap">${r.size ? fmtBytes(r.size) : '—'}</td><td>${fmtNum(r.rows || 0)}</td><td class="faint nowrap">${fmtDateTime(r.at)}</td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لم تؤخذ نسخ بعد')}</div>` })}
@@ -12484,9 +12511,12 @@ Pages.backup = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="persist"]', async () => { await Data.backup.persist(); draw(); });
   UI.on(ctx.view, 'click', '[data-act="folder"]', async () => { await Data.backup.pickFolder(); draw(); });
   UI.on(ctx.view, 'click', '[data-act="saveplan"]', async () => {
-    const on = ctx.view.querySelector('[name="on"]'), every = ctx.view.querySelector('[name="every"]'), hour = ctx.view.querySelector('[name="hour"]');
-    try { await Data.backup.setSchedule({ on: on && on.checked ? 1 : 0, every: every.value, hour: clamp(Number(hour.value) || 22, 0, 23) }); UI.toast('حُفظت جدولة النسخ'); draw(); } catch (e) { UI.error(e); }
+    const on = ctx.view.querySelector('[name="on"]'), every = ctx.view.querySelector('[name="every"]'), hour = ctx.view.querySelector('[name="hour"]'), keep = ctx.view.querySelector('[name="keep"]');
+    try { await Data.backup.setSchedule({ on: on && on.checked ? 1 : 0, every: every.value, hour: clamp(Number(hour.value) || 22, 0, 23), ...(keep ? { keep: clamp(Number(keep.value) || 8, 1, 365) } : {}) }); await Sync.flush().catch(() => null); UI.toast('حُفظت جدولة النسخ'); draw(); } catch (e) { UI.error(e); }
   });
+  UI.on(ctx.view, 'click', '[data-act="srvdir"]', async (e, el) => { UI.busy(el, true); try { const r = await Data.backup.srv.setDir($('[data-srvdir]', ctx.view).value.trim()); UI.toast(`سيُحفظ النسخ في ${r.dir}`); draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
+  UI.on(ctx.view, 'click', '[data-act="srvrun"]', async (e, el) => { UI.busy(el, true); try { const r = await Data.backup.srv.run(); await Data.backup.log({ kind: 'manual', name: r.name, size: r.size, rows: r.rows, dest: 'server' }); UI.toast(`حُفظت النسخة على الخادم: ${r.name} (${fmtBytes(r.size)})${r.files ? `، ونُسخ ${fmtNum(r.files)} مرفق جديد` : ''}`); draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
+  UI.on(ctx.view, 'click', '[data-srvget]', async (e, el) => { UI.busy(el, true); try { await Data.backup.srv.download(el.dataset.srvget); } catch (ex) { UI.error(ex); } finally { UI.busy(el, false); } });
   UI.on(ctx.view, 'click', '[data-act="restore"]', async () => { if (await Pages.restoreModal()) draw(); });
   ctx.onCleanup(Bus.on('backup', debounce(() => { if (ctx.alive()) draw(); }, 400)));
   await draw();
