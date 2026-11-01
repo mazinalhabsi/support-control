@@ -8133,6 +8133,8 @@ Pages.orgPeople = async (ctx) => {
   const myDeps = () => Data.list('departments').filter((d) => canAssign() || OrgScope.covers(d.id, '') || Data.list('deptUnits').some((u) => u.departmentId === d.id && OrgScope.covers(d.id, u.id)));
   const st = { d: ctx.query.d || '', u: ctx.query.u || '', view: 'here', q: '', role: '', pick: new Set(), tpick: new Set(), last: null };
   if (!st.d) { const first = myDeps()[0]; st.d = first ? first.id : ''; }
+  /* رئيس فرع لا يرأس الإدارة: يبدأ عند فرعه الذي يرأسه بدل مستوى الإدارة الذي لا يملك التوزيع فيه */
+  if (st.d && !st.u && !canAssign() && !OrgScope.covers(st.d, '')) { const tops = [...OrgScope.of().tops], u = Data.list('deptUnits').find((x) => x.departmentId === st.d && tops.includes(x.id)); if (u) st.u = u.id; }
   const go = (d, u = '') => { st.d = d; st.u = u; st.pick.clear(); st.tpick.clear(); st.q = ''; try { history.replaceState(history.state, '', `#/org/people?d=${encodeURIComponent(d)}${u ? `&u=${encodeURIComponent(u)}` : ''}`); } catch (_) { /* تجاهل */ } draw(); };
   const rank = (p) => Data.nameOf('ranks', p.rankId, '');
   const draw = async () => {
@@ -8231,7 +8233,8 @@ Pages.orgPeople = async (ctx) => {
     const count = new Map(targets.map((x) => { const s = orgSubtree(units, x.id); return [x.id, orgPeople().filter((p) => p.departmentId === x.departmentId && s.has(p.unitId) && !st.pick.has(p.id)).length]; }));
     const plan = new Map(targets.map((x) => [x.id, []]));
     if (el.dataset.dpeven === 'even') ppl.forEach((p, i) => plan.get(targets[i % targets.length].id).push(p));
-    else ppl.forEach((p) => { const room = (x) => (Number(x.capacity) ? (count.get(x.id) + plan.get(x.id).length) / Number(x.capacity) : count.get(x.id) + plan.get(x.id).length); const best = [...targets].sort((a, b) => room(a) - room(b))[0]; plan.get(best.id).push(p); });
+    /* الأقل عدداً أولاً، دون تجاوز سعة فرع ما دام في غيره متسع؛ فإن امتلأت كلها فالأقل تجاوزاً لسعته */
+    else ppl.forEach((p) => { const load = (x) => count.get(x.id) + plan.get(x.id).length, cap = (x) => Number(x.capacity) || Infinity, room = targets.filter((x) => load(x) < cap(x)), pool = room.length ? room : targets, key = room.length ? load : (x) => load(x) / cap(x); const best = [...pool].sort((a, b) => key(a) - key(b))[0]; plan.get(best.id).push(p); });
     const over = targets.filter((x) => Number(x.capacity) && count.get(x.id) + plan.get(x.id).length > Number(x.capacity));
     const ok = await UI.modal({ title: `توزيع ${fmtNum(ppl.length)} حساب على ${fmtNum(targets.length)} فروع`, icon: 'grid', size: 'lg',
       body: html`<p class="muted small">${el.dataset.dpeven === 'even' ? 'بالتساوي بالترتيب الأبجدي.' : 'كل حساب إلى الفرع الأقل عدداً (نسبةً إلى سعته إن حُددت).'} يُسجَّل كله قيداً واحداً يمكن التراجع عنه.</p>${over.length ? html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">يتجاوز السعة: ${over.map((x) => x.name).join('، ')}</div></div>` : ''}<div class="dp-plan">${targets.map((x) => html`<div class="dp-pl"><b>${x.name}</b><small>${fmtNum(count.get(x.id))} حالياً + ${fmtNum(plan.get(x.id).length)}${Number(x.capacity) ? ` من ${fmtNum(x.capacity)}` : ''}</small><p>${plan.get(x.id).map((p) => p.name).join('، ') || '—'}</p></div>`)}</div>`,
