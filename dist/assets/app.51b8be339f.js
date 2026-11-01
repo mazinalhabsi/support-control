@@ -191,7 +191,7 @@ const STORE_EVENTS = {
 
 /* ── قاعدة البيانات IndexedDB ───────────────────────────────── */
 const DB = (() => {
-  const NAME = 'sqapa_it_system', VERSION = 15;
+  const NAME = 'sqapa_it_system', VERSION = 16;
   const SCHEMA = {
     meta: { key: 'key' },
     users: { key: 'id', idx: { username: { path: 'username' }, role: 'role' } },
@@ -232,7 +232,8 @@ const DB = (() => {
     surveyMarks: { key: 'id', idx: { surveyId: 'surveyId', userId: 'userId' } },
     extmaint: { key: 'id', idx: { status: 'status', sentAt: 'sentAt', assetId: 'assetId', batch: 'batch' } },
     vault: { key: 'id', idx: { type: 'type', updatedAt: 'updatedAt' } },
-    noteGroups: { key: 'id' }
+    noteGroups: { key: 'id' },
+    noteReads: { key: 'id', idx: { noteId: 'noteId' } }
   };
   let db = null;
   const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -2413,6 +2414,7 @@ Pages.ticket = async (ctx) => {
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
           ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
+          ${staff && VAULT.on() && VAULT.canRead() ? html`<div data-tknotes="${t.id}"></div>` : ''}
           ${staff ? UI.panel({ title: 'الإسناد والأولوية', icon: 'user-plus', body: html`<div class="stack" style="gap:12px"><div class="row" style="flex-wrap:nowrap">${t.assigneeId ? html`${UI.avatar(t.assigneeId, 'av-lg')}<div><b>${Data.userName(t.assigneeId)}</b><div class="t-sub">الفني المسؤول</div></div>` : html`<span class="faint">لم يُسند إلى فني بعد</span>`}</div>${mgr && OPEN.includes(t.status) ? html`${UI.field({ name: 'assign', label: 'إسناد إلى', type: 'select', options: UI.userOpts(['technician', 'support_manager', 'supervisor']) }, t.assigneeId)}${UI.field({ name: 'prio', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([k, p]) => ({ value: k, label: p.label })) }, t.priority)}` : ''}</div>` }) : ''}
           ${staff ? Pages.ticketFlow(t) : ''}
           ${Pages.categoryFormBar(t.categoryId) ? UI.panel({ title: 'استمارة الفئة', icon: 'file', body: Pages.categoryFormBar(t.categoryId) }) : ''}
@@ -2421,6 +2423,7 @@ Pages.ticket = async (ctx) => {
           ${staff ? await Pages.ticketParts(t) : ''}
         </div>
       </div>`);
+    Pages.ticketNotes(view, t).catch(() => {});
     const assign = $('[name="assign"]', view), prio = $('[name="prio"]', view), tpl = $('#tpl', view);
     if (assign) assign.onchange = () => assign.value && run(() => Data.tickets.assign(id, assign.value), 'تم إسناد البلاغ');
     if (prio) prio.onchange = () => run(() => Data.tickets.setPriority(id, prio.value), 'تم تغيير الأولوية');
@@ -4534,7 +4537,7 @@ document.addEventListener('click', (e) => { const el = e.target.closest('[data-c
 
 /* ── المزامنة مع خادم XAMPP: قاعدة بيانات مركزية مع ذاكرة محلية سريعة ── */
 /* الجداول التي يتوقف ما يستلمه الجهاز منها على صلاحيات الحساب */
-const SYNC_SCOPED = ['tickets', 'ticketEvents', 'attachments', 'chats', 'chatMsgs', 'notifications', 'activity', 'worklog', 'workFolders', 'workItems', 'stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets', 'extmaint', 'vault', 'noteGroups', 'surveyResponses', 'surveyMarks', 'orgLog', 'backups'];
+const SYNC_SCOPED = ['tickets', 'ticketEvents', 'attachments', 'chats', 'chatMsgs', 'notifications', 'activity', 'worklog', 'workFolders', 'workItems', 'stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets', 'extmaint', 'vault', 'noteGroups', 'noteReads', 'surveyResponses', 'surveyMarks', 'orgLog', 'backups'];
 const Sync = {
   url: '', token: '', on: false, rev: 0, queue: [], flushing: false, applying: false, status: 'local', lastAt: 0, lastError: '', pullTimer: 0, head: 0,
   autoUrl() { const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, ''); return `${base}api/api.php`; },
@@ -8134,6 +8137,7 @@ Pages.orgPeople = async (ctx) => {
   const rank = (p) => Data.nameOf('ranks', p.rankId, '');
   const draw = async () => {
     const units = await DB.getAll('deptUnits'); if (!ctx.alive()) return;
+    const dnotes = VAULT.on() && VAULT.canRead() ? (await VAULT.list()).filter((n) => !n.archived && n.link && n.link.kind === 'dept' && n.link.id === st.d).length : null; if (!ctx.alive()) return;
     const dep = Data.c.departments.get(st.d), deps = myDeps();
     if (!dep) { ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'توزيع الحسابات', sub: 'لا توجد إدارة ضمن صلاحيتك', illu: 'building' })}${UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'أضف الإدارات من صفحة الهيكل التنظيمي.', action: html`<a class="btn btn-primary" href="#/org">${UI.icon('layers')} الهيكل التنظيمي</a>` })}`); return; }
     const byId = new Map(units.map((x) => [x.id, x])), node = st.u ? byId.get(st.u) : null;
@@ -8165,7 +8169,7 @@ Pages.orgPeople = async (ctx) => {
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'توزيع الحسابات', sub: 'وزّع حسابات الإدارة على أقسامها، ثم ادخل كل قسم ووزّع على شعبه ومكاتبه. كل نقل يُسجَّل في سجل تغييرات الهيكل ويمكن التراجع عنه', illu: 'building', actions: html`<select class="input dp-dep" data-dpdep aria-label="الإدارة">${deps.map((d) => html`<option value="${d.id}"${d.id === st.d ? raw(' selected') : ''}>${d.name}</option>`)}</select><a class="btn btn-ghost" href="#/org">${UI.icon('layers')} الهيكل التنظيمي</a>` })}
       <nav class="dp-crumb" aria-label="المسار"><button type="button" data-dpgo=""${st.u ? '' : raw(' aria-current="true"')}>${UI.icon('building')} ${dep.name}</button>${trail.map((x) => html`<span>›</span><button type="button" data-dpgo="${x.id}"${x.id === st.u ? raw(' aria-current="true"') : ''}>${x.name}</button>`)}</nav>
-      <div class="dp-stats"><span>${UI.icon('users')} في «${node ? node.name : dep.name}» كله: <b>${fmtNum(inNode.length)}</b></span><span class="${direct.length && kids.length ? 'warn' : ''}">${UI.icon('user')} مباشرة غير موزعين على فروعه: <b>${fmtNum(direct.length)}</b></span><span>${UI.icon('layers')} فروعه: <b>${fmtNum(kids.length)}</b></span></div>
+      <div class="dp-stats">${dnotes != null ? html`<a class="dp-notes" href="#/vault?link=dept:${st.d}">${UI.icon('key')} ملاحظات الإدارة: <b>${fmtNum(dnotes)}</b></a>` : ''}<span>${UI.icon('users')} في «${node ? node.name : dep.name}» كله: <b>${fmtNum(inNode.length)}</b></span><span class="${direct.length && kids.length ? 'warn' : ''}">${UI.icon('user')} مباشرة غير موزعين على فروعه: <b>${fmtNum(direct.length)}</b></span><span>${UI.icon('layers')} فروعه: <b>${fmtNum(kids.length)}</b></span></div>
       <div class="dp-cols">
         <section class="panel dp-people">
           <div class="seg dp-view" role="radiogroup" aria-label="من يُعرض"><label><input type="radio" name="dpview" value="here"${st.view === 'here' ? raw(' checked') : ''}><span>غير الموزعين هنا (${fmtNum(direct.length)})</span></label><label><input type="radio" name="dpview" value="all"${st.view === 'all' ? raw(' checked') : ''}><span>كل من فيه مع فروعه (${fmtNum(inNode.length)})</span></label></div>
@@ -12488,7 +12492,7 @@ const WIPE_GROUPS = [
   ['surveys', 'الاستبيانات وإجاباتها', 'poll', ['surveys', 'surveyResponses', 'surveyMarks']],
   ['announcements', 'الإعلانات والتعاميم', 'bell', ['announcements']],
   ['extmaint', 'الصيانة الخارجية', 'external', ['extmaint']],
-  ['vault', 'الملاحظات ومجموعاتها', 'key', ['vault', 'noteGroups']],
+  ['vault', 'الملاحظات ومجموعاتها', 'key', ['vault', 'noteGroups', 'noteReads']],
   ['activity', 'سجل النشاط', 'clock', ['activity']],
   ['org', 'الهيكل التنظيمي: الإدارات والأقسام والمكاتب والمواقع والمباني', 'layers', ['departments', 'deptUnits', 'locations'], 1],
   ['catalog', 'تصنيفات الأصناف والمخازن وكتالوج الطابعات وأيقونات الماركات', 'box', ['itemCategories', 'warehouses', 'printers', 'brandIcons'], 1],
@@ -12908,7 +12912,7 @@ Shell.remountSoon = () => { clearTimeout(Shell._rmT); Shell._rmT = setTimeout(()
 /* أحداث المزامنة للمخازن الجديدة */
 {
   const n0 = Sync.notifyStores.bind(Sync);
-  Sync.notifyStores = function (stores) { n0(stores); const s = new Set(stores); if (s.has('extmaint')) Bus.emit('extmaint', { remote: true }); if (s.has('vault') || s.has('noteGroups')) Bus.emit('vault', { remote: true, groups: s.has('noteGroups') }); };
+  Sync.notifyStores = function (stores) { n0(stores); const s = new Set(stores); if (s.has('extmaint')) Bus.emit('extmaint', { remote: true }); if (s.has('vault') || s.has('noteGroups') || s.has('noteReads')) Bus.emit('vault', { remote: true, groups: s.has('noteGroups') }); };
 }
 
 /* ══════════ الصيانة الخارجية: أجهزة وأغراض تُرسل إلى جهات خارجية (وكيل، ضمان، شركة) — بلا أي تكاليف ══════════ */
@@ -13349,7 +13353,14 @@ const VAULT = {
   canRead: () => !!Auth.user && canUser(Auth.user, 'vault.read'),
   canManage: () => !!Auth.user && canUser(Auth.user, 'vault.manage'),
   remindDays: () => Number((Data.c.vaultCfg || {}).remindDays) || 30,
-  _g: [],
+  _g: [], _reads: new Map(),
+  /* تأكيد الاطلاع: سجل لكل حساب اطّلع على ملاحظة مهمة (يصل كاتبها وصاحبه فقط) */
+  async loadReads() { const m = new Map(); (await DB.getAll('noteReads').catch(() => [])).forEach((r) => { if (!m.has(r.noteId)) m.set(r.noteId, new Map()); m.get(r.noteId).set(r.userId, r.at || 0); }); VAULT._reads = m; return m; },
+  readAt: (n, userId) => ((VAULT._reads.get(n.id) || new Map()).get(userId) || 0),
+  readStatus(n) { const t = n.importantAt || n.updatedAt || 0, to = VAULT.reach(n).filter((u) => u.id !== n.createdBy); return { read: to.filter((u) => VAULT.readAt(n, u.id) >= t), unread: to.filter((u) => VAULT.readAt(n, u.id) < t) }; },
+  /* المهام المتكررة: البند منجز في الدورة الحالية فقط (اليوم، أو الأسبوع من الأحد) فيعود فارغاً في الدورة التالية دون كتابة */
+  periodStart(repeat) { const d = new Date(); d.setHours(0, 0, 0, 0); if (repeat === 'weekly') d.setDate(d.getDate() - d.getDay()); return d.getTime(); },
+  itemDone: (n, x) => !!x.done && (!n.repeat || (x.at || 0) >= VAULT.periodStart(n.repeat)),
   async loadGroups() { try { VAULT._g = (await DB.getAll('noteGroups')).sort((a, b) => AR_COLL.compare(a.name || '', b.name || '')); } catch (_) { VAULT._g = []; } return VAULT._g; },
   group: (id) => VAULT._g.find((g) => g.id === id),
   live: (n) => !(Number(n.until) > 0 && Number(n.until) <= now()),
@@ -13378,7 +13389,7 @@ const VAULT = {
     if (u.length) parts.push(u.length === 1 ? Data.userName(u[0]) : `${fmtNum(u.length)} حساب`);
     return ['users', parts.join('، ') || 'لا أحد غير كاتبها'];
   },
-  async list() { await VAULT.loadGroups(); const me = Auth.user; return (await DB.getAll('vault')).filter((n) => VAULT.visible(n, me)); },
+  async list() { await VAULT.loadGroups(); await VAULT.loadReads(); const me = Auth.user; return (await DB.getAll('vault')).filter((n) => VAULT.visible(n, me)); },
   expiry: (n) => Number((n.f || {}).expiresAt) || 0,
   state(n) { const x = VAULT.expiry(n); if (!x) return ''; const d = Math.ceil((x - startOfDay(now())) / DAY); return d < 0 ? 'expired' : d <= VAULT.remindDays() ? 'soon' : 'ok'; },
   /* يحفظ الملاحظة. من يراها ومدتها يحددهما كاتبها وحده (والخادم يفرض ذلك)، وغيره ممن يراها يعدّل محتواها */
@@ -13387,7 +13398,7 @@ const VAULT = {
     await VAULT.loadGroups();
     const me = Auth.user, t = now(), cur = rec.id ? await DB.get('vault', rec.id) : null, type = rec.type in VT_TYPES ? rec.type : 'general', T = VT_TYPES[type];
     const author = !cur || cur.createdBy === me.id || me.role === 'supervisor';
-    const out = { ...(cur || {}), id: (cur && cur.id) || rec.id || uid('vn'), type, title: String(rec.title || '').trim(), icon: rec.icon || '', tone: rec.tone || T.tone, f: rec.f || {}, body: String(rec.body || '').trim(), tags: (rec.tags || []).map((x) => String(x).trim()).filter(Boolean).slice(0, 12), pinned: rec.pinned ? 1 : 0, archived: rec.archived ? 1 : 0, important: rec.important ? 1 : 0, items: T.tasks ? (rec.items || []).slice(0, 100) : [], createdBy: cur ? cur.createdBy : me.id, createdAt: cur ? cur.createdAt : t, updatedBy: me.id, updatedAt: t, _rev: cur ? cur._rev : rec._rev };
+    const out = { ...(cur || {}), id: (cur && cur.id) || rec.id || uid('vn'), type, title: String(rec.title || '').trim(), icon: rec.icon || '', tone: rec.tone || T.tone, f: rec.f || {}, body: String(rec.body || '').trim(), tags: (rec.tags || []).map((x) => String(x).trim()).filter(Boolean).slice(0, 12), pinned: rec.pinned ? 1 : 0, archived: rec.archived ? 1 : 0, important: rec.important ? 1 : 0, items: T.tasks ? (rec.items || []).slice(0, 100) : [], repeat: T.tasks && ['daily', 'weekly'].includes(rec.repeat) ? rec.repeat : '', link: rec.link && ['ticket', 'dept'].includes(rec.link.kind) && rec.link.id ? { kind: rec.link.kind, id: String(rec.link.id), label: String(rec.link.label || '').slice(0, 80) } : null, handoverFrom: rec.handoverFrom || (cur && cur.handoverFrom) || '', createdBy: cur ? cur.createdBy : me.id, createdAt: cur ? cur.createdAt : t, updatedBy: me.id, updatedAt: t, _rev: cur ? cur._rev : rec._rev };
     if (author) {
       const a = rec.audience || {}, clean = (x) => [...new Set((x || []).map(String).filter(Boolean))];
       /* «مشتركة» من استدعاء قديم تعني من يصل إلى الملاحظات (كما كانت في الواجهة السابقة) */
@@ -13423,7 +13434,7 @@ const VAULT = {
   async toggleItem(id, iid) {
     if (!VAULT.canManage()) throw new AppError('لا تملك صلاحية تعديل الملاحظات');
     const n = await DB.get('vault', id); if (!n) return;
-    const items = (n.items || []).map((x) => (x.id === iid ? { ...x, done: x.done ? 0 : 1, by: Auth.user.id, at: now() } : x));
+    const items = (n.items || []).map((x) => (x.id === iid ? { ...x, done: VAULT.itemDone(n, x) ? 0 : 1, by: Auth.user.id, at: now() } : x));
     await DB.put('vault', { ...n, items, updatedAt: now(), updatedBy: Auth.user.id }); Bus.emit('vault', {});
   },
   async audit(n, what) { await Data.log('update', 'settings', n.id, `${what} في الملاحظة: ${n.title}`); },
@@ -13443,13 +13454,13 @@ const VAULT = {
     try { await Sync.flush(); } catch (_) { return 0; }
     const res = await Sync.call('notes_sync', { timeout: 30000 }); if (!res || !Array.isArray(res.docs)) return 0;
     let n = 0;
-    for (const st of ['vault', 'noteGroups']) {
+    for (const st of ['vault', 'noteGroups', 'noteReads']) {
       const want = new Map(res.docs.filter((d) => d.store === st).map((d) => [d.id, d])), have = await DB.getAll(st), had = new Map(have.map((r) => [r.id, r]));
       for (const r of have) if (!want.has(r.id)) { try { await Sync.raw.del(st, Sync.localKey(st, r.id)); n++; } catch (_) { /* تجاهل */ } }
       const puts = [...want.values()].filter((d) => !had.has(d.id) || (had.get(d.id)._rev || 0) < d.rev).map((d) => ({ ...d.data, _rev: d.rev }));
       if (puts.length) { await Sync.putRows(st, puts); n += puts.length; }
     }
-    await VAULT.loadGroups();
+    await VAULT.loadGroups(); await VAULT.loadReads();
     if (n) Bus.emit('vault', {});
     return n;
   },
@@ -13469,8 +13480,27 @@ const VAULT = {
   async removeGroup(id) { const g = await DB.get('noteGroups', id); if (!g) return; if (!VAULT.canEditGroup(g)) throw new AppError('يحذف المجموعة من أنشأها'); await DB.del('noteGroups', id); await VAULT.loadGroups(); Bus.emit('vault', {}); },
   /* الملاحظات المهمة التي لم يطّلع عليها هذا الحساب بعد (تُحفظ على جهازه) */
   seenKey: () => `sq_vseen:${(Auth.user || {}).id || ''}`,
-  isNew(n) { if (!n.important || !Auth.user || n.createdBy === Auth.user.id || n.archived) return false; return (lsGet(VAULT.seenKey(), {})[n.id] || 0) < (n.importantAt || n.updatedAt || 0); },
-  markSeen(ids) { const s = lsGet(VAULT.seenKey(), {}); ids.forEach((id) => { s[id] = now(); }); lsSet(VAULT.seenKey(), s); Bus.emit('vault-seen', {}); },
+  isNew(n) { if (!n.important || !Auth.user || n.createdBy === Auth.user.id || n.archived) return false; return Math.max(lsGet(VAULT.seenKey(), {})[n.id] || 0, VAULT.readAt(n, Auth.user.id)) < (n.importantAt || n.updatedAt || 0); },
+  /* «اطّلعت»: يُحفظ على الجهاز فوراً، ويُكتب تأكيد اطلاع للمهمة يراه كاتبها ويصل أجهزة صاحبه الأخرى */
+  markSeen(ids) {
+    const s = lsGet(VAULT.seenKey(), {}), me = Auth.user ? Auth.user.id : '', t = now(); ids.forEach((id) => { s[id] = t; }); lsSet(VAULT.seenKey(), s);
+    Promise.all(ids.map(async (id) => { const n = await DB.get('vault', id); if (!n || !n.important || n.createdBy === me || !me) return; const r = { id: `${id}:${me}`, noteId: id, userId: me, at: t, updatedAt: t }; await DB.put('noteReads', r); if (!VAULT._reads.has(id)) VAULT._reads.set(id, new Map()); VAULT._reads.get(id).set(me, t); })).catch(() => {}).then(() => Bus.emit('vault-seen', {}));
+  },
+  /* تذكير من لم يطّلع بعد على ملاحظة مهمة */
+  async remindUnread(n) {
+    const { unread } = VAULT.readStatus(n), me = Auth.user, t = now(); if (!unread.length) return 0;
+    await DB.bulkPut('notifications', unread.map((u) => ({ id: uid('nt'), userId: u.id, at: t, read: 0, title: `تذكير من ${me.name}: ملاحظة مهمة لم تطّلع عليها — ${n.title}`, body: String(n.body || '').replace(/\s+/g, ' ').slice(0, 90), link: `/vault?n=${n.id}`, kind: 'warn' })));
+    Bus.emit('notifications'); return unread.length;
+  },
+  /* تسليم المناوبة: قائمة مهام جديدة للمستلم بما لم يُنجز، مع إشعار، ونقل الأصل إلى الأرشيف إن طُلب */
+  async handover(n, toId, msg, archive) {
+    const to = Data.c.users.get(toId); if (!to) throw new AppError('اختر من يستلم');
+    const left = (n.items || []).filter((x) => !VAULT.itemDone(n, x)).map((x) => ({ id: uid('ti'), t: x.t, done: 0 }));
+    if (!left.length) throw new AppError('كل المهام منجزة؛ لا شيء يُسلَّم');
+    const out = await VAULT.save({ type: 'task', title: `تسليم: ${n.title}`, items: left, body: [msg, `سلّمها ${Auth.user.name} في ${fmtDateTime(now())}${n.body ? `\n— من الأصل: ${n.body}` : ''}`].filter(Boolean).join('\n'), visibility: 'custom', audience: { users: [toId], roles: [], groups: [] }, until: 0, important: 1, link: n.link || null, handoverFrom: n.id, tone: n.tone });
+    await VAULT.patch(n.id, { handedTo: toId, handedAt: now(), ...(archive ? { archived: 1 } : {}) });
+    return out;
+  },
   async unseen() { if (!VAULT.on() || !VAULT.canRead()) return []; return (await VAULT.list()).filter((n) => VAULT.isNew(n)); },
   level: (u) => (canUser(u, 'vault.manage') && canUser(u, 'vault.read') ? 'manage' : canUser(u, 'vault.read') ? 'read' : 'none'),
   holders: () => VAULT.people(),
@@ -13568,7 +13598,9 @@ Pages.noteGroupsModal = async () => {
 Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
   await VAULT.loadGroups();
   const me = Auth.user, last = lsGet(`sq_vlast:${me.id}`, null);
-  const rec = id ? await DB.get('vault', id) : { type, f: {}, tags: [], visibility: (last && last.visibility) || 'private', audience: (last && last.audience) || { users: [], roles: [], groups: [] }, until: 0, items: [], ...preset };
+  /* الملاحظة الجديدة تبدأ «لي وحدي»: كان آخر من اختيروا يُحدَّدون تلقائياً، فتصل ملاحظة لمن لم يقصدهم الكاتب إن لم ينتبه.
+     آخر اختيار متاح بزر «مثل آخر ملاحظة» حين يطلبه */
+  const rec = id ? await DB.get('vault', id) : { type, f: {}, tags: [], visibility: 'private', audience: { users: [], roles: [], groups: [] }, until: 0, items: [], ...preset };
   if (!rec) throw new AppError('الملاحظة غير موجودة أو لم تعد تصلك');
   const author = !id || rec.createdBy === me.id || me.role === 'supervisor';
   const a0 = rec.visibility === 'custom' ? rec.audience || {} : rec.visibility === 'shared' || !rec.visibility ? { roles: ['supervisor', 'support_manager'] } : {};
@@ -13581,7 +13613,7 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
     if (kind === 'cycle') return html`<div class="field"><label>${label}</label><select name="f_${k}"><option value="">—</option>${Object.entries(VT_CYCLES).map(([c, l]) => html`<option value="${c}"${c === v ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
     if (kind === 'secret') return html`<div class="field"><label>${label}</label><div class="vt-secret-in"><input type="password" name="f_${k}" dir="ltr" value="${v}" autocomplete="new-password"><button type="button" class="icon-btn" data-peek title="إظهار">${UI.icon('eye')}</button>${k === 'password' ? html`<button type="button" class="icon-btn" data-gen title="توليد كلمة مرور قوية">${UI.icon('sparkle')}</button>` : ''}</div></div>`;
     return html`<div class="field"><label>${label}</label><input name="f_${k}" value="${v}"${kind === 'ltr' || kind === 'url' ? raw(' dir="ltr"') : ''}${kind === 'url' ? raw(' placeholder="https://"') : ''}></div>`;
-  })}${VT_TYPES[t].tasks ? html`<div class="field wide"><label>المهام (كل سطر مهمة)</label><textarea name="items" rows="6" placeholder="مثال:&#10;فحص النسخ الاحتياطي&#10;متابعة طابعة الاستقبال&#10;تحديث مضاد الفيروسات">${(rec.items || []).map((x) => x.t).join('\n')}</textarea></div>` : ''}`;
+  })}${VT_TYPES[t].tasks ? html`<div class="field"><label>التكرار</label><select name="repeat"><option value="">لا تتكرر</option><option value="daily"${rec.repeat === 'daily' ? raw(' selected') : ''}>تتجدد كل يوم</option><option value="weekly"${rec.repeat === 'weekly' ? raw(' selected') : ''}>تتجدد كل أسبوع (من الأحد)</option></select></div>` : ''}${VT_TYPES[t].tasks ? html`<div class="field wide"><label>المهام (كل سطر مهمة)</label><textarea name="items" rows="6" placeholder="مثال:&#10;فحص النسخ الاحتياطي&#10;متابعة طابعة الاستقبال&#10;تحديث مضاد الفيروسات">${(rec.items || []).map((x) => x.t).join('\n')}</textarea></div>` : ''}`;
   const keepDur = rec.until > 0 && VAULT.live(rec);
   const visHtml = () => html`<div class="seg nt-vis" role="radiogroup" aria-label="من يرى الملاحظة">${[['private', 'lock', 'لي وحدي'], ['custom', 'users', 'أشخاص ومجموعات'], ['all', 'eye', 'كل من يصل إلى الملاحظات']].map(([k, ic, l]) => html`<label><input type="radio" name="vis" value="${k}"${vis === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`;
   return UI.modal({
@@ -13594,7 +13626,7 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
       </div>
       <section class="nt-share mt">
         <h4>${UI.icon('users')} من يرى الملاحظة</h4>
-        ${author ? html`${visHtml()}<p class="hint nt-vhint" data-vhint></p><div class="np" data-np${vis === 'custom' ? '' : raw(' hidden')}></div>` : html`<p class="nt-ro">${UI.icon(VAULT.audText(rec)[0])} ${VAULT.audText(rec)[1]}<span class="faint small"> — يحددها كاتب الملاحظة</span></p>`}
+        ${author ? html`${visHtml()}<p class="hint nt-vhint" data-vhint></p>${!id && last && last.visibility === 'custom' && ((last.audience || {}).users || []).length + ((last.audience || {}).roles || []).length + ((last.audience || {}).groups || []).length ? html`<button type="button" class="btn btn-ghost btn-sm" data-vlast>${UI.icon('refresh')} مثل آخر ملاحظة</button>` : ''}<div class="np" data-np${vis === 'custom' ? '' : raw(' hidden')}></div>` : html`<p class="nt-ro">${UI.icon(VAULT.audText(rec)[0])} ${VAULT.audText(rec)[1]}<span class="faint small"> — يحددها كاتب الملاحظة</span></p>`}
       </section>
       <section class="nt-share mt">
         <h4>${UI.icon('clock')} المدة والتنبيه</h4>
@@ -13603,6 +13635,13 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
           <div class="wide nt-sw">${UI.field({ name: 'important', type: 'switch', text: 'ملاحظة مهمة: تُبرز لمن يراها ويصلهم إشعار بها' }, rec.important ? 1 : 0)}${id && rec.important ? UI.field({ name: 'renotify', type: 'switch', text: 'إرسال إشعار جديد بهذا التعديل' }, 0) : ''}</div>
         </div>
         <p class="hint">المؤقتة تختفي عن الجميع بانتهاء مدتها وتُحذف من الخادم. اترك «مهمة» مطفأً لملاحظة بلا إشعار.</p>
+      </section>
+      <section class="nt-share mt">
+        <h4>${UI.icon('external')} ربط الملاحظة</h4>
+        <div class="form-grid"><div class="field"><label>بـ</label><select name="lkind"><option value="">لا ربط</option><option value="ticket"${(rec.link || {}).kind === 'ticket' ? raw(' selected') : ''}>بلاغ</option><option value="dept"${(rec.link || {}).kind === 'dept' ? raw(' selected') : ''}>إدارة</option></select></div>
+          <div class="field" data-lk="ticket"${(rec.link || {}).kind === 'ticket' ? '' : raw(' hidden')}><label>رقم البلاغ</label><input name="lticket" dir="ltr" placeholder="IT-2026-00020 أو 20" value="${(rec.link || {}).kind === 'ticket' ? String(rec.link.label || '').replace(/^بلاغ #/, '') : ''}"></div>
+          <div class="field" data-lk="dept"${(rec.link || {}).kind === 'dept' ? '' : raw(' hidden')}><label>الإدارة</label><select name="ldept"><option value="">—</option>${Data.list('departments').map((d) => html`<option value="${d.id}"${(rec.link || {}).kind === 'dept' && rec.link.id === d.id ? raw(' selected') : ''}>${d.name}</option>`)}</select></div></div>
+        <p class="hint">تظهر الملاحظة في صفحة البلاغ، أو في توزيع حسابات الإدارة، لمن يراها.</p>
       </section>
       <details class="nt-more mt"><summary>${UI.icon('sliders')} خيارات أخرى: الوسوم واللون والتثبيت${id ? ' والأرشيف' : ''}</summary><div class="form-grid mt">
         ${UI.field({ name: 'tags', label: 'وسوم (افصل بينها بفاصلة)', placeholder: 'مثال: الموارد البشرية، سحابي', wide: true }, (rec.tags || []).join('، '))}
@@ -13616,7 +13655,9 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
       const pk = box ? notePicker(box, sel, { exclude: rec.createdBy || me.id, onChange: say }) : null;
       say(pk ? pk.count() : 0);
       UI.on(form, 'change', '[name="vis"]', (e, el) => { vis = el.value; if (box) box.hidden = vis !== 'custom'; say(pk ? pk.count() : 0); });
+      UI.on(form, 'click', '[data-vlast]', () => { const a = (last && last.audience) || {}; sel.users = new Set(a.users || []); sel.roles = new Set(a.roles || []); sel.groups = new Set((a.groups || []).filter((g) => VAULT.group(g))); vis = 'custom'; const r = form.querySelector('[name="vis"][value="custom"]'); if (r) r.checked = true; if (box) box.hidden = false; if (pk) pk.render(); say(pk ? pk.count() : 0); });
       UI.on(form, 'change', '[name="dur"]', (e, el) => { const at = form.querySelector('[data-durat]'); if (at) at.hidden = el.value !== 'at'; });
+      UI.on(form, 'change', '[name="lkind"]', (e, el) => { $$('[data-lk]', form).forEach((x) => { x.hidden = x.dataset.lk !== el.value; }); });
       UI.on(form, 'change', '[name="type"]', (e, el) => {
         const keep = {}; $$('[name^="f_"]', form).forEach((x) => { keep[x.name.slice(2)] = x.type === 'date' ? (x.value ? fromDateInput(x.value, true) : '') : x.type === 'datetime-local' ? (x.value ? new Date(x.value).getTime() : '') : x.value; });
         cur = el.value; form.querySelector('[data-tf]').innerHTML = String(fieldsHtml(cur, keep));
@@ -13642,7 +13683,17 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
           if (vis === 'custom' && !sel.users.size && !sel.roles.size && !sel.groups.size) throw new AppError('اختر من يرى الملاحظة، أو اختر «لي وحدي»');
         }
         const audience = { users: [...sel.users], roles: [...sel.roles], groups: [...sel.groups] };
-        const out = await VAULT.save({ ...rec, type: v.type, title: v.title, f, body: v.body, items, tags: String(v.tags || '').split(/[,،]/), visibility: vis, audience, until, tone: v.tone, pinned: v.pinned, archived: v.archived, important: v.important }, { notify: !!Number(v.renotify) });
+        let link = null;
+        if (v.lkind === 'ticket') {
+          /* رقم البلاغ كما يظهر (IT-2026-00020)، أو تسلسله وحده (20): الأحدث أولاً */
+          const q = String(v.lticket || '').trim().toUpperCase();
+          let tk = q ? (await DB.getAll('tickets', 'number', KR(q)))[0] : null;
+          if (!tk && /^\d+$/.test(q)) tk = (await DB.getAll('tickets')).filter((x) => Number(String(x.number || '').split('-').pop()) === Number(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          if (!tk) throw new AppError('لم أجد بلاغاً بهذا الرقم');
+          link = { kind: 'ticket', id: tk.id, label: `بلاغ #${tk.number}` };
+        }
+        else if (v.lkind === 'dept') { if (!v.ldept) throw new AppError('اختر الإدارة'); link = { kind: 'dept', id: v.ldept, label: Data.nameOf('departments', v.ldept, '') }; }
+        const out = await VAULT.save({ ...rec, link, repeat: v.repeat, type: v.type, title: v.title, f, body: v.body, items, tags: String(v.tags || '').split(/[,،]/), visibility: vis, audience, until, tone: v.tone, pinned: v.pinned, archived: v.archived, important: v.important }, { notify: !!Number(v.renotify) });
         if (author && !id) lsSet(`sq_vlast:${me.id}`, { visibility: vis, audience });
         UI.toast(out.notified ? `حُفظت الملاحظة وأُشعر ${fmtNum(out.notified)} حساب` : 'حُفظت الملاحظة');
         return out;
@@ -13650,7 +13701,7 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
   });
 };
 Pages.vault = async (ctx) => {
-  const st = { q: '', view: ctx.query.f === 'due' ? 'due' : ctx.query.v || 'all', type: '', tag: '', focus: ctx.query.n || '' };
+  const st = { q: '', view: ctx.query.f === 'due' ? 'due' : ctx.query.v || 'all', type: '', tag: '', focus: ctx.query.n || '', link: String(ctx.query.link || '') };
   const reveal = new Set(), me = () => Auth.user.id;
   const VIEWS = [['all', 'كل الملاحظات', 'grid'], ['important', 'مهمة', 'alert'], ['tasks', 'المهام', 'check'], ['temp', 'مؤقتة', 'clock'], ['shared', 'مشتركة معي', 'users'], ['mine', 'كتبتها', 'edit'], ['private', 'لي وحدي', 'lock'], ['due', 'تنتهي قريباً', 'refresh'], ['archive', 'الأرشيف', 'archive']];
   const inView = (n, v) => {
@@ -13676,15 +13727,16 @@ Pages.vault = async (ctx) => {
       else val = html`<span class="${kind === 'ltr' ? 'ltr' : ''}">${v}</span>`;
       return html`<div class="vt-row"><span class="vt-k">${label}</span><span class="vt-v">${val}</span>${!['date', 'cycle', 'datetime'].includes(kind) ? html`<button type="button" class="icon-btn" data-copy="${key}" title="نسخ">${UI.icon('copy')}</button>` : ''}</div>`;
     });
-    const items = n.items || [], done = items.filter((i) => i.done).length;
+    const items = n.items || [], done = items.filter((i) => VAULT.itemDone(n, i)).length, author = n.createdBy === me();
+    const rs = author && n.important && n.visibility !== 'private' ? VAULT.readStatus(n) : null;
     return html`<article class="vt-card tone-${n.tone || T.tone}${n.pinned ? ' pinned' : ''}${n.archived ? ' archived' : ''}${n.important ? ' important' : ''}${fresh ? ' fresh' : ''}${st.focus === n.id ? ' focus' : ''}" data-nid="${n.id}">
       <header><span class="vt-ic">${UI.icon(T.icon)}</span><div class="grow" style="min-width:0"><b>${n.title}</b><small>${T.label} · <span class="nt-aud" title="${VAULT.reach(n).map((u) => u.name).join('، ')}">${UI.icon(aic)} ${atxt}</span></small></div>
         ${n.pinned ? html`<span class="vt-pin" title="مثبتة">${UI.icon('pin')}</span>` : ''}
         ${VAULT.canManage() && (n.createdBy === me() || Auth.user.role === 'supervisor') ? html`<button type="button" class="icon-btn" data-pin="${n.id}" title="${n.pinned ? 'إلغاء التثبيت' : 'تثبيت للجميع'}">${UI.icon('pin')}</button>` : ''}${canEdit(n) ? html`<button type="button" class="icon-btn" data-vedit="${n.id}" title="تعديل">${UI.icon('edit')}</button>` : ''}</header>
-      ${n.important || n.until > 0 ? html`<div class="nt-flags">${n.important ? html`<span class="nt-flag imp">${UI.icon('alert')} مهمة${fresh ? ' · جديدة' : ''}</span>` : ''}${n.until > 0 ? html`<span class="nt-flag tmp" title="${fmtDateTime(n.until)}">${UI.icon('clock')} ${noteLeft(n.until)}</span>` : ''}${fresh ? html`<button type="button" class="btn btn-soft btn-sm" data-vseen="${n.id}">${UI.icon('check')} اطّلعت</button>` : ''}</div>` : ''}
+      ${n.important || n.until > 0 || n.repeat || n.link || n.handedTo ? html`<div class="nt-flags">${n.important ? html`<span class="nt-flag imp">${UI.icon('alert')} مهمة${fresh ? ' · جديدة' : ''}</span>` : ''}${n.until > 0 ? html`<span class="nt-flag tmp" title="${fmtDateTime(n.until)}">${UI.icon('clock')} ${noteLeft(n.until)}</span>` : ''}${n.repeat ? html`<span class="nt-flag rep">${UI.icon('refresh')} ${n.repeat === 'daily' ? 'تتجدد كل يوم' : 'تتجدد كل أسبوع'}</span>` : ''}${n.link ? html`<a class="nt-flag lnk" href="${n.link.kind === 'ticket' ? `#/tickets/${n.link.id}` : `#/org/people?d=${n.link.id}`}">${UI.icon(n.link.kind === 'ticket' ? 'ticket' : 'building')} ${n.link.label || (n.link.kind === 'ticket' ? 'بلاغ' : 'إدارة')}</a>` : ''}${n.handedTo ? html`<span class="nt-flag hand">${UI.icon('swap')} سُلّمت إلى ${Data.userName(n.handedTo)}</span>` : ''}${rs ? html`<button type="button" class="nt-flag rd${rs.unread.length ? '' : ' all'}" data-vreads="${n.id}" title="من اطّلع ومن لم يطّلع">${UI.icon('eye')} اطّلع ${fmtNum(rs.read.length)} من ${fmtNum(rs.read.length + rs.unread.length)}</button>` : ''}${fresh ? html`<button type="button" class="btn btn-soft btn-sm" data-vseen="${n.id}">${UI.icon('check')} اطّلعت</button>` : ''}</div>` : ''}
       ${s ? html`<div class="vt-exp ${s}">${UI.icon(s === 'expired' ? 'alert' : 'clock')} ${s === 'expired' ? `انتهى منذ ${fmtNum(-days)} يوم` : s === 'soon' ? (days ? `ينتهي بعد ${fmtNum(days)} يوم` : 'ينتهي اليوم') : `ساري حتى ${fmtDate(x)}`}</div>` : ''}
       ${rows.length ? html`<div class="vt-rows">${rows}</div>` : ''}
-      ${items.length ? html`<div class="nt-tasks"><div class="nt-prog"><i style="width:${Math.round((done / items.length) * 100)}%"></i></div><span class="faint small">أُنجز ${fmtNum(done)} من ${fmtNum(items.length)}</span>${items.map((i) => html`<label class="nt-task${i.done ? ' done' : ''}"><input type="checkbox" data-vtask="${n.id}:${i.id}"${i.done ? raw(' checked') : ''}${VAULT.canManage() ? '' : raw(' disabled')}><span class="grow">${i.t}</span>${i.done && i.by ? html`<small class="faint">${Data.userName(i.by)}</small>` : ''}</label>`)}</div>` : ''}
+      ${items.length ? html`<div class="nt-tasks"><div class="nt-prog"><i style="width:${Math.round((done / items.length) * 100)}%"></i></div><span class="faint small">أُنجز ${fmtNum(done)} من ${fmtNum(items.length)}</span>${items.map((i) => html`<label class="nt-task${VAULT.itemDone(n, i) ? ' done' : ''}"><input type="checkbox" data-vtask="${n.id}:${i.id}"${VAULT.itemDone(n, i) ? raw(' checked') : ''}${VAULT.canManage() ? '' : raw(' disabled')}><span class="grow">${i.t}</span>${VAULT.itemDone(n, i) && i.by ? html`<small class="faint">${Data.userName(i.by)}</small>` : ''}</label>`)}${VAULT.canManage() && !n.archived && done < items.length ? html`<button type="button" class="btn btn-ghost btn-sm nt-hand" data-vhand="${n.id}">${UI.icon('swap')} تسليم المناوبة (${fmtNum(items.length - done)} لم تُنجز)</button>` : ''}</div>` : ''}
       ${n.body ? html`<p class="vt-body">${n.body}</p>` : ''}
       <footer>${(n.tags || []).map((t) => html`<button type="button" class="vt-tag" data-vtag="${t}">#${t}</button>`)}<span class="grow"></span><span class="faint small" title="${fmtDateTime(n.updatedAt)}">${n.createdBy === me() ? 'كتبتها' : `كتبها ${Data.userName(n.createdBy)}`} · ${timeAgo(n.updatedAt)}</span></footer>
     </article>`;
@@ -13693,7 +13745,8 @@ Pages.vault = async (ctx) => {
     const all = await VAULT.list();
     if (!ctx.alive()) return;
     const qn = normalizeAr(st.q), manage = VAULT.canManage(), live = all.filter((n) => !n.archived);
-    const rows = all.filter((n) => inView(n, st.view) && (!st.type || n.type === st.type) && (!st.tag || (n.tags || []).includes(st.tag))
+    const [lk, lid] = st.link.split(':');
+    const rows = all.filter((n) => inView(n, st.view) && (!st.type || n.type === st.type) && (!st.tag || (n.tags || []).includes(st.tag)) && (!st.link || (n.link && n.link.kind === lk && n.link.id === lid))
       && (!qn || normalizeAr([n.title, n.body, (n.tags || []).join(' '), ...(n.items || []).map((i) => i.t), ...Object.entries(n.f || {}).filter(([k]) => !['password', 'key'].includes(k)).map(([, v]) => v)].join(' ')).includes(qn)))
       .sort((a, b) => VAULT.isNew(b) - VAULT.isNew(a) || b.pinned - a.pinned || (b.important || 0) - (a.important || 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
     const due = live.filter((n) => ['soon', 'expired'].includes(VAULT.state(n))), fresh = live.filter((n) => VAULT.isNew(n));
@@ -13701,6 +13754,7 @@ Pages.vault = async (ctx) => {
     const cnt = (v) => all.filter((n) => inView(n, v)).length;
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'الملاحظات', sub: 'ملاحظات العمل والمهام اليومية والحسابات والاشتراكات. كل ملاحظة يراها من يختاره كاتبها: هو وحده، أو أشخاص ومجموعات، أو كل من يصل إلى الملاحظات', illu: 'key', actions: html`${canUser(Auth.user, 'users.manage') ? html`<a class="btn btn-ghost" href="#/settings?s=perms&p=vault.read">${UI.icon('key')} من يصل إليها</a>` : ''}${manage ? html`<button class="btn btn-ghost" data-act="groups">${UI.icon('users')} المجموعات <b class="tab-n">${fmtNum(VAULT._g.length)}</b></button><button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
+      ${st.link ? html`<div class="banner tone-sky nt-banner">${UI.icon('external')}<div class="grow"><b>الملاحظات المرتبطة بـ${lk === 'ticket' ? 'البلاغ' : `«${Data.nameOf('departments', lid, 'الإدارة')}»`}</b></div>${manage ? html`<button type="button" class="btn btn-sm btn-soft" data-lnew>${UI.icon('plus')} ملاحظة مرتبطة</button>` : ''}<button type="button" class="btn btn-sm btn-ghost" data-lclear>${UI.icon('x')} كل الملاحظات</button></div>` : ''}
       ${fresh.length ? html`<div class="banner tone-red nt-banner">${UI.icon('alert')}<div class="grow"><b>${fmtNum(fresh.length)} ملاحظة مهمة لم تطّلع عليها</b><div class="small">${fresh.slice(0, 4).map((n) => `${n.title} (${Data.userName(n.createdBy)})`).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-view="important">عرضها</button></div>` : ''}
       ${due.length ? html`<div class="banner tone-amber mt">${UI.icon('clock')}<div class="grow"><b>${fmtNum(due.length)} اشتراك أو ترخيص انتهى أو يقترب انتهاؤه خلال ${fmtNum(VAULT.remindDays())} يوماً</b><div class="small">${due.slice(0, 5).map((n) => n.title).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-view="due">عرضها</button></div>` : ''}
       <div class="nt-layout mt">
@@ -13727,7 +13781,24 @@ Pages.vault = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="groups"]', async () => { await Pages.noteGroupsModal(); draw(); });
   UI.on(ctx.view, 'click', '[data-qnew]', async (e, el) => { if (await Pages.vaultModal('', el.dataset.qnew, { ...(el.dataset.qdur ? { dur: el.dataset.qdur } : {}), ...(el.dataset.qimp ? { important: 1 } : {}), ...(el.dataset.qnew === 'task' ? { title: `مهام ${fmtDate(now())}` } : {}) })) draw(); });
   UI.on(ctx.view, 'click', '[data-vedit]', async (e, el) => { if (await Pages.vaultModal(el.dataset.vedit)) draw(); });
-  UI.on(ctx.view, 'click', '[data-vseen]', (e, el) => { VAULT.markSeen([el.dataset.vseen]); draw(); });
+  UI.on(ctx.view, 'click', '[data-vseen]', (e, el) => { VAULT.markSeen([el.dataset.vseen]); setTimeout(() => { if (ctx.alive()) draw(); }, 150); });
+  UI.on(ctx.view, 'click', '[data-lclear]', () => { st.link = ''; try { history.replaceState(history.state, '', '#/vault'); } catch (_) { /* تجاهل */ } draw(); });
+  UI.on(ctx.view, 'click', '[data-lnew]', async () => { const [k, id] = st.link.split(':'); let label = k === 'dept' ? Data.nameOf('departments', id, '') : ''; if (k === 'ticket') { const tk = await DB.get('tickets', id); label = tk ? `بلاغ #${tk.number}` : 'بلاغ'; } if (await Pages.vaultModal('', 'general', { link: { kind: k, id, label } })) draw(); });
+  /* من اطّلع على الملاحظة المهمة ومن لم يطّلع، وتذكير من لم يطّلع */
+  UI.on(ctx.view, 'click', '[data-vreads]', async (e, el) => {
+    const n = await DB.get('vault', el.dataset.vreads); if (!n) return; await VAULT.loadReads();
+    const { read, unread } = VAULT.readStatus(n), person = (u, at) => html`<div class="list-row">${UI.avatar(u, 'av-sm')}<div class="grow"><b>${u.name}</b><div class="t-sub">${at ? `اطّلع ${timeAgo(at)}` : ROLES[u.role] || ''}</div></div></div>`;
+    await UI.modal({ title: `من اطّلع على «${n.title}»`, icon: 'eye', size: 'sm', body: html`<p class="muted small">آخر إشعار بها ${fmtDateTime(n.importantAt || n.updatedAt)}. يُحسب الاطلاع بعده.</p><h4 class="mt">${UI.icon('check')} اطّلع (${fmtNum(read.length)})</h4><div class="list">${read.length ? read.map((u) => person(u, VAULT.readAt(n, u.id))) : UI.noData('لم يطّلع أحد بعد')}</div><h4 class="mt">${UI.icon('clock')} لم يطّلع (${fmtNum(unread.length)})</h4><div class="list">${unread.length ? unread.map((u) => person(u, 0)) : UI.noData('اطّلع الجميع')}</div>`,
+      actions: [{ label: 'إغلاق', kind: 'ghost' }, ...(unread.length ? [{ label: `تذكير من لم يطّلع (${fmtNum(unread.length)})`, kind: 'primary', icon: 'bell', handler: async () => { const k = await VAULT.remindUnread(n); UI.toast(`أُرسل تذكير إلى ${fmtNum(k)} حساب`); return true; } }] : [])] });
+  });
+  /* تسليم المناوبة: اختيار المستلم ورسالة، فتُنشأ له قائمة بما لم يُنجز */
+  UI.on(ctx.view, 'click', '[data-vhand]', async (e, el) => {
+    const n = await DB.get('vault', el.dataset.vhand); if (!n) return;
+    const left = (n.items || []).filter((x) => !VAULT.itemDone(n, x)), ppl = VAULT.people().filter((u) => u.id !== me()).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
+    const r = await UI.modal({ title: `تسليم «${n.title}»`, icon: 'swap', size: 'sm', body: html`<p class="muted small">يستلم ${fmtNum(left.length)} مهمة لم تُنجز في قائمة جديدة له، مع إشعار.</p>${UI.field({ name: 'to', label: 'المستلم', type: 'select', placeholder: '— اختر —', options: ppl.map((u) => ({ value: u.id, label: `${u.name} — ${ROLES[u.role] || ''}` })), wide: true })}${UI.field({ name: 'msg', label: 'رسالة للمستلم', type: 'textarea', rows: 3, wide: true, placeholder: 'ما يجب أن يعرفه: ما بدأتَه، ومن تواصلت معه...' })}${UI.field({ name: 'arch', type: 'switch', text: 'نقل القائمة الحالية إلى الأرشيف' }, 1)}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تسليم', kind: 'primary', icon: 'swap', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!v.to) throw new AppError('اختر من يستلم'); const out = await VAULT.handover(n, v.to, String(v.msg || '').trim(), !!Number(v.arch)); return { out, to: v.to }; } }] });
+    if (r) { UI.toast(`سُلّمت إلى ${Data.userName(r.to)}${r.out.notified ? ' وأُشعر' : ''}`); draw(); }
+  });
   UI.on(ctx.view, 'click', '[data-pin]', async (e, el) => { const n = await DB.get('vault', el.dataset.pin); if (n) { try { await VAULT.patch(n.id, { pinned: n.pinned ? 0 : 1 }); } catch (ex) { UI.error(ex); } draw(); } });
   ctx.view.addEventListener('change', async (e) => { const t = e.target; if (!t.matches('[data-vtask]')) return; const [id, iid] = t.dataset.vtask.split(':'); try { await VAULT.toggleItem(id, iid); } catch (ex) { UI.error(ex); } draw(); });
   UI.on(ctx.view, 'click', '[data-reveal]', async (e, el) => { const key = el.dataset.reveal; if (reveal.has(key)) reveal.delete(key); else { reveal.add(key); const [n, k] = await find(key); if (n) VAULT.audit(n, `عرض «${(VT_TYPES[n.type].fields.find((x) => x[0] === k) || [])[1] || k}»`); setTimeout(() => { if (reveal.delete(key) && ctx.alive()) draw(); }, 30000); } draw(); });
@@ -13738,6 +13809,14 @@ Pages.vault = async (ctx) => {
   await draw();
 };
 Router.add('/vault', 'vault.read', Pages.vault, 'الملاحظات');
+/* ملاحظات مرتبطة ببلاغ: لوحة في صفحة البلاغ للفنيين ممن يصلون إلى الملاحظات، بما يراه كل منهم فقط */
+Pages.ticketNotes = async (view, t) => {
+  const box = view.querySelector(`[data-tknotes="${t.id}"]`); if (!box) return;
+  const list = (await VAULT.list()).filter((n) => !n.archived && n.link && n.link.kind === 'ticket' && n.link.id === t.id);
+  if (!box.isConnected) return;
+  box.innerHTML = String(UI.panel({ title: `ملاحظات مرتبطة (${fmtNum(list.length)})`, icon: 'key', tools: VAULT.canManage() ? html`<a class="btn btn-ghost btn-sm" href="#/vault?link=ticket:${t.id}">${UI.icon('plus')} إضافة</a>` : '',
+    body: list.length ? html`<div class="list">${list.map((n) => html`<a class="list-row" href="#/vault?n=${n.id}&link=ticket:${t.id}"><span class="vt-ic tone-${n.tone || (VT_TYPES[n.type] || VT_TYPES.general).tone}" style="width:30px;height:30px">${UI.icon((VT_TYPES[n.type] || VT_TYPES.general).icon)}</span><div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${n.title}</b><div class="t-sub">${Data.userName(n.createdBy)} · ${timeAgo(n.updatedAt)}${n.important ? ' · مهمة' : ''}</div></div></a>`)}</div>` : html`<p class="hint">لا ملاحظات مرتبطة. اكتب للفريق ما جرّبته في هذا البلاغ أو بيانات دخول مؤقتة، ويراها من تختارهم.</p>` }));
+};
 /* شارة «الملاحظات» في القائمة: الملاحظات المهمة التي لم يطّلع عليها الحساب */
 {
   const nb0 = Shell.refreshBadges.bind(Shell);

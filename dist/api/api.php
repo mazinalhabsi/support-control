@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -280,7 +280,7 @@ function pull_full(array $u): array {
   $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
   $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
   $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
-  $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups']);
+  $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups', 'noteReads']);
   $grant(['surveys.manage', 'reports'], ['surveyResponses', 'surveyMarks']);
   $grant(['org.manage'], ['orgLog']);
   return $full;
@@ -421,7 +421,12 @@ function note_clean(array $d): array {
     مجموعتها، أو انتهت مدتها) تُمسح من جهازه، وإن لم تكن فلا ضرر. والردود الخاصة لصاحبها وحده */
 function vault_rows(array $rows, array $user): array {
   $me = (string) ($user['id'] ?? ''); $out = [];
+  /* تأكيد الاطلاع: يصل صاحبه وكاتب الملاحظة وحدهما */
+  $need = [];
+  foreach ($rows as $r) if (!(int) $r['deleted'] && $r['store'] === 'noteReads' && is_array($r['_d']) && (string) ($r['_d']['userId'] ?? '') !== $me) $need[(string) ($r['_d']['noteId'] ?? '')] = 1;
+  $authors = $need ? owners_of('vault', array_keys($need), 'createdBy', []) : [];
   foreach ($rows as $r) {
+    if (!(int) $r['deleted'] && $r['store'] === 'noteReads') { $d = is_array($r['_d']) ? $r['_d'] : []; if ((string) ($d['userId'] ?? '') === $me || ($authors[(string) ($d['noteId'] ?? '')] ?? '') === $me) $out[] = $r; continue; }
     if ((int) $r['deleted'] || !in_array($r['store'], ['vault', 'replies'], true)) { $out[] = $r; continue; }
     $d = is_array($r['_d']) ? $r['_d'] : [];
     if ($r['store'] === 'replies') { if (($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me) $out[] = $r; continue; }
@@ -875,6 +880,14 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       $data['createdBy'] = $me;
       return note_clean($data);
     }
+    /* تأكيد الاطلاع على ملاحظة: يكتبه صاحبه لنفسه فقط، لملاحظة تصله، بوقت الخادم */
+    case 'noteReads': {
+      if ($deleted || !can($user, 'vault.read')) return null;
+      $nid = (string) ($data['noteId'] ?? '');
+      if ($nid === '' || (string) ($data['userId'] ?? '') !== $me || (string) ($data['id'] ?? '') !== "$nid:$me") return null;
+      $n = doc_data('vault', $nid); if (!$n || !note_visible($n, $user)) return null;
+      return ['id' => "$nid:$me", 'noteId' => $nid, 'userId' => $me, 'at' => now_ms(), 'updatedAt' => now_ms()];
+    }
     /* مجموعات الملاحظات: يراها كل من يصل إلى الملاحظات، ويعدّلها ويحذفها منشئها (والمشرف) */
     case 'noteGroups': {
       if (!can($user, 'vault.manage')) return null;
@@ -1303,11 +1316,14 @@ case 'notes_sync': {
   $user = session_user();
   if (!can($user, 'vault.read')) out(['docs' => [], 'head' => current_rev()]);
   $docs = [];
-  foreach (db()->query("SELECT store, doc_id, rev, data FROM docs WHERE store IN ('vault', 'noteGroups') AND deleted = 0")->fetchAll() as $r) {
+  $me = (string) ($user['id'] ?? ''); $mine = []; $reads = [];
+  foreach (db()->query("SELECT store, doc_id, rev, data FROM docs WHERE store IN ('vault', 'noteGroups', 'noteReads') AND deleted = 0")->fetchAll() as $r) {
     $d = json_decode((string) $r['data'], true); if (!is_array($d)) continue;
-    if ($r['store'] === 'vault' && !note_visible($d, $user)) continue;
+    if ($r['store'] === 'noteReads') { $reads[] = [$r, $d]; continue; }
+    if ($r['store'] === 'vault') { if (!note_visible($d, $user)) continue; if ((string) ($d['createdBy'] ?? '') === $me) $mine[$r['doc_id']] = 1; }
     $docs[] = ['store' => $r['store'], 'id' => $r['doc_id'], 'rev' => (int) $r['rev'], 'data' => $d];
   }
+  foreach ($reads as [$r, $d]) if ((string) ($d['userId'] ?? '') === $me || isset($mine[(string) ($d['noteId'] ?? '')])) $docs[] = ['store' => 'noteReads', 'id' => $r['doc_id'], 'rev' => (int) $r['rev'], 'data' => $d];
   out(['docs' => $docs, 'head' => current_rev()]);
 }
 
@@ -1646,7 +1662,7 @@ case 'wipe': {
     'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
     'announcements' => ['announcements'],
     'extmaint' => ['extmaint'],
-    'vault' => ['vault', 'noteGroups'],
+    'vault' => ['vault', 'noteGroups', 'noteReads'],
     'org' => ['departments', 'deptUnits', 'locations', 'orgLog'],
     'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
     'kb' => ['kb', 'replies', 'templates'],
