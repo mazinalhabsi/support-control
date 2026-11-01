@@ -22,7 +22,7 @@ const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(1
   const D1 = `هيكل تجريبي ${T}`, D2 = `هيكل الدمج ${T}`;
   /* 1) البناء من قائمة: إدارتان بأقسامهما، والتكرار لا يُنشئ شيئاً */
   await S.evaluate(() => { location.hash = '#/org'; }); await S.waitForTimeout(1200);
-  await S.click('[data-act="outline"]');
+  await S.click('.page-head [data-act="adddep"]');
   await S.fill('dialog [name="outline"]', `${D1}\n  قسم الشبكات ${T}\n    شعبة الخوادم ${T}\n  قسم الدعم ${T}\n${D2}\n  قسم الشبكات ${T}`);
   await S.waitForTimeout(600);
   const prev = await S.textContent('dialog [data-prev]');
