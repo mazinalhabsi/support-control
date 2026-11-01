@@ -66,6 +66,8 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   /* 6) السحب داخل القائمة يرتّب */
   const rows = S.locator(`[data-frame="${ids.a}"] .ocf-row`);
   const third = (await rows.nth(2).textContent()).includes('فصل 3');
+  /* الهدف في وسط الشاشة والمخطط: قرب الحافة يتحرك العرض أثناء السحب فيتغير موضع الإفلات */
+  await rows.nth(0).evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' })); await S.waitForTimeout(400);
   const box = await rows.nth(0).boundingBox();
   await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: box.width / 2, y: 3 } }); await S.waitForTimeout(1500);
   const first = await S.locator(`[data-frame="${ids.a}"] .ocf-row`).nth(0).textContent();
