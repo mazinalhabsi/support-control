@@ -107,6 +107,8 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const tk = await S.evaluate(async () => { const x = await App.Data.tickets.create({ title: 'تجربة صندوق الرد', description: 'وصف', categoryId: 'other', priority: 'medium' }); await App.Sync.flush(); return { id: x.id }; }).catch(() => null);
   if (tk) { await S.evaluate((id) => { location.hash = `#/tickets/${id}`; }, tk.id); await S.waitForSelector('#composer'); await S.waitForTimeout(800); }
   ok('the ticket composer no longer shows the second ready-reply picker', !!tk && !!(await S.$('#composer')) && !(await S.$('#tpl')), tk ? '' : 'no ticket');
+  /* بلاغ الاختبار يُلغى حتى لا يبقى بلاغ ينتظر الاستلام فيغيّر ما تتوقعه اختبارات الفنيين */
+  if (tk) await S.evaluate(async (id) => { await App.Data.tickets.setStatus(id, 'cancelled', 'انتهى اختبار الإعدادات'); await App.Sync.flush(); }, tk.id).catch(() => null);
 
   /* 9) من يملك إدارة المخزون وحدها */
   const I = await login(INV);
