@@ -11999,7 +11999,9 @@ const PrintCat = {
     Bus.emit('data:printers', {});
     return out;
   },
-  async remove(id) { if (!PrintCat.can()) throw new AppError('لا تملك الصلاحية'); const b = await DB.get('printers', id); await DB.del('printers', id); await Data.refresh('printers'); if (b) await Data.log('delete', 'printers', id, `حذف ماركة: ${b.name}`); Bus.emit('data:printers', {}); }
+  /* حذف ماركة بموديلاتها وأحبارها من الكتالوج. البلاغات السابقة تحفظ اسم الماركة نصاً فلا تتأثر.
+     لا تُحذف آخر ماركة: بلا ماركات يعود نموذج البلاغ إلى القائمة الأصلية فتظهر الماركات المحذوفة من جديد */
+  async remove(id) { if (!PrintCat.can()) throw new AppError('لا تملك الصلاحية'); if (Data.list('printers').filter((x) => x.id !== id).length === 0) throw new AppError('أبقِ ماركة واحدة على الأقل، أو أخفِ الماركات التي لا تحتاجها'); const b = await DB.get('printers', id); await DB.del('printers', id); await Data.refresh('printers'); if (b) await Data.log('delete', 'printers', id, `حذف ماركة: ${b.name}`); Bus.emit('data:printers', {}); }
 };
 /* خانات بلاغ الطابعة وطلب الحبر تأخذ خياراتها من الكتالوج: الماركة بأيقونات، ثم موديلاتها، ثم أحبارها */
 {
@@ -12030,7 +12032,7 @@ Pages.printerBrandModal = (b = {}) => {
       UI.on(form, 'click', '[data-pcimg]', async () => { const r = await Pages.imgPickModal(icon.startsWith('ic:') ? '' : icon, b.name || ''); if (r) { icon = r; upd(); } });
       UI.on(form, 'click', '[data-pcclr]', () => { icon = ''; upd(); });
     },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); return PrintCat.save({ ...b, name: v.name, icon, hidden: v.hidden ? 1 : 0 }, b.id ? 'تعديل ماركة طابعة' : 'إضافة ماركة طابعة'); } }]
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(b.id ? [{ label: 'حذف الماركة', kind: 'danger', icon: 'trash', handler: async () => { if (!(await UI.confirm(`حذف الماركة «${b.name}» بموديلاتها وأحبارها؟ البلاغات السابقة لا تتأثر.`, { danger: true, ok: 'حذف الماركة' }))) return false; await PrintCat.remove(b.id); UI.toast(`حُذفت الماركة ${b.name}`); return 'deleted'; } }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); return PrintCat.save({ ...b, name: v.name, icon, hidden: v.hidden ? 1 : 0 }, b.id ? 'تعديل ماركة طابعة' : 'إضافة ماركة طابعة'); } }]
   });
 };
 Pages.printerModelModal = (brand, m = {}) => UI.modal({
@@ -12085,7 +12087,7 @@ Pages.printers = async (ctx) => {
       <section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
       ${q ? html`<div class="pc-hits">${hits.length ? hits.map(({ b, m, inks }) => html`<button type="button" class="pc-hit" data-pcgo="${b.id}" data-pcm="${m.id}"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name} ${m.name}</b><div class="t-sub">${(inks.length ? inks : m.inks || []).map((k) => PrintCat.inkLabel(k)).join('، ') || 'لا توجد أحبار مسجلة'}</div></div>${UI.icon('chevron-left')}</button>`) : UI.noData('لا توجد نتائج مطابقة')}</div>` : html`
       <div class="pc-cols">
-        <div class="pc-col"><div class="pc-colh">${UI.icon('printer')} الماركات</div><div class="pc-list">${all.map((b) => html`<div class="pc-row${b.id === st.b ? ' on' : ''}${b.hidden ? ' off' : ''}" data-pcb="${b.id}" tabindex="0"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name}</b><div class="t-sub">${fmtNum(PrintCat.models(b).length)} موديل${b.hidden ? ' · مخفية' : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="brand" data-id="${b.id}" title="تعديل">${UI.icon('edit')}</button>` : ''}</div>`)}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('printer')} الماركات</div><div class="pc-list">${all.map((b) => html`<div class="pc-row${b.id === st.b ? ' on' : ''}${b.hidden ? ' off' : ''}" data-pcb="${b.id}" tabindex="0"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name}</b><div class="t-sub">${fmtNum(PrintCat.models(b).length)} موديل${b.hidden ? ' · مخفية' : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="brand" data-id="${b.id}" title="تعديل الماركة" aria-label="تعديل ${b.name}">${UI.icon('edit')}</button><button class="icon-btn" data-pcdel="brand" data-id="${b.id}" title="حذف الماركة" aria-label="حذف ${b.name}">${UI.icon('trash')}</button>` : ''}</div>`)}</div></div>
         <div class="pc-col"><div class="pc-colh">${UI.icon('layers')} موديلات ${cur ? cur.name : ''}${can && cur ? html`<button class="btn btn-soft btn-sm" data-pcadd="model">${UI.icon('plus')} موديل</button>` : ''}</div><div class="pc-list">${models.length ? models.map((m) => html`<div class="pc-row${m.id === st.m ? ' on' : ''}" data-pcmodel="${m.id}" tabindex="0"><div class="grow"><b class="ltr">${m.name}</b><div class="t-sub">${PRINTER_KINDS[m.kind] || ''}${m.kind ? ' · ' : ''}${fmtNum((m.inks || []).length)} حبر${m.note ? ` · ${m.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="model" data-id="${m.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="model" data-id="${m.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">لا توجد موديلات لهذه الماركة بعد.</p>`}</div></div>
         <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} أحبار</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
       </div>`}</section>`);
@@ -12109,18 +12111,24 @@ Pages.printers = async (ctx) => {
   });
   UI.on(ctx.view, 'click', '[data-pcedit]', async (e, el) => {
     const k = el.dataset.pcedit, id = el.dataset.id;
-    if (k === 'brand') { const b = Data.list('printers').find((x) => x.id === id); const r = await Pages.printerBrandModal(b); if (r) UI.toast('حُفظت الماركة'); }
+    if (k === 'brand') { const b = Data.list('printers').find((x) => x.id === id); const r = await Pages.printerBrandModal(b); if (r === 'deleted') { if (st.b === id) { st.b = ''; st.m = ''; } } else if (r) UI.toast('حُفظت الماركة'); }
     if (k === 'model') { if (await Pages.printerModelModal(brand(), modelOf(id))) UI.toast('حُفظ الموديل'); }
     if (k === 'ink') { const m = modelOf(st.m), ink = ((m || {}).inks || []).find((x) => x.id === id); if (ink && (await Pages.printerInkModal(brand(), m, ink))) UI.toast('حُفظ الحبر'); }
     draw();
   });
   UI.on(ctx.view, 'click', '[data-pcdel]', async (e, el) => {
     const k = el.dataset.pcdel, id = el.dataset.id;
+    if (k === 'brand') {
+      const b = Data.list('printers').find((x) => x.id === id); if (!b) return;
+      const n = PrintCat.models(b).length;
+      if (!(await UI.confirm(`حذف الماركة «${b.name}»${n ? ` بموديلاتها (${fmtNum(n)}) وأحبارها` : ''}؟ تختفي من نموذج البلاغ، والبلاغات السابقة لا تتأثر. وإن كنت تريد إبقاءها للمرجع فأخفِها من «تعديل الماركة».`, { danger: true, ok: 'حذف الماركة' }))) return;
+      try { await PrintCat.remove(id); if (st.b === id) { st.b = ''; st.m = ''; } UI.toast(`حُذفت الماركة ${b.name}`); } catch (ex) { UI.error(ex); }
+      draw(); return;
+    }
     if (k === 'model') { const m = modelOf(id); if (!m || !(await UI.confirm(`حذف الموديل «${m.name}» وأحباره من الكتالوج؟`, { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.filter((x) => x.id !== id), 'حذف موديل طابعة'); }
     if (k === 'ink') { const m = modelOf(st.m); if (!(await UI.confirm('حذف هذا الحبر من الموديل؟', { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.map((x) => (x.id === m.id ? { ...x, inks: (x.inks || []).filter((y) => y.id !== id) } : x)), 'حذف حبر من موديل'); }
     UI.toast('حُذف'); draw();
   });
-  UI.on(ctx.view, 'dblclick', '[data-pcb]', async (e, el) => { if (!can) return; const b = Data.list('printers').find((x) => x.id === el.dataset.pcb); if (b && (await UI.confirm(`حذف الماركة «${b.name}» بكل موديلاتها؟`, { danger: true, ok: 'حذف الماركة' }))) { await PrintCat.remove(b.id); draw(); } });
   ctx.onCleanup(Bus.on('data:printers', debounce((e) => { if (ctx.alive() && e.detail && e.detail.remote && !document.querySelector('dialog[open]')) Data.refresh('printers').then(draw); }, 300)));
   draw();
 };
