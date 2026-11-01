@@ -49,7 +49,10 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.click(`[data-prestore="${techs[0]}"]`); await S.waitForTimeout(3000); u0 = await user(techs[0]);
   ok('restore gives it back', !(u0.deniedPerms || []).includes('tickets.work'));
   /* 4) مصفوفة الأدوار */
-  await S.check('input[name="pmview"][value="matrix"]', { force: true }); await S.waitForSelector('.pm-matrix');
+  /* بعد المنح تُعاد رسم الصفحة عند وصول التحديث؛ يُنتظر استقرارها ثم يُنقر عنوان الخيار نفسه */
+  await S.waitForTimeout(1200);
+  for (let i = 0; i < 3 && !(await S.$('.pm-matrix')); i++) { await S.click('.seg label:has(input[name="pmview"][value="matrix"])').catch(() => null); await S.waitForTimeout(700); }
+  await S.waitForSelector('.pm-matrix');
   ok('the role matrix shows each permission per role and extra grants', (await S.$$eval('.pm-mrow', (x) => x.length)) > 20 && /حسابات إضافية/.test(await S.textContent('.pm-matrix')));
   await S.click('.pm-mrow[data-pk="kb.write"]'); await S.waitForSelector('[data-pk="kb.write"].on');
   ok('clicking a matrix row opens that permission', !!(await S.$(`[data-prevoke="${techs[2]}"]`)));
