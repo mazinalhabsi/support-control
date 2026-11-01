@@ -728,7 +728,9 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'users': {
       $target = $old ?: $data;
       $privileged = in_array($target['role'] ?? '', ['supervisor', 'support_manager'], true) || in_array($data['role'] ?? '', ['supervisor', 'support_manager'], true) || !empty($target['system']);
-      if (can($user, 'users.manage') && !$privileged) return $new;
+      /* «إدارة المستخدمين» تعدّل الحسابات، أما الصلاحيات الإضافية والمسحوبة فيمنحها المشرف وحده كما في الواجهة.
+         كان الخادم يقبلها من أي مدير مستخدمين، ولو على حسابه هو، فيمنح نفسه «الإعدادات» */
+      if (can($user, 'users.manage') && !$privileged) return is_array($new) ? keep_fields($new, $old, ['extraPerms', 'deniedPerms']) : $new;
       if ($deleted || !$old) return null;
       $merged = $old;
       if (($old['id'] ?? '') === ($user['id'] ?? '')) {
