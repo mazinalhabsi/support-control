@@ -60,18 +60,20 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   ok('…but not one set explicitly to «as the whole chart»', !(await S.$(`[data-frame="${ids.b}"]`)));
   await S.click('[data-act="compact"]'); await S.waitForTimeout(600);
   /* 5) جهاز آخر يرى العرض نفسه */
-  await choose(`u:${ids.a}`, 'list');
+  await choose(`u:${ids.a}`, 'list', true);
   const S2 = await open('side'); await S2.evaluate(() => App.Sync.pull()); await go(S2); await S2.fill('#oq', `الكلية ${T}`); await S2.waitForTimeout(900);
   ok('another device sees the same list, even in a horizontal chart', (await S2.$$(`[data-frame="${ids.a}"].list .ocf-row`)).length === 20);
   /* 6) السحب داخل القائمة يرتّب */
   const rows = S.locator(`[data-frame="${ids.a}"] .ocf-row`);
   const third = (await rows.nth(2).textContent()).includes('فصل 3');
-  /* الهدف في وسط الشاشة والمخطط: قرب الحافة يتحرك العرض أثناء السحب فيتغير موضع الإفلات */
+  /* «عرض الشجرة كاملة» بعد التصفية: التكبير محسوب للهيكل كله قبل البحث، فيصغر السطر إلى بضعة بكسلات ويقع الإفلات في وسطه.
+     والهدف في وسط الشاشة: قرب الحافة يتحرك العرض أثناء السحب فيتغير موضع الإفلات */
+  await S.click('[data-act="fit"]'); await S.waitForTimeout(800);
   await rows.nth(0).evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' })); await S.waitForTimeout(400);
   const box = await rows.nth(0).boundingBox();
   await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: box.width / 2, y: 3 } }); await S.waitForTimeout(1500);
   const first = await S.locator(`[data-frame="${ids.a}"] .ocf-row`).nth(0).textContent();
-  ok('dragging a row to the top edge of another places it before it', third && first.includes('فصل 3'), first.slice(0, 40));
+  ok('dragging a row to the top edge of another places it before it', third && first.includes('فصل 3') && box.height > 25, `${first.slice(0, 40)} (h=${Math.round(box.height)})`);
   /* 7) «تحته» */
   await S.evaluate(() => { location.hash = '#/org'; }); await S.waitForTimeout(400);
   await S.click('[data-act="adddep"]'); await S.waitForSelector('dialog .orow');

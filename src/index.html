@@ -12360,7 +12360,8 @@ Pages.org = async (ctx) => {
         wrap.addEventListener('pointermove', mv); wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
       });
     }
-    const q = $('#oq', ctx.view); q.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const k = $('#oq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
+    /* البحث يعيد ملاءمة التكبير للنتائج: كان التكبير محسوباً للهيكل كله عند الفتح، فتظهر الإدارة المطلوبة صغيرة جداً */
+    const q = $('#oq', ctx.view); q.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); st.fit = true; st.scroll = null; draw().then(() => { const k = $('#oq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
   };
   const run = async (fn) => { try { const r = await fn(); if (r !== false) draw(); } catch (ex) { UI.error(ex); } };
   /* التكبير دون إعادة رسم: تبقى النقطة التي تحت المؤشر (أو منتصف المخطط) في مكانها */

@@ -54,8 +54,9 @@ const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(1
   await S.evaluate(async ([a, t, uid]) => { const units = await App.DB.getAll('deptUnits'), n = units.find((x) => x.departmentId === a && x.name === `قسم الشبكات ${t}`); await App.Data.org.assign([uid], { departmentId: a, unitId: n.id }); }, [ids.a, T, uB]);
   await S.evaluate(() => { location.hash = '#/org'; }); await S.waitForTimeout(1200);
   await S.click(`[data-deldep="${ids.a}"]`); await S.waitForSelector('dialog [name="moveTo"]');
-  await S.selectOption('dialog [name="moveTo"]', ids.z); await S.click('dialog button.btn-danger'); await S.waitForTimeout(3000);
-  m = await docs(sup);
+  await S.selectOption('dialog [name="moveTo"]', ids.z); await S.click('dialog button.btn-danger');
+  /* انتظار وصول الحذف إلى الخادم بدل مدة ثابتة: بعد قاعدة جديدة يكون الجهاز ما زال يسحب البيانات الأولى فيتأخر الإرسال */
+  for (let i = 0; i < 40; i++) { await S.waitForTimeout(500); m = await docs(sup); const dd = m.get(`departments:${ids.a}`); if ((!dd || dd.deleted === 1) && [uA, uB, uC].every((x) => m.get(`users:${x}`).data.departmentId === ids.z)) break; }
   ok('department deleted on the server', !m.get(`departments:${ids.a}`) || m.get(`departments:${ids.a}`).deleted === 1);
   ok('its accounts moved to the chosen department', [uA, uB, uC].every((x) => m.get(`users:${x}`).data.departmentId === ids.z));
   ok('same-named section merged (no duplicate)', m.get(`users:${uB}`).data.unitId === ids.znet && [...m.values()].filter((d) => d.store === 'deptUnits' && !d.deleted && d.data.departmentId === ids.z && d.data.name === `قسم الشبكات ${T}`).length === 1);
