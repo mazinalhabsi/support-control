@@ -1780,6 +1780,16 @@ span.orow-type .ic{width:15px;height:15px}
 .dp-plan{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:10px}
 .dp-pl{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .dp-pl b{display:block}.dp-pl small{display:block;color:var(--ink-3);font-size:11.5px}.dp-pl p{margin:6px 0 0;font-size:12.5px;line-height:1.7}
+.oc-focus{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;margin-bottom:8px;border-radius:12px;background:rgba(var(--accent),.08);border:1px solid rgba(var(--accent),.3);font-size:13px}
+.oc-focus>.ic{color:rgb(var(--accent-ink))}
+.oc-focus button:not(.btn){border:0;background:none;font:inherit;font-weight:700;color:rgb(var(--accent-ink));cursor:pointer;padding:2px 4px;border-radius:6px}
+.oc-focus button:not(.btn):hover{background:rgba(var(--accent),.15)}
+.oc-focus>span{color:var(--ink-3)}
+.oc-focus .btn{margin-inline-start:auto}
+.ocf-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:6px;padding:6px 10px;border:1px dashed var(--line-2);border-radius:10px;background:var(--surface-solid);font:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.ocf-grid+.ocf-more{grid-column:1/-1}
+.ocf-more:hover{border-color:rgb(var(--accent));color:var(--ink)}
+.oc-print .oc{width:max-content}
 .oc-frame{direction:rtl;position:relative;margin-top:6px;padding:10px;border:1.5px dashed var(--line-2);border-radius:16px;background:var(--surface-2);min-width:240px;text-align:start}
 .oc.side .oc-frame{margin:10px 0}
 .ocf-head{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink-3);margin-bottom:8px}
