@@ -7671,6 +7671,44 @@ Data.org = {
       return out;
     });
   },
+  /* وضع فرع في مكان محدد (بالسحب): داخل موضع في آخره، أو قبل أخ أو بعده. إن تغيّر موضعه نُقل بما تحته وحساباته */
+  async place(id, { departmentId, parentId = '', beforeId = '', afterId = '' }) {
+    const all = await DB.getAll('deptUnits'), u = all.find((x) => x.id === id); if (!u) return null;
+    const moved = u.departmentId !== departmentId || (u.parentId || '') !== parentId;
+    if (!moved) this.guardNode(u.departmentId, u.parentId);
+    return OrgLog.run(moved ? 'move' : 'order', moved ? `نقل «${u.name}» إلى ${orgLabel(departmentId, parentId, all)}` : `ترتيب «${u.name}» بين أخواته`, async () => {
+      if (moved) await this.saveUnit({ ...u, departmentId, parentId, order: '' });
+      const me = await DB.get('deptUnits', id), sib = (await DB.getAll('deptUnits')).filter((x) => x.departmentId === me.departmentId && (x.parentId || '') === (me.parentId || '') && x.id !== id).sort(sortByOrder);
+      const j = sib.findIndex((x) => x.id === (beforeId || afterId)), i = j < 0 ? sib.length : beforeId ? j : j + 1;
+      sib.splice(i, 0, me);
+      const t = now(); for (let k = 0; k < sib.length; k++) if (sib[k].order !== k + 1) await OrgLog.put('deptUnits', { ...sib[k], order: k + 1, updatedAt: t });
+      Bus.emit('org', {}); return moved;
+    });
+  },
+  /* نقل إدارة كاملة إلى داخل إدارة أخرى أو فرع فيها: تصبح فرعاً بكل أقسامها وحساباتها، ويبقى رئيسها ورمزها.
+     لا تُنقل إدارة عليها عهدة مسجلة، ولا ما يتجاوز عدد المستويات */
+  async demote(depId, { departmentId, unitId = '' }) {
+    this.guard();
+    const d = Data.c.departments.get(depId); if (!d) return null;
+    if (departmentId === depId) throw new AppError('لا تُنقل الإدارة إلى داخل نفسها');
+    if (!Data.c.departments.has(departmentId)) throw new AppError('الإدارة المستهدفة غير موجودة');
+    const all = await DB.getAll('deptUnits'), mine = all.filter((u) => u.departmentId === depId), ids = new Set(mine.map((u) => u.id));
+    const held = (await DB.getAll('deptStock')).some((r) => r.departmentId === depId && r.qty > 0) || (await DB.getAll('unitStock')).some((r) => (r.departmentId === depId || ids.has(r.unitId)) && r.qty > 0);
+    if (held) throw new AppError('على هذه الإدارة أو أقسامها عهدة مسجلة. انقل العهدة أولاً من «عهد الإدارات»');
+    const base = unitId ? orgDepth(all, unitId) : 0, h = Math.max(0, ...mine.filter((u) => !ids.has(u.parentId)).map((u) => orgHeight(all, u.id)));
+    if (base + 1 + h > ORG_MAX_DEPTH) throw new AppError(`نقلها إلى هناك يتجاوز ${ORG_MAX_DEPTH} مستويات`);
+    const where = orgLabel(departmentId, unitId, all), people = (await DB.getAll('users')).filter((u) => u.departmentId === depId);
+    return OrgLog.run('move', `نقل الإدارة «${d.name}» إلى داخل ${where}`, async () => {
+      const t = now(), nu = await this.saveUnit({ departmentId, parentId: unitId, type: ORG_TYPE_ORDER[Math.min(base, ORG_TYPE_ORDER.length - 1)], name: d.name, code: d.code, head: d.head, headId: d.headId || '', phone: d.phone, locationId: d.locationId || '', room: d.room, aliases: d.aliases || [], icon: d.icon && d.icon !== 'building' ? d.icon : '', tone: d.tone && d.tone !== 'brass' ? d.tone : '', order: '' });
+      for (const x of mine) await OrgLog.put('deptUnits', { ...x, departmentId, parentId: ids.has(x.parentId) ? x.parentId : nu.id, updatedAt: t });
+      for (const p of people) await OrgLog.put('users', { ...p, departmentId, unitId: ids.has(p.unitId) ? p.unitId : nu.id, updatedAt: t });
+      await OrgLog.del('departments', depId);
+      await Promise.all([Data.refresh('users'), Data.refresh('departments')]);
+      await Data.log('update', 'org', depId, `نقل الإدارة «${d.name}» إلى داخل ${where}`);
+      Bus.emit('data:departments'); Bus.emit('org', {}); Bus.emit('users', {});
+      return { id: nu.id, units: mine.length, accounts: people.length };
+    });
+  },
   /* تحويل وحدة إلى إدارة مستقلة (مع فروعها وموظفيها) */
   async promote(id) {
     this.guard();
@@ -8453,7 +8491,7 @@ Pages.org = async (ctx) => {
         ${legend}
         ${st.selMode ? html`<div class="org-selbar" role="toolbar" aria-label="إجراءات المحدد"><b data-selcount></b><button type="button" class="btn btn-primary btn-sm" data-selact="move">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-soft btn-sm" data-selact="copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-selact="type">${UI.icon('layers')} النوع</button><button type="button" class="btn btn-ghost btn-sm" data-selact="head">${UI.icon('user')} الرئيس</button><button type="button" class="btn btn-ghost btn-sm" data-selact="del">${UI.icon('trash')} حذف</button><button type="button" class="btn btn-ghost btn-sm" data-selact="clear">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
         <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
-        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على إدارة أو فرع آخر لنقله مع كل ما تحته، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لتغيير ترتيبها. اضغط Ctrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
+        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما تحته وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وعلى الهاتف: «تحديد متعدد» ثم «نقل». اضغط Ctrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     ctx.data = { deps, units }; selSync();
     const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view);
     if (wrap && oc) {
@@ -8518,22 +8556,52 @@ Pages.org = async (ctx) => {
     const li = (d, pid) => { const k = units.filter((u) => u.departmentId === d && (u.parentId || '') === pid).sort(sortByOrder); return k.length ? html`<ul style="margin:4px 0;padding-inline-start:22px">${k.map((u) => html`<li>${u.name}${u.code ? ` [${u.code}]` : ''} <small>(${(UNIT_TYPES[u.type] || UNIT_TYPES.section).label}${u.head ? ` — ${u.head}` : ''})</small>${li(d, u.id)}</li>`)}</ul>` : ''; };
     UI.print(html`<h2 style="text-align:center">الهيكل التنظيمي — ${Data.c.settings.orgName}</h2>${deps.map((d) => html`<div style="break-inside:avoid;margin:10px 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px"><b>${d.name}</b>${d.code ? ` [${d.code}]` : ''}${d.head ? html` — <small>${d.head}</small>` : ''}${li(d.id, '')}</div>`)}`, 'الهيكل التنظيمي');
   });
-  /* السحب والإفلات */
-  let drag = '';
+  /* السحب والإفلات: وسط الإدارة أو الفرع ينقل إلى داخله، وطرف الفرع يضعه قبله أو بعده بين أخواته،
+     والإدارة على إدارة أخرى تُرتَّب قبلها أو تُنقل إلى داخلها، وعلى فرع تُنقل إلى داخله */
+  let drag = '', zone = 'in';
+  const DROP = ['drop-ok', 'drop-top', 'drop-bottom', 'drop-left', 'drop-right'], clearDrop = (keep) => $$(DROP.map((c) => `.${c}`).join(','), ctx.view).forEach((x) => { if (x !== keep) x.classList.remove(...DROP); });
+  const zoneOf = (t, e) => {
+    const r = t.getBoundingClientRect(), across = st.mode === 'chart' && st.dir === 'down', f = across ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+    if (f > 0.25 && f < 0.75) return ['in', 'drop-ok'];
+    /* في المخطط العمودي يبدأ الإخوة من اليمين: طرف الفرع الأيمن قبله والأيسر بعده */
+    if (across) return f >= 0.75 ? ['before', 'drop-right'] : ['after', 'drop-left'];
+    return f <= 0.25 ? ['before', 'drop-top'] : ['after', 'drop-bottom'];
+  };
   ctx.view.addEventListener('dragstart', (e) => { const el = e.target.closest('[data-drag]'); if (!el || el.getAttribute('draggable') !== 'true') return; drag = el.dataset.drag; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag); (el.closest('.oc-box,.org-node,.org-dept') || el).classList.add('dragging'); e.stopPropagation(); });
-  ctx.view.addEventListener('dragend', () => { drag = ''; $$('.dragging,.drop-ok', ctx.view).forEach((x) => x.classList.remove('dragging', 'drop-ok')); });
-  ctx.view.addEventListener('dragover', (e) => { const t = e.target.closest('[data-drop]'); if (!t || !drag || t.dataset.drop === drag) return; const [k] = drag.split(':'), [tk] = t.dataset.drop.split(':'); if (k === 'dept' && tk === 'unit') return; e.preventDefault(); $$('.drop-ok', ctx.view).forEach((x) => { if (x !== t) x.classList.remove('drop-ok'); }); t.classList.add('drop-ok'); });
+  ctx.view.addEventListener('dragend', () => { drag = ''; $$('.dragging', ctx.view).forEach((x) => x.classList.remove('dragging')); clearDrop(); });
+  ctx.view.addEventListener('dragover', (e) => {
+    const t = e.target.closest('[data-drop]'); if (!t || !drag || t.dataset.drop === drag) return;
+    const [k] = drag.split(':'), [tk] = t.dataset.drop.split(':'); e.preventDefault();
+    const [z, cls] = k === 'unit' && tk === 'unit' ? zoneOf(t, e) : ['in', 'drop-ok']; zone = z;
+    clearDrop(t); if (!t.classList.contains(cls)) { t.classList.remove(...DROP); t.classList.add(cls); }
+  });
   ctx.view.addEventListener('drop', (e) => {
     const t = e.target.closest('[data-drop]'); if (!t || !drag) return; e.preventDefault();
-    const [kind, id] = drag.split(':'), [tk, target] = t.dataset.drop.split(':'); drag = '';
+    const [kind, id] = drag.split(':'), [tk, target] = t.dataset.drop.split(':'), z = zone; drag = ''; clearDrop();
     const units = (ctx.data && ctx.data.units) || [];
     run(async () => {
-      if (kind === 'dept') { if (tk === 'dept' && target !== id) { await Data.org.reorderDept(id, target); UI.toast('تغيّر ترتيب الإدارة'); } else if (tk === 'root') { await Data.org.reorderDept(id, ''); UI.toast('نُقلت الإدارة إلى آخر القائمة'); } return; }
+      if (kind === 'dept') {
+        const d = Data.c.departments.get(id); if (!d || (tk === 'dept' && target === id)) return false;
+        if (tk === 'root') { await Data.org.reorderDept(id, ''); UI.toast('نُقلت الإدارة إلى آخر القائمة'); return; }
+        const into = tk === 'dept' ? { departmentId: target, unitId: '' } : { departmentId: (units.find((x) => x.id === target) || {}).departmentId, unitId: target };
+        const where = orgLabel(into.departmentId, into.unitId, units), n = units.filter((x) => x.departmentId === id).length, people = orgPeople().filter((x) => x.departmentId === id).length;
+        const v = await UI.modal({ title: `الإدارة «${d.name}»`, icon: 'swap', size: 'sm',
+          body: html`<p class="muted" style="line-height:1.9">${tk === 'dept' ? html`رتّبها قبل «${where}» في قائمة الإدارات، أو انقلها إلى داخلها. ` : ''}<b>النقل</b> يجعل «${d.name}» فرعاً في «${where}» بكل أقسامها (${fmtNum(n)}) وحساباتها (${fmtNum(people)})، فتخرج من قائمة الإدارات. ويمكن التراجع من سجل التغييرات.</p>`,
+          actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, ...(tk === 'dept' ? [{ label: 'ترتيبها قبلها', kind: 'ghost', value: 'order' }] : []), { label: 'نقلها إلى الداخل', kind: 'primary', icon: 'swap', value: 'in' }] });
+        if (v === 'order') { await Data.org.reorderDept(id, target); UI.toast('تغيّر ترتيب الإدارة'); return; }
+        if (v !== 'in') return false;
+        await Data.org.demote(id, into); UI.toast(`أصبحت «${d.name}» فرعاً في «${where}»`); return;
+      }
       const u = units.find((x) => x.id === id); if (!u) return false;
       if (tk === 'root') { if (!(await UI.confirm(`تحويل «${u.name}» إلى إدارة مستقلة مع كل فروعه وموظفيه؟`, { ok: 'تحويل إلى إدارة' }))) return false; await Data.org.promote(id); UI.toast(`أصبحت «${u.name}» إدارة مستقلة`); return; }
-      if (tk === 'dept') await Data.org.saveUnit({ ...u, departmentId: target, parentId: '', order: '' });
-      else { const p = units.find((x) => x.id === target); if (!p || p.id === id) return false; await Data.org.saveUnit({ ...u, departmentId: p.departmentId, parentId: p.id, order: '' }); st.open.add(p.id).add('c' + p.id); }
-      UI.toast(`نُقل «${u.name}»`);
+      let moved;
+      if (tk === 'dept') moved = await Data.org.place(id, { departmentId: target, parentId: '' });
+      else {
+        const p = units.find((x) => x.id === target); if (!p || p.id === id) return false;
+        if (z === 'in') { moved = await Data.org.place(id, { departmentId: p.departmentId, parentId: p.id }); st.open.add(p.id).add('c' + p.id); }
+        else moved = await Data.org.place(id, { departmentId: p.departmentId, parentId: p.parentId || '', [z === 'before' ? 'beforeId' : 'afterId']: p.id });
+      }
+      UI.toast(moved ? `نُقل «${u.name}» بما تحته وحساباته` : `تغيّر ترتيب «${u.name}»`);
     });
   });
   ctx.onCleanup(Bus.on('org', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));

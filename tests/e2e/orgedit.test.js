@@ -3,6 +3,7 @@
    - «اسم آخر» في النافذة الكاملة
    - النسخ: إدارة إلى إدارات جديدة بهيكلها، وفرع إلى فرع في إدارة أخرى أو بجانبه باسم آخر، دون الحسابات
    - التحديد المتعدد: نقل عدة فروع مع حساباتها، والنوع والرئيس، والحذف (الحسابات ترتفع مستوى)، وكل إجراء قيد واحد
+   - السحب والإفلات: طرف الفرع للترتيب، ووسطه للنقل داخله، والإدارة إلى داخل إدارة أخرى بحساباتها ثم التراجع
    التشغيل: BASE=http://127.0.0.1:8106/ CHROME=/path/to/chrome node tests/e2e/orgedit.test.js */
 const { chromium } = require('playwright');
 const crypto = require('crypto');
@@ -123,6 +124,30 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   st = await struct();
   ok('undoing the bulk delete brings the branches and the account back', st.kids(col.id, lec.id).length === 2 && st.users.find((u) => u.id === P + 'b').unitId === mv.find((u) => u.name === 'الإداريون').id, JSON.stringify(undo));
   await S.click('[data-act="select"]');
+
+  /* 8) السحب والإفلات */
+  await go(); st = await struct();
+  const top2 = () => st.kids(c2.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((u) => u.name), h3 = st.kids(c2.id).find((u) => u.name === 'قاعة 3'), lecs = st.kids(c2.id).find((u) => u.name === 'المحاضرون');
+  let tb = await (await S.$(`[data-drag="unit:${lecs.id}"]`)).boundingBox();
+  await S.dragAndDrop(`[data-drag="unit:${h3.id}"]`, `[data-drag="unit:${lecs.id}"]`, { targetPosition: { x: tb.width / 2, y: 3 } }); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const ord2 = top2();
+  ok('dropping on the top edge of a branch puts it right before it', ord2.indexOf('قاعة 3') === ord2.indexOf('المحاضرون') - 1 && st.kids(c2.id).find((u) => u.name === 'قاعة 3').parentId === '', ord2.join('،'));
+  const h2 = st.kids(c2.id).find((u) => u.name === 'قاعة 2'), lab = st.kids(c2.id).find((u) => u.name === 'المختبرات');
+  tb = await (await S.$(`[data-drag="unit:${lab.id}"]`)).boundingBox();
+  await S.dragAndDrop(`[data-drag="unit:${h2.id}"]`, `[data-drag="unit:${lab.id}"]`, { targetPosition: { x: tb.width / 2, y: tb.height / 2 } }); await S.waitForTimeout(1500); await settle();
+  st = await struct();
+  ok('dropping on the middle of a branch moves it inside', st.units.find((u) => u.id === h2.id).parentId === lab.id);
+  /* إدارة إلى داخل إدارة أخرى: تصبح فرعاً بأقسامها وحساباتها، والتراجع يعيدها */
+  await api('push', { ops: [mkUser(P + 'c', P + 'c', { departmentId: c1.id, unitId: '' })] }, sup); await settle(); await go();
+  const c1kids = st.kids(c1.id).length, logs5 = await logCount();
+  await S.dragAndDrop(`[data-drag="dept:${c1.id}"]`, `section[data-drop="dept:${c2.id}"] > header`); await S.waitForSelector('dialog .btn-primary');
+  ok('dropping a department on another asks whether to reorder or move inside', /ترتيبها قبلها/.test(await S.textContent('dialog')) && /نقلها إلى الداخل/.test(await S.textContent('dialog')));
+  await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const nu = st.kids(c2.id).find((u) => u.name === c1.name), acc = st.users.find((u) => u.id === P + 'c');
+  ok('a department moved inside another becomes a branch with its sections and accounts, in one history entry', !st.dep(c1.name) && !!nu && st.kids(c2.id, nu.id).length === c1kids && acc.departmentId === c2.id && acc.unitId === nu.id && (await logCount()) === logs5 + 1);
+  await S.evaluate(async () => { const e = (await App.DB.getAll('orgLog')).sort((a, b) => b.at - a.at)[0]; return App.OrgLog.undo(e); }); await settle();
+  st = await struct();
+  ok('undo brings the department back with its sections and account', !!st.dep(c1.name) && st.kids(c1.id).length === c1kids && st.users.find((u) => u.id === P + 'c').departmentId === c1.id && !st.units.some((u) => u.id === nu.id));
 
   /* تنظيف */
   await S.evaluate(async (ids) => { for (const id of ids) await App.Data.org.removeDept(id, {}).catch(() => null); }, deps0.filter(Boolean).map((d) => d.id));

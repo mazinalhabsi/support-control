@@ -1605,6 +1605,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-hit{box-shadow:0 0 0 2px rgba(var(--amber),.8)!important}
 .org-dept.drop-ok,.org-node.drop-ok,.oc-box.drop-ok{outline:2px dashed rgb(var(--accent));outline-offset:2px;background:rgba(var(--accent),.1)}
 .org-node.dragging,.oc-box.dragging{opacity:.4}
+.org-node.drop-top,.oc-box.drop-top{box-shadow:0 -4px 0 0 rgb(var(--accent))}.org-node.drop-bottom,.oc-box.drop-bottom{box-shadow:0 4px 0 0 rgb(var(--accent))}
+.oc-box.drop-left{box-shadow:-4px 0 0 0 rgb(var(--accent))}.oc-box.drop-right{box-shadow:4px 0 0 0 rgb(var(--accent))}
 .oc-wrap{overflow:auto;padding:10px 4px 20px;max-height:74vh;direction:ltr}
 .oc{direction:ltr;width:max-content;min-width:100%}
 .oc ul{position:relative;display:flex;justify-content:center;padding:22px 0 0;margin:0}
