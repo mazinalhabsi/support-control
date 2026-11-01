@@ -2,6 +2,7 @@
    - خانات الإضافة: خانة لكل إدارة أو فرع، و«تحته»، وEnter، وعدد من الخانات مرة واحدة، والتحويل إلى «لصق قائمة» وعكسه
    - «اسم آخر» في النافذة الكاملة
    - النسخ: إدارة إلى إدارات جديدة بهيكلها، وفرع إلى فرع في إدارة أخرى أو بجانبه باسم آخر، دون الحسابات
+   - التحديد المتعدد: نقل عدة فروع مع حساباتها، والنوع والرئيس، والحذف (الحسابات ترتفع مستوى)، وكل إجراء قيد واحد
    التشغيل: BASE=http://127.0.0.1:8106/ CHROME=/path/to/chrome node tests/e2e/orgedit.test.js */
 const { chromium } = require('playwright');
 const crypto = require('crypto');
@@ -94,6 +95,34 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
   st = await struct(); const twin = st.kids(col.id).find((u) => u.name === 'الإداريون 2');
   ok('a branch is copied next to itself under another name', !!twin && st.kids(col.id, twin.id).length === 3 && st.kids(col.id).filter((u) => u.name === 'الإداريون').length === 1);
+
+  /* 7) التحديد المتعدد: الضغط على الفرع يحدده، و«أقسامها» يحدد أقسام الإدارة كلها */
+  await go(); await S.click('[data-act="select"]'); await S.waitForSelector('.org-selbar');
+  const sec = (n) => st.kids(c2.id).find((u) => u.name === n);
+  await S.click(`[data-seldep="${c2.id}"]`);
+  ok('«its sections» selects every top-level branch of the department', (await S.$$eval(`.is-sel`, (x) => x.length)) === st.kids(c2.id).length && /المحدد: \d+ فرع/.test(await S.textContent('.org-selbar')));
+  await S.click('[data-selact="clear"]'); await S.click(`[data-drag="unit:${sec('الإداريون').id}"] b`); await S.click(`[data-drag="unit:${sec('الفصول').id}"] b`);
+  ok('clicking a branch selects it', (await S.$$eval('.is-sel', (x) => x.length)) === 2);
+  /* نقل الفرعين إلى «المحاضرون» في إدارة أخرى: ما تحتهما وحساباتهما معهما */
+  await api('push', { ops: [mkUser(P + 'b', P + 'b', { departmentId: c2.id, unitId: sec('الإداريون').id })] }, sup); await settle();
+  const lec = st.kids(col.id).find((u) => u.name === 'المحاضرون'), logs3 = await logCount();
+  await S.click('[data-selact="move"]'); await S.waitForSelector('dialog [data-place]'); await S.check(`dialog [data-place="${col.id}|${lec.id}"]`); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  st = await struct(); const mv = st.kids(col.id, lec.id);
+  ok('moving selected branches takes what is under them and their accounts, in one history entry', mv.length === 2 && st.kids(col.id, mv.find((u) => u.name === 'الإداريون').id).length === 3 && st.users.find((u) => u.id === P + 'b').departmentId === col.id && (await logCount()) === logs3 + 1, mv.map((u) => u.name).join('،'));
+  /* النوع والرئيس للفرعين معاً */
+  await S.check(`[data-sel="${mv[0].id}"]`); await S.check(`[data-sel="${mv[1].id}"]`); await S.click('[data-selact="type"]'); await S.click('dialog .choice-pick label:has-text("وحدة")'); await S.click('dialog .btn-primary'); await S.waitForTimeout(1200);
+  await S.check(`[data-sel="${mv[0].id}"]`); await S.check(`[data-sel="${mv[1].id}"]`); await S.click('[data-selact="head"]'); await S.waitForSelector('dialog [name="headId"]'); await S.selectOption('dialog [name="headId"]', 'u_tech'); await S.click('dialog .btn-primary'); await S.waitForTimeout(1200); await settle();
+  st = await struct(); const both = st.units.filter((u) => mv.some((m) => m.id === u.id));
+  ok('one type and one head are set on all selected branches', both.length === 2 && both.every((u) => u.type === 'unit' && u.headId === 'u_tech'), both.map((u) => `${u.type}/${u.headId}`).join(','));
+  /* حذف الفرعين: الحسابات ترتفع إلى «المحاضرون»، والتراجع يعيدهما */
+  const logs4 = await logCount();
+  await S.check(`[data-sel="${mv[0].id}"]`); await S.check(`[data-sel="${mv[1].id}"]`); await S.click('[data-selact="del"]'); await S.waitForSelector('dialog [data-i="1"]'); await S.click('dialog [data-i="1"]'); await S.waitForTimeout(1500); await settle();
+  st = await struct();
+  ok('deleting selected branches removes all below them and moves their accounts up one level, in one history entry', !st.units.some((u) => mv.some((m) => m.id === u.id || m.id === u.parentId)) && st.users.find((u) => u.id === P + 'b').unitId === lec.id && (await logCount()) === logs4 + 1);
+  const undo = await S.evaluate(async () => { const e = (await App.DB.getAll('orgLog')).sort((a, b) => b.at - a.at)[0]; return App.OrgLog.undo(e); }); await settle();
+  st = await struct();
+  ok('undoing the bulk delete brings the branches and the account back', st.kids(col.id, lec.id).length === 2 && st.users.find((u) => u.id === P + 'b').unitId === mv.find((u) => u.name === 'الإداريون').id, JSON.stringify(undo));
+  await S.click('[data-act="select"]');
 
   /* تنظيف */
   await S.evaluate(async (ids) => { for (const id of ids) await App.Data.org.removeDept(id, {}).catch(() => null); }, deps0.filter(Boolean).map((d) => d.id));
