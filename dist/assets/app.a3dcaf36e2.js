@@ -3229,31 +3229,60 @@ Pages.userModal = async (id) => {
   });
 };
 Pages.users = async (ctx) => {
-  const st = { q: '', role: ctx.query.role || '', dep: '', loc: '', active: '', view: localStorage.getItem('sq_uview') || 'cards', limit: 60 };
+  const st = { q: '', role: ctx.query.role || '', dep: '', unit: '', loc: '', rank: '', active: '', login: '', perm: '', view: localStorage.getItem('sq_uview') || 'cards', limit: 60 };
   const sel = (id, label, opts) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
     <div class="role-cards" id="roleCards"></div>
     <div class="mt">${UI.stateLegend(['off', 'mod'], { off: 'حساب موقوف', mod: 'صلاحيات معدّلة عن الدور' })}</div>
-    <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الإدارات', [...UI.opts('departments'), { value: '-', label: '— بلا إدارة —' }])}${sel('uloc', 'كل المواقع', UI.opts('locations'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
+    <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الإدارات', [...UI.opts('departments'), { value: '-', label: '— بلا إدارة —' }])}<select id="uunit" aria-label="القسم" hidden></select>${sel('uloc', 'كل المواقع', UI.opts('locations'))}${sel('urank', 'كل الرتب', UI.opts('ranks'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}${sel('ulogin', 'آخر دخول', [{ value: 'never', label: 'لم يدخل أبداً' }, { value: '30', label: 'لم يدخل منذ 30 يوماً' }, { value: '90', label: 'لم يدخل منذ 90 يوماً' }])}${sel('uperm', 'الصلاحيات', [{ value: 'mod', label: 'معدّلة عن الدور' }, { value: 'role', label: 'صلاحيات الدور فقط' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
   const where = (u) => [Data.nameOf('locations', u.locationId, ''), u.office].filter(Boolean).join(' — ');
-  const picked = new Set();
-  const renderBulk = () => { const b = $('#bulkBar', ctx.view); if (!b) return; b.hidden = !picked.size || st.view !== 'table'; if (b.hidden) return; b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.user)}</b><button class="btn btn-sm btn-soft" data-bulk="department">${UI.icon('building')} تحديد الإدارة</button><button class="btn btn-sm btn-soft" data-bulk="location">${UI.icon('pin')} تحديد المبنى</button><button class="btn btn-sm" data-bulk="role">${UI.icon('shield')} تغيير الدور</button><button class="btn btn-sm" data-bulk="active">${UI.icon('lock')} تفعيل / إيقاف</button><button class="btn btn-sm btn-ghost" data-bulk="clear">${UI.icon('x')} إلغاء التحديد</button>`); };
+  /* التحديد يشمل كل نتائج التصفية لا الظاهر منها فقط: القائمة تُعرض على دفعات، وكان «تحديد الكل» يحدد الظاهر وحده */
+  const picked = new Set(); let rows = [];
+  const sup = Auth.user.role === 'supervisor';
+  const renderBulk = () => {
+    const b = $('#bulkBar', ctx.view); if (!b) return; b.hidden = !picked.size || st.view !== 'table'; if (b.hidden) return;
+    const inRows = rows.filter((u) => picked.has(u.id)).length, outside = picked.size - inRows, rest = rows.length - inRows;
+    b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.user)}${outside ? html` <small class="faint">(${fmtNum(outside)} خارج نتائج التصفية الحالية)</small>` : ''}</b>${rest ? html`<button class="btn btn-sm btn-ghost" data-bulk="all">${UI.icon('check')} تحديد كل النتائج (${fmtNum(rows.length)})</button>` : ''}
+      <span class="bulk-acts"><button class="btn btn-sm btn-soft" data-bulk="place">${UI.icon('building')} الموضع في الهيكل</button><button class="btn btn-sm btn-soft" data-bulk="location">${UI.icon('pin')} المبنى</button><button class="btn btn-sm btn-soft" data-bulk="rank">${UI.icon('shield')} الرتبة</button><button class="btn btn-sm" data-bulk="role">${UI.icon('user')} الدور</button><button class="btn btn-sm" data-bulk="active">${UI.icon('lock')} تفعيل / إيقاف</button><button class="btn btn-sm" data-bulk="password">${UI.icon('key')} كلمة المرور</button><button class="btn btn-sm" data-bulk="must">${UI.icon('refresh')} تغيير كلمة المرور عند الدخول</button>${sup ? html`<button class="btn btn-sm" data-bulk="perms">${UI.icon('key')} الصلاحيات</button>` : ''}<button class="btn btn-sm" data-bulk="spec">${UI.icon('tag')} التخصصات</button><button class="btn btn-sm btn-ghost" data-bulk="export">${UI.icon('download')} تصدير المحدد</button></span>
+      <button class="btn btn-sm btn-ghost" data-bulk="clear">${UI.icon('x')} إلغاء التحديد</button>`);
+  };
+  const syncHead = () => { const h = $('[data-selall]', ctx.view); if (!h) return; const n = rows.filter((u) => picked.has(u.id)).length; h.checked = !!rows.length && n === rows.length; h.indeterminate = n > 0 && n < rows.length; };
   const permBadge = (u) => { const x = (u.extraPerms || []).length, d = (u.deniedPerms || []).length; return x || d ? UI.chip('pink', `${x ? `+${x}` : ''}${x && d ? ' ' : ''}${d ? `−${d}` : ''} صلاحيات`, 'key') : ''; };
+  const unitSel = () => {
+    const us = $('#uunit', ctx.view), list = st.dep && st.dep !== '-' ? orgUnitsFlat(Data.list('deptUnits'), st.dep) : [];
+    us.hidden = !list.length; if (!list.some(({ u }) => u.id === st.unit)) st.unit = '';
+    us.innerHTML = `<option value="">كل الأقسام</option>${list.map(({ u, depth }) => `<option value="${esc(u.id)}"${u.id === st.unit ? ' selected' : ''}>${'  '.repeat(depth)}${esc(u.name)}</option>`).join('')}`;
+  };
+  const match = (u, qn, units) => {
+    const idle = now() - (u.lastLoginAt || 0);
+    return (!st.role || u.role === st.role) && (!st.dep || (st.dep === '-' ? !Data.c.departments.has(u.departmentId) : u.departmentId === st.dep)) && (!st.unit || units.has(u.unitId))
+      && (!st.loc || u.locationId === st.loc) && (!st.rank || u.rankId === st.rank) && (st.active === '' || String(u.active) === st.active)
+      && (!st.login || (st.login === 'never' ? !u.lastLoginAt : idle > Number(st.login) * DAY))
+      && (!st.perm || (st.perm === 'mod') === !!((u.extraPerms || []).length || (u.deniedPerms || []).length))
+      && (!qn || normalizeAr([u.name, u.username, u.militaryNo, u.phone, u.office].join(' ')).includes(qn));
+  };
   const load = () => {
-    const all = Data.list('users'), qn = normalizeAr(st.q);
+    const all = Data.list('users'), qn = normalizeAr(st.q), units = st.unit ? orgSubtree(Data.list('deptUnits'), st.unit) : new Set();
     $('#roleCards', ctx.view).innerHTML = String(html`${Object.entries(ROLE_INFO).map(([k, r]) => html`<button class="role-card tone-${r.tone} ${st.role === k ? 'active' : ''}" data-rolecard="${k}">${UI.illu(r.illu)}<div class="rc-top"><b>${r.label}</b><span class="rc-count">${fmtNum(all.filter((x) => x.role === k).length)}</span></div><p>${r.desc}</p></button>`)}`);
     $('#urole', ctx.view).value = st.role;
-    const rows = all.filter((u) => (!st.role || u.role === st.role) && (!st.dep || (st.dep === '-' ? !Data.c.departments.has(u.departmentId) : u.departmentId === st.dep)) && (!st.loc || u.locationId === st.loc) && (st.active === '' || String(u.active) === st.active) && (!qn || normalizeAr([u.name, u.username, u.militaryNo, u.phone, u.office].join(' ')).includes(qn)));
-    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, st.limit).map((u) => html`<div class="ucard ${u.active ? '' : 'off x-off'}${u.active && ((u.extraPerms || []).length || (u.deniedPerms || []).length) ? ' x-mod' : ''}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم يُحدد الموقع')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد الكل"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.slice(0, st.limit).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}${u.active ? ((u.extraPerms || []).length || (u.deniedPerms || []).length ? ' tr-mod' : '') : ' tr-off'}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>${rows.length > st.limit ? html`<div class="more-row"><button class="btn btn-soft" data-act="more">${UI.icon('plus')} عرض المزيد (${fmtNum(rows.length - st.limit)} متبقٍ)</button></div>` : ''}`);
-    renderBulk();
+    rows = all.filter((u) => match(u, qn, units));
+    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, st.limit).map((u) => html`<div class="ucard ${u.active ? '' : 'off x-off'}${u.active && ((u.extraPerms || []).length || (u.deniedPerms || []).length) ? ' x-mod' : ''}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم يُحدد الموقع')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد كل النتائج (${fmtNum(rows.length)})" title="تحديد كل النتائج (${fmtNum(rows.length)})"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.slice(0, st.limit).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}${u.active ? ((u.extraPerms || []).length || (u.deniedPerms || []).length ? ' tr-mod' : '') : ' tr-off'}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>${rows.length > st.limit ? html`<div class="more-row"><button class="btn btn-soft" data-act="more">${UI.icon('plus')} عرض المزيد (${fmtNum(rows.length - st.limit)} متبقٍ)</button></div>` : ''}`);
+    syncHead(); renderBulk();
   };
-  $('#uq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value; st.limit = 60; load(); }, 200));
-  [['urole', 'role'], ['udep', 'dep'], ['uloc', 'loc'], ['uact', 'active']].forEach(([i, k]) => { $('#' + i, ctx.view).onchange = (e) => { st[k] = e.target.value; load(); }; });
-  UI.on(ctx.view, 'change', '[data-sel]', (e, el) => { if (el.checked) picked.add(el.dataset.sel); else picked.delete(el.dataset.sel); el.closest('tr').classList.toggle('selected', el.checked); renderBulk(); });
-  UI.on(ctx.view, 'change', '[data-selall]', (e, el) => { $$('[data-sel]', ctx.view).forEach((c) => { c.checked = el.checked; if (el.checked) picked.add(c.dataset.sel); else picked.delete(c.dataset.sel); c.closest('tr').classList.toggle('selected', el.checked); }); renderBulk(); });
-  UI.on(ctx.view, 'click', '[data-bulk]', async (e, el) => { if (el.dataset.bulk === 'clear') { picked.clear(); load(); return; } if (await Pages.bulkUsers([...picked], el.dataset.bulk)) { picked.clear(); load(); } });
-  UI.on(ctx.view, 'click', '[data-act="bulkmode"]', () => { st.view = 'table'; localStorage.setItem('sq_uview', 'table'); const r = $('input[name="uview"][value="table"]', ctx.view); if (r) r.checked = true; load(); UI.toast('حدّد المستخدمين من الجدول ثم اختر الإجراء من الشريط أعلاه', 'info'); });
-  UI.on(ctx.view, 'click', '[data-rolecard]', (e, el) => { st.role = st.role === el.dataset.rolecard ? '' : el.dataset.rolecard; load(); });
+  const refilter = () => { st.limit = 60; load(); };
+  $('#uq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value; refilter(); }, 200));
+  [['urole', 'role'], ['uloc', 'loc'], ['urank', 'rank'], ['uact', 'active'], ['ulogin', 'login'], ['uperm', 'perm'], ['uunit', 'unit']].forEach(([i, k]) => { $('#' + i, ctx.view).onchange = (e) => { st[k] = e.target.value; refilter(); }; });
+  $('#udep', ctx.view).onchange = (e) => { st.dep = e.target.value; st.unit = ''; unitSel(); refilter(); };
+  UI.on(ctx.view, 'change', '[data-sel]', (e, el) => { if (el.checked) picked.add(el.dataset.sel); else picked.delete(el.dataset.sel); el.closest('tr').classList.toggle('selected', el.checked); syncHead(); renderBulk(); });
+  UI.on(ctx.view, 'change', '[data-selall]', (e, el) => { rows.forEach((u) => (el.checked ? picked.add(u.id) : picked.delete(u.id))); load(); });
+  UI.on(ctx.view, 'click', '[data-bulk]', async (e, el) => {
+    const a = el.dataset.bulk;
+    if (a === 'clear') { picked.clear(); load(); return; }
+    if (a === 'all') { rows.forEach((u) => picked.add(u.id)); load(); return; }
+    if (await Pages.bulkUsers([...picked], a)) { picked.clear(); load(); }
+  });
+  UI.on(ctx.view, 'click', '[data-act="bulkmode"]', () => { st.view = 'table'; localStorage.setItem('sq_uview', 'table'); const r = $('input[name="uview"][value="table"]', ctx.view); if (r) r.checked = true; load(); UI.toast('صفِّ القائمة بالدور أو الإدارة أو أي عامل، ثم حدد من الجدول أو «تحديد كل النتائج»، واختر الإجراء من الشريط', 'info', 7000); });
+  UI.on(ctx.view, 'click', '[data-rolecard]', (e, el) => { st.role = st.role === el.dataset.rolecard ? '' : el.dataset.rolecard; refilter(); });
   UI.on(ctx.view, 'change', 'input[name="uview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_uview', el.value); load(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.userModal()) load(); });
   UI.on(ctx.view, 'click', '[data-act="more"]', () => { st.limit += 120; load(); });
@@ -3538,24 +3567,64 @@ Pages.importUsers = () => new Promise((resolve) => {
   }).then(() => resolve(!!result));
 });
 
-Pages.bulkUsers = (ids, action) => {
-  const sup = Auth.user.role === 'supervisor', list = ids.map((id) => Data.c.users.get(id)).filter(Boolean);
-  const defs = {
-    department: { title: 'تحديد الإدارة', icon: 'building', field: { name: 'v', label: 'الإدارة', type: 'select', options: UI.opts('departments') } },
-    location: { title: 'تحديد المبنى', icon: 'pin', field: { name: 'v', label: 'المبنى', type: 'select', options: UI.opts('locations') } },
-    role: { title: 'تغيير الدور', icon: 'shield', field: { name: 'v', label: 'الدور الجديد', type: 'select', options: Object.entries(ROLE_INFO).filter(([k]) => sup || !['supervisor', 'support_manager'].includes(k)).map(([k, r]) => ({ value: k, label: r.label })) } },
-    active: { title: 'تفعيل أو إيقاف', icon: 'lock', field: { name: 'v', label: 'الحالة', type: 'select', options: [{ value: '1', label: 'تفعيل الحسابات' }, { value: '0', label: 'إيقاف الحسابات' }] } }
-  }, d = defs[action];
-  if (!d || !list.length) return Promise.resolve(false);
-  return UI.modal({
-    title: `${d.title} — ${arCount(list.length, AR.user)}`, icon: d.icon, size: 'sm',
-    body: html`<p class="muted" style="margin-bottom:12px;line-height:1.8">${list.slice(0, 5).map((u) => u.name).join('، ')}${list.length > 5 ? ` و${fmtNum(list.length - 5)} آخرين` : ''}</p>${UI.field(d.field)}`,
+/* التعديل الجماعي للحسابات المحددة. يُتجاوز حسابك نفسه في الدور والتفعيل، وما لا تملكه:
+   المشرفون ومديرو الدعم والحسابات الأساسية لغير المشرف، وتُذكر أعدادها بعد التنفيذ */
+Pages.bulkUsers = async (ids, action) => {
+  const sup = Auth.user.role === 'supervisor', me = Auth.user.id, list = ids.map((id) => Data.c.users.get(id)).filter(Boolean);
+  if (!list.length) return false;
+  const count = arCount(list.length, AR.user), names = html`<p class="muted" style="margin-bottom:12px;line-height:1.8">${list.slice(0, 5).map((u) => u.name).join('، ')}${list.length > 5 ? ` و${fmtNum(list.length - 5)} آخرين` : ''}</p>`;
+  if (action === 'password') { const res = await Pages.bulkPassword(ids); if (res) await Pages.bulkPasswordDone(res); return !!res; }
+  if (action === 'export') {
+    const head = ['الاسم', 'اسم المستخدم', 'الرقم العسكري', 'الرتبة', 'الدور', 'الإدارة والقسم', 'المبنى', 'المكتب', 'الهاتف', 'الحالة', 'آخر دخول'], units = Data.list('deptUnits');
+    downloadBlob(XL.write([{ name: 'الحسابات', widths: [28, 16, 14, 14, 14, 34, 18, 18, 14, 10, 18], rows: [head, ...list.map((u) => [u.name, u.username, u.militaryNo || '', Data.nameOf('ranks', u.rankId, ''), ROLES[u.role] || u.role, orgLabel(u.departmentId, u.unitId, units) || '', Data.nameOf('locations', u.locationId, ''), u.office || '', u.phone || '', u.active ? 'مفعّل' : 'موقوف', u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'لم يدخل'])] }]), `حسابات-${dateInput(now())}.xlsx`);
+    return false;
+  }
+  if (action === 'place') return UI.modal({
+    title: `الموضع في الهيكل — ${count}`, icon: 'building', size: 'sm',
+    body: html`${names}<div class="field"><label>الإدارة والقسم</label><select name="v">${orgPlaceOptions(Data.list('deptUnits'), '', '— اختر الموضع —')}</select><small class="hint">يُنقل كل حساب إلى الإدارة والقسم معاً، فلا يبقى قسم من إدارة سابقة.</small></div>`,
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
-      const v = form.querySelector('[name="v"]').value; if (v === '') throw new AppError('اختر القيمة أولاً');
-      const t = now(), me = Auth.user.id, recs = [];
-      for (const u of list) { const r = await DB.get('users', u.id); if (!r) continue; if ((action === 'role' || action === 'active') && r.id === me) continue; if (action === 'role' && !sup && ['supervisor', 'support_manager'].includes(r.role)) continue; if (action === 'department') r.departmentId = v; if (action === 'location') r.locationId = v; if (action === 'role') r.role = v; if (action === 'active') r.active = Number(v); r.updatedAt = t; recs.push(r); }
-      await DB.bulkPut('users', recs); await Data.refresh('users'); await Data.log('update', 'user', '', `${d.title} لعدد ${recs.length} من المستخدمين`); Bus.emit('users');
-      UI.toast(`تم التطبيق على ${arCount(recs.length, AR.user)}`); return true;
+      const v = form.querySelector('[name="v"]').value; if (!v) throw new AppError('اختر الموضع');
+      const n = await Data.org.assign(ids, orgPlaceOf(v)); UI.toast(n ? `نُقل ${arCount(n, AR.user)}` : 'كل الحسابات في هذا الموضع أصلاً'); return true;
+    } }]
+  });
+  const roleOpts = Object.entries(ROLE_INFO).filter(([k]) => sup || !['supervisor', 'support_manager'].includes(k)).map(([k, r]) => ({ value: k, label: r.label }));
+  const permOpts = html`${PERM_GROUPS.map((g) => html`<optgroup label="${g.title}">${g.items.map(([k, l]) => html`<option value="${k}">${l}</option>`)}</optgroup>`)}`;
+  const isStaff = (r) => ['technician', 'support_manager', 'supervisor'].includes(r.role);
+  const defs = {
+    location: { title: 'المبنى', icon: 'pin', field: { name: 'v', label: 'المبنى', type: 'select', options: UI.opts('locations') }, apply: (r, v) => { r.locationId = v; } },
+    rank: { title: 'الرتبة', icon: 'shield', field: { name: 'v', label: 'الرتبة', type: 'select', options: UI.opts('ranks') }, apply: (r, v) => { r.rankId = v; } },
+    role: { title: 'تغيير الدور', icon: 'user', field: { name: 'v', label: 'الدور الجديد', type: 'select', options: roleOpts }, self: true, apply: (r, v) => { r.role = v; } },
+    active: { title: 'تفعيل أو إيقاف', icon: 'lock', field: { name: 'v', label: 'الحالة', type: 'select', options: [{ value: '1', label: 'تفعيل الحسابات' }, { value: '0', label: 'إيقاف الحسابات' }] }, self: true, apply: (r, v) => { r.active = Number(v); } },
+    must: { title: 'تغيير كلمة المرور عند الدخول', icon: 'refresh', field: { name: 'v', label: 'عند الدخول التالي', type: 'select', options: [{ value: '1', label: 'إلزامهم بتغيير كلمة المرور' }, { value: '0', label: 'إلغاء الإلزام' }] }, skip: (r) => isSysAccount(r), apply: (r, v) => { r.mustChangePassword = Number(v); } },
+    perms: { title: 'الصلاحيات', icon: 'key', only: sup, body: html`<div class="field"><label>الإجراء</label><select name="op"><option value="grant">منح صلاحية إضافية</option><option value="revoke">سحب صلاحية</option><option value="reset">إعادتها إلى صلاحيات الدور</option></select></div><div class="field mt" data-permrow><label>الصلاحية</label><select name="v">${permOpts}</select></div>`,
+      skip: (r) => ['supervisor', 'monitor'].includes(r.role),
+      apply: (r, v, op) => {
+        const extra = new Set(r.extraPerms || []), denied = new Set(r.deniedPerms || []), base = (PERMS[r.role] || []).includes(v);
+        if (op === 'reset') { extra.clear(); denied.clear(); } else if (op === 'grant') { denied.delete(v); if (!base) extra.add(v); } else { extra.delete(v); if (base) denied.add(v); }
+        r.extraPerms = [...extra]; r.deniedPerms = [...denied];
+      } },
+    spec: { title: 'التخصصات', icon: 'tag', body: html`<div class="field"><label>الإجراء</label><select name="op"><option value="add">إضافة تخصص</option><option value="remove">إزالة تخصص</option></select></div><div class="field mt"><label>فئة البلاغات</label><select name="v">${Data.list('categories').map((c) => html`<option value="${c.id}">${c.name}</option>`)}</select><small class="hint">للفنيين والإداريين فقط، وتُسند إليهم بلاغات هذه الفئة تلقائياً.</small></div>`,
+      skip: (r) => !isStaff(r), apply: (r, v, op) => { const c = new Set(r.categories || []); if (op === 'add') c.add(v); else c.delete(v); r.categories = [...c]; } }
+  }, d = defs[action];
+  if (!d || d.only === false) return false;
+  return UI.modal({
+    title: `${d.title} — ${count}`, icon: d.icon, size: 'sm', body: html`${names}${d.body || UI.field(d.field)}`,
+    onMount: (form) => { const op = form.querySelector('[name="op"]'), row = form.querySelector('[data-permrow]'); if (op && row) op.addEventListener('change', () => { row.hidden = op.value === 'reset'; }); },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = form.querySelector('[name="v"]').value, op = (form.querySelector('[name="op"]') || {}).value || '';
+      if (v === '' && op !== 'reset') throw new AppError('اختر القيمة أولاً');
+      const t = now(), recs = []; let skipped = 0;
+      for (const u of list) {
+        const r = await DB.get('users', u.id); if (!r) continue;
+        const out = (d.self && r.id === me) || (!sup && (['supervisor', 'support_manager'].includes(r.role) || isSysAccount(r))) || (action === 'role' && !sup && ['supervisor', 'support_manager'].includes(v)) || (d.skip && d.skip(r));
+        if (out) { skipped++; continue; }
+        const before = JSON.stringify(r); d.apply(r, v, op);
+        if (JSON.stringify(r) === before) continue;
+        r.updatedAt = t; recs.push(r);
+      }
+      if (recs.length) { await DB.bulkPut('users', recs); await Data.refresh('users'); await Data.log('update', 'user', '', `${d.title} (تعديل جماعي) لعدد ${recs.length} من الحسابات`); Bus.emit('users'); }
+      UI.toast(`${recs.length ? `تم التطبيق على ${arCount(recs.length, AR.user)}` : 'لا تغيير: القيمة نفسها لدى الجميع'}${skipped ? `، وتُرك ${fmtNum(skipped)} (حسابك أو حسابات لا ينطبق عليها الإجراء أو خارج صلاحيتك)` : ''}`, skipped ? 'warn' : 'ok', 8000);
+      return true;
     } }]
   });
 };
@@ -6009,7 +6078,11 @@ Pages.passwords = async (ctx) => {
   const me = Auth.user;
   const selectable = () => Data.list('users').filter((u) => u.active && canSetPassword(me, u));
   const curRows = () => { const qn = normalizeAr(st.q); return selectable().filter((u) => (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!qn || normalizeAr(`${u.name} ${u.username} ${u.militaryNo || ''} ${Data.nameOf('departments', u.departmentId, '')}`).includes(qn))); };
-  const renderBulk = () => { const b = $('#pwBulk', ctx.view); if (!b) return; b.hidden = !picked.size; if (!picked.size) return; b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}</b><button class="btn btn-sm btn-primary" data-bulkpw>${UI.icon('key')} تعيين كلمة مرور للمحدد</button><button class="btn btn-sm btn-ghost" data-pwclear>${UI.icon('x')} إلغاء التحديد</button>`); };
+  const renderBulk = () => {
+    const b = $('#pwBulk', ctx.view); if (!b) return; b.hidden = !picked.size; if (!picked.size) return;
+    const rows = curRows(), rest = rows.filter((u) => !picked.has(u.id)).length;
+    b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.user)}</b>${rest ? html`<button class="btn btn-sm btn-ghost" data-pselallbtn>${UI.icon('check')} تحديد كل النتائج (${fmtNum(rows.length)})</button>` : ''}<button class="btn btn-sm btn-primary" data-bulkpw>${UI.icon('key')} تعيين كلمة مرور للمحدد</button><button class="btn btn-sm btn-ghost" data-pwclear>${UI.icon('x')} إلغاء التحديد</button>`);
+  };
   const draw = async () => {
     const roleSet = new Set(selectable().map((u) => u.role)), rows = curRows();
     if (!ctx.alive()) return;
@@ -6017,26 +6090,26 @@ Pages.passwords = async (ctx) => {
     const roleSel = `<select id="prole" class="input"><option value="">كل الأدوار</option>${Object.entries(ROLE_INFO).filter(([k]) => roleSet.has(k)).map(([k, r]) => opt(k, r.label, st.role)).join('')}</select>`;
     const depSel = `<select id="pdep" class="input"><option value="">كل الإدارات</option>${UI.opts('departments').map((o) => opt(o.value, o.label, st.dep)).join('')}</select>`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'كلمات مرور الحسابات', sub: me.role === 'technician' ? 'يمكنك إصدار كلمة مرور لحسابات الموظفين — فردياً أو جماعياً' : me.role === 'support_manager' ? 'يمكنك إصدار كلمة مرور للموظفين والفنيين — فردياً أو جماعياً' : 'يمكنك إصدار كلمة مرور لجميع الحسابات — فردياً أو جماعياً', illu: 'card', actions: html`<a class="btn btn-ghost" href="#/users">${UI.icon('users')} المستخدمون</a>` })}
-      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="pq" type="search" placeholder="ابحث بالاسم أو الرقم العسكري أو الإدارة" value="${st.q}"></div>${raw(roleSel)}${raw(depSel)}<span class="faint small" style="margin-inline-start:auto">${arCount(rows.length, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}</span></div>
+      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="pq" type="search" placeholder="ابحث بالاسم أو الرقم العسكري أو الإدارة" value="${st.q}"></div>${raw(roleSel)}${raw(depSel)}<span class="faint small" style="margin-inline-start:auto">${arCount(rows.length, AR.user)}</span></div>
       <div class="bulk-bar" id="pwBulk" hidden></div>
-      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-pselall aria-label="تحديد الكل"></th><th>الحساب</th><th>الدور</th><th>الإدارة</th><th>آخر دخول</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 300).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}"><td class="sel-col"><input type="checkbox" data-psel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="t-title">${UI.avatar(u, 'av-sm')}<div><div>${u.name}</div><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td>${UI.chip(ROLE_TONE[u.role] || 'slate', ROLES[u.role] || u.role)}</td><td class="small">${Data.nameOf('departments', u.departmentId)}</td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</td><td class="nowrap"><button class="btn btn-sm btn-soft" data-pw="${u.id}">${UI.icon('key')} كلمة مرور</button></td></tr>`)}</tbody></table></div>${rows.length > 300 ? html`<p class="hint mt">يُعرض أول 300 حساب من ${fmtNum(rows.length)} — ضيّق البحث أو التصفية لتحديدها كلها.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'card', title: 'لا توجد حسابات ضمن صلاحيتك', text: 'تظهر هنا الحسابات التي يمكنك إصدار كلمة مرور لها.' })}</div>`}</section>`);
+      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-pselall aria-label="تحديد كل النتائج (${fmtNum(rows.length)})" title="تحديد كل النتائج (${fmtNum(rows.length)})"${rows.length && rows.every((u) => picked.has(u.id)) ? raw(' checked') : ''}></th><th>الحساب</th><th>الدور</th><th>الإدارة</th><th>آخر دخول</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 300).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}"><td class="sel-col"><input type="checkbox" data-psel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="t-title">${UI.avatar(u, 'av-sm')}<div><div>${u.name}</div><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td>${UI.chip(ROLE_TONE[u.role] || 'slate', ROLES[u.role] || u.role)}</td><td class="small">${Data.nameOf('departments', u.departmentId)}</td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</td><td class="nowrap"><button class="btn btn-sm btn-soft" data-pw="${u.id}">${UI.icon('key')} كلمة مرور</button></td></tr>`)}</tbody></table></div>${rows.length > 300 ? html`<p class="hint mt">يُعرض أول 300 حساب من ${fmtNum(rows.length)} — ضيّق البحث أو التصفية لتحديدها كلها.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'card', title: 'لا توجد حسابات ضمن صلاحيتك', text: 'تظهر هنا الحسابات التي يمكنك إصدار كلمة مرور لها.' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
+    const head = $('[data-pselall]', ctx.view), n = rows.filter((u) => picked.has(u.id)).length; if (head) head.indeterminate = n > 0 && n < rows.length;
     $('#pq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
     $('#prole', ctx.view).addEventListener('change', (e) => { st.role = e.target.value; picked.clear(); draw(); });
     $('#pdep', ctx.view).addEventListener('change', (e) => { st.dep = e.target.value; picked.clear(); draw(); });
     renderBulk();
   };
   UI.on(ctx.view, 'change', '[data-psel]', (e, el) => { if (el.checked) picked.add(el.dataset.psel); else picked.delete(el.dataset.psel); const tr = el.closest('tr'); if (tr) tr.classList.toggle('selected', el.checked); renderBulk(); });
-  UI.on(ctx.view, 'change', '[data-pselall]', (e, el) => { $$('[data-psel]', ctx.view).forEach((c) => { c.checked = el.checked; if (el.checked) picked.add(c.dataset.psel); else picked.delete(c.dataset.psel); const tr = c.closest('tr'); if (tr) tr.classList.toggle('selected', el.checked); }); renderBulk(); });
+  /* «تحديد الكل» يشمل كل نتائج التصفية، لا الثلاثمئة الظاهرة فقط */
+  UI.on(ctx.view, 'change', '[data-pselall]', (e, el) => { curRows().forEach((u) => (el.checked ? picked.add(u.id) : picked.delete(u.id))); draw(); });
   UI.on(ctx.view, 'click', '[data-pwclear]', () => { picked.clear(); draw(); });
+  UI.on(ctx.view, 'click', '[data-pselallbtn]', () => { curRows().forEach((u) => picked.add(u.id)); draw(); });
   UI.on(ctx.view, 'click', '[data-bulkpw]', async () => {
     const res = await Pages.bulkPassword([...picked]);
     if (!res) return;
     picked.clear();
-    await UI.modal({ title: 'تم تعيين كلمة المرور', icon: 'key', size: 'sm',
-      body: html`<div class="imp-summary" style="justify-content:center">${UI.chip('teal', `نجح: ${fmtNum(res.ok)}`, 'check')}${res.fail ? UI.chip('red', `تعذّر: ${fmtNum(res.fail)}`, 'alert') : ''}</div>${res.mode === 'shared' && res.ok ? html`<p class="muted mt">كلمة المرور الموحّدة (سلّمها لأصحابها):</p><div class="pw-show ltr">${res.shared}</div>` : res.ok ? html`<p class="muted mt">نزّل ملف كلمات المرور ووزّعه بأمان ثم احذفه.</p>` : ''}${res.creds.length ? html`<button type="button" class="btn btn-soft btn-block mt" data-dlcreds>${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}`,
-      actions: [{ label: 'تم', kind: 'primary' }],
-      onMount: (f) => { UI.on(f, 'click', '[data-dlcreds]', () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [32, 16, 16, 18, 12, 28], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'الإدارة'], ...res.creds] }]), `كلمات-المرور-${dateInput(now())}.xlsx`); }); } });
+    await Pages.bulkPasswordDone(res);
     draw();
   });
   UI.on(ctx.view, 'click', '[data-pw]', async (e, el) => {
@@ -6060,13 +6133,19 @@ Pages.passwords = async (ctx) => {
   await draw();
 };
 
+/* نتيجة التغيير الجماعي لكلمة المرور: الأعداد، والكلمة الموحّدة أو ملف بالكلمات العشوائية */
+Pages.bulkPasswordDone = (res) => UI.modal({ title: 'تم تعيين كلمة المرور', icon: 'key', size: 'sm',
+      body: html`<div class="imp-summary" style="justify-content:center">${UI.chip('teal', `نجح: ${fmtNum(res.ok)}`, 'check')}${res.fail ? UI.chip('red', `تعذّر: ${fmtNum(res.fail)}`, 'alert') : ''}</div>${res.mode === 'shared' && res.ok ? html`<p class="muted mt">كلمة المرور الموحّدة (سلّمها لأصحابها):</p><div class="pw-show ltr">${res.shared}</div>` : res.ok ? html`<p class="muted mt">نزّل ملف كلمات المرور ووزّعه بأمان ثم احذفه.</p>` : ''}${res.creds.length ? html`<button type="button" class="btn btn-soft btn-block mt" data-dlcreds>${UI.icon('download')} تنزيل ملف الحسابات (Excel)</button>` : ''}`,
+      actions: [{ label: 'تم', kind: 'primary' }],
+      onMount: (f) => { UI.on(f, 'click', '[data-dlcreds]', () => { downloadBlob(XL.write([{ name: 'الحسابات', widths: [32, 16, 16, 18, 12, 28], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'كلمة المرور', 'الدور', 'الإدارة'], ...res.creds] }]), `كلمات-المرور-${dateInput(now())}.xlsx`); }); } });
+
 /* تغيير جماعي لكلمة المرور: كلمة موحّدة للجميع أو عشوائية لكل مستخدم. الخادم يتحقق من الصلاحية لكل حساب على حدة */
 Pages.bulkPassword = (ids) => {
   const me = Auth.user;
   const list = ids.map((id) => Data.c.users.get(id)).filter((u) => u && canSetPassword(me, u) && !(isSysAccount(u) && me.role !== 'supervisor'));
   if (!list.length) { UI.toast('لا توجد حسابات ضمن صلاحيتك في التحديد', 'warn'); return Promise.resolve(false); }
   return UI.modal({
-    title: `تعيين كلمة مرور — ${arCount(list.length, AR.item).replace('أصناف', 'حسابات').replace('صنفاً', 'حساباً').replace('صنف', 'حساب')}`, icon: 'key', size: 'lg',
+    title: `تعيين كلمة مرور — ${arCount(list.length, AR.user)}`, icon: 'key', size: 'lg',
     body: html`<div class="banner tone-amber">${UI.icon('shield')}<div class="grow">${pwForce() ? 'سيُطلب من كل مستخدم تغيير كلمة المرور عند أول دخول. ' : ''}تُعرض كلمة المرور مرة واحدة بعد التنفيذ.</div></div>
       <p class="muted mt" style="line-height:1.8">${list.slice(0, 6).map((u) => u.name).join('، ')}${list.length > 6 ? ` و${fmtNum(list.length - 6)} آخرين` : ''}</p>
       <div class="field mt"><label>طريقة الإصدار</label><div class="seg">${[['shared', 'كلمة موحّدة للجميع', 'users'], ['random', 'عشوائية لكل مستخدم', 'refresh']].map(([k, l, ic]) => html`<label><input type="radio" name="mode" value="${k}"${k === 'shared' ? raw(' checked') : ''}><span>${UI.icon(ic)}${l}</span></label>`)}</div></div>

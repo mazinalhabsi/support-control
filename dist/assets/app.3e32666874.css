@@ -1110,6 +1110,7 @@ html[data-motion=off] *,html[data-motion=off] *::before,html[data-motion=off] *:
 .imp-progress .progress{height:12px}
 .imp-progress .progress i{animation:none;transition:width .35s var(--ease)}
 .bulk-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;background:rgba(var(--accent),.1);border-bottom:1px solid rgba(var(--accent),.3);animation:fade .2s}
+.bulk-bar .bulk-acts{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 420px}
 .bulk-bar b{margin-inline-end:8px;font-size:13.5px}
 .sel-col{width:40px}.sel-col input{width:17px;height:17px;accent-color:rgb(var(--accent));cursor:pointer}
 .table tr.selected td{background:rgba(var(--accent),.09)}
