@@ -3255,7 +3255,7 @@ Pages.userModal = async (id) => {
 Pages.users = async (ctx) => {
   const st = { q: '', role: ctx.query.role || '', dep: '', unit: '', loc: '', rank: '', active: '', login: '', perm: '', view: localStorage.getItem('sq_uview') || 'cards', limit: 60 };
   const sel = (id, label, opts) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>`;
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<a class="btn btn-ghost" href="#/settings?s=perms">${UI.icon('key')} الصلاحيات</a><button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
     <div class="role-cards" id="roleCards"></div>
     <div class="mt">${UI.stateLegend(['off', 'mod'], { off: 'حساب موقوف', mod: 'صلاحيات معدّلة عن الدور' })}</div>
     <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الإدارات', [...UI.opts('departments'), { value: '-', label: '— بلا إدارة —' }])}<select id="uunit" aria-label="القسم" hidden></select>${sel('uloc', 'كل المواقع', UI.opts('locations'))}${sel('urank', 'كل الرتب', UI.opts('ranks'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}${sel('ulogin', 'آخر دخول', [{ value: 'never', label: 'لم يدخل أبداً' }, { value: '30', label: 'لم يدخل منذ 30 يوماً' }, { value: '90', label: 'لم يدخل منذ 90 يوماً' }])}${sel('uperm', 'الصلاحيات', [{ value: 'mod', label: 'معدّلة عن الدور' }, { value: 'role', label: 'صلاحيات الدور فقط' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
@@ -13112,32 +13112,8 @@ const VAULT = {
   /* مستوى وصول حساب: لا شيء، أو اطلاع، أو اطلاع وتعديل. يغيّره المشرف وحده (والخادم يفرض ذلك) */
   level: (u) => (canUser(u, 'vault.manage') && canUser(u, 'vault.read') ? 'manage' : canUser(u, 'vault.read') ? 'read' : 'none'),
   holders: () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && u.role !== 'monitor' && canUser(u, 'vault.read')),
-  /* يُحدَّث سجل الحساب من الخادم قبل الكتابة ويُتحقق بعدها: حساب نشط يعدّل جهازه سجله (عند الدخول مثلاً)، فكانت نسخة المشرف القديمة
-     تتعارض معه ويُرفض التغيير، فيضيع سحب الصلاحية مع تنبيه عام لا يذكره */
-  async setAccess(changes) {
-    if (!Auth.user || Auth.user.role !== 'supervisor') throw new AppError('منح صلاحية الملاحظات الإدارية للمشرف وحده');
-    const label = (l) => (l === 'manage' ? 'اطلاع وتعديل' : l === 'read' ? 'اطلاع' : 'بلا وصول');
-    const apply = async (list, t) => {
-      for (const [id, level] of list) {
-        const u = await DB.get('users', id); if (!u || ['supervisor', 'monitor'].includes(u.role)) continue;
-        const extra = new Set(u.extraPerms || []), denied = new Set(u.deniedPerms || []), want = level === 'manage' ? ['vault.read', 'vault.manage'] : level === 'read' ? ['vault.read'] : [];
-        ['vault.read', 'vault.manage'].forEach((k) => { const base = (PERMS[u.role] || []).includes(k); if (want.includes(k)) { denied.delete(k); if (!base) extra.add(k); } else { extra.delete(k); if (base) denied.add(k); } });
-        await DB.put('users', { ...u, extraPerms: [...extra], deniedPerms: [...denied], updatedAt: t });
-      }
-    };
-    const left = async (list) => { const out = []; for (const c of list) { const u = await DB.get('users', c[0]); if (u && !['supervisor', 'monitor'].includes(u.role) && VAULT.level(u) !== c[1]) out.push(c); } return out; };
-    let todo = changes;
-    for (let i = 0; i < 3 && todo.length; i++) {
-      if (Sync.on) { await Sync.flush().catch(() => null); await Sync.pull().catch(() => null); }
-      await apply(todo, now());
-      if (Sync.on) await Sync.flush().catch(() => null);
-      todo = await left(todo);
-    }
-    if (todo.length) throw new AppError(`لم يُحفظ وصول ${todo.map((c) => Data.userName(c[0])).join('، ')}. أعد المحاولة بعد قليل`);
-    for (const [id, level] of changes) await Data.log('update', 'users', id, `الملاحظات الإدارية لـ${Data.userName(id)}: ${label(level)}`);
-    await Data.refresh('users'); Bus.emit('users', {}); Bus.emit('vault', {});
-    return changes.length;
-  },
+  /* الوصول يُدار من «الصلاحيات» في إدارة الحسابات مع بقية الصلاحيات؛ هذا اختصار لمستوياته الثلاثة */
+  setAccess(changes) { return Data.users.setPerms(changes.flatMap(([id, level]) => [{ id, perm: 'vault.read', on: level !== 'none' }, { id, perm: 'vault.manage', on: level === 'manage' }])); },
   gen(len = 16) { const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%*?-_', a = new Uint32Array(len); crypto.getRandomValues(a); return [...a].map((x) => cs[x % cs.length]).join(''); },
   async remindJob() {
     if (!VAULT.on() || !VAULT.canRead()) return;
@@ -13198,34 +13174,6 @@ Pages.vaultModal = async (id = '', type = 'account') => {
     } }]
   });
 };
-/* من يصل إلى الملاحظات الإدارية: المشرف يمنحها للفنيين والإداريين (أو أي حساب) اطلاعاً أو اطلاعاً وتعديلاً، ويسحبها */
-Pages.vaultAccess = () => {
-  const LV = [['none', 'بلا وصول'], ['read', 'اطلاع'], ['manage', 'اطلاع وتعديل']], st = { q: '', changed: new Map() };
-  const pool = () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && !['supervisor', 'monitor'].includes(u.role));
-  const row = (u) => { const cur = st.changed.get(u.id) || VAULT.level(u); return html`<div class="list-row">${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub ellipsis">${ROLES[u.role] || ''}${u.departmentId ? ` · ${Data.nameOf('departments', u.departmentId, '')}` : ''}</div></div><select data-lv="${u.id}" aria-label="وصول ${u.name}" style="max-width:150px">${LV.map(([k, l]) => html`<option value="${k}"${k === cur ? raw(' selected') : ''}>${l}</option>`)}</select></div>`; };
-  return UI.modal({
-    title: 'من يصل إلى الملاحظات الإدارية', icon: 'key', size: 'lg',
-    body: html`<p class="muted small">الملاحظة المشتركة يراها كل من له «اطلاع»، ويعدّلها من له «اطلاع وتعديل». والملاحظة الخاصة لكاتبها وحده. تظهر هنا الحسابات الفنية والإدارية ومن له وصول؛ وابحث لإضافة أي حساب آخر.</p>
-      <div class="search-box">${UI.icon('search')}<input type="search" data-vq placeholder="ابحث بالاسم أو الرقم العسكري"></div><div class="list mt" data-vlist style="max-height:380px;overflow:auto"></div><div class="small faint mt" data-vcount></div>`,
-    onMount: (form) => {
-      const draw = () => {
-        const q = normalizeAr(st.q), all = pool();
-        const list = q ? all.filter((u) => normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(q)).slice(0, 60) : all.filter((u) => ['technician', 'support_manager'].includes(u.role) || canUser(u, 'vault.read') || st.changed.has(u.id));
-        const rank = (u) => ({ manage: 0, read: 1, none: 2 })[st.changed.get(u.id) || VAULT.level(u)];
-        list.sort((a, b) => rank(a) - rank(b) || (ROLES[a.role] || '').localeCompare(ROLES[b.role] || '', 'ar') || a.name.localeCompare(b.name, 'ar'));
-        $('[data-vlist]', form).innerHTML = list.length ? String(html`${list.map(row)}`) : String(UI.empty({ illu: 'user', title: 'لا توجد حسابات مطابقة' }));
-        $('[data-vcount]', form).textContent = st.changed.size ? `${fmtNum(st.changed.size)} تغيير لم يُحفظ بعد` : '';
-      };
-      form.addEventListener('input', (e) => { if (e.target.matches('[data-vq]')) { st.q = e.target.value.trim(); draw(); } });
-      form.addEventListener('change', (e) => { const s = e.target.closest('[data-lv]'); if (!s) return; const u = Data.c.users.get(s.dataset.lv); if (u && s.value === VAULT.level(u)) st.changed.delete(u.id); else st.changed.set(s.dataset.lv, s.value); $('[data-vcount]', form).textContent = st.changed.size ? `${fmtNum(st.changed.size)} تغيير لم يُحفظ بعد` : ''; });
-      draw();
-    },
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async () => {
-      if (!st.changed.size) return true;
-      const n = await VAULT.setAccess([...st.changed]); UI.toast(`تغيّر وصول ${fmtNum(n)} حساب`); return true;
-    } }]
-  });
-};
 Pages.vault = async (ctx) => {
   const st = { q: '', type: '', f: ctx.query.f || '', tag: '', arch: false };
   const reveal = new Set();
@@ -13261,7 +13209,7 @@ Pages.vault = async (ctx) => {
     const live = all.filter((n) => !n.archived), due = live.filter((n) => ['soon', 'expired'].includes(VAULT.state(n)));
     const tags = [...new Set(live.flatMap((n) => n.tags || []))].sort((a, b) => AR_COLL.compare(a, b));
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'الملاحظات الإدارية', sub: `الحسابات والاشتراكات والبريد والتراخيص وكل ما يحتاج الإداريون الرجوع إليه. المشتركة يراها ${fmtNum(VAULT.holders().length)} حساب مخوّل، والخاصة لكاتبها وحده`, illu: 'key', actions: html`${Auth.user.role === 'supervisor' ? html`<button class="btn btn-ghost" data-act="access">${UI.icon('users')} من يصل إليها</button>` : ''}${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
+      ${UI.pageHead({ title: 'الملاحظات الإدارية', sub: `الحسابات والاشتراكات والبريد والتراخيص وكل ما يحتاج الإداريون الرجوع إليه. المشتركة يراها ${fmtNum(VAULT.holders().length)} حساب مخوّل، والخاصة لكاتبها وحده`, illu: 'key', actions: html`${canUser(Auth.user, 'users.manage') ? html`<a class="btn btn-ghost" href="#/settings?s=perms&p=vault.read">${UI.icon('users')} من يصل إليها</a>` : ''}${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
       ${manage ? html`<div class="vt-quick">${UI.icon('sparkle')}<span class="faint small">إضافة سريعة:</span>${Object.entries(VT_TYPES).map(([k, T]) => html`<button type="button" class="vt-qb tone-${T.tone}" data-qnew="${k}">${UI.icon(T.icon)} ${T.label}</button>`)}</div>` : ''}
       ${due.length ? html`<div class="banner tone-amber mt">${UI.icon('clock')}<div class="grow"><b>${fmtNum(due.length)} اشتراك أو ترخيص انتهى أو يقترب انتهاؤه خلال ${fmtNum(VAULT.remindDays())} يوماً</b><div class="small">${due.slice(0, 5).map((n) => n.title).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-f="due">عرضها</button></div>` : ''}
       <section class="panel mt"><div class="toolbar">
@@ -13279,7 +13227,6 @@ Pages.vault = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-arch]', () => { st.arch = !st.arch; st.f = ''; draw(); });
   UI.on(ctx.view, 'click', '[data-vtag]', (e, el) => { st.tag = st.tag === el.dataset.vtag ? '' : el.dataset.vtag; draw(); });
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.vaultModal('', st.type || 'account')) draw(); });
-  UI.on(ctx.view, 'click', '[data-act="access"]', async () => { try { if (await Pages.vaultAccess()) draw(); } catch (ex) { UI.error(ex); } });
   UI.on(ctx.view, 'click', '[data-qnew]', async (e, el) => { if (await Pages.vaultModal('', el.dataset.qnew)) draw(); });
   UI.on(ctx.view, 'click', '[data-vedit]', async (e, el) => { if (await Pages.vaultModal(el.dataset.vedit)) draw(); });
   UI.on(ctx.view, 'click', '[data-pin]', async (e, el) => { const n = await DB.get('vault', el.dataset.pin); if (n) { await VAULT.patch(n.id, { pinned: n.pinned ? 0 : 1 }); draw(); } });
@@ -14474,7 +14421,8 @@ const CC_GROUPS = [
     ['backup', 'النسخ الاحتياطي والاستعادة', 'database', 'backup.manage', 'أخذ النسخ واستعادتها وجدولة النسخ التلقائي', '/backup', (c) => Pages.backup(c)]
   ]],
   ['المستخدمون والصلاحيات', 'users', [
-    ['users', 'المستخدمون والصلاحيات', 'users', 'users.manage', 'إضافة الحسابات وتعديلها ومنح الصلاحيات وسحبها', '/users', (c) => Pages.users(c)],
+    ['users', 'المستخدمون', 'users', 'users.manage', 'إضافة الحسابات وتعديلها، وصلاحيات كل حساب، والتعديل الجماعي', '/users', (c) => Pages.users(c)],
+    ['perms', 'الصلاحيات', 'key', 'users.manage', 'كل صلاحية ومن يملكها، والمنح والسحب لعدة حسابات، ومصفوفة الأدوار', '', (c) => Pages.ccPerms(c)],
     ['passwords', 'كلمات المرور', 'key', 'users.password', 'إصدار كلمات المرور وتغييرها', '/passwords', (c) => Pages.passwords(c)],
     ['org', 'الهيكل التنظيمي', 'layers', 'org.manage|org.assign|org.head', 'الإدارات والأقسام والمكاتب', '/org', (c) => Pages.org(c)]
   ]],
@@ -14504,6 +14452,83 @@ Pages.ccExtMaint = (ctx) => {
   };
   UI.on(ctx.view, 'click', '[data-act="save"]', async () => { const g = (n) => ctx.view.querySelector(`[name="${n}"]`); try { await XM.saveCfg({ name: g('name').value.trim() || 'الصيانة الخارجية', overdueDays: clamp(Number(g('days').value) || 14, 1, 365), off: g('on').checked ? 0 : 1 }); UI.toast('حُفظت الإعدادات'); draw(); } catch (e) { UI.error(e); } });
   UI.on(ctx.view, 'click', '[data-act="vendors"]', async () => { await Pages.xmVendorsModal(); draw(); });
+  draw();
+};
+/* ══════════ الصلاحيات: كل صلاحية ومن يملكها، والمنح والسحب لعدة حسابات من مكان واحد ══════════
+   يغيّرها المشرف وحده (والخادم يفرض ذلك). يُحدَّث سجل كل حساب من الخادم قبل الكتابة ويُتحقق بعدها: حساب نشط يعدّل جهازه سجله
+   (عند الدخول مثلاً)، فكانت نسخة المشرف القديمة تتعارض معه ويُرفض التغيير بتنبيه عام، فيضيع منح الصلاحية أو سحبها */
+Data.users.setPerms = async (changes) => {
+  if (!Auth.user || Auth.user.role !== 'supervisor') throw new AppError('منح الصلاحيات وسحبها للمشرف وحده');
+  const want = new Map();
+  changes.forEach(({ id, perm, on }) => { if (!PERM_KEYS.has(perm) || BASE_PERMS.includes(perm)) return; if (!want.has(id)) want.set(id, new Map()); want.get(id).set(perm, !!on); });
+  const fixed = (u) => !u || ['supervisor', 'monitor'].includes(u.role);
+  const apply = async (ids, t) => {
+    for (const id of ids) {
+      const u = await DB.get('users', id); if (fixed(u)) continue;
+      const extra = new Set(u.extraPerms || []), denied = new Set(u.deniedPerms || []);
+      want.get(id).forEach((on, k) => { const base = (PERMS[u.role] || []).includes(k); if (on) { denied.delete(k); if (!base) extra.add(k); } else { extra.delete(k); if (base) denied.add(k); } });
+      await DB.put('users', { ...u, extraPerms: [...extra], deniedPerms: [...denied], updatedAt: t });
+    }
+  };
+  const left = async (ids) => { const out = []; for (const id of ids) { const u = await DB.get('users', id); if (fixed(u)) continue; if ([...want.get(id)].some(([k, on]) => canUser(u, k) !== on)) out.push(id); } return out; };
+  let todo = [...want.keys()];
+  for (let i = 0; i < 3 && todo.length; i++) {
+    if (Sync.on) { await Sync.flush().catch(() => null); await Sync.pull().catch(() => null); }
+    await apply(todo, now());
+    if (Sync.on) await Sync.flush().catch(() => null);
+    todo = await left(todo);
+  }
+  if (todo.length) throw new AppError(`لم تُحفظ صلاحيات ${todo.map((id) => Data.userName(id)).join('، ')}. أعد المحاولة بعد قليل`);
+  const perms = [...new Set(changes.map((c) => c.perm))], on = changes.filter((c) => c.on).length, off = changes.length - on;
+  await Data.log('update', 'users', '', `الصلاحيات: ${perms.map((k) => `«${PERM_LABEL[k] || k}»`).join('، ')} — ${on ? `منح ${fmtNum(on)}` : ''}${on && off ? '، ' : ''}${off ? `سحب ${fmtNum(off)}` : ''} (${fmtNum(want.size)} حساب)`);
+  await Data.refresh('users'); Bus.emit('users', {}); Bus.emit('vault', {});
+  return want.size;
+};
+/* مصدر الصلاحية لحساب: من دوره، أو إضافية، أو مسحوبة من دوره */
+const permSource = (u, k) => { if (u.role === 'supervisor') return 'all'; const base = (PERMS[u.role] || []).includes(k); if ((u.deniedPerms || []).includes(k)) return base ? 'denied' : ''; if (base) return 'role'; return (u.extraPerms || []).includes(k) ? 'extra' : ''; };
+Pages.ccPerms = (ctx) => {
+  const sup = Auth.user.role === 'supervisor', keys = PERM_GROUPS.flatMap((g) => g.items.map((i) => i[0]));
+  const st = { p: keys.includes(ctx.query.p) ? ctx.query.p : keys[0], q: '', uq: '', role: '', dep: '', view: ctx.query.v === 'matrix' ? 'matrix' : 'perm', pick: new Set(), more: false };
+  const people = () => Data.list('users').filter((u) => u.active && !isSysAccount(u) && u.role !== 'monitor');
+  const holdersOf = (k) => people().filter((u) => u.role !== 'supervisor' && canUser(u, k));
+  const roleLabel = (r) => ROLES[r] || r, ROLE_KEYS = Object.keys(ROLES).filter((r) => !['monitor', 'supervisor'].includes(r));
+  const row = (u, k, act) => { const src = permSource(u, k); return html`<div class="list-row">${act === 'pick' ? html`<input type="checkbox" data-ppick="${u.id}"${st.pick.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}">` : ''}${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub ellipsis">${roleLabel(u.role)}${u.departmentId ? ` · ${Data.nameOf('departments', u.departmentId, '')}` : ''}</div></div>${src === 'role' ? UI.chip('slate', 'من الدور') : src === 'extra' ? UI.chip('teal', 'إضافية') : src === 'denied' ? UI.chip('red', 'مسحوبة') : ''}${sup && act === 'revoke' ? html`<button type="button" class="btn btn-ghost btn-sm" data-prevoke="${u.id}">${UI.icon('x')} سحب</button>` : ''}${sup && act === 'restore' ? html`<button type="button" class="btn btn-soft btn-sm" data-prestore="${u.id}">${UI.icon('undo')} إعادة</button>` : ''}</div>`; };
+  const draw = () => {
+    const all = people(), k = st.p, label = PERM_LABEL[k], hint = (PERM_GROUPS.flatMap((g) => g.items).find((i) => i[0] === k) || [])[2] || '';
+    const holders = holdersOf(k), denied = all.filter((u) => permSource(u, k) === 'denied'), roles = ROLE_KEYS.filter((r) => (PERMS[r] || []).includes(k));
+    const qn = normalizeAr(st.q), uq = normalizeAr(st.uq);
+    const cands = sup ? all.filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(uq))) : [];
+    const list = PERM_GROUPS.map((g) => html`<div class="pc-grp"><span class="pc-gt">${UI.icon(g.icon)} ${g.title}</span>${g.items.filter(([kk, l, h]) => !qn || normalizeAr(`${l} ${h} ${kk}`).includes(qn)).map(([kk, l]) => html`<button type="button" class="pm-item${kk === k ? ' on' : ''}" data-pk="${kk}"><span class="grow">${l}</span><b>${fmtNum(holdersOf(kk).length)}</b></button>`)}</div>`);
+    const permView = html`<div class="pm-cols">
+      <aside class="panel pm-list"><div class="search-box">${UI.icon('search')}<input type="search" data-pq placeholder="ابحث عن صلاحية" value="${st.q}"></div><div class="pm-scroll">${list}</div></aside>
+      <section class="stack" style="min-width:0">
+        ${UI.panel({ title: label, icon: 'key', sub: hint, body: html`<div class="pm-sum"><span>${UI.icon('users')} <b>${fmtNum(holders.length)}</b> حساب يملكها</span><span>${UI.icon('shield')} ${roles.length ? html`في دور: ${roles.map((r) => UI.chip('slate', roleLabel(r)))}` : 'ليست في أي دور: تُمنح للحسابات فرداً'}</span><span class="faint small">المشرف يملك كل الصلاحيات دائماً</span></div>` })}
+        ${sup ? UI.panel({ title: 'منح لحسابات', icon: 'plus', body: html`<div class="pm-filters"><div class="search-box">${UI.icon('search')}<input type="search" data-puq placeholder="ابحث بالاسم أو الرقم العسكري" value="${st.uq}"></div><select class="input" data-prole aria-label="الدور"><option value="">كل الأدوار</option>${ROLE_KEYS.map((r) => html`<option value="${r}"${st.role === r ? raw(' selected') : ''}>${roleLabel(r)}</option>`)}</select><select class="input" data-pdep aria-label="الإدارة"><option value="">كل الإدارات</option>${Data.list('departments').map((d) => html`<option value="${d.id}"${st.dep === d.id ? raw(' selected') : ''}>${d.name}</option>`)}</select></div>
+          ${uq || st.role || st.dep ? html`<div class="row mt" style="gap:6px"><button type="button" class="btn btn-ghost btn-sm" data-pall>${UI.icon('check')} تحديد كل النتائج (${fmtNum(cands.length)})</button><button type="button" class="btn btn-primary btn-sm" data-pgrant${st.pick.size ? '' : raw(' disabled')}>${UI.icon('key')} منح للمحدد (${fmtNum(st.pick.size)})</button></div><div class="list mt pm-scroll">${cands.length ? cands.slice(0, 150).map((u) => row(u, k, 'pick')) : html`<p class="hint">لا حسابات بلا هذه الصلاحية تطابق البحث</p>`}</div>${cands.length > 150 ? html`<p class="hint">تظهر أول 150 نتيجة؛ «تحديد كل النتائج» يشمل الجميع</p>` : ''}` : html`<p class="hint mt">ابحث أو اختر دوراً أو إدارة لتظهر الحسابات التي لا تملك هذه الصلاحية</p>`}` }) : ''}
+        ${UI.panel({ title: `من يملكها (${fmtNum(holders.length)})`, icon: 'users', body: holders.length ? html`<div class="list pm-scroll">${(st.more ? holders : holders.slice(0, 100)).map((u) => row(u, k, 'revoke'))}</div>${holders.length > 100 && !st.more ? html`<button type="button" class="btn btn-ghost btn-sm mt" data-pmore>عرض الكل (${fmtNum(holders.length)})</button>` : ''}` : UI.noData('لا يملكها أي حساب غير المشرف') })}
+        ${denied.length ? UI.panel({ title: `مسحوبة من دورهم (${fmtNum(denied.length)})`, icon: 'x', body: html`<div class="list pm-scroll">${denied.map((u) => row(u, k, 'restore'))}</div>` }) : ''}
+      </section></div>`;
+    const matrix = () => html`<div class="panel"><div class="table-wrap"><table class="table pm-matrix"><thead><tr><th>الصلاحية</th>${ROLE_KEYS.map((r) => html`<th>${roleLabel(r)}</th>`)}<th>حسابات إضافية</th><th>مسحوبة</th></tr></thead><tbody>${PERM_GROUPS.map((g) => html`<tr class="pm-gr"><td colspan="${ROLE_KEYS.length + 3}">${UI.icon(g.icon)} ${g.title}</td></tr>${g.items.map(([kk, l]) => { const ex = all.filter((u) => permSource(u, kk) === 'extra').length, dn = all.filter((u) => permSource(u, kk) === 'denied').length; return html`<tr data-pk="${kk}" class="pm-mrow"><td>${l}</td>${ROLE_KEYS.map((r) => html`<td class="pm-c">${(PERMS[r] || []).includes(kk) ? UI.icon('check') : ''}</td>`)}<td>${ex ? UI.chip('teal', fmtNum(ex)) : ''}</td><td>${dn ? UI.chip('red', fmtNum(dn)) : ''}</td></tr>`; })}`)}</tbody></table></div></div>`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الصلاحيات', sub: sup ? 'كل صلاحية ومن يملكها، ومنحها أو سحبها لعدة حسابات مرة واحدة. ولصلاحيات حساب واحد افتح «تعديل» في المستخدمين' : 'من يملك كل صلاحية. المنح والسحب للمشرف', illu: 'key', actions: html`<div class="seg" role="radiogroup" aria-label="طريقة العرض"><label><input type="radio" name="pmview" value="perm"${st.view === 'perm' ? raw(' checked') : ''}><span>${UI.icon('key')} حسب الصلاحية</span></label><label><input type="radio" name="pmview" value="matrix"${st.view === 'matrix' ? raw(' checked') : ''}><span>${UI.icon('grid')} مصفوفة الأدوار</span></label></div>` })}
+      ${st.view === 'matrix' ? matrix() : permView}`);
+    UI.hydrate(ctx.view);
+  };
+  const keep = (sel) => { const el = $(sel, ctx.view); if (!el) return; const v = el.value; el.focus(); el.setSelectionRange(v.length, v.length); };
+  const act = async (changes, msg) => { try { const n = await Data.users.setPerms(changes); UI.toast(`${msg} (${fmtNum(n)} حساب)`); st.pick.clear(); draw(); } catch (ex) { UI.error(ex); draw(); } };
+  UI.on(ctx.view, 'click', '[data-pk]', (e, el) => { st.p = el.dataset.pk; st.view = 'perm'; st.pick.clear(); st.more = false; try { history.replaceState(history.state, '', `#/settings?s=perms&p=${encodeURIComponent(st.p)}`); } catch (_) { /* تجاهل */ } draw(); });
+  UI.on(ctx.view, 'change', 'input[name="pmview"]', (e, el) => { st.view = el.value; draw(); });
+  ctx.view.addEventListener('input', debounce((e) => { if (e.target.matches('[data-pq]')) { st.q = e.target.value.trim(); draw(); keep('[data-pq]'); } else if (e.target.matches('[data-puq]')) { st.uq = e.target.value.trim(); st.pick.clear(); draw(); keep('[data-puq]'); } }, 250));
+  ctx.view.addEventListener('change', (e) => {
+    if (e.target.matches('[data-prole]')) { st.role = e.target.value; st.pick.clear(); draw(); }
+    else if (e.target.matches('[data-pdep]')) { st.dep = e.target.value; st.pick.clear(); draw(); }
+    else if (e.target.matches('[data-ppick]')) { if (e.target.checked) st.pick.add(e.target.dataset.ppick); else st.pick.delete(e.target.dataset.ppick); const b = $('[data-pgrant]', ctx.view); if (b) { b.disabled = !st.pick.size; b.lastChild.textContent = ` منح للمحدد (${fmtNum(st.pick.size)})`; } }
+  });
+  UI.on(ctx.view, 'click', '[data-pall]', () => { const k = st.p, uq = normalizeAr(st.uq); people().filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(uq))).forEach((u) => st.pick.add(u.id)); draw(); });
+  UI.on(ctx.view, 'click', '[data-pgrant]', (e, el) => { UI.busy(el, true); act([...st.pick].map((id) => ({ id, perm: st.p, on: 1 })), `مُنحت «${PERM_LABEL[st.p]}»`); });
+  UI.on(ctx.view, 'click', '[data-prevoke]', async (e, el) => { const u = Data.c.users.get(el.dataset.prevoke); if (!u || !(await UI.confirm(`سحب «${PERM_LABEL[st.p]}» من ${u.name}؟${permSource(u, st.p) === 'role' ? ' هي من دوره، فتُسحب منه وحده ويبقى دوره كما هو.' : ''}`, { ok: 'سحب', danger: true }))) return; act([{ id: u.id, perm: st.p, on: 0 }], `سُحبت «${PERM_LABEL[st.p]}»`); });
+  UI.on(ctx.view, 'click', '[data-prestore]', (e, el) => act([{ id: el.dataset.prestore, perm: st.p, on: 1 }], `أُعيدت «${PERM_LABEL[st.p]}»`));
+  UI.on(ctx.view, 'click', '[data-pmore]', () => { st.more = true; draw(); });
+  ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
   draw();
 };
 Pages.controlCenter = async (ctx) => {

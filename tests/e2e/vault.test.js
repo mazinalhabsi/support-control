@@ -1,5 +1,6 @@
 /* اختبار طرفي: الوصول إلى الملاحظات الإدارية.
-   - المشرف يمنحها من صفحتها («من يصل إليها») لفني (اطلاع وتعديل) ولحساب إداري (اطلاع)
+   - المشرف يمنحها من «الصلاحيات» في إدارة الحسابات، كبقية الصلاحيات: لفنيين (اطلاع وتعديل) ولحساب إداري (اطلاع)،
+     وزر «من يصل إليها» في صفحة الملاحظات يفتح المكان نفسه
    - المشتركة يراها كل مخوّل ويعدّلها من له التعديل، والخاصة لكاتبها وحده، والاطلاع وحده لا يعدّل (يفرضه الخادم)
    - سحب الوصول يمسح نسخة الملاحظات من جهاز الحساب
    التشغيل: BASE=http://127.0.0.1:8106/ CHROME=/path/to/chrome node tests/e2e/vault.test.js */
@@ -24,19 +25,23 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const until = async (p, fn, arg) => { for (let i = 0; i < 30; i++) { await sync(p); if (await p.evaluate(fn, arg)) return true; await p.waitForTimeout(500); } return false; };
   const user = async (id) => (await pull(sup0)).filter((d) => d.store === 'users' && d.id === id).pop().data;
 
-  /* 1) المشرف يمنح الوصول من صفحة الملاحظات */
+  /* 1) المشرف يمنح الوصول من «الصلاحيات» */
   const S = await login('sup'); await until(S, (ids) => ids.every((id) => App.Data.c.users.has(id)), [TA, TB, AD]);
-  await S.evaluate(() => { location.hash = '#/vault'; }); await S.waitForSelector('[data-act="access"]');
-  await S.click('[data-act="access"]'); await S.waitForSelector('dialog [data-vlist]');
-  const listed = await S.$$eval('dialog [data-lv]', (x) => x.map((e) => e.dataset.lv));
-  ok('the access list shows technical accounts without being searched for', listed.includes(TA) && listed.includes(TB));
-  await S.fill('dialog [data-vq]', AD); await S.waitForTimeout(300);
-  await S.selectOption(`dialog [data-lv="${AD}"]`, 'read');
-  await S.fill('dialog [data-vq]', ''); await S.waitForTimeout(300);
-  await S.selectOption(`dialog [data-lv="${TA}"]`, 'manage'); await S.selectOption(`dialog [data-lv="${TB}"]`, 'manage');
-  await S.click('dialog .btn-primary'); await S.waitForTimeout(1200); await sync(S);
+  await S.evaluate(() => { location.hash = '#/vault'; }); await S.waitForSelector('a[href="#/settings?s=perms&p=vault.read"]');
+  await S.click('a[href="#/settings?s=perms&p=vault.read"]'); await S.waitForSelector('[data-pk="vault.read"].on');
+  ok('«who has access» on the notes page opens the permissions center at that permission', /الاطلاع على الملاحظات الإدارية/.test(await S.textContent('#view')) && !!(await S.$('[data-pk="vault.read"].on')));
+  const grant = async (perm, ids) => {
+    await S.click(`[data-pk="${perm}"]`); await S.waitForSelector(`[data-pk="${perm}"].on`);
+    await S.fill('[data-puq]', `${T}`); await S.waitForTimeout(700);
+    for (const id of ids) await S.check(`[data-ppick="${id}"]`);
+    await S.click('[data-pgrant]'); await S.waitForTimeout(2500);
+  };
+  await grant('vault.read', [TA, TB, AD]); await grant('vault.manage', [TA, TB]);
+  await sync(S);
+  ok('the permission lists show who has it', (await S.$$eval('[data-prevoke]', (x) => x.map((e) => e.dataset.prevoke))).filter((id) => [TA, TB].includes(id)).length === 2);
   const [ua, ub, ud] = [await user(TA), await user(TB), await user(AD)];
   ok('the supervisor grants view and edit to technicians and view only to an administrative account', ['vault.read', 'vault.manage'].every((k) => ua.extraPerms.includes(k) && ub.extraPerms.includes(k)) && ud.extraPerms.includes('vault.read') && !ud.extraPerms.includes('vault.manage'));
+  await S.evaluate(() => { location.hash = '#/vault'; }); await S.waitForTimeout(800);
   ok('the page says how many accounts see shared notes', /المشتركة يراها \d+ حساب مخوّل/.test(await S.textContent('.page-head')));
 
   /* 2) الفني يضيف ملاحظة مشتركة وأخرى خاصة */
@@ -67,8 +72,9 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   ok('a colleague with edit changes the shared note and its writer sees the change', !edited.priv && (await A.evaluate(async (id) => (await App.DB.get('vault', id)).body, ids.s)) === 'عدّلها زميل');
   ok('the private note stays with its writer only', await A.evaluate(async (id) => !!(await App.DB.get('vault', id)), ids.p));
 
-  /* 5) سحب الوصول: تُمسح النسخة من جهازه وتُغلق الصفحة */
-  await S.click('[data-act="access"]'); await S.waitForSelector(`dialog [data-lv="${TB}"]`); await S.selectOption(`dialog [data-lv="${TB}"]`, 'none'); await S.click('dialog .btn-primary'); await S.waitForTimeout(1200); await sync(S);
+  /* 5) سحب الوصول من «الصلاحيات»: تُمسح النسخة من جهازه وتُغلق الصفحة */
+  await S.evaluate(() => { location.hash = '#/settings?s=perms&p=vault.read'; }); await S.waitForSelector(`[data-prevoke="${TB}"]`);
+  await S.click(`[data-prevoke="${TB}"]`); await S.waitForSelector('dialog [data-i="1"]'); await S.click('dialog [data-i="1"]'); await S.waitForTimeout(2500); await sync(S);
   const gone = await until(Bp, () => App.DB.getAll('vault').then((x) => !x.length && !App.Auth.can('vault.read')));
   ok('revoking access removes the notes from that device', gone, gone ? '' : JSON.stringify([await Bp.evaluate(async () => ({ n: (await App.DB.getAll('vault')).length, read: App.Auth.can('vault.read'), extra: App.Auth.user.extraPerms, db: ((await App.DB.get('users', App.Auth.user.id)) || {}).extraPerms })), (await user(TB)).extraPerms]));
   ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
