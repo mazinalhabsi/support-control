@@ -13,7 +13,7 @@ const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(1
   const b = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   const errs = [];
   const page = async (user = 'sup') => {
-    const c = await b.newContext({ viewport: { width: 1400, height: 900 } }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); } catch (_) {} });
+    const c = await b.newContext({ viewport: { width: 1400, height: 900 } }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); localStorage.setItem('sq_org_addmode', 'text'); } catch (_) {} });
     const p = await c.newPage(); p.setDefaultTimeout(20000); p.on('pageerror', (e) => errs.push(e.message));
     await p.goto(U); await p.waitForSelector('[name="username"]'); await p.fill('[name="username"]', user); await p.fill('[name="password"]', 'Passw0rd!'); await p.keyboard.press('Enter');
     await p.waitForFunction(() => window.App && App.Auth.user, null, { timeout: 20000 }); await p.waitForTimeout(1500); return p;

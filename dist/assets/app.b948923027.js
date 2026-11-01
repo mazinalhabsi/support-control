@@ -7826,17 +7826,33 @@ Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' })
   return UI.modal({ title: id ? `تعديل: ${rec.name}` : 'إضافة فرع تنظيمي', icon: 'layers', size: 'lg',
     body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${Data.nameOf('departments', dep)}</b>${rec.parentId ? html`<div class="t-sub">داخل: ${(units.find((u) => u.id === rec.parentId) || {}).name || ''}</div>` : ''}</div></div>
       <div class="field"><label>نوع الفرع</label><div class="choice-pick">${ORG_TYPE_ORDER.map((k) => html`<label><input type="radio" name="type" value="${k}"${(rec.type || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
-      ${UI.fields([{ name: 'name', label: id ? 'الاسم' : 'الاسم (أو اكتب عدة أسماء في الخانة أدناه)', wide: true, placeholder: 'مثال: قسم الشبكات' }, { name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true, disabled: top }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), placeholder: '— نفس مبنى الإدارة —' }, { name: 'room', label: 'المكتب / الغرفة (اختياري)', placeholder: 'مثال: مكتب 214 - الطابق الثاني' }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}
+      ${UI.fields([{ name: 'name', label: 'الاسم', wide: true, placeholder: 'مثال: قسم الشبكات' }], rec)}
+      ${id ? '' : html`<div class="org-more" data-more></div><button type="button" class="btn btn-ghost btn-sm" style="margin:8px 0 6px" data-morename>${UI.icon('plus')} اسم آخر بالإعدادات نفسها</button>`}
+      ${UI.fields([{ name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true, disabled: top }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), placeholder: '— نفس مبنى الإدارة —' }, { name: 'room', label: 'المكتب / الغرفة (اختياري)', placeholder: 'مثال: مكتب 214 - الطابق الثاني' }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}
       ${orgHeadField(rec.headId || '', here, top ? 'رئيس هذا الفرع يعيّنه من يرأس ما فوقه أو من يملك تعديل الهيكل' : '')}
-      ${id ? '' : html`<div class="field mt"><label>إضافة عدة فروع دفعة واحدة <small class="faint">(اسم في كل سطر — اختياري)</small></label><textarea name="bulk" rows="3" placeholder="شعبة الخوادم&#10;شعبة الشبكات اللاسلكية&#10;شعبة الدعم الميداني"></textarea></div>`}
       ${look(rec, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).icon, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).tone)}`,
-    onMount: UI.bindHeadSearch,
+    onMount: (form) => {
+      UI.bindHeadSearch(form);
+      /* «اسم آخر»: خانة مماثلة تحت الاسم لكل فرع إضافي، وEnter فيها يفتح التالية */
+      const more = $('[data-more]', form); if (!more) return;
+      const add = () => { const d = document.createElement('div'); d.className = 'org-more-row'; d.innerHTML = String(html`<input class="input" data-more-name placeholder="اسم الفرع التالي" aria-label="اسم فرع إضافي" autocomplete="off"><button type="button" class="icon-btn" data-less aria-label="حذف الخانة">${UI.icon('x')}</button>`); more.appendChild(d); d.querySelector('input').focus(); };
+      UI.on(form, 'click', '[data-morename]', add);
+      UI.on(form, 'click', '[data-less]', (e, b) => b.parentNode.remove());
+      more.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-more-name]')) { e.preventDefault(); add(); } });
+    },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
-      const v = UI.formValues(form), names = [v.name, ...String(v.bulk || '').split(/\r?\n/)].map((x) => String(x || '').trim()).filter(Boolean);
-      if (!names.length) throw new AppError('اكتب اسم الفرع');
-      if (id) { const r = await Data.org.saveUnit({ ...rec, ...v, id, departmentId: dep }); UI.toast('حُفظ الفرع'); return r; }
-      let last; for (const n of names) last = await Data.org.saveUnit({ ...v, name: n, departmentId: dep, order: '' });
-      UI.toast(names.length > 1 ? `أُضيف ${fmtNum(names.length)} فروع` : 'أُضيف الفرع'); return last;
+      const v = UI.formValues(form);
+      if (id) { if (!String(v.name || '').trim()) throw new AppError('اكتب اسم الفرع'); const r = await Data.org.saveUnit({ ...rec, ...v, id, departmentId: dep }); UI.toast('حُفظ الفرع'); return r; }
+      /* عدة أسماء: كلها بالنوع والموضع والإعدادات نفسها، في قيد واحد؛ المكرر والموجود في الموضع نفسه لا يتكرر */
+      const all = [v.name, ...$$('[data-more-name]', form).map((x) => x.value)].map((x) => String(x || '').trim()).filter(Boolean);
+      if (!all.length) throw new AppError('اكتب اسم الفرع');
+      if (all.length === 1) { const r = await Data.org.saveUnit({ ...v, name: all[0], departmentId: dep, order: '' }); UI.toast('أُضيف الفرع'); return r; }
+      if (String(v.code || '').trim() || String(v.head || '').trim() || v.headId) throw new AppError('الرمز ورئيس الفرع لفرع واحد: اتركهما فارغين عند إضافة عدة أسماء، ثم حدّدهما لكل فرع بعد الإضافة');
+      const pid = v.parentId || '', seen = new Set(units.filter((u) => u.departmentId === dep && (u.parentId || '') === pid).map((u) => OrgMatch.key(u.name)));
+      const names = all.filter((n) => { const k = OrgMatch.key(n); if (seen.has(k)) return false; seen.add(k); return true; });
+      if (!names.length) throw new AppError('كل هذه الأسماء موجودة في هذا الموضع');
+      let last; await OrgLog.run('create', `إضافة ${fmtNum(names.length)} فرع في ${orgLabel(dep, pid, units)}`, async () => { for (const n of names) last = await Data.org.saveUnit({ ...v, name: n, departmentId: dep, order: '' }); });
+      UI.toast(`أُضيف ${fmtNum(names.length)} فرع${all.length > names.length ? `، وتُرك ${fmtNum(all.length - names.length)} مكرر أو موجود` : ''}`); return last;
     } }] });
 };
 /* ── أدوات الهيكل: حسابات كل موضع، والحذف مع مصير الحسابات، والبناء من قائمة، والحسابات بلا إدارة ── */
@@ -7937,27 +7953,102 @@ UI.indentArea = (ta) => ta.addEventListener('keydown', (e) => {
   ta.dispatchEvent(new Event('input', { bubbles: true }));
 });
 /* معاينة ما سيُضاف: كل سطر بنوعه، وهل هو جديد أم موجود في مكانه (لا يتكرر) أم يتجاوز عدد المستويات */
-const orgPlanPreview = (rows, at, units) => {
+const orgPlanSim = (rows, at, units) => {
   rows.forEach((r) => {
     const p = r.parent ? r.parent._sim : at(r);
     const hit = p && p !== 'new' ? units.find((u) => u.departmentId === p.dep && (u.parentId || '') === p.unit && OrgMatch.key(u.name) === OrgMatch.key(r.name)) : null;
     r._sim = r.depth === 0 && r.type === 'dept' ? p : hit ? { dep: p.dep, unit: hit.id } : 'new'; r._found = r.type === 'dept' ? p !== 'new' : !!hit;
   });
   const fresh = rows.filter((r) => !r._found && !r.tooDeep).length, deep = rows.filter((r) => r.tooDeep).length;
-  const T = (r) => (r.type === 'dept' ? { label: 'إدارة', icon: 'building' } : UNIT_TYPES[r.type] || UNIT_TYPES.section);
-  return rows.length ? html`<div class="small"><b>المعاينة:</b> ${fmtNum(fresh)} جديد، ${fmtNum(rows.length - fresh - deep)} موجود${deep ? ` — ${fmtNum(deep)} يتجاوز ${ORG_MAX_DEPTH} مستويات فلن يُضاف` : ''}</div><div class="org-outline">${rows.map((r) => html`<div style="padding-inline-start:${r.depth * 18}px">${UI.icon(T(r).icon)} ${r.name} <small class="faint">${T(r).label}</small> ${r.tooDeep ? UI.chip('red', 'يتجاوز الحد') : r._found ? UI.chip('slate', 'موجود') : UI.chip('teal', 'جديد')}</div>`)}</div>` : '';
+  return { fresh, deep, found: rows.length - fresh - deep };
 };
+const orgPlanChip = (r) => (r.tooDeep ? UI.chip('red', 'يتجاوز الحد') : r._found ? UI.chip('slate', 'موجود') : UI.chip('teal', 'جديد'));
+const orgPlanSummary = (n) => html`<div class="small"><b>المعاينة:</b> ${fmtNum(n.fresh)} جديد، ${fmtNum(n.found)} موجود${n.deep ? ` — ${fmtNum(n.deep)} يتجاوز ${ORG_MAX_DEPTH} مستويات فلن يُضاف` : ''}</div>`;
+const orgPlanPreview = (rows, at, units) => {
+  const n = orgPlanSim(rows, at, units), T = (r) => (r.type === 'dept' ? { label: 'إدارة', icon: 'building' } : UNIT_TYPES[r.type] || UNIT_TYPES.section);
+  return rows.length ? html`${orgPlanSummary(n)}<div class="org-outline">${rows.map((r) => html`<div style="padding-inline-start:${r.depth * 18}px">${UI.icon(T(r).icon)} ${r.name} <small class="faint">${T(r).label}</small> ${orgPlanChip(r)}</div>`)}</div>` : '';
+};
+
+/* ── خانات الإضافة: خانة لكل إدارة أو فرع. «+ خانة» يضيف خانة، أو عدداً تختاره مرة واحدة، و«تحته» يضيف خانة داخلها.
+   Enter في الخانة يفتح التالية، وBackspace في خانة فارغة يحذفها. النوع يتبع أول كلمة في الاسم أو المستوى ما لم يُغيَّر يدوياً.
+   تُخرج الأسطر بصيغة planOutline/planBranch نفسها. kind: 'dept' (المستوى الأول إدارات) أو 'unit'؛ base: عمق الموضع ── */
+const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange = () => {} } = {}) => {
+  let seq = 0; const rows = [];
+  const maxDepth = kind === 'dept' ? ORG_MAX_DEPTH : ORG_MAX_DEPTH - base - 1;
+  const auto = (r) => (kind === 'dept' ? (r.depth === 0 ? 'dept' : orgTypeOf(r.name, r.depth)) : orgTypeWord(r.name) || (r.depth === 0 && topType() ? topType() : ORG_TYPE_ORDER[Math.min(base + r.depth, ORG_TYPE_ORDER.length - 1)]));
+  const typeOf = (r) => (r.manual && !(kind === 'dept' && r.depth === 0) ? r.type : auto(r));
+  const mk = (r = {}) => ({ k: ++seq, depth: Math.min(r.depth || 0, maxDepth), name: r.name || '', type: r.type || '', manual: !!r.manual, icon: r.icon || '', tone: r.tone || '' });
+  const endOf = (i) => { let j = i + 1; while (j < rows.length && rows[j].depth > rows[i].depth) j++; return j; };
+  const at = (el) => rows.findIndex((r) => r.k === Number((el.closest('[data-k]') || {}).dataset.k));
+  const hint = (r) => (kind === 'dept' && r.depth === 0 ? 'اسم الإدارة' : 'اسم الفرع');
+  const row = (r) => html`<div class="orow${r.depth ? ' sub' : ''}" data-k="${r.k}" style="--d:${r.depth}">${kind === 'dept' && r.depth === 0 ? html`<span class="orow-type">${UI.icon('building')}إدارة</span>` : html`<select class="input orow-type" data-type aria-label="النوع">${ORG_TYPE_ORDER.map((k) => html`<option value="${k}"${typeOf(r) === k ? raw(' selected') : ''}>${UNIT_TYPES[k].label}</option>`)}</select>`}<input class="input" data-name value="${r.name}" placeholder="${hint(r)}" aria-label="${hint(r)}" autocomplete="off"><span class="orow-st" data-st></span>${r.depth < maxDepth ? html`<button type="button" class="btn btn-ghost btn-sm" data-sub title="إضافة خانة فرع داخل هذه" aria-label="إضافة خانة فرع داخل هذه">${UI.icon('plus')}<span class="orow-lbl">تحته</span></button>` : ''}<button type="button" class="icon-btn" data-del title="حذف الخانة" aria-label="حذف الخانة">${UI.icon('x')}</button></div>`;
+  const draw = (focus) => {
+    if (!rows.length) rows.push(mk());
+    host.innerHTML = String(html`<div class="orows">${rows.map(row)}</div><div class="orow-foot"><button type="button" class="btn btn-soft btn-sm" data-addrow>${UI.icon('plus')} ${kind === 'dept' ? 'خانة إدارة' : 'خانة فرع'}</button><span class="faint small">أو أضف</span><input type="number" class="input" data-n min="1" max="50" value="3" aria-label="عدد الخانات"><button type="button" class="btn btn-ghost btn-sm" data-addn>خانات مرة واحدة</button></div>`);
+    if (focus) { const i = host.querySelector(`[data-k="${focus}"] [data-name]`); if (i) i.focus(); }
+    onChange();
+  };
+  const insert = (i, list) => { rows.splice(i, 0, ...list); draw(list[0].k); };
+  const drop = (i) => { const prev = rows[i - 1]; rows.splice(i, endOf(i) - i); draw(prev && prev.k); };
+  host.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.matches('[data-addrow]')) insert(rows.length, [mk()]);
+    else if (b.matches('[data-addn]')) { const n = clamp(Number(host.querySelector('[data-n]').value) || 1, 1, 50); insert(rows.length, Array.from({ length: n }, () => mk())); }
+    else if (b.matches('[data-sub]')) { const i = at(b); insert(endOf(i), [mk({ depth: rows[i].depth + 1 })]); }
+    else if (b.matches('[data-del]')) drop(at(b));
+  });
+  host.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-name]')) return;
+    const r = rows[at(e.target)]; r.name = e.target.value;
+    const sel = e.target.parentNode.querySelector('[data-type]'); if (sel && !r.manual) sel.value = typeOf(r);
+    onChange();
+  });
+  host.addEventListener('change', (e) => { if (!e.target.matches('[data-type]')) return; const r = rows[at(e.target)]; r.type = e.target.value; r.manual = true; onChange(); });
+  host.addEventListener('keydown', (e) => {
+    if (!e.target.matches('[data-name]')) return;
+    const i = at(e.target);
+    if (e.key === 'Enter') { e.preventDefault(); insert(endOf(i), [mk({ depth: rows[i].depth })]); }
+    else if (e.key === 'Backspace' && !e.target.value && rows.length > 1 && endOf(i) === i + 1) { e.preventDefault(); drop(i); }
+  });
+  return {
+    /* الأسطر المكتوبة: خانة فارغة تُترك، وما تحتها يُترك معها ويُعلَّم (لا يُعرف أين يُضاف) */
+    plan() {
+      const out = [], stack = [];
+      rows.forEach((r) => {
+        while (stack.length && stack[stack.length - 1].r.depth >= r.depth) stack.pop();
+        const up = stack[stack.length - 1], name = r.name.trim();
+        const p = name && (r.depth === 0 || (up && up.p && up.r.depth === r.depth - 1)) ? { name, depth: r.depth, parent: up ? up.p : null, type: typeOf(r), icon: r.icon, tone: r.tone, k: r.k } : null;
+        if (p) { p.tooDeep = kind === 'dept' ? p.depth > ORG_MAX_DEPTH : base + p.depth + 1 > ORG_MAX_DEPTH; out.push(p); }
+        r.orphan = !!name && !p; stack.push({ r, p });
+      });
+      return out;
+    },
+    /* تعبئة الخانات من أسطر (نص منسوخ، أو فروع موضع قائم بأنواعها: keep) */
+    set(list, keep = false) { rows.length = 0; list.forEach((p) => rows.push(mk({ depth: p.depth, name: p.name, type: p.type, manual: keep && p.type !== 'dept', icon: p.icon, tone: p.tone }))); draw(); },
+    /* حالة كل خانة بعد المعاينة: جديد، موجود، يتجاوز الحد، أو بلا أصل */
+    mark(plan) {
+      const byK = new Map(plan.map((p) => [p.k, p]));
+      rows.forEach((r) => { const el = host.querySelector(`[data-k="${r.k}"] [data-st]`); if (!el) return; const p = byK.get(r.k); el.innerHTML = p ? String(orgPlanChip(p)) : r.orphan ? String(UI.chip('amber', 'الخانة التي فوقها فارغة')) : ''; });
+    },
+    draw
+  };
+};
+/* وضع الإدخال المفضل: خانات أو لصق قائمة */
+const orgAddMode = { get() { try { return localStorage.getItem('sq_org_addmode') === 'text' ? 'text' : 'rows'; } catch (_) { return 'rows'; } }, set(v) { try { localStorage.setItem('sq_org_addmode', v); } catch (_) { /* تجاهل */ } } };
+const orgModeSeg = (mode) => html`<div class="seg sm org-addmode" role="radiogroup" aria-label="طريقة الإدخال"><label><input type="radio" name="addmode" value="rows"${mode === 'rows' ? raw(' checked') : ''}><span>${UI.icon('menu')} خانات</span></label><label><input type="radio" name="addmode" value="text"${mode === 'text' ? raw(' checked') : ''}><span>${UI.icon('clipboard')} لصق قائمة</span></label></div>`;
 
 /* إضافة إدارات دفعة واحدة، ومعها أقسامها إن كُتبت تحتها بإزاحة، أو أعمدة منسوخة من Excel (الإدارة ثم القسم ثم الشعبة).
    ويمكن أن يُضاف لكل إدارة منها أقسام إدارة قائمة */
-Pages.orgAddDepts = () => UI.modal({
+Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return UI.modal({
   title: 'إضافة إدارات', icon: 'building', size: 'lg',
-  body: html`<p class="muted small">اكتب كل إدارة في سطر. ولإضافة أقسامها معها اكتبها تحتها بإزاحة (زر Tab، أو مسافتين، أو «-» في أول السطر)، وتحت كل قسم شُعبه ومكاتبه بإزاحة أكبر. أو الصق من Excel أعمدة: الإدارة ثم القسم ثم الشعبة. ما هو موجود في الهيكل لا يتكرر.</p>
-    <div class="field"><textarea name="outline" rows="10" dir="rtl" placeholder="الموارد البشرية&#10;  قسم شؤون الموظفين&#10;  قسم التدريب&#10;    مكتب التطوير&#10;الشؤون المالية&#10;  قسم الحسابات"></textarea></div>
+  body: html`${orgModeSeg(mode)}
+    <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل إدارة، و«تحته» لأقسامها وما تحت كل قسم. Enter في الخانة يفتح التالية. ما هو موجود في الهيكل لا يتكرر.</p><div data-rowsbox></div></div>
+    <div data-text${mode === 'text' ? '' : raw(' hidden')}><p class="muted small">اكتب كل إدارة في سطر. ولإضافة أقسامها معها اكتبها تحتها بإزاحة (زر Tab، أو مسافتين، أو «-» في أول السطر)، وتحت كل قسم شُعبه ومكاتبه بإزاحة أكبر. أو الصق من Excel أعمدة: الإدارة ثم القسم ثم الشعبة. ما هو موجود في الهيكل لا يتكرر.</p>
+    <div class="field"><textarea name="outline" rows="10" dir="rtl" placeholder="الموارد البشرية&#10;  قسم شؤون الموظفين&#10;  قسم التدريب&#10;    مكتب التطوير&#10;الشؤون المالية&#10;  قسم الحسابات"></textarea></div></div>
     <div class="field"><label>وأضف لكل إدارة في القائمة أقسام إدارة قائمة <small class="faint">(اختياري)</small></label><select name="copyfrom"><option value="">— بلا —</option>${Data.list('departments').map((d) => html`<option value="${d.id}">${d.name}</option>`)}</select></div>
     <div class="mt" data-prev></div>`,
   actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إدارة واحدة بكل تفاصيلها', kind: 'ghost', icon: 'edit', value: 'one' }, { label: 'إضافة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
-    const rows = Data.org.planOutline(form.querySelector('[name="outline"]').value), from = form.querySelector('[name="copyfrom"]').value;
+    const rows = orgAddMode.get() === 'rows' ? R.plan() : Data.org.planOutline(form.querySelector('[name="outline"]').value), from = form.querySelector('[name="copyfrom"]').value;
     if (!rows.length) throw new AppError('اكتب الإدارات أولاً');
     const names = rows.filter((r) => r.depth === 0).map((r) => r.name);
     const r = await OrgLog.run('create', `إضافة ${fmtNum(names.length)} إدارة: ${names.slice(0, 3).join('، ')}${names.length > 3 ? '…' : ''}`, async () => {
@@ -7971,21 +8062,30 @@ Pages.orgAddDepts = () => UI.modal({
   onMount: async (form) => {
     const units = await DB.getAll('deptUnits'), ta = form.querySelector('[name="outline"]'), cp = form.querySelector('[name="copyfrom"]'), box = $('[data-prev]', form);
     UI.indentArea(ta);
+    const byName = (n) => Data.list('departments').find((x) => OrgMatch.key(x.name) === OrgMatch.key(n)), at = (r) => { const d = byName(r.name); return d ? { dep: d.id, unit: '' } : 'new'; };
     const show = () => {
-      const rows = Data.org.planOutline(ta.value), byName = (n) => Data.list('departments').find((x) => OrgMatch.key(x.name) === OrgMatch.key(n));
-      const n = cp.value ? Data.org.branchRows(cp.value).length : 0;
-      box.innerHTML = String(html`${orgPlanPreview(rows, (r) => { const d = byName(r.name); return d ? { dep: d.id, unit: '' } : 'new'; }, units)}${n && rows.length ? html`<div class="small mt">${UI.icon('copy')} ويُضاف لكل إدارة ${fmtNum(n)} فرع من «${Data.nameOf('departments', cp.value)}» (ما لا يوجد فيها)</div>` : ''}`);
+      const rows = orgAddMode.get() === 'rows' ? R.plan() : Data.org.planOutline(ta.value), n = cp.value ? Data.org.branchRows(cp.value).length : 0;
+      const copy = n && rows.length ? html`<div class="small mt">${UI.icon('copy')} ويُضاف لكل إدارة ${fmtNum(n)} فرع من «${Data.nameOf('departments', cp.value)}» (ما لا يوجد فيها)</div>` : '';
+      if (orgAddMode.get() === 'rows') { const sum = orgPlanSim(rows, at, units); R.mark(rows); box.innerHTML = String(html`${rows.length ? orgPlanSummary(sum) : ''}${copy}`); } else box.innerHTML = String(html`${orgPlanPreview(rows, at, units)}${copy}`);
     };
+    R = OrgRows($('[data-rowsbox]', form), { kind: 'dept', onChange: debounce(show, 200) }); R.draw();
+    UI.on(form, 'change', '[name="addmode"]', (e, el) => {
+      if (el.value === 'text') ta.value = Data.org.branchText(R.plan()); else R.set(Data.org.planOutline(ta.value));
+      orgAddMode.set(el.value); $('[data-rows]', form).hidden = el.value !== 'rows'; $('[data-text]', form).hidden = el.value !== 'text'; show();
+      (el.value === 'rows' ? $('[data-rowsbox] [data-name]', form) : ta).focus();
+    });
     ta.addEventListener('input', debounce(show, 250)); cp.addEventListener('change', show);
+    if (mode === 'rows') setTimeout(() => $('[data-rowsbox] [data-name]', form).focus());
   }
-});
+}); };
 
 /* إضافة فروع دفعة واحدة داخل إدارة أو فرع: كل فرع في سطر، والسطر المزاح يتبع ما فوقه.
    ويمكن تعبئة الخانة بفروع موضع آخر ثم تعديلها قبل الإضافة */
 Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
   const units = await DB.getAll('deptUnits'), base = parentId ? orgDepth(units, parentId) : 0, where = orgLabel(departmentId, parentId, units);
-  const st = { copied: null, text: '' };
+  const st = { copied: null, text: '' }, mode = orgAddMode.get(); let R = null;
   const plan = (form) => {
+    if (orgAddMode.get() === 'rows') return R.plan();
     const ta = form.querySelector('[name="lines"]'), top = (form.querySelector('[name="type"]:checked') || {}).value || '';
     if (st.copied && ta.value === st.text) return st.copied;
     return Data.org.planBranch(ta.value, base, top);
@@ -7994,21 +8094,34 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
     title: 'إضافة فروع', icon: 'layers', size: 'lg',
     body: html`<div class="form-bar">${UI.icon('building')}<div class="grow"><b>${where}</b><div class="t-sub">تُضاف الفروع داخل هذا الموضع</div></div></div>
       <div class="field"><label>نوع المستوى الأول <small class="faint">(إن لم يبدأ الاسم بنوعه: قسم، شعبة، وحدة، مكتب)</small></label><div class="choice-pick">${ORG_TYPE_ORDER.map((k, i) => html`<label><input type="radio" name="type" value="${k}"${(type ? k === type : i === Math.min(base, ORG_TYPE_ORDER.length - 1)) ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
-      <div class="field"><label>الفروع: كل فرع في سطر، وأزِح السطر (مسافتين أو Tab أو «-») ليصبح داخل ما فوقه</label><textarea name="lines" rows="9" dir="rtl" placeholder="قسم الشبكات&#10;  شعبة الخوادم&#10;  مكتب الدعم الميداني&#10;قسم البرمجيات&#10;  شعبة الأنظمة"></textarea></div>
+      ${orgModeSeg(mode)}
+      <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل فرع، و«تحته» لما بداخله. Enter في الخانة يفتح التالية.</p><div data-rowsbox></div></div>
+      <div class="field" data-text${mode === 'text' ? '' : raw(' hidden')}><label>الفروع: كل فرع في سطر، وأزِح السطر (مسافتين أو Tab أو «-») ليصبح داخل ما فوقه</label><textarea name="lines" rows="9" dir="rtl" placeholder="قسم الشبكات&#10;  شعبة الخوادم&#10;  مكتب الدعم الميداني&#10;قسم البرمجيات&#10;  شعبة الأنظمة"></textarea></div>
       <div class="field"><label>أو ابدأ بفروع موضع قائم ثم عدّلها <small class="faint">(اختياري)</small></label><select data-copyfrom>${orgPlaceOptions(units, '', '— اختر الموضع —')}</select></div>
       <div class="mt" data-prev></div>`,
     onMount: (form) => {
-      const ta = form.querySelector('[name="lines"]'), box = $('[data-prev]', form);
+      const ta = form.querySelector('[name="lines"]'), box = $('[data-prev]', form), here = () => ({ dep: departmentId, unit: parentId });
       UI.indentArea(ta);
-      const show = () => { box.innerHTML = String(orgPlanPreview(plan(form), () => ({ dep: departmentId, unit: parentId }), units)); };
+      const show = () => {
+        const rows = plan(form);
+        if (orgAddMode.get() === 'rows') { const sum = orgPlanSim(rows, here, units); R.mark(rows); box.innerHTML = rows.length ? String(orgPlanSummary(sum)) : ''; } else box.innerHTML = String(orgPlanPreview(rows, here, units));
+      };
+      R = OrgRows($('[data-rowsbox]', form), { kind: 'unit', base, topType: () => (form.querySelector('[name="type"]:checked') || {}).value || '', onChange: debounce(show, 200) }); R.draw();
       ta.addEventListener('input', debounce(show, 250));
-      UI.on(form, 'change', '[name="type"]', show);
+      UI.on(form, 'change', '[name="type"]', () => { if (orgAddMode.get() === 'rows') R.draw(); else show(); });
+      UI.on(form, 'change', '[name="addmode"]', (e, el) => {
+        if (el.value === 'text') { const rows = R.plan(); st.copied = rows; st.text = ta.value = Data.org.branchText(rows); } else R.set(plan(form), true);
+        orgAddMode.set(el.value); $('[data-rows]', form).hidden = el.value !== 'rows'; $('[data-text]', form).hidden = el.value !== 'text'; show();
+        (el.value === 'rows' ? $('[data-rowsbox] [data-name]', form) : ta).focus();
+      });
       UI.on(form, 'change', '[data-copyfrom]', (e, el) => {
         if (!el.value) return; const p = orgPlaceOf(el.value), rows = Data.org.branchRows(p.departmentId, p.unitId);
         if (!rows.length) { UI.toast('لا فروع تحت هذا الموضع', 'warn'); return; }
         rows.forEach((r) => { r.tooDeep = base + r.depth + 1 > ORG_MAX_DEPTH; });
-        st.copied = rows; st.text = Data.org.branchText(rows); ta.value = st.text; show();
+        if (orgAddMode.get() === 'rows') R.set(rows, true); else { st.copied = rows; st.text = Data.org.branchText(rows); ta.value = st.text; }
+        show();
       });
+      if (mode === 'rows') setTimeout(() => $('[data-rowsbox] [data-name]', form).focus());
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'فرع واحد بكل تفاصيله', kind: 'ghost', icon: 'edit', value: 'one' }, { label: 'إضافة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const rows = plan(form); if (!rows.length) throw new AppError('اكتب الفروع أولاً، كل فرع في سطر');

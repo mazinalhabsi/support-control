@@ -1,4 +1,4 @@
-/* اختبار طرفي: إضافة الهيكل دفعة واحدة.
+/* اختبار طرفي: إضافة الهيكل دفعة واحدة بطريقة «لصق قائمة» (الخانات في orgedit.test.js).
    - إدارات كثيرة في نافذة واحدة، ومعها أقسامها ومكاتبها بالإزاحة، ونسخ أقسام إدارة قائمة إليها
    - فروع كثيرة داخل إدارة أو فرع، بأنواعها من أول كلمة، وفي قيد واحد في سجل التغييرات، والبدء بفروع موضع قائم
    - نسخ فرع بكل ما تحته إلى إدارات أخرى، وتصدير الهيكل إلى Excel ولصقه من جديد دون تكرار
@@ -14,7 +14,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
 (async () => {
   const T = String(Date.now() % 100000), sup = (await api('login', { username: 'sup', password: 'Passw0rd!' })).token;
   const b = await chromium.launch({ executablePath: process.env.CHROME || undefined }); const errs = [];
-  const c = await b.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); localStorage.setItem('sq_org_mode', 'cards'); } catch (_) {} });
+  const c = await b.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true }); await c.addInitScript(() => { try { localStorage.setItem('sq_motion', 'off'); localStorage.setItem('sq_org_mode', 'cards'); localStorage.setItem('sq_org_addmode', 'text'); } catch (_) {} });
   const S = await c.newPage(); S.setDefaultTimeout(25000); S.on('pageerror', (e) => errs.push(e.message));
   await S.goto(U); await S.waitForSelector('[name="username"]'); await S.fill('[name="username"]', 'sup'); await S.fill('[name="password"]', 'Passw0rd!'); await S.keyboard.press('Enter');
   await S.waitForFunction(() => window.App && App.Auth.user); await S.waitForTimeout(1500);
