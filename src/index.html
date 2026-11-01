@@ -1709,6 +1709,18 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-tonepick span{display:block;width:30px;height:30px;border-radius:50%;background:rgb(var(--t));border:3px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--line-2)}
 .org-tonepick input:checked+span{box-shadow:0 0 0 2.5px rgb(var(--t))}
 .org-addmode{margin-bottom:10px}
+.set-form{display:flex;flex-direction:column;gap:6px}
+.set-blk{padding:4px 0 14px;border-bottom:1px dashed var(--line)}
+.set-blk:last-of-type{border-bottom:0}
+.set-blk h4{margin:4px 0 2px;font-size:14px}
+.set-blk .hint{margin:0 0 10px}
+.set-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+.set-dirty{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--amber)}
+.set-dirty[hidden]{display:none}
+.set-gos{display:flex;flex-direction:column;gap:6px}
+.set-go{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;color:inherit;text-decoration:none;transition:background .15s,border-color .15s}
+.set-go:hover{background:var(--surface-2);border-color:var(--accent)}
+.set-go span{flex:1}
 .pm-cols{display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:900px){.pm-cols{grid-template-columns:1fr}}
 .pm-list{padding:12px;position:sticky;top:76px}.pm-scroll{max-height:420px;overflow:auto}.pm-list .pm-scroll{max-height:62vh;margin-top:8px}
@@ -4165,7 +4177,7 @@ const Data = {
     await DB.bulkPut('notifications', ids.map((userId) => ({ id: n.key ? `nt:${n.key}:${userId}` : uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '' })));
     Bus.emit('notifications');
   },
-  async saveSettings(patch) { const s = { ...this.c.settings, ...patch }; await DB.put('meta', { key: 'settings', value: s }); this.c.settings = s; await this.log('update', 'settings', '', 'تحديث إعدادات النظام'); Bus.emit('settings'); },
+  async saveSettings(patch, what = '') { const s = { ...this.c.settings, ...patch }; await DB.put('meta', { key: 'settings', value: s }); this.c.settings = s; await this.log('update', 'settings', '', what ? `تحديث الإعدادات: ${what}` : 'تحديث إعدادات النظام'); Bus.emit('settings'); },
   async saveRecord(store, rec, label) {
     const isNew = !rec.id; const r = { ...rec, id: rec.id || uid(store.slice(0, 3)), updatedAt: now() };
     if (isNew) { r.createdAt = now(); if (r.order == null) r.order = await DB.count(store); }
@@ -5966,7 +5978,7 @@ Pages.ticket = async (ctx) => {
   let t = await Data.tickets.get(id), atts = [];
   if (!t) { view.innerHTML = String(UI.empty({ illu: 'box', title: 'البلاغ غير موجود', text: 'ربما حُذف أو أن الرابط غير صحيح.', action: html`<a class="btn btn-primary" href="#/tickets">العودة إلى البلاغات</a>` })); return; }
   if (!staff && t.requesterId !== me.id) throw new AppError('لا تملك صلاحية عرض هذا البلاغ');
-  const templates = staff ? await DB.getAll('templates') : [];
+  const templates = staff && !(await DB.get('meta', 'migrate:templates')) ? await DB.getAll('templates') : [];
   const draw = async () => {
     t = await Data.tickets.get(id); const events = await Data.tickets.events(id); atts = await Data.tickets.attachments(id);
     if (!ctx.alive()) return;
@@ -6452,54 +6464,77 @@ Pages.lookupModal = async (store, id) => {
   const L = LOOKUPS[store], rec = id ? Data.c[store].get(id) : { illustration: 'box' };
   return UI.modal({ title: `${id ? 'تعديل' : 'إضافة'}: ${L.title}`, icon: L.icon, size: L.illu ? 'lg' : '', body: html`${UI.fields([{ name: 'name', label: 'الاسم', required: true }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }, ...L.fields], rec)}${L.illu ? html`<div class="field mt"><label>الرسمة ثلاثية الأبعاد</label><div class="illu-pick">${Iso.names.map((n) => html`<label><input type="radio" name="illustration" value="${n}"${rec.illustration === n ? raw(' checked') : ''}><span>${UI.illu(n)}${ILLU_LABELS[n] || n}</span></label>`)}</div></div>` : ''}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!String(v.name).trim()) throw new AppError('الاسم مطلوب'); const r = await Data.saveRecord(store, { ...rec, ...v, name: v.name.trim(), order: Number(v.order) || 0 }, L.title); UI.toast('تم الحفظ'); return r; } }] });
 };
-Pages.settings = async (ctx) => {
-  const st = { tab: ctx.query.tab || 'general', lookup: 'departments' };
-  const tabs = [['general', 'عام', 'sliders'], ['sla', 'اتفاقية الخدمة', 'clock'], ['lookups', 'القوائم', 'layers'], ['templates', 'الردود الجاهزة', 'send'], ['data', 'البيانات والنسخ الاحتياطي', 'database']];
+/* الإعدادات العامة مقسّمة: كل جزء قسم مستقل في مركز الإعدادات، بنموذجه وزر حفظه، ولا يحفظ إلا حقوله.
+   كانت صفحة واحدة بتبويبات: نموذج «عام» يحفظ معلومات الجهة والدخول وتوزيع البلاغات معاً، وتتكرر فيها قوائم الأقسام
+   وفئات البلاغات (لكل منهما صفحته)، ونسخ احتياطي خام بجانب مركز النسخ، ونظام ثانٍ للردود الجاهزة. */
+const SETTINGS_PARTS = {
+  info: ['معلومات الجهة والنظام', 'اسم الجهة والنظام وهاتف الدعم كما تظهر في القائمة والمطبوعات والسندات', 'sliders', 'building'],
+  security: ['الدخول والجلسات', 'مدة الجلسة، وتغيير كلمة المرور المؤقتة عند أول دخول، والصور الشخصية للحسابات', 'lock', 'key'],
+  handling: ['توزيع البلاغات وإغلاقها', 'الإسناد التلقائي حسب التخصص، وتنبيه المسؤولين عند التأخر، والإغلاق التلقائي للمحلول', 'swap', 'tools'],
+  sla: ['اتفاقية مستوى الخدمة', 'موعد أول استجابة وموعد الحل لكل أولوية', 'clock', 'check'],
+  orglists: ['المواقع والرتب', 'المباني والمواقع التي تُختار في البلاغات والهيكل، والرتب العسكرية للحسابات', 'pin', 'building'],
+  invlists: ['المخازن وتصنيفات الأصناف', 'المخازن وأماكنها وأمناؤها، وتصنيفات الأصناف ورسوماتها', 'warehouse', 'box'],
+  data: ['البيانات وأدوات الصيانة', 'محتوى قاعدة البيانات، وإعادة بناء عهد الإدارات، والبيانات التجريبية، وتنظيف التجربة', 'database', 'drive']
+};
+const SETTINGS_LISTS = { orglists: ['locations', 'ranks'], invlists: ['warehouses', 'itemCategories'] };
+const DB_STORE_NAMES = { users: 'المستخدمون', tickets: 'البلاغات', ticketEvents: 'أحداث البلاغات', attachments: 'المرفقات', items: 'الأصناف', stock: 'أرصدة المخازن', movements: 'الحركات', loans: 'العهد', kb: 'مقالات المعرفة', notifications: 'الإشعارات', activity: 'سجل النشاط', departments: 'الأقسام', categories: 'فئات البلاغات', itemCategories: 'تصنيفات الأصناف', warehouses: 'المخازن', ranks: 'الرتب', printers: 'الطابعات', replies: 'الردود الجاهزة', sessions: 'الجلسات', meta: 'إعدادات داخلية' };
+Pages.settings = async (ctx, part0) => {
+  const part = SETTINGS_PARTS[part0] ? part0 : 'info', [title, sub, icon, illu] = SETTINGS_PARTS[part], lists = SETTINGS_LISTS[part] || [];
+  const st = { lookup: lists.includes(ctx.query.l) ? ctx.query.l : lists[0] };
+  const blk = (h, hint, fields) => html`<section class="set-blk"><h4>${h}</h4>${hint ? html`<p class="hint">${hint}</p>` : ''}${UI.fields(fields, Data.c.settings)}</section>`;
+  const frm = (blocks) => html`<form class="set-form" data-setform novalidate>${blocks}<div class="set-foot"><button class="btn btn-primary" type="submit">${UI.icon('check')} حفظ</button><span class="set-dirty" data-setdirty hidden>${UI.icon('edit')} تغييرات لم تُحفظ</span></div></form>`;
+  const go = (s, label, ic, perm) => (Auth.can(perm) ? html`<a class="set-go" href="#/settings?s=${s}">${UI.icon(ic)}<span>${label}</span></a>` : '');
+  const related = (items) => { const out = items.map((x) => go(...x)).filter((x) => String(x)); return out.length ? UI.panel({ title: 'إعدادات مرتبطة', icon: 'external', body: html`<div class="set-gos">${out}</div>` }) : ''; };
   const draw = async () => {
     const s = Data.c.settings; let body = '';
-    if (st.tab === 'general') body = UI.panel({ title: 'معلومات النظام', icon: 'sliders', body: html`<form id="gForm" novalidate>${UI.fields([{ name: 'orgName', label: 'اسم الجهة', wide: true }, { name: 'systemName', label: 'اسم النظام' }, { name: 'supportPhone', label: 'هاتف الدعم الفني', dir: 'ltr' }, { name: 'sessionHours', label: 'مدة الجلسة بالساعات', type: 'number', min: 1, max: 72 }, { name: 'escalateAfter', label: 'تنبيه المسؤولين بعد تجاوز الموعد بـ (دقيقة)', type: 'number', min: 5, value: s.escalateAfter || 60 }, { name: 'autoStrategy', label: 'توزيع البلاغات عند تعدد المختصين', type: 'select', placeholder: false, options: [{ value: 'least', label: 'الأقل انشغالاً' }, { value: 'round', label: 'بالتناوب' }, { value: 'notify', label: 'إشعار المختصين دون إسناد' }], value: (s.autoAssign || {}).strategy || 'least' }, { name: 'autoCloseDays', label: 'إغلاق البلاغ المحلول تلقائياً بعد (أيام)', type: 'number', min: 1, max: 30, value: s.autoCloseDays || 3 }, { name: 'autoCloseOn', type: 'switch', text: 'الإغلاق التلقائي مع تذكير المستفيد', value: s.autoClose !== 0 }, { name: 'avatars', label: 'الصور الشخصية للحسابات', type: 'select', placeholder: false, options: [{ value: 'off', label: 'معطّلة (توفير المساحة)' }, { value: 'approval', label: 'بموافقة المشرف' }, { value: 'on', label: 'مسموحة للجميع' }], value: s.avatars || 'off' }, { name: 'autoOn', type: 'switch', text: 'الإسناد التلقائي حسب تخصص الفني', value: (s.autoAssign || {}).on !== 0, wide: true }, { name: 'pwForce', type: 'switch', text: 'إلزام تغيير كلمة المرور المؤقتة عند أول دخول (معطّل: يدخل المستخدم بكلمة المرور الصادرة دون إلزام بتغييرها)', value: Number(s.pwForce) === 1, wide: true }], s)}<button class="btn btn-primary mt" type="submit">${UI.icon('check')} حفظ</button></form>` });
-    else if (st.tab === 'sla') body = UI.panel({ title: 'أهداف اتفاقية مستوى الخدمة', icon: 'clock', sub: 'تُحسب مواعيد البلاغات الجديدة وفق هذه الأهداف', flush: true, body: html`<form id="slaForm" novalidate><div class="table-wrap"><table class="table"><thead><tr><th>الأولوية</th><th>أول استجابة (بالدقائق)</th><th>الحل (بالساعات)</th><th>المعاينة</th></tr></thead><tbody>${Object.entries(PRIORITY).map(([k, p]) => html`<tr><td>${UI.priority(k)}</td><td><input class="input" style="max-width:140px" type="number" min="1" name="${k}_respond" value="${s.sla[k].respond}"></td><td><input class="input" style="max-width:140px" type="number" min="1" step="0.5" name="${k}_resolve" value="${s.sla[k].resolve / 60}"></td><td class="faint small">${fmtDuration(s.sla[k].respond * MIN)} / ${fmtDuration(s.sla[k].resolve * MIN)}</td></tr>`)}</tbody></table></div><div class="panel-body"><button class="btn btn-primary" type="submit">${UI.icon('check')} حفظ الأهداف</button></div></form>` });
-    else if (st.tab === 'lookups') { const L = LOOKUPS[st.lookup], rows = Data.list(st.lookup); body = html`<div class="tabs">${Object.entries(LOOKUPS).map(([k, x]) => html`<button class="tab ${st.lookup === k ? 'active' : ''}" data-lookup="${k}">${UI.icon(x.icon)}${x.title}<span class="count">${fmtNum(Data.c[k].size)}</span></button>`)}</div>${UI.panel({ title: L.title, icon: L.icon, tools: html`<button class="btn btn-primary btn-sm" data-add>${UI.icon('plus')} إضافة</button>`, flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>${L.illu ? 'الرسمة' : '#'}</th><th>الاسم</th>${L.fields.map((f) => html`<th>${f.label}</th>`)}<th>الترتيب</th><th></th></tr></thead><tbody class="stagger">${rows.map((r, i) => html`<tr><td>${L.illu ? UI.illu(r.illustration || 'box', 'mini') : i + 1}</td><td><b>${r.name}</b></td>${L.fields.map((f) => html`<td>${r[f.name] || '—'}</td>`)}<td>${fmtNum(r.order || 0)}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-edit="${r.id}">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-del="${r.id}">${UI.icon('trash')}</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد عناصر')}</div>` })}`; }
-    else if (st.tab === 'templates') { const rows = await DB.getAll('templates'); body = UI.panel({ title: 'الردود الجاهزة للفنيين', icon: 'send', tools: html`<button class="btn btn-primary btn-sm" data-tpl-add>${UI.icon('plus')} رد جديد</button>`, body: rows.length ? html`<div class="grid g-2">${rows.map((r) => html`<div class="kb-card" style="cursor:default"><div class="row" style="justify-content:space-between"><b>${r.name}</b><span><button class="btn btn-ghost btn-sm" data-tpl-edit="${r.id}">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-tpl-del="${r.id}">${UI.icon('trash')}</button></span></div><p>${r.body}</p></div>`)}</div>` : UI.noData('لا توجد ردود جاهزة') }); }
-    else {
+    if (part === 'info') body = html`<div class="grid g-main">${UI.panel({ title, icon, body: frm(blk('الهوية', 'تظهر في رأس القائمة، وعنوان تبويب المتصفح، وصفحة الدخول، وترويسة المطبوعات والسندات', [{ name: 'orgName', label: 'اسم الجهة', wide: true }, { name: 'systemName', label: 'اسم النظام' }, { name: 'supportPhone', label: 'هاتف الدعم الفني', dir: 'ltr' }])) })}${related([['favicon', 'أيقونة المتصفح', 'photo', 'settings'], ['sounds', 'الأصوات والتنبيهات', 'sound', 'settings'], ['vouchers', 'ترويسة الاستمارات الرسمية', 'print', 'vouchers.design']])}</div>`;
+    else if (part === 'security') body = html`<div class="grid g-main">${UI.panel({ title, icon, body: frm(html`${blk('الجلسة', 'بعد انقضائها يُطلب الدخول من جديد على كل جهاز', [{ name: 'sessionHours', label: 'مدة الجلسة بالساعات (1 إلى 72)', type: 'number', min: 1, max: 72, value: 12 }])}${blk('كلمة المرور المؤقتة', 'كلمة المرور التي يصدرها المسؤول عند إنشاء الحساب أو إعادة تعيينه', [{ name: 'pwForce', type: 'switch', text: 'إلزام تغييرها عند أول دخول (عند الإيقاف يدخل المستخدم بها دون إلزام)', value: Number(s.pwForce) === 1 ? 1 : 0, wide: true }])}${blk('الصور الشخصية', 'كل صورة تشغل مساحة على الخادم وتُنزَّل لكل جهاز', [{ name: 'avatars', label: 'الصور الشخصية للحسابات', type: 'select', placeholder: false, options: [{ value: 'off', label: 'معطّلة (توفير المساحة)' }, { value: 'approval', label: 'بموافقة المشرف' }, { value: 'on', label: 'مسموحة للجميع' }], value: 'off' }])}`) })}${related([['perms', 'الصلاحيات ومن يملكها', 'key', 'users.manage'], ['passwords', 'كلمات المرور', 'key', 'users.password'], ['users', 'المستخدمون', 'users', 'users.manage']])}</div>`;
+    else if (part === 'handling') { const aa = s.autoAssign || {}; body = html`<div class="grid g-main">${UI.panel({ title, icon, body: frm(html`${blk('الإسناد التلقائي', 'يُسند البلاغ الجديد إلى فني مختص بفئته دون انتظار توزيع يدوي', [{ name: 'autoOn', type: 'switch', text: 'الإسناد التلقائي حسب تخصص الفني', value: aa.on !== 0 ? 1 : 0, wide: true }, { name: 'autoStrategy', label: 'عند تعدد المختصين', type: 'select', placeholder: false, options: [{ value: 'least', label: 'الأقل انشغالاً' }, { value: 'round', label: 'بالتناوب' }, { value: 'notify', label: 'إشعار المختصين دون إسناد' }], value: aa.strategy || 'least' }])}${blk('التأخر عن الموعد', 'يُنبَّه المسؤولون إذا تجاوز البلاغ موعد اتفاقية الخدمة بهذه المدة', [{ name: 'escalateAfter', label: 'التنبيه بعد تجاوز الموعد بـ (دقيقة)', type: 'number', min: 5, max: 1440, value: 60 }])}${blk('الإغلاق التلقائي', 'البلاغ المحلول يُغلق بعد المدة إن لم يؤكده المستفيد أو يعترض عليه، ويُذكَّر المستفيد قبل ذلك', [{ name: 'autoCloseOn', type: 'switch', text: 'إغلاق البلاغ المحلول تلقائياً مع تذكير المستفيد', value: s.autoClose !== 0 ? 1 : 0, wide: true }, { name: 'autoCloseDays', label: 'بعد (أيام، 1 إلى 30)', type: 'number', min: 1, max: 30, value: 3 }])}`) })}${related([['sla', 'اتفاقية مستوى الخدمة', 'clock', 'settings'], ['tickets', 'فئات البلاغات وحقولها', 'clipboard', 'categories.manage'], ['ratings', 'تقييم الخدمة', 'star', 'ratings.manage']])}</div>`; }
+    else if (part === 'sla') body = UI.panel({ title: 'أهداف اتفاقية مستوى الخدمة', icon: 'clock', sub: 'تُحسب مواعيد البلاغات الجديدة وفق هذه الأهداف، ولا تتغير مواعيد البلاغات القائمة', flush: true, body: html`<form class="set-form" data-setform novalidate><div class="table-wrap"><table class="table"><thead><tr><th>الأولوية</th><th>أول استجابة (بالدقائق)</th><th>الحل (بالساعات)</th><th>المعاينة</th></tr></thead><tbody>${Object.entries(PRIORITY).map(([k]) => html`<tr><td>${UI.priority(k)}</td><td><input class="input" style="max-width:140px" type="number" min="1" name="${k}_respond" value="${s.sla[k].respond}" aria-label="أول استجابة"></td><td><input class="input" style="max-width:140px" type="number" min="1" step="0.5" name="${k}_resolve" value="${s.sla[k].resolve / 60}" aria-label="الحل"></td><td class="faint small">${fmtDuration(s.sla[k].respond * MIN)} / ${fmtDuration(s.sla[k].resolve * MIN)}</td></tr>`)}</tbody></table></div><div class="panel-body set-foot"><button class="btn btn-primary" type="submit">${UI.icon('check')} حفظ الأهداف</button><span class="set-dirty" data-setdirty hidden>${UI.icon('edit')} تغييرات لم تُحفظ</span></div></form>` });
+    else if (lists.length) {
+      const L = LOOKUPS[st.lookup], rows = Data.list(st.lookup);
+      body = html`<div class="tabs">${lists.map((k) => html`<button class="tab ${st.lookup === k ? 'active' : ''}" data-lookup="${k}">${UI.icon(LOOKUPS[k].icon)}${LOOKUPS[k].title}<span class="count">${fmtNum(Data.c[k].size)}</span></button>`)}</div>${UI.panel({ title: L.title, icon: L.icon, tools: html`<button class="btn btn-primary btn-sm" data-add>${UI.icon('plus')} إضافة</button>`, flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>${L.illu ? 'الرسمة' : '#'}</th><th>الاسم</th>${L.fields.map((f) => html`<th>${f.label}</th>`)}<th>الترتيب</th><th></th></tr></thead><tbody class="stagger">${rows.map((r, i) => html`<tr><td>${L.illu ? UI.illu(r.illustration || 'box', 'mini') : i + 1}</td><td><b>${r.name}</b></td>${L.fields.map((f) => html`<td>${r[f.name] || '—'}</td>`)}<td>${fmtNum(r.order || 0)}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-edit="${r.id}" aria-label="تعديل">${UI.icon('edit')}</button><button class="btn btn-ghost btn-sm" data-del="${r.id}" aria-label="حذف">${UI.icon('trash')}</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد عناصر')}</div>` })}${part === 'orglists' ? html`<p class="hint mt">الإدارات والأقسام والمكاتب تُدار من ${Auth.can('org.manage|org.assign|org.head') ? html`<a href="#/settings?s=org">الهيكل التنظيمي</a>` : 'الهيكل التنظيمي'}.</p>` : ''}`;
+    } else {
       const counts = await Promise.all(Object.keys(DB.SCHEMA).map(async (k) => [k, await DB.count(k)])), mig = await DB.get('meta', 'migration:legacy');
-      const names = { users: 'المستخدمون', tickets: 'البلاغات', ticketEvents: 'أحداث البلاغات', attachments: 'المرفقات', items: 'الأصناف', stock: 'أرصدة المخازن', movements: 'الحركات', loans: 'العهد', kb: 'مقالات المعرفة', notifications: 'الإشعارات', activity: 'سجل النشاط', departments: 'الأقسام', categories: 'فئات البلاغات', itemCategories: 'تصنيفات الأصناف', warehouses: 'المخازن', ranks: 'الرتب', printers: 'الطابعات', templates: 'الردود', sessions: 'الجلسات', meta: 'إعدادات داخلية' };
-      body = html`<div class="grid g-3">
-        ${UI.panel({ tools: html`<a class="btn btn-ghost btn-sm" href="#/backup">${UI.icon('database')} مركز النسخ</a>`, title: 'نسخة احتياطية', icon: 'download', body: html`<p class="muted">نزّل نسخة كاملة من قاعدة البيانات بما فيها المرفقات في ملف واحد.</p><button class="btn btn-primary btn-block mt" data-act="backup">${UI.icon('download')} تنزيل النسخة الاحتياطية</button>` })}
-        ${UI.panel({ title: 'استعادة نسخة', icon: 'upload', body: html`<p class="muted">استبدل كل البيانات الحالية بمحتوى ملف نسخة احتياطية سابقة.</p><button class="btn btn-danger btn-block mt" data-act="restore">${UI.icon('upload')} استعادة من ملف</button>` })}
+      body = html`<div class="grid ${Auth.user && Auth.user.role === 'supervisor' ? 'g-2' : 'g-3'}">
+        ${UI.panel({ title: 'النسخ الاحتياطي والاستعادة', icon: 'download', body: html`<p class="muted">النسخ اليدوية والمجدولة على الخادم، والاستعادة الكاملة أو الجزئية، في مكان واحد.</p>${Auth.can('backup.manage') ? html`<a class="btn btn-soft btn-block mt" href="#/settings?s=backup">${UI.icon('database')} فتح مركز النسخ</a>` : html`<p class="faint small mt">${UI.icon('lock')} تحتاج صلاحية النسخ الاحتياطي</p>`}` })}
         ${UI.panel({ title: 'عهد الإدارات', icon: 'building', body: html`<p class="muted">أعد بناء أرصدة عهد الإدارات من سجل حركات الصرف والإرجاع، إذا كانت لديك حركات قديمة قبل تفعيل تتبع العهد.</p><button class="btn btn-soft btn-block mt" data-act="rebuilddept">${UI.icon('refresh')} إعادة بناء عهد الإدارات</button>` })}
-        ${UI.panel({ title: 'بيانات تجريبية', icon: 'layers', body: html`<p class="muted">أضف بلاغات وأصنافاً وحركات تجريبية لاستعراض الرسوم والتقارير.</p><button class="btn btn-soft btn-block mt" data-act="sample">${UI.icon('plus')} إضافة بيانات تجريبية</button><button class="btn btn-ghost btn-block" data-act="unsample" style="margin-top:8px">${UI.icon('trash')} حذف البيانات التجريبية</button>` })}
+        ${UI.panel({ title: 'بيانات تجريبية', icon: 'layers', body: html`<p class="muted">أضف بلاغات وأصنافاً وحركات تجريبية لاستعراض الرسوم والتقارير، ثم احذفها وحدها دون المساس ببياناتك.</p><button class="btn btn-soft btn-block mt" data-act="sample">${UI.icon('plus')} إضافة بيانات تجريبية</button><button class="btn btn-ghost btn-block" data-act="unsample" style="margin-top:8px">${UI.icon('trash')} حذف البيانات التجريبية</button>` })}
         ${Auth.user && Auth.user.role === 'supervisor' ? UI.panel({ title: 'تنظيف بيانات التجربة', icon: 'trash', body: html`<p class="muted">قبل التشغيل الرسمي: احذف البلاغات والمخزون والإشعارات وكل ما أُدخل أثناء التجربة، من الخادم ومن كل الأجهزة، مع الإبقاء على الإعدادات والقوائم والحسابات.</p><button class="btn btn-danger btn-block mt" data-act="wipetrial">${UI.icon('trash')} تنظيف بيانات التجربة</button>` }) : ''}
       </div>
       <div class="grid g-main mt">
-        ${UI.panel({ title: 'محتوى قاعدة البيانات', icon: 'database', sub: 'قاعدة بيانات IndexedDB محلية في هذا المتصفح', body: UI.chart.hbars(counts.filter(([k]) => names[k]).sort((a, b) => b[1] - a[1]).map(([k, v], i) => ({ label: names[k], value: v, tone: TONES[i % TONES.length] }))) })}
-        ${UI.panel({ title: 'ترحيل النظام السابق', icon: 'swap', body: mig && mig.value.found ? html`<div class="banner tone-teal">${UI.icon('check')}<div class="grow"><b>تم الترحيل في ${fmtDateTime(mig.value.at)}</b></div></div><dl class="kv">${Object.entries(mig.value.counts || {}).map(([k, v]) => html`<dt>${names[k] || k}</dt><dd>${fmtNum(v)}</dd>`)}</dl>` : UI.noData('لم تُعثر على بيانات من النظام السابق في هذا المتصفح') })}
+        ${UI.panel({ title: 'محتوى قاعدة البيانات', icon: 'database', sub: 'نسخة هذا الجهاز من البيانات', body: UI.chart.hbars(counts.filter(([k]) => DB_STORE_NAMES[k]).sort((a, b) => b[1] - a[1]).map(([k, v], i) => ({ label: DB_STORE_NAMES[k], value: v, tone: TONES[i % TONES.length] }))) })}
+        ${UI.panel({ title: 'ترحيل النظام السابق', icon: 'swap', body: mig && mig.value.found ? html`<div class="banner tone-teal">${UI.icon('check')}<div class="grow"><b>تم الترحيل في ${fmtDateTime(mig.value.at)}</b></div></div><dl class="kv">${Object.entries(mig.value.counts || {}).map(([k, v]) => html`<dt>${DB_STORE_NAMES[k] || k}</dt><dd>${fmtNum(v)}</dd>`)}</dl>` : UI.noData('لم تُعثر على بيانات من النظام السابق في هذا المتصفح') })}
       </div>`;
     }
     if (!ctx.alive()) return;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الإعدادات والبيانات', sub: 'تحكم كامل في النظام وقوائمه وبياناته', illu: 'ups' })}<div class="tabs">${tabs.map(([k, l, ic]) => html`<button class="tab ${st.tab === k ? 'active' : ''}" data-tab="${k}">${UI.icon(ic)}${l}</button>`)}</div>${body}`);
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title, sub, illu })}${body}`);
     UI.hydrate(ctx.view);
-    const g = $('#gForm', ctx.view); if (g) g.addEventListener('submit', async (e) => { e.preventDefault(); const { autoOn, autoStrategy, escalateAfter, autoCloseOn, autoCloseDays, avatars, pwForce: pf, ...rest } = UI.formValues(g); await Data.saveSettings({ ...rest, pwForce: Number(pf) ? 1 : 0, sessionHours: clamp(Number(rest.sessionHours) || 12, 1, 72), escalateAfter: clamp(Number(escalateAfter) || 60, 5, 1440), autoClose: Number(autoCloseOn) ? 1 : 0, autoCloseDays: clamp(Number(autoCloseDays) || 3, 1, 30), avatars: avatars || 'off', autoAssign: { on: Number(autoOn) ? 1 : 0, strategy: autoStrategy || 'least' } }); UI.toast('تم حفظ الإعدادات'); });
-    const sf = $('#slaForm', ctx.view); if (sf) sf.addEventListener('submit', async (e) => { e.preventDefault(); const v = UI.formValues(sf), sla = {}; for (const k of Object.keys(PRIORITY)) { const r = Math.round(Number(v[`${k}_respond`])), h = Number(v[`${k}_resolve`]); if (!(r > 0) || !(h > 0)) { UI.toast('أدخل قيماً صحيحة أكبر من صفر', 'warn'); return; } sla[k] = { respond: r, resolve: Math.round(h * 60) }; } await Data.saveSettings({ sla }); UI.toast('تم حفظ أهداف الخدمة'); draw(); });
   };
-  UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/settings?tab=${st.tab}`); draw(); });
-  UI.on(ctx.view, 'click', '[data-lookup]', (e, el) => { st.lookup = el.dataset.lookup; draw(); });
+  /* ما يحفظه كل جزء: حقوله وحدها، فلا يمس إعداداً لم يُعرض في الصفحة */
+  const pick = {
+    info: (v) => ({ orgName: String(v.orgName || '').trim() || Data.c.settings.orgName, systemName: String(v.systemName || '').trim() || Data.c.settings.systemName, supportPhone: String(v.supportPhone || '').trim() }),
+    security: (v) => ({ sessionHours: clamp(Number(v.sessionHours) || 12, 1, 72), pwForce: Number(v.pwForce) ? 1 : 0, avatars: v.avatars || 'off' }),
+    handling: (v) => ({ autoAssign: { ...(Data.c.settings.autoAssign || {}), on: Number(v.autoOn) ? 1 : 0, strategy: v.autoStrategy || 'least' }, escalateAfter: clamp(Number(v.escalateAfter) || 60, 5, 1440), autoClose: Number(v.autoCloseOn) ? 1 : 0, autoCloseDays: clamp(Number(v.autoCloseDays) || 3, 1, 30) }),
+    sla: (v) => { const sla = {}; for (const k of Object.keys(PRIORITY)) { const r = Math.round(Number(v[`${k}_respond`])), h = Number(v[`${k}_resolve`]); if (!(r > 0) || !(h > 0)) throw new AppError('أدخل قيماً صحيحة أكبر من صفر'); sla[k] = { respond: r, resolve: Math.round(h * 60) }; } return { sla }; }
+  };
+  ctx.view.addEventListener('submit', async (e) => {
+    const f = e.target.closest('[data-setform]'); if (!f || !pick[part]) return; e.preventDefault();
+    const btn = f.querySelector('[type="submit"]'); UI.busy(btn, true);
+    try { await Data.saveSettings(pick[part](UI.formValues(f)), title); UI.toast(`حُفظت «${title}»`); await draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); }
+  });
+  ctx.view.addEventListener('input', (e) => { const f = e.target.closest('[data-setform]'), d = f && f.querySelector('[data-setdirty]'); if (d) d.hidden = false; });
+  ctx.view.addEventListener('change', (e) => { const f = e.target.closest('[data-setform]'), d = f && f.querySelector('[data-setdirty]'); if (d) d.hidden = false; });
+  UI.on(ctx.view, 'click', '[data-lookup]', (e, el) => { st.lookup = el.dataset.lookup; try { history.replaceState(history.state, '', `#/settings?s=${part}&l=${st.lookup}`); } catch (_) { /* تجاهل */ } draw(); });
   UI.on(ctx.view, 'click', '[data-add]', async () => { if (await Pages.lookupModal(st.lookup)) draw(); });
   UI.on(ctx.view, 'click', '[data-edit]', async (e, el) => { if (await Pages.lookupModal(st.lookup, el.dataset.edit)) draw(); });
-  UI.on(ctx.view, 'click', '[data-del]', async (e, el) => { const r = Data.c[st.lookup].get(el.dataset.del); if (await UI.confirm(`حذف «${r.name}»؟`, { danger: true, ok: 'حذف' })) { try { await Data.deleteRecord(st.lookup, r.id, LOOKUPS[st.lookup].title); UI.toast('تم الحذف'); draw(); } catch (ex) { UI.error(ex); } } });
-  const tplModal = async (id) => { const r = id ? await DB.get('templates', id) : {}; return UI.modal({ title: id ? 'تعديل الرد' : 'رد جاهز جديد', icon: 'send', body: UI.fields([{ name: 'name', label: 'اسم الرد', required: true, wide: true }, { name: 'body', label: 'نص الرد', type: 'textarea', rows: 5, wide: true }], r), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', submit: true, handler: async (form) => { const v = UI.formValues(form); if (!v.name.trim() || !v.body.trim()) throw new AppError('الاسم والنص مطلوبان'); return Data.saveRecord('templates', { ...r, ...v }, 'رد جاهز'); } }] }); };
-  UI.on(ctx.view, 'click', '[data-tpl-add]', async () => { if (await tplModal()) draw(); });
-  UI.on(ctx.view, 'click', '[data-tpl-edit]', async (e, el) => { if (await tplModal(el.dataset.tplEdit)) draw(); });
-  UI.on(ctx.view, 'click', '[data-tpl-del]', async (e, el) => { if (await UI.confirm('حذف هذا الرد الجاهز؟', { danger: true, ok: 'حذف' })) { await Data.deleteRecord('templates', el.dataset.tplDel, 'رد جاهز'); draw(); } });
-  UI.on(ctx.view, 'click', '[data-act="backup"]', async (e, btn) => { UI.busy(btn, true); try { const data = await DB.exportAll(); downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `نسخة-احتياطية-${dateInput(now())}.json`); await Data.log('backup', 'system', '', 'تنزيل نسخة احتياطية'); UI.toast('تم تنزيل النسخة الاحتياطية'); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); } });
-  UI.on(ctx.view, 'click', '[data-act="restore"]', async () => { if (!(await UI.confirm('ستُستبدل كل البيانات الحالية بمحتوى الملف. يُنصح بتنزيل نسخة احتياطية أولاً. هل تريد المتابعة؟', { danger: true, ok: 'اختيار الملف' }))) return; const [file] = await UI.pickFiles({ accept: '.json,application/json', multiple: false }); if (!file) return; try { await DB.importAll(JSON.parse(await readText(file))); UI.toast('تمت الاستعادة، سيُعاد تحميل النظام'); setTimeout(() => location.reload(), 1200); } catch (ex) { UI.error(ex instanceof AppError ? ex : new AppError('الملف غير صالح أو تالف')); } });
+  UI.on(ctx.view, 'click', '[data-del]', async (e, el) => { const r = Data.c[st.lookup].get(el.dataset.del); if (r && await UI.confirm(`حذف «${r.name}»؟`, { danger: true, ok: 'حذف' })) { try { await Data.deleteRecord(st.lookup, r.id, LOOKUPS[st.lookup].title); UI.toast('تم الحذف'); draw(); } catch (ex) { UI.error(ex); } } });
   UI.on(ctx.view, 'click', '[data-act="sample"]', async () => {
     const r = await UI.modal({ title: 'إضافة بيانات تجريبية', icon: 'layers', size: 'sm', body: UI.fields([{ name: 'tickets', label: 'عدد البلاغات', type: 'number', min: 10, max: 20000, value: 400, wide: true }, { name: 'items', label: 'عدد الأصناف', type: 'number', min: 0, max: 5000, value: 60, wide: true }]), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة', kind: 'primary', icon: 'plus', submit: true, handler: async (form) => { const v = UI.formValues(form); await Data.sample.load({ tickets: clamp(Number(v.tickets) || 0, 0, 20000), items: clamp(Number(v.items) || 0, 0, 5000) }); return true; } }] });
     if (r) { UI.toast('تمت إضافة البيانات التجريبية'); UI.confetti(); Bus.emit('tickets', {}); Bus.emit('inventory', {}); draw(); }
   });
   UI.on(ctx.view, 'click', '[data-act="unsample"]', async (e, btn) => { if (!(await UI.confirm('ستُحذف البلاغات والأصناف والحركات والعهد والحسابات التجريبية فقط، ولن تتأثر بياناتك الحقيقية. هل تريد المتابعة؟', { danger: true, ok: 'حذف البيانات التجريبية' }))) return; UI.busy(btn, true); try { const n = await Data.sample.clear(); UI.toast(`حُذف ${arCount(n.tickets, AR.ticket)} و${arCount(n.items, AR.item)} من البيانات التجريبية`); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); } });
   UI.on(ctx.view, 'click', '[data-act="rebuilddept"]', async (e, btn) => { UI.busy(btn, true); try { const r = await Data.dept.rebuild(); UI.toast(`أُعيد بناء عهد الإدارات: ${fmtNum(r.rows)} سجل بإجمالي ${fmtNum(r.units)} وحدة`); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); } });
-  UI.on(ctx.view, 'click', '[data-act="unsample"]', async (e, btn) => { if (!(await UI.confirm('ستُحذف البلاغات والأصناف والحركات والعهد والحسابات التجريبية فقط، ولن تتأثر بياناتك الحقيقية. هل تريد المتابعة؟', { danger: true, ok: 'حذف البيانات التجريبية' }))) return; UI.busy(btn, true); try { const n = await Data.sample.clear(); UI.toast(`حُذف ${arCount(n.tickets, AR.ticket)} و${arCount(n.items, AR.item)} من البيانات التجريبية`); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(btn, false); } });
   await draw();
 };
 
@@ -14537,6 +14572,15 @@ Data.replies.canShare = () => !!Auth.user && (canUser(Auth.user, 'replies.manage
     const put = (rows) => (local ? Promise.all(rows.map((r) => Sync.raw.put('replies', r))) : DB.bulkPut('replies', rows));
     const t = now();
     if (!(await DB.count('replies'))) await put(DEFAULT_REPLIES.map(([title, text, kind], i) => ({ id: `rp_def_${pad(i + 1)}`, title, text, kind, scope: 'all', userId: '', useCount: 0, order: i, createdAt: t, updatedAt: t })));
+    /* الردود القديمة (جدول «templates» في صفحة الإعدادات ذات التبويبات) تُضم إلى الردود الجاهزة بمعرّفات ثابتة، فيبقى للردود
+       مكان واحد. يضمها جهاز من يدير الردود مرة واحدة، فيختفي اختيار «ردود جاهزة» القديم من البلاغ لدى الجميع */
+    if (!local && Data.replies.canShare() && !(await DB.get('meta', 'migrate:templates'))) {
+      const have = new Set((await DB.getAll('replies')).map((r) => normalizeAr(r.text || ''))), add = [];
+      (await DB.getAll('templates')).sort(sortByOrder).forEach((x, i) => { const text = String(x.body || '').trim(); if (!text || have.has(normalizeAr(text))) return; have.add(normalizeAr(text)); add.push({ id: `rp_tpl_${x.id}`, title: String(x.name || '').trim() || text.slice(0, 40), text, kind: 'ticket', cat: '', scope: 'all', userId: '', useCount: 0, order: 50 + i, createdAt: t, updatedAt: t }); });
+      if (add.length) await DB.bulkPut('replies', add);
+      await DB.put('meta', { key: 'migrate:templates', value: { at: t, n: add.length } });
+      if (add.length) Bus.emit('replies', {});
+    }
     const flag = `sq_rp_seed2:${me}`;
     if (lsGet(flag, 0) || (await DB.get('meta', 'seed:replies2'))) { lsSet(flag, t); return; }
     const miss = [];
@@ -14550,6 +14594,7 @@ Data.replies.canShare = () => !!Auth.user && (canUser(Auth.user, 'replies.manage
     lsSet(flag, t);
   };
 }
+Bus.on('session', () => setTimeout(() => { if (Auth.user && Data.replies.canShare()) Data.replies.ensure().catch(() => {}); }, 7000));
 Data.replies.list = async (kind = '') => {
   await Data.replies.ensure();
   const u = Data.replies.uses(), me = Auth.user.id;
@@ -18000,35 +18045,49 @@ Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تص�
 /* ══════════ مركز الإعدادات والتحكم: مكان واحد لكل التعديلات والإضافات ══════════
    كل قسم يظهر لمن يملك صلاحيته فقط، ويُفتح داخل المركز نفسه دون مغادرته. */
 const CC_FEAT = 'settings|ratings.manage|formfill.manage|forms.manage|extmaint.manage|vault.manage|vouchers.design';
+/* قسم من الإعدادات العامة: [المفتاح، العنوان، الأيقونة، الصلاحية، الوصف، المسار، العرض] */
+const ccPart = (k, perm = 'settings') => [k, SETTINGS_PARTS[k][0], SETTINGS_PARTS[k][2], perm, SETTINGS_PARTS[k][1], '', (c) => Pages.settings(c, k)];
 const CC_GROUPS = [
   ['النظام', 'sliders', [
-    ['system', 'الإعدادات العامة', 'sliders', 'settings', 'اسم الجهة والنظام، اتفاقية الخدمة، القوائم، الردود، البيانات وتنظيف التجربة', '/settings', (c) => Pages.settings(c)],
-    ['features', 'تشغيل الخصائص وإيقافها', 'toggle', CC_FEAT, 'مركز التقييم، التعبئة الفورية، الصيانة الخارجية، الملاحظات الإدارية', '/features', (c) => Pages.features(c)],
+    ccPart('info'),
     ['nav', 'إظهار أقسام القائمة', 'eye', 'nav.manage', 'ما يظهر للموظفين والفنيين والإداريين من صفحات', '/nav-visibility', (c) => Pages.navVisibility(c)],
-    ['backup', 'النسخ الاحتياطي والاستعادة', 'database', 'backup.manage', 'أخذ النسخ واستعادتها وجدولة النسخ التلقائي', '/backup', (c) => Pages.backup(c)]
+    ['features', 'تشغيل الخصائص وإيقافها', 'toggle', CC_FEAT, 'مركز التقييم، التعبئة الفورية، الصيانة الخارجية، الملاحظات الإدارية', '/features', (c) => Pages.features(c)]
   ]],
-  ['المستخدمون والصلاحيات', 'users', [
+  ['الحسابات والصلاحيات', 'users', [
     ['users', 'المستخدمون', 'users', 'users.manage', 'إضافة الحسابات وتعديلها، وصلاحيات كل حساب، والتعديل الجماعي', '/users', (c) => Pages.users(c)],
     ['perms', 'الصلاحيات', 'key', 'users.manage', 'كل صلاحية ومن يملكها، والمنح والسحب لعدة حسابات، ومصفوفة الأدوار', '', (c) => Pages.ccPerms(c)],
     ['passwords', 'كلمات المرور', 'key', 'users.password', 'إصدار كلمات المرور وتغييرها', '/passwords', (c) => Pages.passwords(c)],
-    ['org', 'الهيكل التنظيمي', 'layers', 'org.manage|org.assign|org.head', 'الإدارات والأقسام والمكاتب', '/org', (c) => Pages.org(c)]
+    ccPart('security')
+  ]],
+  ['الهيكل التنظيمي', 'layers', [
+    ['org', 'الهيكل التنظيمي', 'layers', 'org.manage|org.assign|org.head', 'الإدارات والأقسام والشعب والمكاتب', '/org', (c) => Pages.org(c)],
+    ccPart('orglists')
   ]],
   ['البلاغات والخدمة', 'ticket', [
     ['tickets', 'فئات البلاغات وحقولها', 'clipboard', 'categories.manage', 'الفئات والحقول والملاحظات ومستندات كل فئة', '/ticket-admin', (c) => Pages.ticketAdmin(c)],
-    ['replies', 'الردود الجاهزة', 'message', 'replies.manage|users.manage', 'ردود وحلول جاهزة للفنيين', '/replies', (c) => Pages.repliesAdmin(c)],
+    ccPart('handling'),
+    ccPart('sla'),
+    ['replies', 'الردود الجاهزة', 'message', 'replies.manage|users.manage', 'ردود وحلول جاهزة للفنيين في البلاغات والاستفسارات وتسجيل الحل', '/replies', (c) => Pages.repliesAdmin(c)],
     ['ratings', 'مركز التقييم', 'star', 'ratings.manage', 'رضا المستفيدين وإعدادات تقييم البلاغات', '/ratings', (c) => Pages.ratingsCenter(c)],
     ['surveys', 'الاستبيانات', 'poll', 'surveys.manage', 'إنشاء الاستبيانات والاختبارات ونشرها ونتائجها', '/surveys/manage', (c) => Pages.surveysManage(c)]
   ]],
   ['النماذج والاستمارات', 'file', [
-    ['vouchers', 'تصميم الاستمارات الرسمية', 'print', 'vouchers.design', 'محرر حر لسندات الصرف والإعارة والنقل والاستبدال وقوالبها', '/voucher-designer', (c) => Pages.voucherDesigner(c)],
-    ['forms', 'مكتبة النماذج', 'file', 'forms.manage|forms.hide|users.manage', 'رفع الاستمارات وإخفاؤها وقوالب التعبئة الفورية', '/forms', (c) => Pages.formsPage(c)]
+    ['forms', 'مكتبة النماذج', 'file', 'forms.manage|forms.hide|users.manage', 'رفع الاستمارات وإخفاؤها وقوالب التعبئة الفورية', '/forms', (c) => Pages.formsPage(c)],
+    ['vouchers', 'تصميم الاستمارات الرسمية', 'print', 'vouchers.design', 'محرر حر لسندات الصرف والإعارة والنقل والاستبدال وقوالبها', '/voucher-designer', (c) => Pages.voucherDesigner(c)]
   ]],
-  ['المخازن', 'warehouse', [
+  ['المخازن والعهد', 'warehouse', [
+    ccPart('invlists', 'settings|inventory.manage'),
     ['printers', 'الطابعات والأحبار', 'printer', 'inventory.manage|settings', 'الماركات والموديلات والأحبار المتوافقة', '/printers', (c) => Pages.printers(c)],
     ['extmaint', 'إعدادات الصيانة الخارجية', 'external', 'extmaint.manage|settings', 'اسم القسم والمدة المعتادة والجهات', '', (c) => Pages.ccExtMaint(c)],
     ['locks', 'أقفال المخزن والعهد', 'lock', 'custody.lock|settings', 'الإضافة المباشرة لعهد الإدارات وقفل حذف الأجهزة', '', (c) => Pages.ccLocks(c)]
+  ]],
+  ['البيانات', 'database', [
+    ['backup', 'النسخ الاحتياطي والاستعادة', 'database', 'backup.manage', 'أخذ النسخ واستعادتها وجدولة النسخ التلقائي على الخادم', '/backup', (c) => Pages.backup(c)],
+    ccPart('data')
   ]]
 ];
+/* الروابط القديمة: ?s=system و ?tab=… من صفحة الإعدادات ذات التبويبات */
+const CC_ALIAS = { system: 'info', general: 'info', lookups: 'orglists', templates: 'replies' };
 const CC_ALL = CC_GROUPS.flatMap(([, , items]) => items);
 const CC_PERM = [...new Set(CC_ALL.flatMap((x) => x[3].split('|')))].join('|');
 Pages.ccExtMaint = (ctx) => {
@@ -18120,7 +18179,7 @@ Pages.ccPerms = (ctx) => {
 };
 Pages.controlCenter = async (ctx) => {
   const allowed = CC_ALL.filter((x) => Auth.can(x[3]));
-  const st = { s: ctx.query.s || (ctx.query.tab ? 'system' : 'home'), q: '', token: 0, cleanups: [] };
+  const s0 = ctx.query.s || ctx.query.tab || 'home', st = { s: CC_ALIAS[s0] || s0, q: '', token: 0, cleanups: [] };
   if (st.s !== 'home' && !allowed.some((x) => x[0] === st.s)) st.s = 'home';
   const groups = CC_GROUPS.map(([g, gi, items]) => [g, gi, items.filter((x) => Auth.can(x[3]))]).filter(([, , items]) => items.length);
   ctx.view.innerHTML = String(html`<div class="cc"><aside class="cc-nav"><div class="cc-head"><span class="cc-hi">${UI.icon('sliders')}</span><div><b>الإعدادات</b><small>مركز التحكم بالنظام</small></div><button type="button" class="icon-btn cc-fold" data-ccfold title="طي القائمة">${UI.icon('menu')}</button></div>
