@@ -4,6 +4,7 @@
    - النسخ: إدارة إلى إدارات جديدة بهيكلها، وفرع إلى فرع في إدارة أخرى أو بجانبه باسم آخر، دون الحسابات
    - التحديد المتعدد: نقل عدة فروع مع حساباتها، والنوع والرئيس، والحذف (الحسابات ترتفع مستوى)، وكل إجراء قيد واحد
    - السحب والإفلات: طرف الفرع للترتيب، ووسطه للنقل داخله، والإدارة إلى داخل إدارة أخرى بحساباتها ثم التراجع
+   - فحص الهيكل: المكرر ودمجه، والرئيس المحذوف، والفروع الفارغة وحذفها ثم التراجع
    التشغيل: BASE=http://127.0.0.1:8106/ CHROME=/path/to/chrome node tests/e2e/orgedit.test.js */
 const { chromium } = require('playwright');
 const crypto = require('crypto');
@@ -22,6 +23,8 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const go = async () => { await S.evaluate(() => { location.hash = '#/dashboard'; }); await S.waitForTimeout(300); await S.evaluate(() => { location.hash = '#/org'; }); await S.waitForSelector('.page-head [data-act="adddep"]'); await S.waitForTimeout(600); };
   const settle = async () => { await S.evaluate(() => App.Sync.flush()); await S.waitForTimeout(2500); };
   const struct = async () => { const docs = await pull(sup), deps = docs.filter((d) => d.store === 'departments' && !d.deleted).map((d) => d.data), units = docs.filter((d) => d.store === 'deptUnits' && !d.deleted).map((d) => d.data), users = docs.filter((d) => d.store === 'users' && !d.deleted).map((d) => d.data); return { deps, units, users, dep: (n) => deps.find((d) => d.name === n), kids: (depId, pid = '') => units.filter((u) => u.departmentId === depId && (u.parentId || '') === pid) }; };
+  /* حساب أُنشئ عبر الخادم: ينتظر حتى يصل إلى المتصفح قبل أي إجراء يعتمد عليه */
+  const have = (id) => S.evaluate(async (id) => { for (let i = 0; i < 40; i++) { if (await App.DB.get('users', id)) return true; await App.Sync.pull().catch(() => null); await new Promise((r) => setTimeout(r, 250)); } return false; }, id);
   const logCount = () => S.evaluate(async () => (await App.DB.getAll('orgLog')).length);
   const D = (k) => `${k} ${T}`, rowsOf = () => S.$$eval('dialog .orow', (r) => r.map((x) => ({ d: Number(x.style.getPropertyValue('--d')), n: x.querySelector('[data-name]').value })));
   const deps0 = [];
@@ -105,7 +108,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.click('[data-selact="clear"]'); await S.click(`[data-drag="unit:${sec('الإداريون').id}"] b`); await S.click(`[data-drag="unit:${sec('الفصول').id}"] b`);
   ok('clicking a branch selects it', (await S.$$eval('.is-sel', (x) => x.length)) === 2);
   /* نقل الفرعين إلى «المحاضرون» في إدارة أخرى: ما تحتهما وحساباتهما معهما */
-  await api('push', { ops: [mkUser(P + 'b', P + 'b', { departmentId: c2.id, unitId: sec('الإداريون').id })] }, sup); await settle();
+  await api('push', { ops: [mkUser(P + 'b', P + 'b', { departmentId: c2.id, unitId: sec('الإداريون').id })] }, sup); await settle(); await have(P + 'b');
   const lec = st.kids(col.id).find((u) => u.name === 'المحاضرون'), logs3 = await logCount();
   await S.click('[data-selact="move"]'); await S.waitForSelector('dialog [data-place]'); await S.check(`dialog [data-place="${col.id}|${lec.id}"]`); await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
   st = await struct(); const mv = st.kids(col.id, lec.id);
@@ -138,9 +141,14 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   st = await struct();
   ok('dropping on the middle of a branch moves it inside', st.units.find((u) => u.id === h2.id).parentId === lab.id);
   /* إدارة إلى داخل إدارة أخرى: تصبح فرعاً بأقسامها وحساباتها، والتراجع يعيدها */
-  await api('push', { ops: [mkUser(P + 'c', P + 'c', { departmentId: c1.id, unitId: '' })] }, sup); await settle(); await go();
+  await api('push', { ops: [mkUser(P + 'c', P + 'c', { departmentId: c1.id, unitId: '' })] }, sup); await settle(); await have(P + 'c'); await go();
   const c1kids = st.kids(c1.id).length, logs5 = await logCount();
-  await S.dragAndDrop(`[data-drag="dept:${c1.id}"]`, `section[data-drop="dept:${c2.id}"] > header`); await S.waitForSelector('dialog .btn-primary');
+  /* السحب من عنوان الإدارة (لا من أزرارها)، ومحاولة ثانية إن أُعيد رسم الصفحة أثناء السحب */
+  for (let i = 0; i < 2 && !(await S.$('dialog .btn-primary')); i++) {
+    const hb = await (await S.$(`[data-drag="dept:${c1.id}"] b`)).boundingBox(), src = await (await S.$(`[data-drag="dept:${c1.id}"]`)).boundingBox();
+    await S.dragAndDrop(`[data-drag="dept:${c1.id}"]`, `section[data-drop="dept:${c2.id}"] > header`, { sourcePosition: { x: hb.x - src.x + hb.width / 2, y: hb.y - src.y + hb.height / 2 } });
+    await S.waitForSelector('dialog .btn-primary', { timeout: 4000 }).catch(() => null);
+  }
   ok('dropping a department on another asks whether to reorder or move inside', /ترتيبها قبلها/.test(await S.textContent('dialog')) && /نقلها إلى الداخل/.test(await S.textContent('dialog')));
   await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
   st = await struct(); const nu = st.kids(c2.id).find((u) => u.name === c1.name), acc = st.users.find((u) => u.id === P + 'c');
@@ -148,6 +156,25 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await S.evaluate(async () => { const e = (await App.DB.getAll('orgLog')).sort((a, b) => b.at - a.at)[0]; return App.OrgLog.undo(e); }); await settle();
   st = await struct();
   ok('undo brings the department back with its sections and account', !!st.dep(c1.name) && st.kids(c1.id).length === c1kids && st.users.find((u) => u.id === P + 'c').departmentId === c1.id && !st.units.some((u) => u.id === nu.id));
+
+  /* 9) فحص الهيكل */
+  st = await struct(); const labs = st.kids(col.id).find((u) => u.name === 'المختبرات'), cls2 = st.kids(col.id).find((u) => u.name === 'الفصول');
+  const dupU = await S.evaluate(async ({ dep, cls }) => { const u = await App.Data.org.saveUnit({ departmentId: dep, parentId: '', type: 'section', name: 'قسم المختبرات', order: '' }); await App.Data.org.saveUnit({ ...(await App.DB.get('deptUnits', cls)), headId: 'u_missing_head' }); return u.id; }, { dep: col.id, cls: cls2.id });
+  await api('push', { ops: [mkUser(P + 'd', P + 'd', { departmentId: col.id, unitId: dupU })] }, sup); await settle(); await have(P + 'd'); await go();
+  ok('the check button shows a count when there are problems', /فحص الهيكل \(\d+\)/.test(await S.textContent('[data-act="health"]')));
+  await S.click('[data-act="health"]'); await S.waitForSelector('dialog [data-hbody] details');
+  const dupRow = await S.$(`dialog [data-hmerge="${dupU}|${labs.id}"]`), badTxt = await S.textContent('dialog [data-hbody]');
+  ok('a near-duplicate name in the same department is found, with the older one first', !!dupRow);
+  ok('a head whose account no longer exists is listed', badTxt.includes('رئيس محذوف أو موقوف') && (await S.$$eval(`dialog [data-hedit="unit|${cls2.id}"]`, (x) => x.length)) >= 1);
+  const logs6 = await logCount(); await dupRow.click(); await S.waitForTimeout(1500); await settle();
+  st = await struct();
+  ok('merging moves the account into the first and removes the duplicate, in one history entry', !st.units.some((u) => u.id === dupU) && st.users.find((u) => u.id === P + 'd').unitId === labs.id && (await logCount()) === logs6 + 1);
+  await S.click('dialog [data-hbody] details:last-of-type summary');
+  const empties = await S.$$eval('dialog [data-hbody] details:last-of-type [data-hedit]', (x) => x.length), logs7 = await logCount();
+  await S.click('dialog [data-hempty]'); await S.waitForSelector('dialog [data-i="1"]'); await S.click('dialog [data-i="1"]'); await S.waitForTimeout(2000); await settle();
+  ok('deleting all empty branches is one history entry and leaves none listed', empties > 0 && (await logCount()) === logs7 + 1 && /0\s*فروع فارغة/.test((await S.textContent('dialog [data-hbody] details:last-of-type summary')).replace(/\s+/g, ' ')), String(empties));
+  await S.evaluate(async () => { const e = (await App.DB.getAll('orgLog')).sort((a, b) => b.at - a.at)[0]; return App.OrgLog.undo(e); }); await settle();
+  await S.click('dialog [data-x]');
 
   /* تنظيف */
   await S.evaluate(async (ids) => { for (const id of ids) await App.Data.org.removeDept(id, {}).catch(() => null); }, deps0.filter(Boolean).map((d) => d.id));

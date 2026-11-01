@@ -1663,6 +1663,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-tonepick input:checked+span{box-shadow:0 0 0 2.5px rgb(var(--t))}
 .org-addmode{margin-bottom:10px}
 .org-selmode .org-acts{display:none}.org-selmode .oc-box,.org-selmode .org-node{cursor:pointer}
+.org-hgroup{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-top:8px}.org-hgroup summary{cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.org-hdup{border-bottom:1px dashed var(--line-2);padding-bottom:4px;margin-bottom:4px}.org-hdup:last-child{border:0}
 .org-sel{flex:none;width:18px;height:18px;accent-color:rgb(var(--accent));cursor:pointer}
 .oc-box>.org-sel{position:absolute;top:8px;inset-inline-start:8px}
 .org-node.is-sel,.oc-box.is-sel{outline:2px solid rgb(var(--accent));outline-offset:1px;background:rgba(var(--accent),.08)}
