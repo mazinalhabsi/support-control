@@ -13229,7 +13229,8 @@ const VAULT = {
     const out = { ...(cur || {}), id: (cur && cur.id) || rec.id || uid('vn'), type, title: String(rec.title || '').trim(), icon: rec.icon || '', tone: rec.tone || T.tone, f: rec.f || {}, body: String(rec.body || '').trim(), tags: (rec.tags || []).map((x) => String(x).trim()).filter(Boolean).slice(0, 12), pinned: rec.pinned ? 1 : 0, archived: rec.archived ? 1 : 0, important: rec.important ? 1 : 0, items: T.tasks ? (rec.items || []).slice(0, 100) : [], createdBy: cur ? cur.createdBy : me.id, createdAt: cur ? cur.createdAt : t, updatedBy: me.id, updatedAt: t, _rev: cur ? cur._rev : rec._rev };
     if (author) {
       const a = rec.audience || {}, clean = (x) => [...new Set((x || []).map(String).filter(Boolean))];
-      Object.assign(out, { visibility: ['private', 'all', 'custom'].includes(rec.visibility) ? rec.visibility : 'custom', audience: { users: clean(a.users), roles: clean(a.roles).filter((r) => NOTE_ROLES.includes(r)), groups: clean(a.groups) }, until: Math.max(0, Number(rec.until) || 0) });
+      /* «مشتركة» من استدعاء قديم تعني من يصل إلى الملاحظات (كما كانت في الواجهة السابقة) */
+      Object.assign(out, { visibility: ['private', 'all', 'custom'].includes(rec.visibility) ? rec.visibility : rec.visibility === 'shared' ? 'all' : 'custom', audience: { users: clean(a.users), roles: clean(a.roles).filter((r) => NOTE_ROLES.includes(r)), groups: clean(a.groups) }, until: Math.max(0, Number(rec.until) || 0) });
       delete out.legacy;
       if (out.visibility === 'custom' && !out.audience.users.length && !out.audience.roles.length && !out.audience.groups.length) throw new AppError('اختر من يرى الملاحظة، أو اجعلها لك وحدك');
     }
