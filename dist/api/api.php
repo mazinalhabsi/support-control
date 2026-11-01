@@ -393,7 +393,8 @@ const STAFF_ROLES = ['supervisor', 'support_manager', 'technician'];
 /** المتواجدون الآن. الموظف لا يحتاج إلا تواجد الفنيين والإداريين (حالة من يتابع بلاغه)، ولا يرى الصفحة التي يتصفحها غيره.
     كان كل جهاز يستلم قائمة كل المتواجدين مع كل نبضة: مع 1000 متصل يصبح ذلك 1000×1000 سجل كل 45 ثانية */
 function presence_list(array $user): array {
-  $staff = in_array($user['role'] ?? '', STAFF_ROLES, true);
+  /* الفنيون والإداريون والمشرف، ومن يدير الحسابات: يرون كل المتواجدين */
+  $staff = in_array($user['role'] ?? '', STAFF_ROLES, true) || can($user, 'users.manage');
   $st = db()->prepare("SELECT data FROM presence WHERE at > ?" . ($staff ? '' : " AND role IN ('supervisor', 'support_manager', 'technician')"));
   $st->execute([now_ms() - PRESENCE_TTL]);
   $out = [];

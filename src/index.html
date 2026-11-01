@@ -1855,6 +1855,7 @@ html[data-lite="1"] .app-bg i{animation:none!important;will-change:auto!importan
 .head-illu.cat-ic{width:66px;height:66px}
 /* المتواجدون الآن */
 .pres-btn{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;border:1px solid rgba(var(--teal),.4);background:rgba(var(--teal),.1);color:rgb(var(--teal-ink));font:700 13.5px var(--f-display);cursor:pointer;flex:none}
+.pres-err{margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(var(--amber),.12);color:rgb(var(--amber-ink));font-size:12px;line-height:1.7}.pres-err .ic{width:13px;height:13px;vertical-align:-2px}
 .pres-btn i{width:9px;height:9px;border-radius:50%;background:rgb(var(--teal));box-shadow:0 0 0 3px rgba(var(--teal),.25);animation:beat 2s infinite;--t:var(--teal)}
 .pres-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 6px 10px}
 .pres-sum div,.pres-sum button{text-align:center;padding:8px 4px;border-radius:12px;background:rgba(var(--t),.1);border:1px solid rgba(var(--t),.25);font:inherit;color:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}
@@ -5335,7 +5336,7 @@ const Shell = {
     const sb = $('#syncBtn'); if (sb) { sb.onclick = () => Pages.syncModal(); Sync.setStatus(Sync.status); }
     $('#bellBtn').onclick = toggle('#bellBtn', '#bellPop', () => this.renderBell());
     $('#userBtn').onclick = toggle('#userBtn', '#userPop');
-    if ($('#presBtn')) $('#presBtn').onclick = toggle('#presBtn', '#presPop', () => Presence.fill());
+    if ($('#presBtn')) $('#presBtn').onclick = toggle('#presBtn', '#presPop', () => { Presence.fill(); if (Presence.refresh) Presence.refresh(); });
     Presence.start();
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
     this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
@@ -9361,7 +9362,7 @@ Data.assets.add = async ({ itemId, warehouseId, serials = [], note = '' }) => {
   return { added: rows.length, dupes: [] };
 };
 /* تصفية المتواجدين الآن حسب نوع الحساب (للمشرف) */
-document.addEventListener('click', (e) => { const f = e.target.closest('[data-presf]'); if (!f || !f.closest('#presPop')) return; e.preventDefault(); e.stopPropagation(); const r = f.dataset.presf; Presence.flt = Presence.flt === r ? '' : r; Presence.fill(); });
+document.addEventListener('click', (e) => { if (e.target.closest('#presPop [data-presretry]')) { e.preventDefault(); e.stopPropagation(); if (Presence.refresh) Presence.refresh(); return; } const f = e.target.closest('[data-presf]'); if (!f || !f.closest('#presPop')) return; e.preventDefault(); e.stopPropagation(); const r = f.dataset.presf; Presence.flt = Presence.flt === r ? '' : r; Presence.fill(); });
 /* البحث بالرقم التسلسلي يشمل رقم الأصل واسم الجهاز على الشبكة */
 { const bs = Data.assets.bySerial; Data.assets.bySerial = async (v) => { const a = await bs(v); if (a) return a; const k = Data.assets.norm(v); if (!k) return null; return (await DB.getAll('assets')).find((x) => [x.serial, x.tag, x.host].some((y) => Data.assets.norm(y) === k)) || null; }; }
 /* تنبيه فوري على الخانة المكررة أثناء الكتابة */
@@ -13159,28 +13160,31 @@ Pages.monitor = async (ctx) => {
 /* ── المتواجدون الآن: نبضة كل 45 ثانية لكل مستخدم مسجل، وعرض حسب الدور ── */
 const Presence = {
   TTL: 150000, timer: 0, tick: 0,
-  canSee() { const r = Auth.user && Auth.user.role; return r === 'supervisor' || r === 'technician' || r === 'support_manager'; },
+  /* الفنيون والإداريون والمشرف، ومن يدير الحسابات (والخادم يرسل لهم القائمة كاملة) */
+  canSee() { const u = Auth.user, r = u && u.role; return r === 'supervisor' || r === 'technician' || r === 'support_manager' || (!!u && r !== 'monitor' && canUser(u, 'users.manage')); },
   async beat() { const u = Auth.user; if (!u || u.role === 'monitor') return; try { await DB.put('meta', { key: `presence:${u.id}`, value: { userId: u.id, role: u.role, at: (this.lastBeat = now()), since: (this.since = this.since || now()), act: this.act || now(), page: (location.hash.slice(1) || '/').split('?')[0] } }); } catch (_) { /* تجاهل */ } },
   async leave(u) { if (!u) return; try { if (await DB.get('meta', `presence:${u.id}`)) await DB.del('meta', `presence:${u.id}`); } catch (_) { /* تجاهل */ } this.since = 0; },
   async online() {
     const t = now(), rows = (await DB.getAll('meta')).filter((r) => String(r.key).startsWith('presence:') && r.value && t - r.value.at < this.TTL);
     return rows.map((r) => ({ ...r.value, user: Data.c.users.get(r.value.userId) })).filter((p) => p.user && p.user.active && p.user.role !== 'monitor');
   },
-  visible(list) { const me = Auth.user; if (!me) return []; if (me.role === 'supervisor') return list; if (this.canSee()) return list.filter((p) => p.user.role === 'department'); return []; },
-  start() { this.stop(); this.beat().then(() => this.render()); this.timer = setInterval(() => this.beat(), 45000); this.tick = setInterval(() => this.render(), 20000); },
+  /* كان الفني والإداري يريان الموظفين فقط، فلا يظهر لهما زملاؤهما. يرون الآن الجميع ويصفّون بنوع الحساب */
+  visible(list) { return this.canSee() ? list : []; },
+  start() { this.stop(); this.beat().then(() => this.render()); Sync.presAt = 0; this.timer = setInterval(() => this.beat(), 45000); this.tick = setInterval(() => this.render(), 20000); },
   stop() { clearInterval(this.timer); clearInterval(this.tick); },
-  async render() { const b = $('#presBtn'); if (!b || !Auth.user) return; const n = this.visible(await this.online()).length; b.querySelector('b').textContent = fmtNum(n); b.title = Auth.user.role === 'supervisor' ? `${fmtNum(n)} متواجد الآن` : `${fmtNum(n)} موظف متواجد الآن`; const p = $('#presPop'); if (p && !p.hidden) this.fill(); },
+  async render() { const b = $('#presBtn'); if (!b || !Auth.user) return; const n = this.visible(await this.online()).length; b.querySelector('b').textContent = fmtNum(n); b.title = `${fmtNum(n)} متواجد الآن`; const p = $('#presPop'); if (p && !p.hidden) this.fill(); },
   async fill() {
     const p = $('#presPop'); if (!p || !Auth.user) return;
     const all = this.visible(await this.online()).sort((a, b) => (ROLES[a.user.role] || '').localeCompare(ROLES[b.user.role] || '', 'ar') || a.user.name.localeCompare(b.user.name, 'ar'));
-    const sup = Auth.user.role === 'supervisor', by = (r) => all.filter((x) => x.user.role === r).length;
+    const sup = this.canSee(), by = (r) => all.filter((x) => x.user.role === r).length;
     const groups = [['department', 'موظفون', 'sky'], ['technician', 'فنيون', 'teal'], ['support_manager', 'إداريون', 'violet'], ['supervisor', 'مشرفون', 'brass']];
     /* المشرف يختار نوع الحساب لعرض المتواجدين منه فقط */
     const flt = sup ? this.flt || '' : '', list = flt ? all.filter((x) => x.user.role === flt) : all, fl = (groups.find((g) => g[0] === flt) || [])[1];
-    p.innerHTML = String(html`<div class="pop-head">${sup ? (fl ? `المتواجدون الآن: ${fl}` : 'المتواجدون الآن') : 'الموظفون المتواجدون الآن'}<span class="chip tone-teal"><i class="dot"></i>${fmtNum(list.length)}</span></div>
+    p.innerHTML = String(html`<div class="pop-head">${fl ? `المتواجدون الآن: ${fl}` : 'المتواجدون الآن'}${this.loading ? html`<span class="faint small">يُحدَّث…</span>` : ''}<span class="chip tone-teal"><i class="dot"></i>${fmtNum(list.length)}</span></div>
       ${sup ? html`<div class="pres-sum" role="group" aria-label="تصفية حسب نوع الحساب">${groups.map(([r, l, t]) => html`<button type="button" class="tone-${t}${flt === r ? ' on' : ''}" data-presf="${r}" aria-pressed="${flt === r ? 'true' : 'false'}" title="${flt === r ? 'عرض الجميع' : `عرض ${l} فقط`}"><b>${fmtNum(by(r))}</b><small>${l}</small></button>`)}</div>${flt ? html`<button type="button" class="pres-all" data-presf="">${UI.icon('x')} عرض كل المتواجدين (${fmtNum(all.length)})</button>` : ''}` : ''}
       <div class="pres-list">${list.length ? list.map((x) => html`<div class="pres-row">${UI.avatar(x.user, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis">${x.user.name}</b><small class="ellipsis">${ROLES[x.user.role] || ''}${x.user.departmentId ? ` · ${Data.nameOf('departments', x.user.departmentId, '')}` : ''}</small></div><span class="pres-dot" title="آخر نشاط ${timeAgo(x.at)}"></span></div>`) : html`<div class="no-data">لا يوجد أحد متواجد الآن</div>`}</div>
-      <small class="faint pres-note">${Sync.on ? 'يشمل كل الأجهزة المتصلة بالخادم' : 'بدون خادم: يظهر المتواجدون على هذا الجهاز فقط'}</small>`);
+      ${this.err ? html`<div class="pres-err">${UI.icon('alert')} تعذّر جلب المتواجدين من الخادم (${this.err}). القائمة من آخر تحديث ناجح. <button type="button" class="btn btn-ghost btn-sm" data-presretry>إعادة المحاولة</button></div>` : ''}
+      <small class="faint pres-note">${Sync.on ? `يشمل كل الأجهزة المتصلة بالخادم${this.at ? ` · آخر تحديث ${timeAgo(this.at)}` : ''}` : 'بدون خادم: يظهر المتواجدون على هذا الجهاز فقط'}</small>`);
   }
 };
 
@@ -13803,14 +13807,20 @@ Presence.of = async (userId) => {
 /* التواجد عبر الخادم (جدول مستقل لا يرفع رقم التغيير): كانت كل نبضة من كل مستخدم سجلاً متزامناً يسحبه كل جهاز */
 Presence.cache = new Map();
 Presence.remote = () => Sync.on && !!Sync.token && Sync.presence !== false;
-Presence.setList = (list) => { const m = new Map(); (list || []).forEach((v) => { if (v && v.userId) m.set(v.userId, v); }); Presence.cache = m; };
+Presence.setList = (list) => { const m = new Map(); (list || []).forEach((v) => { if (v && v.userId) m.set(v.userId, v); }); Presence.cache = m; Presence.at = now(); };
 {
   const beatBase = Presence.beat.bind(Presence), leaveBase = Presence.leave.bind(Presence), onlineBase = Presence.online.bind(Presence);
   Presence.beat = async () => {
     if (!Presence.remote()) return beatBase();
     const u = Auth.user; if (!u || u.role === 'monitor') return;
     const value = { userId: u.id, role: u.role, at: (Presence.lastBeat = now()), since: (Presence.since = Presence.since || now()), act: Presence.act || now(), page: (location.hash.slice(1) || '/').split('?')[0] };
-    try { const r = await Sync.call('beat', { body: { value }, timeout: 8000 }); Sync.presence = true; if (r && Array.isArray(r.presence)) Presence.setList(r.presence); } catch (e) { if (e && e.status === 404) { Sync.presence = false; return beatBase(); } }
+    try { const r = await Sync.call('beat', { body: { value }, timeout: 8000 }); Sync.presence = true; Presence.err = ''; if (r && Array.isArray(r.presence)) Presence.setList(r.presence); } catch (e) { if (e && e.status === 404) { Sync.presence = false; return beatBase(); } Presence.err = e && e.status ? `رمز ${e.status}` : 'لا اتصال'; }
+  };
+  /* فتح القائمة يجلبها من الخادم فوراً، بدل انتظار التحديث الدوري (حتى 35 ثانية بعد دخول الآخرين) */
+  Presence.refresh = async () => {
+    if (!Presence.remote()) return;
+    Presence.loading = true; Presence.fill();
+    try { await Presence.beat(); } finally { Presence.loading = false; Presence.render(); Presence.fill(); }
   };
   Presence.leave = async (u) => {
     if (!u) return;
