@@ -1709,7 +1709,14 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-inli
 .org-tonepick span{display:block;width:30px;height:30px;border-radius:50%;background:rgb(var(--t));border:3px solid var(--surface-solid);box-shadow:0 0 0 1.5px var(--line-2)}
 .org-tonepick input:checked+span{box-shadow:0 0 0 2.5px rgb(var(--t))}
 .org-addmode{margin-bottom:10px}
-.org-selmode .org-acts{display:none}.org-selmode .oc-box,.org-selmode .org-node{cursor:pointer}
+.org-selmode .org-acts{display:none}
+#view.org-full{position:fixed;inset:0;z-index:70;overflow:auto;background:var(--bg);padding:12px 16px 24px;margin:0;max-width:none;width:auto}
+#view:fullscreen{overflow:auto;background:var(--bg);padding:12px 16px 24px}
+#view.org-full .oc-wrap,#view:fullscreen .oc-wrap{max-height:none;height:calc(100vh - 230px)}
+.oc-wrap{cursor:grab;scroll-behavior:auto}.oc-wrap.panning{cursor:grabbing;user-select:none}.oc-wrap .oc-box{cursor:default}.oc-wrap .oc-box[draggable="true"]{cursor:grab}
+.org-node{position:relative}
+@media (pointer:coarse){.org-dragmode{display:none}}
+.org-copying .drop-ok::after,.org-copying .drop-top::after,.org-copying .drop-bottom::after,.org-copying .drop-left::after,.org-copying .drop-right::after{content:"+ نسخة";position:absolute;top:-10px;inset-inline-start:8px;padding:1px 8px;border-radius:999px;background:rgb(var(--teal));color:#fff;font:700 10.5px var(--f-body);z-index:3;pointer-events:none}.org-selmode .oc-box,.org-selmode .org-node{cursor:pointer}
 .org-hgroup{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-top:8px}.org-hgroup summary{cursor:pointer;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .org-hdup{border-bottom:1px dashed var(--line-2);padding-bottom:4px;margin-bottom:4px}.org-hdup:last-child{border:0}
 .org-sel{flex:none;width:18px;height:18px;accent-color:rgb(var(--accent));cursor:pointer}
@@ -4559,6 +4566,8 @@ const ICONS = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
   play: '<path d="M7 4.5l12 7.5-12 7.5z"/>', pause: '<path d="M8.5 5v14M15.5 5v14"/>',
   undo: '<path d="M4 4v6h6"/><path d="M4.6 15a8 8 0 1 0 1.9-8.3L4 10"/>',
   inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
@@ -5050,7 +5059,7 @@ UI.toast = (msg, type = 'ok', ms = 4200) => {
   if (type === 'error') UI.sound('error');
 };
 /* النوافذ المنبثقة تُعرض فوق كل شيء في الصفحة، فتنتقل التنبيهات داخل أعلى نافذة مفتوحة لتبقى ظاهرة */
-UI.toastHost = () => { let host = $('#toasts'); if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.className = 'toasts'; host.setAttribute('aria-live', 'polite'); } const d = [...document.querySelectorAll('dialog[open]')].pop(), parent = d || document.body; if (host.parentNode !== parent) parent.appendChild(host); return host; };
+UI.toastHost = () => { let host = $('#toasts'); if (!host) { host = document.createElement('div'); host.id = 'toasts'; host.className = 'toasts'; host.setAttribute('aria-live', 'polite'); } const d = [...document.querySelectorAll('dialog[open]')].pop(), parent = d || document.fullscreenElement || document.body; if (host.parentNode !== parent) parent.appendChild(host); return host; };
 UI.error = (e) => { if (!(e instanceof AppError)) console.error(e); UI.toast(e instanceof AppError ? e.message : 'حدث خطأ غير متوقع. حدّث الصفحة وحاول مرة أخرى.', 'error', 6500); };
 UI.modal = ({ title, icon = '', body, actions = [{ label: 'إغلاق', kind: 'ghost', value: null }], size = '', onMount }) => new Promise((resolve) => {
   const dlg = document.createElement('dialog'); dlg.className = `modal ${size}`;
@@ -11488,6 +11497,7 @@ Data.org = {
         const base = t.unitId ? orgDepth(Data.list('deptUnits'), t.unitId) : 0;
         rows.forEach((r) => { r.tooDeep = base + r.depth + 1 > ORG_MAX_DEPTH; });
         const r = await this.buildBranch(rows, t.departmentId, t.unitId || ''); out.added += r.added; out.found += r.found; out.skipped += r.skipped;
+        out.firstId = rows[0] && rows[0]._at;
       }
     });
     return out;
@@ -12110,7 +12120,8 @@ Pages.orgHistory = async () => {
 Pages.org = async (ctx) => {
   let lsMode = 'chart'; try { lsMode = localStorage.getItem('sq_org_mode') || 'chart'; } catch (_) { /* تجاهل */ }
   let lsDir = 'side'; try { lsDir = localStorage.getItem('sq_org_dir') || 'side'; } catch (_) { /* تجاهل */ }
-  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set() };
+  let lsDrag = 'move'; try { lsDrag = localStorage.getItem('sq_org_dragmode') === 'copy' ? 'copy' : 'move'; } catch (_) { /* تجاهل */ }
+  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set(), full: false, drag: lsDrag };
   const draw = async () => {
     const { deps, units, users } = await Data.org.load(); if (!ctx.alive()) return;
     { const live = new Set(units.map((u) => u.id)); [...st.sel].forEach((id) => { if (!live.has(id)) st.sel.delete(id); }); }
@@ -12149,13 +12160,15 @@ Pages.org = async (ctx) => {
       ${head ? orgHeadBanner(units) : ''}
       <section class="panel org-panel${st.selMode ? ' org-selmode' : ''}"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="oq" type="search" placeholder="ابحث باسم أو رمز أو رئيس" value="${st.q}"></div>
         <div class="seg sm"><label><input type="radio" name="omode" value="chart"${st.mode === 'chart' ? raw(' checked') : ''}><span>${UI.icon('layers')} مخطط شجري</span></label><label><input type="radio" name="omode" value="cards"${st.mode === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')} بطاقات</span></label></div>
+        <button type="button" class="btn ${st.full ? 'btn-soft' : 'btn-ghost'} btn-sm" data-act="full" aria-pressed="${st.full ? 'true' : 'false'}" title="${st.full ? 'إنهاء ملء الشاشة (Esc)' : 'عرض الهيكل على الشاشة كاملة'}">${UI.icon(st.full ? 'shrink' : 'expand')} ${st.full ? 'إنهاء ملء الشاشة' : 'ملء الشاشة'}</button>
+        ${edit || head ? html`<div class="seg sm org-dragmode" role="radiogroup" aria-label="ما يفعله السحب" title="أو اضغط Ctrl أثناء الإفلات للنسخ"><label><input type="radio" name="odrag" value="move"${st.drag === 'move' ? raw(' checked') : ''}><span>${UI.icon('swap')} السحب ينقل</span></label><label><input type="radio" name="odrag" value="copy"${st.drag === 'copy' ? raw(' checked') : ''}><span>${UI.icon('copy')} السحب ينسخ</span></label></div>` : ''}
         ${edit || head ? html`<button type="button" class="btn ${st.selMode ? 'btn-soft' : 'btn-ghost'} btn-sm" data-act="select" aria-pressed="${st.selMode ? 'true' : 'false'}">${UI.icon('check')} تحديد متعدد</button>` : ''}
         <button type="button" class="btn btn-ghost btn-sm" data-act="expand">${UI.icon(st.all ? 'chevron-down' : 'chevron-left')} ${st.all ? 'طي الكل' : 'توسيع الكل'}</button>
         ${st.mode === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="odir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label><label><input type="radio" name="odir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label></div><div class="org-zoom"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button><button type="button" class="btn btn-soft btn-sm" data-act="fit">${UI.icon('grid')} عرض الشجرة كاملة</button></div>` : ''}</div>
         ${legend}
         ${st.selMode ? html`<div class="org-selbar" role="toolbar" aria-label="إجراءات المحدد"><b data-selcount></b><button type="button" class="btn btn-primary btn-sm" data-selact="move">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-soft btn-sm" data-selact="copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-selact="type">${UI.icon('layers')} النوع</button><button type="button" class="btn btn-ghost btn-sm" data-selact="head">${UI.icon('user')} الرئيس</button><button type="button" class="btn btn-ghost btn-sm" data-selact="del">${UI.icon('trash')} حذف</button><button type="button" class="btn btn-ghost btn-sm" data-selact="clear">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
         <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
-        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما تحته وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وعلى الهاتف: «تحديد متعدد» ثم «نقل». اضغط Ctrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
+        ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما تحته وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وللنسخ بدل النقل اختر «السحب ينسخ» أو اضغط Ctrl أثناء الإفلات (لا تُنسخ الحسابات). وعلى الهاتف: «تحديد متعدد» ثم «نقل» أو «نسخ». اسحب خلفية المخطط لتحريكه، وCtrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     ctx.data = { deps, units }; selSync();
     const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view);
     if (wrap && oc) {
@@ -12164,11 +12177,43 @@ Pages.org = async (ctx) => {
       if (st.scroll) { wrap.scrollLeft = st.scroll.x; wrap.scrollTop = st.scroll.y; } else if (root && st.dir === 'down') wrap.scrollLeft = (root.offsetLeft + root.offsetWidth / 2) * st.zoom - wrap.clientWidth / 2;
       else if (root) wrap.scrollLeft = wrap.scrollWidth;
       wrap.addEventListener('scroll', () => { st.scroll = { x: wrap.scrollLeft, y: wrap.scrollTop }; }, { passive: true });
-      wrap.addEventListener('wheel', (e) => { if (!e.ctrlKey) return; e.preventDefault(); st.zoom = clamp(Math.round((st.zoom + (e.deltaY < 0 ? 0.1 : -0.1)) * 10) / 10, 0.2, 1.6); oc.style.zoom = st.zoom; const z = $('.org-zoom .small', ctx.view); if (z) z.textContent = `${Math.round(st.zoom * 100)}%`; }, { passive: false });
+      wrap.addEventListener('wheel', (e) => { if (!e.ctrlKey) return; e.preventDefault(); setZoom(st.zoom + (e.deltaY < 0 ? 0.1 : -0.1), { x: e.clientX, y: e.clientY }); }, { passive: false });
+      /* سحب خلفية المخطط بالفأرة يحرّكه (اللمس يحرّكه أصلاً) */
+      wrap.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('.oc-box,button,input,select,label,a')) return;
+        const sx = e.clientX, sy = e.clientY, l0 = wrap.scrollLeft, t0 = wrap.scrollTop; let moved = false;
+        const mv = (ev) => { const dx = ev.clientX - sx, dy = ev.clientY - sy; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; if (!moved) { moved = true; wrap.setPointerCapture(e.pointerId); wrap.classList.add('panning'); } wrap.scrollLeft = l0 - dx; wrap.scrollTop = t0 - dy; };
+        const up = () => { wrap.classList.remove('panning'); wrap.removeEventListener('pointermove', mv); wrap.removeEventListener('pointerup', up); wrap.removeEventListener('pointercancel', up); };
+        wrap.addEventListener('pointermove', mv); wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
+      });
     }
     const q = $('#oq', ctx.view); q.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const k = $('#oq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
   };
   const run = async (fn) => { try { const r = await fn(); if (r !== false) draw(); } catch (ex) { UI.error(ex); } };
+  /* التكبير دون إعادة رسم: تبقى النقطة التي تحت المؤشر (أو منتصف المخطط) في مكانها */
+  function setZoom(z, at) {
+    z = clamp(Math.round(z * 10) / 10, 0.2, 1.6);
+    const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view); if (!wrap || !oc) { st.zoom = z; return; }
+    const old = st.zoom, r = wrap.getBoundingClientRect(), rtl = getComputedStyle(wrap).direction === 'rtl';
+    const ax = at ? (rtl ? r.right - at.x : at.x - r.left) : wrap.clientWidth / 2, ay = at ? at.y - r.top : wrap.clientHeight / 2;
+    const sx = rtl ? -wrap.scrollLeft : wrap.scrollLeft, cx = (sx + ax) / old, cy = (wrap.scrollTop + ay) / old;
+    st.zoom = z; oc.style.zoom = z;
+    const nx = cx * z - ax; wrap.scrollLeft = rtl ? -nx : nx; wrap.scrollTop = cy * z - ay;
+    st.scroll = { x: wrap.scrollLeft, y: wrap.scrollTop };
+    const lab = $('.org-zoom .small', ctx.view); if (lab) lab.textContent = `${Math.round(z * 100)}%`;
+  }
+  /* ملء الشاشة: منطقة الصفحة كلها (تبقى بعد إعادة الرسم)، وعند عدم دعم المتصفح تغطي النافذة */
+  async function setFull(on) {
+    st.full = on; ctx.view.classList.toggle('org-full', on);
+    try { if (on && ctx.view.requestFullscreen && !document.fullscreenElement) await ctx.view.requestFullscreen({ navigationUI: 'hide' }); else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (_) { /* تغطية النافذة بدلها */ }
+    st.fit = st.mode === 'chart'; st.scroll = null; UI.toastHost(); draw();
+  }
+  const onFs = () => { if (!document.fullscreenElement && st.full && ctx.alive()) { st.full = false; ctx.view.classList.remove('org-full'); st.fit = st.mode === 'chart'; draw(); } UI.toastHost(); };
+  const onKey = (e) => { if (e.key === 'Escape' && st.full && !document.fullscreenElement && !$('dialog[open]')) setFull(false); };
+  document.addEventListener('fullscreenchange', onFs); document.addEventListener('keydown', onKey);
+  ctx.onCleanup(() => { document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('keydown', onKey); ctx.view.classList.remove('org-full'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); });
+  UI.on(ctx.view, 'click', '[data-act="full"]', () => setFull(!st.full));
+  UI.on(ctx.view, 'change', 'input[name="odrag"]', (e, el) => { st.drag = el.value; try { localStorage.setItem('sq_org_dragmode', st.drag); } catch (_) { /* تجاهل */ } UI.toast(st.drag === 'copy' ? 'السحب الآن ينسخ الفرع بما تحته، دون الحسابات' : 'السحب الآن ينقل الفرع بما تحته وحساباته', 'info'); });
   /* التحديد المتعدد: المربعات، أو الضغط على الفرع نفسه، و«أقسامها» لتحديد أقسام إدارة كلها، ثم إجراء واحد على المحدد */
   function selSync() {
     const bar = $('.org-selbar', ctx.view); if (!bar) return; const n = st.sel.size;
@@ -12197,7 +12242,7 @@ Pages.org = async (ctx) => {
   UI.on(ctx.view, 'change', 'input[name="odir"]', (e, el) => { st.dir = el.value; st.fit = true; st.scroll = null; try { localStorage.setItem('sq_org_dir', st.dir); } catch (_) { /* تجاهل */ } draw(); });
   UI.on(ctx.view, 'click', '[data-tg]', (e, el) => { e.stopPropagation(); const k = el.dataset.tg; if (st.all) { st.all = false; ctx.data.units.forEach((u) => st.open.add(u.id).add('c' + u.id)); ctx.data.deps.forEach((d) => st.open.add('d' + d.id)); } if (st.open.has(k)) st.open.delete(k); else st.open.add(k); draw(); });
   UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; st.open.clear(); st.fit = st.mode === 'chart'; draw(); });
-  UI.on(ctx.view, 'click', '[data-zoom]', (e, el) => { st.zoom = clamp(Math.round((st.zoom + Number(el.dataset.zoom) * 0.1) * 10) / 10, 0.2, 1.6); st.scroll = null; draw(); });
+  UI.on(ctx.view, 'click', '[data-zoom]', (e, el) => setZoom(st.zoom + Number(el.dataset.zoom) * 0.1));
   UI.on(ctx.view, 'click', '[data-act="fit"]', () => { st.fit = true; draw(); });
   /* الإضافة دفعة واحدة، ومنها «إدارة واحدة بكل تفاصيلها» أو «فرع واحد بكل تفاصيله» للنافذة الكاملة */
   UI.on(ctx.view, 'click', '[data-act="adddep"]', (e) => { e.stopPropagation(); run(async () => { const r = await Pages.orgAddDepts(); return r === 'one' ? !!(await Pages.orgNodeModal({ kind: 'dept' })) : !!r; }); });
@@ -12221,6 +12266,35 @@ Pages.org = async (ctx) => {
     const li = (d, pid) => { const k = units.filter((u) => u.departmentId === d && (u.parentId || '') === pid).sort(sortByOrder); return k.length ? html`<ul style="margin:4px 0;padding-inline-start:22px">${k.map((u) => html`<li>${u.name}${u.code ? ` [${u.code}]` : ''} <small>(${(UNIT_TYPES[u.type] || UNIT_TYPES.section).label}${u.head ? ` — ${u.head}` : ''})</small>${li(d, u.id)}</li>`)}</ul>` : ''; };
     UI.print(html`<h2 style="text-align:center">الهيكل التنظيمي — ${Data.c.settings.orgName}</h2>${deps.map((d) => html`<div style="break-inside:avoid;margin:10px 0;padding:8px 12px;border:1px solid #bbb;border-radius:8px"><b>${d.name}</b>${d.code ? ` [${d.code}]` : ''}${d.head ? html` — <small>${d.head}</small>` : ''}${li(d.id, '')}</div>`)}`, 'الهيكل التنظيمي');
   });
+  /* الإفلات نسخاً: الفرع بما تحته (أو أقسام الإدارة) يُنسخ إلى حيث أُفلت، دون الحسابات والرؤساء والرموز.
+     باسم «(نسخة)» إن وُجد الاسم نفسه هناك، وفي الموضع نفسه قبل الفرع أو بعده إن أُفلت على طرفه */
+  const freeName = (name, units, depId, pid) => {
+    const sib = new Set(units.filter((x) => x.departmentId === depId && (x.parentId || '') === pid).map((x) => OrgMatch.key(x.name)));
+    for (let i = 0; i < 60; i++) { const n = i === 0 ? name : i === 1 ? `${name} (نسخة)` : `${name} (نسخة ${i})`; if (!sib.has(OrgMatch.key(n))) return n; }
+    return `${name} (نسخة ${Date.now() % 1000})`;
+  };
+  async function dropCopy(kind, id, tk, target, z, units) {
+    if (kind === 'dept') {
+      const d = Data.c.departments.get(id); if (!d) return false;
+      if (tk === 'root') {
+        let n = `${d.name} (نسخة)`, i = 2; while (Data.list('departments').some((x) => normalizeAr(x.name) === normalizeAr(n))) n = `${d.name} (نسخة ${i++})`;
+        await Data.org.cloneDept(id, [n]); UI.toast(`أُضيفت «${n}» بهيكل «${d.name}»، دون الحسابات`); return;
+      }
+      const to = tk === 'dept' ? { departmentId: target, unitId: '' } : { departmentId: (units.find((x) => x.id === target) || {}).departmentId, unitId: target };
+      if (tk === 'dept' && target === id) return false;
+      if (!(await UI.confirm(`نسخ أقسام «${d.name}» بكل ما تحتها إلى «${orgLabel(to.departmentId, to.unitId, units)}»؟ لا تُنسخ الحسابات.`, { ok: 'نسخ' }))) return false;
+      const r = await Data.org.copyTo({ departmentId: id }, [to]); UI.toast(`نُسخ ${fmtNum(r.added)} فرع${r.found ? `، و${fmtNum(r.found)} موجود أصلاً` : ''}`); return;
+    }
+    const u = units.find((x) => x.id === id); if (!u) return false;
+    if (tk === 'root') { UI.toast('أفلت النسخة على إدارة أو فرع. ولتحويل فرع إلى إدارة اسحبه دون نسخ', 'warn'); return false; }
+    const p = tk === 'unit' ? units.find((x) => x.id === target) : null;
+    const place = tk === 'dept' ? { departmentId: target, unitId: '' } : z === 'in' ? { departmentId: p.departmentId, unitId: p.id } : { departmentId: p.departmentId, unitId: p.parentId || '' };
+    const name = freeName(u.name, units, place.departmentId, place.unitId);
+    const r = await Data.org.copyTo({ unitIds: [id] }, [place], { rename: name });
+    if (p && z !== 'in' && r.firstId) await Data.org.place(r.firstId, { departmentId: place.departmentId, parentId: place.unitId, [z === 'before' ? 'beforeId' : 'afterId']: p.id });
+    if (place.unitId) st.open.add(place.unitId).add('c' + place.unitId);
+    UI.toast(`نُسخ «${name}» بما تحته (${fmtNum(r.added)} فرع)، دون الحسابات`);
+  }
   /* السحب والإفلات: وسط الإدارة أو الفرع ينقل إلى داخله، وطرف الفرع يضعه قبله أو بعده بين أخواته،
      والإدارة على إدارة أخرى تُرتَّب قبلها أو تُنقل إلى داخلها، وعلى فرع تُنقل إلى داخله */
   let drag = '', zone = 'in';
@@ -12232,18 +12306,31 @@ Pages.org = async (ctx) => {
     if (across) return f >= 0.75 ? ['before', 'drop-right'] : ['after', 'drop-left'];
     return f <= 0.25 ? ['before', 'drop-top'] : ['after', 'drop-bottom'];
   };
-  ctx.view.addEventListener('dragstart', (e) => { const el = e.target.closest('[data-drag]'); if (!el || el.getAttribute('draggable') !== 'true') return; drag = el.dataset.drag; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag); (el.closest('.oc-box,.org-node,.org-dept') || el).classList.add('dragging'); e.stopPropagation(); });
-  ctx.view.addEventListener('dragend', () => { drag = ''; $$('.dragging', ctx.view).forEach((x) => x.classList.remove('dragging')); clearDrop(); });
+  ctx.view.addEventListener('dragstart', (e) => { const el = e.target.closest('[data-drag]'); if (!el || el.getAttribute('draggable') !== 'true') return; drag = el.dataset.drag; e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', drag); (el.closest('.oc-box,.org-node,.org-dept') || el).classList.add('dragging'); e.stopPropagation(); });
+  ctx.view.addEventListener('dragend', () => { drag = ''; $$('.dragging', ctx.view).forEach((x) => x.classList.remove('dragging')); clearDrop(); ctx.view.classList.remove('org-copying'); if (st.later) { st.later = false; setTimeout(() => { if (ctx.alive() && !drag) draw(); }, 50); } });
+  /* قرب حافة المخطط أو الشاشة أثناء السحب يتحرك العرض، فيصل المسحوب إلى أي مكان في هيكل متفرع */
+  const edgeScroll = (e) => {
+    const E = 56, step = 22, wrap = $('.oc-wrap', ctx.view);
+    if (wrap) { const r = wrap.getBoundingClientRect(); if (e.clientY >= r.top && e.clientY <= r.bottom) { if (e.clientX < r.left + E) wrap.scrollLeft -= step; else if (e.clientX > r.right - E) wrap.scrollLeft += step; if (e.clientY < r.top + E) wrap.scrollTop -= step; else if (e.clientY > r.bottom - E) wrap.scrollTop += step; } }
+    const sc = document.fullscreenElement || (st.full ? ctx.view : document.scrollingElement); if (!sc) return;
+    if (e.clientY < E) sc.scrollTop -= step; else if (e.clientY > window.innerHeight - E) sc.scrollTop += step;
+  };
+  const copying = (e) => st.drag === 'copy' || e.ctrlKey || e.altKey;
   ctx.view.addEventListener('dragover', (e) => {
+    /* الموضع يُحسب قبل تحريك العرض: كان التحريك يزيح الفرع تحت المؤشر فيُقرأ طرفه وسطاً */
+    if (drag) setTimeout(() => { if (drag) edgeScroll(e); });
     const t = e.target.closest('[data-drop]'); if (!t || !drag || t.dataset.drop === drag) return;
     const [k] = drag.split(':'), [tk] = t.dataset.drop.split(':'); e.preventDefault();
+    const cp = copying(e); e.dataTransfer.dropEffect = cp ? 'copy' : 'move'; ctx.view.classList.toggle('org-copying', cp);
     const [z, cls] = k === 'unit' && tk === 'unit' ? zoneOf(t, e) : ['in', 'drop-ok']; zone = z;
     clearDrop(t); if (!t.classList.contains(cls)) { t.classList.remove(...DROP); t.classList.add(cls); }
   });
   ctx.view.addEventListener('drop', (e) => {
     const t = e.target.closest('[data-drop]'); if (!t || !drag) return; e.preventDefault();
-    const [kind, id] = drag.split(':'), [tk, target] = t.dataset.drop.split(':'), z = zone; drag = ''; clearDrop();
+    /* موضع الإفلات من لحظة الإفلات نفسها (قد يتحرك العرض بعد آخر حركة) */
+    const [kind, id] = drag.split(':'), [tk, target] = t.dataset.drop.split(':'), z = kind === 'unit' && tk === 'unit' ? zoneOf(t, e)[0] : zone, cp = copying(e); drag = ''; clearDrop(); ctx.view.classList.remove('org-copying');
     const units = (ctx.data && ctx.data.units) || [];
+    if (cp) { run(() => dropCopy(kind, id, tk, target, z, units)); return; }
     run(async () => {
       if (kind === 'dept') {
         const d = Data.c.departments.get(id); if (!d || (tk === 'dept' && target === id)) return false;
@@ -12269,7 +12356,8 @@ Pages.org = async (ctx) => {
       UI.toast(moved ? `نُقل «${u.name}» بما تحته وحساباته` : `تغيّر ترتيب «${u.name}»`);
     });
   });
-  ctx.onCleanup(Bus.on('org', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
+  /* تغيير وصل من جهاز آخر أثناء السحب: يُؤجَّل رسمه حتى ينتهي السحب، وإلا أُلغي السحب */
+  ctx.onCleanup(Bus.on('org', debounce(() => { if (!ctx.alive() || $('dialog[open]')) return; if (drag) { st.later = true; return; } draw(); }, 400)));
   await draw();
 };
 
