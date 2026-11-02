@@ -2046,7 +2046,37 @@ body.tv-mode:not(.tv-cursor){cursor:none}
 .tv2-kind .ic{width:15px;height:15px}
 .k-ticket{background:rgba(56,140,255,.16);color:#8CC0FF}
 .k-chat{background:rgba(160,120,255,.18);color:#C9B2FF}
-.tv2-subj{display:flex;flex-direction:column;min-width:0}
+.tv2-subj{display:flex;align-items:center;gap:12px;min-width:0}
+.tv2-stx{display:flex;flex-direction:column;min-width:0}
+.tv2-stx b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tv2-stx small{display:block;font-size:12px;color:#8FA2BE;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tv2-cat{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.14),rgba(255,255,255,.03) 70%);border:1px solid rgba(255,255,255,.1)}
+.tv2-cat .iso,.tv2-cat .cat-ic,.tv2-cat img,.tv2-cat svg:not(.ic){width:38px;height:38px}.tv2-cat.chat{background:rgba(160,120,255,.18);color:#C9B2FF}.tv2-cat.chat .ic{width:22px;height:22px}
+.tv2-tr{position:relative}.tv2-tr::before{content:'';position:absolute;inset-block:8px;inset-inline-start:0;width:4px;border-radius:4px;background:var(--pe,transparent)}
+.tv2-tr.pe-urgent{--pe:#FF5D6C}.tv2-tr.pe-high{--pe:#F4A93B}.tv2-tr.pe-medium{--pe:#4C9BFF}.tv2-tr.pe-low{--pe:#2BD4A4}.tv2-tr.pe-chat{--pe:#A078FF}
+.tv2-tr.enter{animation:tvRowIn .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 55ms)}
+.tv2-tr.enter.flash{animation:tvRowIn .55s cubic-bezier(.2,.8,.2,1) both,tvFlash 1.2s ease-in-out .6s 8}
+@keyframes tvRowIn{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+.tv2-qhead{gap:14px}.tv2-qhead h2{flex:none}
+.tv2-cats{flex:1;display:flex;gap:8px;justify-content:center;flex-wrap:nowrap;overflow:hidden;min-width:0}
+.tv2-cchip{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 6px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);font-size:13px;white-space:nowrap;flex:none}
+.tv2-cchip .iso,.tv2-cchip .cat-ic,.tv2-cchip img,.tv2-cchip svg:not(.ic){width:26px;height:26px}.tv2-cchip .ic{width:16px;height:16px;margin-inline:4px}
+.tv2-cchip b{font-family:var(--f-num,inherit);font-weight:800;font-size:15px;color:#F3C969}
+.tv2-cchip.chat{background:rgba(160,120,255,.14);border-color:rgba(160,120,255,.35);color:#C9B2FF}.tv2-cchip.more{padding-inline-start:12px;color:#8FA2BE}
+.tv2-cchip.hot{border-color:rgba(243,201,105,.8);background:rgba(243,201,105,.14);animation:tvFlash 1.2s ease-in-out 6}
+.tv2-qinfo{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
+.tv2-dots{display:flex;gap:5px}.tv2-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .3s,width .3s}.tv2-dots i.on{width:20px;border-radius:9px;background:#F3C969}
+.tv2-prog{height:3px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;margin:-2px 0 8px}
+.tv2-prog i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#F3C969,#4C9BFF);transform-origin:right;animation:tvProg 12s linear both}
+@keyframes tvProg{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.tv2{position:relative;isolation:isolate}
+.tv2::before,.tv2::after{content:'';position:fixed;z-index:-1;pointer-events:none;width:70vmax;height:70vmax;border-radius:50%;opacity:.55}
+.tv2::before{top:-35vmax;inset-inline-start:-20vmax;background:radial-gradient(circle,rgba(56,120,220,.28),transparent 62%);animation:drift1 38s ease-in-out infinite alternate}
+.tv2::after{bottom:-40vmax;inset-inline-end:-25vmax;background:radial-gradient(circle,rgba(212,175,85,.16),transparent 62%);animation:drift2 46s ease-in-out infinite alternate}
+.tv-alert-ic.has-cat{position:relative;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.18),rgba(var(--t),.16) 70%)}
+.tv-alert-ic .tva-cat,.tv-alert-ic.has-cat .iso,.tv-alert-ic.has-cat img,.tv-alert-ic.has-cat svg:not(.ic){width:96px;height:96px;animation:none}
+.tva-badge{position:absolute;bottom:-10px;inset-inline-end:-10px;width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:rgb(var(--t));color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.tv-alert-ic .tva-badge .ic{width:26px;height:26px}
+@media (prefers-reduced-motion:reduce){.tv2::before,.tv2::after,.tv2-tr.enter,.tv2-prog i{animation:none}}
 .tv2-subj b,.tv2-dep{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tv2-subj small,.tv2-dep small{display:block;font-size:12px;color:#8FA2BE;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tv2-pr{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;background:#8FA2BE}
@@ -13669,7 +13699,7 @@ Pages.monitor = async (ctx) => {
   await keepAwake();
   document.addEventListener('visibilitychange', keepAwake);
   ctx.onCleanup(() => { document.removeEventListener('visibilitychange', keepAwake); try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
-  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map() };
+  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map(), drawn: -1, pageAt: now() };
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
@@ -13684,7 +13714,7 @@ Pages.monitor = async (ctx) => {
     </header>
     <section class="tv2-kpis" data-kpis></section>
     <div class="tv2-body">
-      <section class="tv2-queue"><div class="tv2-qhead"><h2>${UI.icon('inbox')} قائمة الوصول</h2><span class="faint" data-qinfo></span></div><div class="tv2-rows" data-rows></div></section>
+      <section class="tv2-queue"><div class="tv2-qhead"><h2>${UI.icon('inbox')} قائمة الوصول</h2><div class="tv2-cats" data-cats></div><span class="tv2-qinfo"><span class="faint" data-qinfo></span><span class="tv2-dots" data-dots></span></span></div><div class="tv2-prog" data-prog hidden><i></i></div><div class="tv2-rows" data-rows></div></section>
       <aside class="tv2-side">
         <section class="tv2-card"><h3>${UI.icon('pulse')} حالة الخدمات</h3><div class="tv2-svcs" data-svcs></div></section>
         <section class="tv2-card grow"><h3>${UI.icon('bell')} التعاميم والتوضيحات</h3><div class="tv2-news" data-news></div></section>
@@ -13705,14 +13735,18 @@ Pages.monitor = async (ctx) => {
     if (st.page >= pages) st.page = 0;
     const slice = [...pins, ...rest.slice(st.page * per, st.page * per + per)];
     const info = $v('[data-qinfo]'); if (info) info.textContent = rows.length ? `${fmtNum(rows.length)} في الانتظار${pages > 1 ? ` — صفحة ${st.page + 1} من ${pages}` : ''}` : '';
+    /* تقليب الصفحات: الصفوف تدخل متتابعة، وشريط رفيع يمتلئ حتى الصفحة التالية، ونقاط تبين موضعها */
+    const turn = st.drawn !== st.page; if (turn) { st.drawn = st.page; st.pageAt = now(); }
+    const dots = $v('[data-dots]'); if (dots) dots.innerHTML = pages > 1 && pages <= 12 ? Array.from({ length: pages }, (_, i) => `<i${i === st.page ? ' class="on"' : ''}></i>`).join('') : '';
+    const prog = $v('[data-prog]'); if (prog) { prog.hidden = pages < 2; if (turn && pages > 1) { const bar = prog.firstElementChild; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; } }
     box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r) => {
       const pr = PRIORITY[r.priority] || {}, stt = r.kind === 'chat' ? { label: r.status === 'new' ? 'بانتظار الرد' : 'قيد المتابعة', tone: 'violet' } : (STATUS[r.status] || { label: r.status, tone: 'slate' });
       const sla = r.due ? Math.min(100, Math.max(0, ((now() - r.at) / Math.max(1, r.due - r.at)) * 100)) : 0;
       const late = r.due && now() > r.due;
-      return html`<div class="tv2-tr${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}">
+      return html`<div class="tv2-tr pe-${r.kind === 'chat' ? 'chat' : r.priority}${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}${turn ? ' enter' : ''}" style="--i:${slice.indexOf(r)}">
         <span class="tv2-n">${rows.indexOf(r) + 1}</span>
         <span class="tv2-kind k-${r.kind}">${UI.icon(r.kind === 'chat' ? 'bell' : 'ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
-        <span class="tv2-subj"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span>
+        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('bell') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span></span>
         <span class="tv2-dep">${r.dep || '—'}${r.office ? html`<small>${r.office}</small>` : ''}</span>
         <span>${r.kind === 'chat' ? html`<i class="tv2-pr p-low"></i>—` : html`<i class="tv2-pr p-${r.priority}"></i>${pr.label || ''}`}</span>
         <span><em class="tv2-st tone-${stt.tone || 'slate'}">${stt.label}</em></span>
@@ -13730,8 +13764,8 @@ Pages.monitor = async (ctx) => {
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
-      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
-      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
+      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
+      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', catId: '', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
@@ -13741,6 +13775,10 @@ Pages.monitor = async (ctx) => {
     if (st.fresh.length) st.page = 0;
     rows.sort((a, b) => (st.pin.has(b.key) - st.pin.has(a.key)) || (st.pin.has(a.key) ? b.at - a.at : a.at - b.at));
     st.rows = rows;
+    /* شريط الفئات: أيقونة كل فئة وعدد المفتوح منها، وفئة الوارد الجديد تتوهج */
+    const byCat = new Map(); open.forEach((t) => { const k = t.categoryId || 'other'; byCat.set(k, (byCat.get(k) || 0) + 1); });
+    const hot = new Set(st.fresh.filter((r) => r.kind === 'ticket').map((r) => r.catId)), cats = [...byCat].sort((a, b) => b[1] - a[1]), shown = cats.slice(0, 6), more = cats.slice(6).reduce((a, x) => a + x[1], 0);
+    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('bell')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}`);
     const overdue = open.filter((t) => t.dueAt && t.dueAt < now()).length;
     const doneToday = tickets.filter((t) => (t.resolvedAt || t.closedAt || 0) >= t0).length;
     const newToday = tickets.filter((t) => t.createdAt >= t0).length;
@@ -13783,7 +13821,7 @@ Pages.monitor = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
   UI.on(ctx.view, 'click', '[data-act="sound"]', (e, el) => { st.sound = !st.sound; localStorage.setItem('sq_tv_sound', st.sound ? '1' : '0'); el.classList.toggle('off', !st.sound); if (st.sound) tvChime(); UI.toast(st.sound ? 'فُعّل التنبيه الصوتي للوارد الجديد' : 'أُوقف التنبيه الصوتي'); });
-  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { st.page++; drawRows(); }, 12000), iLoad = setInterval(load, 20000);
+  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { if (now() - st.pageAt >= 11800) { st.page++; drawRows(); } }, 400), iLoad = setInterval(load, 20000);
   let idle; const hideCursor = () => { document.body.classList.remove('tv-cursor'); clearTimeout(idle); document.body.classList.add('tv-cursor'); idle = setTimeout(() => document.body.classList.remove('tv-cursor'), 4000); };
   document.addEventListener('mousemove', hideCursor);
   ctx.onCleanup(() => { clearInterval(iClock); clearInterval(iDate); clearInterval(iPage); clearInterval(iLoad); clearTimeout(idle); document.removeEventListener('mousemove', hideCursor); });
@@ -20829,7 +20867,8 @@ const TvAlert = {
     let el = document.getElementById('tvAlert');
     if (!el) { el = document.createElement('div'); el.id = 'tvAlert'; el.className = 'tv-alert'; el.setAttribute('role', 'alert'); el.addEventListener('click', () => this.hide()); document.body.appendChild(el); }
     el.style.setProperty('--t', `var(--${tone})`);
-    el.innerHTML = String(html`<div class="tv-alert-card"><div class="tv-alert-ic">${UI.icon(ic)}</div><div class="grow" style="min-width:0">
+    /* أيقونة فئة البلاغ في البطاقة (طابعة، شبكة، بريد…) وشارة النوع فوقها، بدل أيقونة عامة واحدة لكل البلاغات */
+    el.innerHTML = String(html`<div class="tv-alert-card"><div class="tv-alert-ic${top.kind === 'ticket' ? ' has-cat' : ''}">${top.kind === 'ticket' ? html`${UI.illu(catIllu(top.catId || 'other'), 'tva-cat')}<i class="tva-badge">${UI.icon(ic)}</i>` : UI.icon(ic)}</div><div class="grow" style="min-width:0">
       <span class="tv-alert-kicker">${kick}${rest.length ? ` · ومعه ${fmtNum(rest.length)} غيره` : ''}</span><h2>${top.title}</h2>
       <p>${[top.dep, top.office, top.cat].filter(Boolean).join(' · ') || '—'}</p>
       <div class="tv-alert-meta">${top.number ? html`<span class="ltr">${top.number}</span>` : ''}${top.by ? html`<span>${UI.icon('user')} ${top.by}</span>` : ''}<span>${UI.icon('clock')} ${new Date(top.at).toTimeString().slice(0, 5)}</span></div>
