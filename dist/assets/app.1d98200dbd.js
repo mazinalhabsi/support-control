@@ -700,7 +700,8 @@ Data.tickets = {
       if (!fromReq && !(t.followers || []).includes(me)) t.followers = [...(t.followers || []), me].slice(-20);
       if (!internal) {
         n.title = fromReq ? (t.noteFrom === 'staff' ? 'ردّ الموظف على الملاحظة' : 'رد جديد من الموظف') : `ملاحظة من ${Data.userName(me)}`;
-        Object.assign(t, { noteAt: now(), noteBy: me, noteFrom: fromReq ? 'requester' : 'staff', noteText: text.slice(0, 300) });
+        /* noteReply: ردٌّ على ملاحظة الطرف الآخر أم ملاحظة جديدة؟ فتقول العلامة «ردّ الموظف» أو «ملاحظة من الموظف» بدل عبارة واحدة للحالتين */
+        Object.assign(t, { noteAt: now(), noteBy: me, noteFrom: fromReq ? 'requester' : 'staff', noteReply: (fromReq ? t.noteFrom === 'staff' : t.noteFrom === 'requester') ? 1 : 0, noteText: text.slice(0, 300) });
       } else n.title = `ملاحظة داخلية من ${Data.userName(me)}`;
       if (!internal && t.status === 'waiting' && fromReq) { t.status = 'in_progress'; n.title = 'ردّ المستفيد على البلاغ المعلّق'; ev.push({ type: 'status', from: 'waiting', to: 'in_progress', text: '' }); }
       return ev;
@@ -1748,7 +1749,7 @@ const Shell = {
     $('#app').innerHTML = String(html`<div class="shell" id="shell">
       <aside class="sidebar" aria-label="القائمة الجانبية">
         <a class="brand" href="#/dashboard"><img src="${ASSETS.logo}" alt=""><span><b>${s.systemName}</b><small>${s.orgName}</small></span></a>
-        <nav class="nav">${this.nav().map((g) => html`<div class="nav-group"><span class="nav-title">${g.group}</span>${g.items.map((i) => html`<a class="nav-link" href="#${i.path}" data-path="${i.path}">${UI.icon(i.icon)}<span>${(i.labelFor && Auth.user && i.labelFor[Auth.user.role]) || i.label}</span>${i.badge ? html`<b class="nav-badge${i.badge === 'tickets' ? '' : ' soft'}" data-badge="${i.badge}" hidden></b>` : ''}</a>`)}</div>`)}</nav>
+        <nav class="nav">${this.nav().map((g) => html`<div class="nav-group"><span class="nav-title">${g.group}</span>${g.items.map((i) => html`<a class="nav-link" href="#${i.path}" data-path="${i.path}">${UI.icon(i.icon)}<span>${(i.labelFor && Auth.user && i.labelFor[Auth.user.role]) || i.label}</span>${i.badge === 'tickets' ? html`<b class="nav-badge note" data-badge="tnotes" hidden></b>` : ''}${i.badge ? html`<b class="nav-badge${i.badge === 'tickets' ? '' : ' soft'}" data-badge="${i.badge}" hidden></b>` : ''}</a>`)}</div>`)}</nav>
         <a class="side-user" href="#/profile">${UI.avatar(u)}<span><b>${u.name}</b><small>${ROLES[u.role]}</small></span></a>
         <div class="side-phone">${UI.icon('phone')} الدعم الفني <span class="ltr">${s.supportPhone}</span></div>
       </aside>
@@ -1789,7 +1790,7 @@ const Shell = {
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
     this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
     document.addEventListener('click', this._doc);
-    this.offs.push(Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
+    this.offs.push(Bus.on('noteseen', debounce(() => this.refreshBadges(), 200)), Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
   },
   unmount() { Presence.stop(); this.offs.splice(0).forEach((f) => f()); if (this._doc) document.removeEventListener('click', this._doc); this.mounted = false; this._bellN = null; },
   setActive(path) { let best = null; $$('.nav-link').forEach((a) => { a.classList.remove('active'); const p = a.dataset.path; if ((path === p || path.startsWith(p + '/')) && (!best || p.length > best.dataset.path.length)) best = a; }); if (best) best.classList.add('active'); },
@@ -1799,6 +1800,8 @@ const Shell = {
     try {
       /* ما ينتظر الفني: غير المستلم، وما أُسند إليه ولم يبدأه (الإسناد التلقائي يجعل أغلب الجديد «مُسنداً» فكان العداد صفراً) */
       if (Auth.can('tickets.work')) { const [neu, mine] = await Promise.all([DB.count('tickets', 'status', KR('new')), DB.count('tickets', 'assignee_status', KR([Auth.user.id, 'assigned']))]); set('tickets', neu + mine); }
+      /* ملاحظات البلاغات التي لم تُفتح بعد: شارة مستقلة بجانب «البلاغات» (للفني ملاحظات الموظفين، وللموظف ملاحظات الفني) */
+      if (Auth.can('tickets.view')) { const n = (await Pages.noteTickets()).filter(Pages.noteNew).length, b = $('[data-badge="tnotes"]'); set('tnotes', n); if (b) b.title = n ? `${n} ملاحظة على البلاغات لم تفتحها بعد` : ''; }
       if (Auth.can('inventory.read')) { const s = await Data.inv.summary(); set('low', s.low + s.out); set('overdue', s.overdue); }
     } catch (e) { console.warn(e); }
   },
@@ -1909,7 +1912,7 @@ const Board = {
       { key: 'waiting', title: 'معلّق', tone: 'slate', icon: 'pause', q: all ? { status: 'waiting' } : { assigneeId: me, status: 'waiting' } }
     ];
   },
-  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b>${Pages.noteChip(t)}<div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
+  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}${Pages.notePending(t) ? ` has-note${Pages.noteNew(t) ? ' is-new' : ''}` : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b>${Pages.noteChip(t)}<div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
   async render(el, { all = false, limit = 10, animate = true } = {}) {
     const data = await Promise.all(this.lanes(all).map(async (l) => ({ ...l, count: l.q.assigneeId ? await DB.count('tickets', 'assignee_status', KR([l.q.assigneeId, l.q.status])) : await DB.count('tickets', 'status', KR(l.q.status)), rows: (await Data.tickets.list({ ...l.q, limit })).rows })));
     el.innerHTML = String(html`<div class="lanes">${data.map((l) => html`<section class="lane tone-${l.tone}" data-lane="${l.key}" data-title="${l.title}"><header class="lane-head"><i class="lbar"></i>${l.title}<span class="lane-count" data-count="${l.count}">${fmtNum(l.count)}</span></header><div class="lane-body">${l.rows.length ? l.rows.map((t) => this.card(t)) : html`<div class="lane-empty">${UI.icon(l.icon)}لا توجد بلاغات</div>`}</div></section>`)}</div>`);
@@ -2165,13 +2168,38 @@ Pages.notePending = (t) => {
   if (me.id === t.requesterId) return t.noteFrom === 'staff' ? 'staff' : '';
   return t.noteFrom === 'requester' && canUser(me, 'tickets.work') ? 'requester' : '';
 };
-Pages.noteChip = (t) => { const k = Pages.notePending(t); return k === 'staff' ? UI.chip('amber', 'ملاحظة من الفني', 'send') : k === 'requester' ? UI.chip('teal', 'ردّ الموظف', 'send') : ''; };
+/* ما رآه هذا الحساب من ملاحظات البلاغات على هذا الجهاز: الملاحظة التي لم تُفتح بعد تظهر بنقطة نابضة وسطر مظلل، وتهدأ بعد فتح البلاغ.
+   وتبقى العلامة نفسها حتى يرد الطرف الآخر (لا تختفي بمجرد النظر) */
+const NoteSeen = {
+  key: () => `sq_nseen_${(Auth.user || {}).id || ''}`,
+  map() { try { return JSON.parse(localStorage.getItem(this.key()) || '{}') || {}; } catch (_) { return {}; } },
+  seen(t) { return (Number(this.map()[t.id]) || 0) >= (t.noteAt || 0); },
+  mark(t) {
+    if (!t || !t.noteAt || this.seen(t)) return;
+    try { const m = this.map(); m[t.id] = t.noteAt; const ks = Object.keys(m); if (ks.length > 500) ks.sort((a, b) => m[a] - m[b]).slice(0, ks.length - 500).forEach((k) => { delete m[k]; }); localStorage.setItem(this.key(), JSON.stringify(m)); } catch (_) { /* تجاهل */ }
+    Bus.emit('noteseen', { id: t.id });
+  },
+};
+Pages.noteLabel = (t) => { const k = Pages.notePending(t); if (!k) return ''; const reply = t.noteReply === 1 || t.noteReply === true; return k === 'staff' ? (reply ? 'ردّ الفني' : 'ملاحظة من الفني') : t.noteReply == null ? 'ردّ الموظف' : reply ? 'ردّ الموظف' : 'ملاحظة من الموظف'; };
+Pages.noteNew = (t) => !!Pages.notePending(t) && !NoteSeen.seen(t);
+Pages.noteChip = (t) => { const k = Pages.notePending(t); if (!k) return ''; return html`<span class="nchip${Pages.noteNew(t) ? ' is-new' : ''}" title="${Pages.noteNew(t) ? 'لم تفتحها بعد' : 'بانتظار ردك'}">${UI.chip(k === 'staff' ? 'amber' : 'teal', Pages.noteLabel(t), 'send')}</span>`; };
+/* سطر الملاحظة تحت عنوان البلاغ في القوائم: من كتبها ومقتطف منها، فيعرف الفني ما كُتب قبل أن يفتح البلاغ */
+Pages.noteLine = (t) => { const k = Pages.notePending(t); if (!k || !t.noteText) return ''; const tx = String(t.noteText).replace(/\s+/g, ' '); return html`<div class="t-noteln tone-${k === 'staff' ? 'amber' : 'teal'}">${Pages.noteNew(t) ? html`<i class="nd" aria-label="جديدة"></i>` : UI.icon('send')}<b>${Data.userName(t.noteBy)}:</b> <span class="ellipsis">«${tx.length > 110 ? `${tx.slice(0, 110)}…` : tx}»</span> <span class="faint">${timeAgo(t.noteAt)}</span></div>`; };
+Pages.noteRowCls = (t) => { const k = Pages.notePending(t); return k ? ` t-note t-note-${k === 'staff' ? 'amber' : 'teal'}${Pages.noteNew(t) ? ' t-note-new' : ''}` : ''; };
+/* البلاغات التي فيها ملاحظة بانتظار رد هذا الحساب: للفني ما أُسند إليه أو يتابعه أو لم يُستلم بعد (ولمن يدير البلاغات كلها)، وللموظف بلاغاته */
+Pages.noteTickets = async () => {
+  const me = Auth.user; if (!me) return [];
+  const pool = canUser(me, 'tickets.work') ? (await Promise.all(OPEN.map((s) => DB.getAll('tickets', 'status', KR(s))))).flat() : await DB.getAll('tickets', 'requester_createdAt', KR([me.id, 0], [me.id, Infinity]));
+  const all = canUser(me, 'tickets.manage');
+  return pool.filter((t) => { const k = Pages.notePending(t); if (!k) return false; if (k === 'staff') return true; return all || !t.assigneeId || t.assigneeId === me.id || (t.followers || []).includes(me.id); }).sort((a, b) => b.noteAt - a.noteAt);
+};
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
   /* الفني يبدأ بما ينتظر الاستلام، فإن لم يكن شيء فبالمسند إليه */
   const first = !staff ? 'all' : q.scope ? '' : (await DB.count('tickets', 'status', KR('new'))) ? 'unassigned' : 'mine';
   const st = { scope: q.scope || first, view: q.view || localStorage.getItem(staff ? 'sq_tview' : 'sq_tview_e') || 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
-  const scopes = staff ? [['unassigned', 'بانتظار الاستلام', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
+  /* «ملاحظات الموظفين»: البلاغات التي كتب فيها الموظف ملاحظة أو رداً ينتظر الفني، وللموظف «ملاحظات الفني» التي تنتظر رده */
+  const scopes = staff ? [['unassigned', 'بانتظار الاستلام', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ...(Auth.can('tickets.work') ? [['notes', 'ملاحظات الموظفين', 'send']] : []), ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['notes', 'ملاحظات الفني', 'send'], ['closed', 'المنتهية', 'check']];
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
     ${UI.pageHead({ title: staff ? 'البلاغات' : 'بلاغاتي', sub: staff ? 'تابع البلاغات ووزّعها وأنجزها ضمن مواعيدها' : 'كل البلاغات التي قدّمتها وحالتها لحظة بلحظة', illu: 'bell', actions: html`${Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : ''}<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button>` })}
@@ -2200,6 +2228,10 @@ Pages.tickets = async (ctx) => {
   };
   const fetch = async (all = false) => {
     const f = filter(); if (all) { f.offset = 0; f.limit = 1e6; }
+    if (st.scope === 'notes') {
+      const qn = normalizeAr(f.q), rows = (await Pages.noteTickets()).filter((t) => (!st.status || t.status === st.status) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to));
+      return { rows: rows.slice(f.offset, f.offset + f.limit), hasMore: rows.length > f.offset + f.limit };
+    }
     if (staff && Array.isArray(f.status) && ['mine', 'open', 'spec'].includes(st.scope)) {
       const lists = await Promise.all(f.status.map((s) => (st.scope === 'mine' ? DB.getAll('tickets', 'assignee_status', KR([me, s])) : DB.getAll('tickets', 'status_createdAt', KR([s, f.from || 0], [s, f.to || Infinity])))));
       const qn = normalizeAr(f.q), rows = lists.flat().filter((t) => (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to) && (st.scope !== 'spec' || (myCats.has(t.categoryId) && (!t.assigneeId || t.assigneeId === me)))).sort((a, b) => b.createdAt - a.createdAt);
@@ -2208,7 +2240,7 @@ Pages.tickets = async (ctx) => {
     if (f.status === '') delete f.status;
     return Data.tickets.list(f);
   };
-  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) ? raw(' class="t-live"') : ''}><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''} ${Pages.noteChip(t)}</div></div></div></td>
+  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) || Pages.notePending(t) ? raw(` class="${liveOn(t) ? 't-live' : ''}${Pages.noteRowCls(t)}"`) : ''}><td><div class="t-title"><span class="t-ico">${UI.illu(catIllu(t.categoryId))}${Pages.noteNew(t) ? html`<i class="t-ico-dot" title="ملاحظة لم تفتحها بعد"></i>` : ''}</span><div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''} ${Pages.noteChip(t)}</div>${Pages.noteLine(t)}</div></div></td>
     <td>${staff ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.requesterId, 'av-sm')}<div><div>${Data.userName(t.requesterId)}</div><div class="t-sub">${Data.nameOf('departments', t.departmentId, '')}</div></div></div>` : Data.nameOf('departments', t.departmentId)}</td>
     <td>${UI.priority(t.priority)}</td><td>${UI.status(t.status)}</td>
     <td>${t.assigneeId ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.assigneeId, 'av-sm')}<span>${Data.userName(t.assigneeId)}</span>${liveOn(t) ? html`<span class="live-chip" title="الفني متصل ونشط الآن">قيد العمل</span>` : ''}${staff && t.handover && t.handover.text && OPEN.includes(t.status) ? html`<span class="ho-dot" title="ملاحظة تسليم: ${t.handover.text}">${UI.icon('clipboard')}</span>` : ''}</div>` : html`<span class="faint">لم يُسند بعد</span>`}</td>
@@ -2216,10 +2248,12 @@ Pages.tickets = async (ctx) => {
   const sync = () => history.replaceState(null, '', '#/tickets?' + new URLSearchParams(Object.entries({ scope: st.scope, view: st.view === 'table' ? '' : st.view, q: st.q, status: st.status, priority: st.priority, cat: st.categoryId, dep: st.departmentId, from: st.from, to: st.to, offset: st.offset || '' }).filter(([, v]) => v !== '' && v != null)));
   const tabs = async () => {
     let counts = {};
+    const notes = await Pages.noteTickets(), fresh = notes.filter(Pages.noteNew).length;
     if (staff) { const [mine, neu, all, over] = await Promise.all([Promise.all(OPEN.map((s) => Data.tickets.countFor(me, s))), DB.count('tickets', 'status', KR('new')), Data.tickets.countByStatus(), Data.tickets.countOverdue()]); counts = { mine: mine.reduce((a, b) => a + b, 0), unassigned: neu, open: OPEN.reduce((a, k) => a + all[k], 0), overdue: over }; }
     else { const mineAll = await DB.getAll('tickets', 'requester_createdAt', KR([me, 0], [me, Infinity])); counts = { all: mineAll.length, open: mineAll.filter((t) => OPEN.includes(t.status)).length, closed: mineAll.filter((t) => !OPEN.includes(t.status)).length }; }
+    counts.notes = notes.length;
     if (!ctx.alive()) return;
-    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab ${st.scope === k ? 'active' : ''}" data-scope="${k}">${UI.icon(ic)}${l}${counts[k] != null ? html`<span class="count">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
+    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab ${st.scope === k ? 'active' : ''}${k === 'notes' && notes.length ? ' tab-note' : ''}${k === 'notes' && fresh ? ' has-new' : ''}" data-scope="${k}"${k === 'notes' && fresh ? raw(` title="${fresh} لم تفتحها بعد"`) : ''}>${UI.icon(ic)}${l}${counts[k] != null ? html`<span class="count">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
   };
   const load = async () => {
     sync();
@@ -2383,9 +2417,15 @@ Pages.ticket = async (ctx) => {
   if (!t) { view.innerHTML = String(UI.empty({ illu: 'box', title: 'البلاغ غير موجود', text: 'ربما حُذف أو أن الرابط غير صحيح.', action: html`<a class="btn btn-primary" href="#/tickets">العودة إلى البلاغات</a>` })); return; }
   if (!staff && t.requesterId !== me.id) throw new AppError('لا تملك صلاحية عرض هذا البلاغ');
   const templates = staff && !(await DB.get('meta', 'migrate:templates')) ? await DB.getAll('templates') : [];
+  /* الملاحظة التي كانت جديدة حين فُتح البلاغ تبقى معلَّمة «جديدة» في هذه الزيارة، وتُسجَّل مقروءة فلا تنبض في القوائم بعد ذلك */
+  let shownNew = 0;
   const draw = async () => {
     t = await Data.tickets.get(id); const events = await Data.tickets.events(id); atts = await Data.tickets.attachments(id);
     if (!ctx.alive()) return;
+    const nk = Pages.notePending(t); if (Pages.noteNew(t)) shownNew = t.noteAt;
+    const nFresh = !!nk && shownNew === t.noteAt, nReply = t.noteReply === 1 || t.noteReply === true, nName = Data.userName(t.noteBy);
+    const nHead = nk === 'requester' ? (t.noteReply == null || nReply ? `ردّ ${nName} على الملاحظة` : `ملاحظة جديدة من ${nName}`) : nReply ? `ردّ ${nName} على ملاحظتك` : `ملاحظة من ${nName}`;
+    const noteEv = nk ? events.filter((e) => e.type === 'comment' && !e.internal && e.userId === t.noteBy && Math.abs((e.at || 0) - t.noteAt) < 120000).pop() : null;
     urls.splice(0).forEach((x) => URL.revokeObjectURL(x));
     const c = Data.c.categories.get(t.categoryId) || { name: 'أخرى', illustration: 'box' }, req = Data.c.users.get(t.requesterId), mine = t.requesterId === me.id, can = staff && (t.assigneeId === me.id || mgr);
     const acts = [];
@@ -2400,11 +2440,11 @@ Pages.ticket = async (ctx) => {
     if ((mine && ['new', 'assigned'].includes(t.status)) || (mgr && OPEN.includes(t.status))) acts.push(html`<button class="btn btn-ghost" data-act="cancel">${UI.icon('x')} إلغاء</button>`);
     acts.push(html`<button class="icon-btn" data-act="print" title="طباعة" aria-label="طباعة">${UI.icon('print')}</button>`);
     const gallery = atts.map((a) => { let thumb = UI.icon('file'); if (a.blob && String(a.type).startsWith('image/')) { a._url = URL.createObjectURL(a.blob); urls.push(a._url); thumb = html`<img src="${a._url}" alt="">`; } return html`<div class="file" data-att="${a.id}" title="${a.name}"><div class="thumb">${thumb}</div><div class="fname">${a.name}</div></div>`; });
-    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
+    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e), hot = noteEv && e === noteEv; return html`<div class="tl${hot ? ` tl-note tone-${nk === 'staff' ? 'amber' : 'teal'}` : ''}"${hot ? raw(' id="tlNote"') : ''}><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}${hot ? html` <span class="tl-flag">${nFresh ? 'جديدة' : 'بانتظار الرد'}</span>` : ''}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
       ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}${Ratings.ticketBar(t, staff)}
-      ${Pages.notePending(t) ? html`<div class="banner tone-${Pages.notePending(t) === 'staff' ? 'amber' : 'teal'} note-bar">${UI.icon('send')}<div class="grow"><b>${Pages.notePending(t) === 'staff' ? `ملاحظة من ${Data.userName(t.noteBy)}` : `ردّ ${Data.userName(t.noteBy)}`}</b> <span class="faint small">${timeAgo(t.noteAt)}</span><p class="note-text">${t.noteText}</p></div><button type="button" class="btn btn-sm ${Pages.notePending(t) === 'staff' ? 'btn-primary' : 'btn-soft'}" data-act="replynote">${UI.icon('send')} ${Pages.notePending(t) === 'staff' ? 'الرد على الملاحظة' : 'الرد'}</button></div>` : ''}
+      ${nk ? html`<div class="banner tone-${nk === 'staff' ? 'amber' : 'teal'} note-bar${nFresh ? ' is-new' : ''}" role="status"><span class="nb-ico">${UI.icon('send')}${nFresh ? html`<i class="nd"></i>` : ''}</span><div class="grow"><b>${nHead}</b>${nFresh ? html` <span class="nb-new">جديدة</span>` : ''} <span class="faint small">${timeAgo(t.noteAt)}</span><p class="note-text">${t.noteText}</p></div><div class="row" style="gap:6px;flex-wrap:nowrap">${noteEv ? html`<button type="button" class="btn btn-sm btn-ghost" data-act="seenote">${UI.icon('eye')} في المحادثة</button>` : ''}<button type="button" class="btn btn-sm ${nk === 'staff' ? 'btn-primary' : 'btn-soft'}" data-act="replynote">${UI.icon('send')} ${nk === 'staff' ? 'الرد على الملاحظة' : 'الرد على الموظف'}</button></div></div>` : ''}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -2430,6 +2470,7 @@ Pages.ticket = async (ctx) => {
     if (tpl) tpl.onchange = () => { const x = templates.find((y) => y.id === tpl.value); if (x) { const box = $('#cmt', view); box.value = (box.value ? box.value + '\n' : '') + x.body; box.focus(); } tpl.value = ''; };
     UI.hydrate(view);
     if (staff) Pages.paintLive(view, t);
+    if (nk) NoteSeen.mark(t);
   };
   if (staff) { const liveT = setInterval(() => { if (ctx.alive() && t) Pages.paintLive(view, t); }, 20000); ctx.onCleanup(() => clearInterval(liveT)); }
   const run = async (fn, msg) => { try { await fn(); if (msg) UI.toast(msg); } catch (ex) { UI.error(ex); } };
@@ -2449,6 +2490,7 @@ Pages.ticket = async (ctx) => {
     if (a === 'rate') return Pages.rateModal(id);
     if (a === 'confirmfix') return run(() => Data.tickets.confirmFix(id), 'شكراً لتأكيدك، أُغلق البلاغ');
     if (a === 'replynote') { const box = $('#cmt', view); if (box) { box.scrollIntoView({ block: 'center', behavior: UI.reduced() ? 'auto' : 'smooth' }); box.focus(); } return; }
+    if (a === 'seenote') { const el = $('#tlNote', view); if (el) { el.scrollIntoView({ block: 'center', behavior: UI.reduced() ? 'auto' : 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } return; }
     if (a === 'send') { const box = $('#cmt', view), internal = $('#internal', view); if (!box.value.trim()) { box.focus(); return; } UI.busy(el, true); try { await Data.tickets.comment(id, box.value, !!(internal && internal.checked)); UI.toast('تم إرسال الرد'); } catch (ex) { UI.error(ex); UI.busy(el, false); } return; }
     if (a === 'attach') { const fl = (await UI.pickFiles({ accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt' })).filter((f) => f.size <= 10 * 1048576).slice(0, 5); if (fl.length) run(() => Data.tickets.addAttachments(id, fl), 'تمت إضافة المرفقات'); return; }
     if (a === 'parts') { const mv = await Pages.moveModal({ type: 'issue', ref: t.number }); if (mv) { const it = await DB.get('items', mv.itemId); run(() => Data.tickets.comment(id, `تم صرف ${mv.qty} ${it ? it.unit : ''} من «${it ? it.name : ''}» لهذا البلاغ.`, true)); } return; }
@@ -8125,6 +8167,141 @@ Pages.orgMembers = async ({ departmentId, unitId = '' }) => {
   });
 };
 
+/* ══════════ أدوات لوحة التوزيع ══════════
+   من ملف (رقم عسكري + موضع) بمعاينة، وقواعد (الحرف الأول، نطاق الرقم العسكري، الرتبة)، وكشوف الفروع وتقريرها، وسجل تنقلات الشخص */
+const DIST_ABC = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+const Distrib = {
+  /* مسار فرع نسبةً إلى موضع (دون اسم الموضع نفسه) */
+  parts(byId, id, rootId) { const path = []; let x = byId.get(id), g = 0; while (x && x.id !== (rootId || '') && g++ < 30) { path.unshift(x.name); x = x.parentId ? byId.get(x.parentId) : null; } return path; },
+  rel(byId, id, rootId) { return Distrib.parts(byId, id, rootId).join(' / '); },
+  ch(p) { const c = normalizeAr(p.name || '').charAt(0); return DIST_ABC.includes(c) ? c : ''; },
+  num(p) { const s = milKey(p.militaryNo || '').replace(/\D/g, ''); return s ? Number(s) : NaN; },
+  /* موضع من نص داخل نطاق الموضع الحالي: مسار («قسم السنة الأولى / فصل 3») أو اسم فرع، ثم مطابقة تقريبية.
+     الاسم المكرر في أكثر من فرع (فصل 3 في كل سنة) لا يُخمَّن: يُطلب مساره */
+  place(text, units, d, rootU) {
+    const t = String(text == null ? '' : text).replace(/\s+/g, ' ').trim(); if (!t) return { status: 'blank' };
+    const byId = new Map(units.map((x) => [x.id, x])), mine = units.filter((x) => x.departmentId === d), N = (s) => normalizeAr(s);
+    const scope = rootU ? orgSubtree(units, rootU) : new Set(mine.map((x) => x.id)), cand = mine.filter((x) => scope.has(x.id) && x.id !== rootU);
+    const root = rootU ? byId.get(rootU) : Data.c.departments.get(d), names = (x) => [x.name, ...(x.aliases || [])];
+    if (root && N(t) === N(root.name)) return { status: 'ok', unitId: rootU || '' };
+    const one = (list, how = 'ok') => (list.length === 1 ? { status: how, unitId: list[0].id } : list.length > 1 ? { status: 'ambiguous', options: list.map((x) => Distrib.rel(byId, x.id, rootU)) } : null);
+    const segs = t.split(/\s*(?:\/|›|»|>|\\)\s*/).filter(Boolean);
+    if (segs.length > 1) {
+      /* المسار يُقارن مقطعاً مقطعاً: نصاً ثم بالمفتاح (دون «قسم» و«ال» ونحوها)، كاملاً أو طرفه الأخير */
+      const K = (arr) => arr.map((x) => OrgMatch.key(x) || N(x)).join(' / '), wantN = segs.map(N).join(' / '), wantK = K(segs);
+      const rel = cand.map((x) => { const ps = Distrib.parts(byId, x.id, rootU); return { x, n: ps.map(N).join(' / '), k: K(ps) }; });
+      for (const f of [(r) => r.n === wantN, (r) => r.k === wantK]) { const m = rel.filter(f); if (m.length) return one(m.map((r) => r.x)); }
+      const tail = rel.filter((r) => wantK.endsWith(` / ${r.k}`) || r.k.endsWith(` / ${wantK}`)).sort((a, b) => b.k.length - a.k.length);
+      if (tail.length) return one(tail.filter((r) => r.k.length === tail[0].k.length).map((r) => r.x));
+    }
+    const last = segs[segs.length - 1] || t;
+    const exact = one(cand.filter((x) => names(x).some((n) => N(n) === N(last)))); if (exact) return exact;
+    const k = OrgMatch.key(last), byKey = k ? one(cand.filter((x) => names(x).some((n) => OrgMatch.key(n) === k))) : null; if (byKey) return byKey;
+    const f = OrgMatch.find(last, cand.map((x) => ({ departmentId: d, unitId: x.id, label: Distrib.rel(byId, x.id, rootU), names: names(x), code: String(x.code || '').toLowerCase() })));
+    if (f.status === 'exact' || f.status === 'close') return { status: f.status === 'exact' ? 'ok' : 'close', unitId: f.unitId, score: f.score };
+    return { status: f.reason === 'ambiguous' ? 'ambiguous' : 'none' };
+  },
+  /* أعمدة الملف: الرقم العسكري أو اسم المستخدم أو الاسم، وعمود «الموضع الجديد» (أو الفرع/الفصل…) */
+  cols(head) {
+    const h = head.map((x) => normalizeAr(x)), idx = (f) => h.findIndex(f);
+    const PL = ['موضع', 'فرع', 'قسم', 'فصل', 'شعب', 'وحد', 'مكتب', 'مكان', 'place', 'unit', 'branch', 'class'], isPl = (x) => PL.some((w) => x.includes(w));
+    const mil = idx((x) => x.includes('عسكري') || /military/.test(x)), usr = idx((x) => x.includes('مستخدم') || /user/.test(x));
+    const nam = idx((x) => (/^(ال)?اسم( |$)/.test(x) || /^name/.test(x)) && !x.includes('مستخدم'));
+    let plc = idx((x) => isPl(x) && /جديد|new/.test(x)); if (plc < 0) plc = idx((x) => isPl(x) && !/حالي|current/.test(x));
+    return { mil, usr, nam, plc, header: mil >= 0 || usr >= 0 || nam >= 0 || plc >= 0 };
+  },
+  /* صفوف الملف ← خطة: لكل صف الشخص والموضع وحالته (جاهز، تقريبي، في موضعه، غير معروف…) */
+  parse(rows, units, d, rootU) {
+    rows = (rows || []).map((r) => (Array.isArray(r) ? r : [])).filter((r) => r.some((c) => String(c == null ? '' : c).trim()));
+    if (!rows.length) throw new AppError('الملف فارغ');
+    let c = Distrib.cols(rows[0]), body = rows.slice(1);
+    if (!c.header) { c = { mil: 0, usr: -1, nam: -1, plc: 1 }; body = rows; }
+    else if (c.plc < 0) throw new AppError('لم أجد عمود الموضع. سمِّ العمود «الموضع الجديد» أو «الفرع» أو «الفصل»');
+    else if (c.mil < 0 && c.usr < 0 && c.nam < 0) throw new AppError('لم أجد عمود الرقم العسكري (أو اسم المستخدم أو الاسم)');
+    const all = orgPeople().filter((p) => !isSysAccount(p)), mil = new Map(), usr = new Map(), nam = new Map();
+    all.forEach((p) => { if (p.militaryNo) mil.set(milKey(p.militaryNo), p); if (p.username) usr.set(userKey(p.username), p); const k = normalizeAr(p.name); nam.set(k, nam.has(k) ? null : p); });
+    const cell = (r, k) => (k >= 0 ? String(r[k] == null ? '' : r[k]).replace(/\s+/g, ' ').trim() : '');
+    const out = [], seen = new Map();
+    body.forEach((r, i) => {
+      const m = cell(r, c.mil), u = cell(r, c.usr), n = cell(r, c.nam), who = m || u || n; if (!who) return;
+      const p = (m && mil.get(milKey(m))) || (u && usr.get(userKey(u))) || (n && nam.get(normalizeAr(n))) || (m && usr.get(userKey(m))) || null;
+      const placeText = cell(r, c.plc), pl = Distrib.place(placeText, units, d, rootU);
+      const row = { line: i + (c.header ? 2 : 1), who, placeText, p, unitId: pl.unitId, options: pl.options || [], st: '' };
+      if (!p) row.st = 'noone';
+      else if (pl.status === 'blank') row.st = 'blank';
+      else if (pl.status === 'none') row.st = 'noplace';
+      else if (pl.status === 'ambiguous') row.st = 'ambig';
+      else if (p.departmentId === d && (p.unitId || '') === (pl.unitId || '')) row.st = 'same';
+      else if (!OrgScope.canMove(p, { departmentId: d, unitId: pl.unitId || '' })) row.st = 'denied';
+      else row.st = pl.status === 'close' ? 'close' : 'ok';
+      if (p && seen.has(p.id)) out[seen.get(p.id)].st = 'dup';
+      if (p) seen.set(p.id, out.length);
+      out.push(row);
+    });
+    return out;
+  },
+  ST: { ok: ['teal', 'جاهز للنقل'], close: ['amber', 'مطابقة تقريبية'], same: ['slate', 'في موضعه'], noone: ['red', 'شخص غير معروف'], noplace: ['red', 'موضع غير معروف'], ambig: ['amber', 'اسم مكرر: اكتب المسار'], denied: ['red', 'خارج صلاحيتك'], dup: ['slate', 'مكرر في الملف (يُعتمد الأخير)'], blank: ['slate', 'بلا موضع جديد'] },
+  /* الحروف: «أ-ح» أو «ا ب ت» أو «أ-ح، ي» */
+  letters(spec) {
+    const set = new Set(), s = normalizeAr(spec).replace(/[–—ـ]/g, '-').replace(/\s*-\s*/g, '-').replace(/\s*الي\s*/g, '-');
+    s.split(/[،,؛;\s]+/).filter(Boolean).forEach((tok) => { const m = tok.split('-'); if (m.length === 2 && m[0] && m[1]) { const a = DIST_ABC.indexOf(m[0][0]), b = DIST_ABC.indexOf(m[1][0]); if (a >= 0 && b >= 0) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) set.add(DIST_ABC[i]); } else [...tok].forEach((ch) => { if (DIST_ABC.includes(ch)) set.add(ch); }); });
+    return set;
+  },
+  /* تعبئة متوازنة: نطاقات حروف متتالية بأعداد متقاربة (لا يُقسم الحرف الواحد بين فرعين) */
+  autoAlpha(ppl, k) {
+    const cnt = new Map(); ppl.forEach((p) => { const c = Distrib.ch(p); if (c) cnt.set(c, (cnt.get(c) || 0) + 1); });
+    const total = [...cnt.values()].reduce((a, b) => a + b, 0), out = Array.from({ length: k }, () => []); let i = 0, acc = 0;
+    [...DIST_ABC].forEach((c) => { out[i].push(c); acc += cnt.get(c) || 0; if (i < k - 1 && total && acc >= (total * (i + 1)) / k) i++; });
+    return out.map((r) => (!r.length ? '' : r.length === 1 ? r[0] : `${r[0]}-${r[r.length - 1]}`));
+  },
+  autoMil(ppl, k) {
+    const nums = ppl.map(Distrib.num).filter((n) => !Number.isNaN(n)).sort((a, b) => a - b); if (!nums.length) return Array.from({ length: k }, () => ['', '']);
+    const out = []; for (let i = 0; i < k; i++) { const part = nums.slice(Math.floor((nums.length * i) / k), Math.floor((nums.length * (i + 1)) / k)); const from = i ? (out[i - 1][1] === '' ? '' : out[i - 1][1] + 1) : nums[0], to = i === k - 1 ? nums[nums.length - 1] : part.length ? part[part.length - 1] : ''; out.push([part.length || i === k - 1 ? from : '', part.length || i === k - 1 ? to : '']); }
+    return out;
+  },
+  /* الرتب: كل رتبة كاملة إلى الفرع الأقل عدداً، الأكبر أولاً */
+  autoRank(ppl, kids) {
+    const g = new Map(); ppl.forEach((p) => g.set(p.rankId || '', (g.get(p.rankId || '') || 0) + 1));
+    const load = new Map(kids.map((x) => [x.id, 0])), out = new Map(kids.map((x) => [x.id, new Set()]));
+    [...g].sort((a, b) => b[1] - a[1]).forEach(([r, n]) => { const best = [...load].sort((a, b) => a[1] - b[1])[0][0]; out.get(best).add(r); load.set(best, load.get(best) + n); });
+    return out;
+  },
+  /* تطبيق القواعد: من ينطبق عليه أكثر من فرع يذهب إلى الأقل عدداً بينها، ومن كان داخل فرعه المستهدف يبقى مكانه */
+  plan(type, ppl, kids, spec, base, units) {
+    const plan = new Map(kids.map((x) => [x.id, []])), miss = [], keep = [], load = (id) => (base.get(id) || 0) + plan.get(id).length;
+    const subs = new Map(kids.map((x) => [x.id, orgSubtree(units, x.id)]));
+    ppl.forEach((p) => {
+      const fits = kids.filter((x) => { const s = spec.get(x.id); if (!s) return false; if (type === 'alpha') return s.letters.has(Distrib.ch(p)); if (type === 'mil') { const n = Distrib.num(p); return !Number.isNaN(n) && s.from !== '' && s.to !== '' && n >= s.from && n <= s.to; } return s.ranks.has(p.rankId || ''); });
+      if (!fits.length) { miss.push(p); return; }
+      const home = fits.find((x) => subs.get(x.id).has(p.unitId)); if (home) { keep.push(p); return; }
+      plan.get([...fits].sort((a, b) => load(a.id) - load(b.id))[0].id).push(p);
+    });
+    return { plan, miss, keep, moves: [...plan.values()].reduce((a, l) => a + l.length, 0) };
+  },
+  /* كشف أسماء فرع (مع ما يتبعه) للطباعة */
+  roster(x, units, people, depId) {
+    const byId = new Map(units.map((u) => [u.id, u])), s = x ? orgSubtree(units, x.id) : null, rootId = x ? x.id : '';
+    const list = people.filter((p) => p.departmentId === depId && (!s || s.has(p.unitId))).map((p) => ({ p, where: Distrib.rel(byId, p.unitId, rootId) })).sort((a, b) => AR_COLL.compare(a.where, b.where) || AR_COLL.compare(a.p.name || '', b.p.name || ''));
+    const cap = x ? Number(x.capacity) || 0 : 0, head = x ? (x.headId ? Data.userName(x.headId) : x.head || '') : '';
+    return html`<section class="dp-roster"><h2>كشف أسماء «${x ? x.name : Data.nameOf('departments', depId, '')}»</h2><p class="dp-rmeta">${orgLabel(depId, rootId, units)}${head ? ` — الرئيس: ${head}` : ''} — العدد: ${fmtNum(list.length)}${cap ? ` من السعة ${fmtNum(cap)}` : ''}</p>
+      <table><thead><tr><th style="width:36px">م</th><th>الاسم</th><th>الرتبة</th><th>الرقم العسكري</th>${list.some((r) => r.where) ? html`<th>الموضع</th>` : ''}<th style="width:22%">ملاحظات / توقيع</th></tr></thead><tbody>${list.length ? list.map((r, i) => html`<tr><td>${i + 1}</td><td>${r.p.name}</td><td>${Data.nameOf('ranks', r.p.rankId, '')}</td><td class="ltr">${r.p.militaryNo || ''}</td>${list.some((y) => y.where) ? html`<td>${r.where}</td>` : ''}<td></td></tr>`) : html`<tr><td colspan="6">لا أحد</td></tr>`}</tbody></table></section>`;
+  },
+  /* سجل تنقلات الشخص من سجل تغييرات الهيكل: من أين وإلى أين، ومتى، ومن نفّذ */
+  async history(id) {
+    const p = Data.c.users.get(id); if (!p) throw new AppError('الحساب غير موجود');
+    const units = await DB.getAll('deptUnits'), has = new Set(units.map((u) => u.id));
+    const lbl = (r) => { if (!r || !r.departmentId) return 'بلا إدارة'; if (r.unitId && !has.has(r.unitId)) return r.orgText || `${Data.nameOf('departments', r.departmentId, '')} / فرع محذوف`; return orgLabel(r.departmentId, r.unitId, units) || r.orgText || '—'; };
+    const items = (await DB.getAll('orgLog')).filter((x) => (x.changes || []).some((c) => c.store === 'users' && c.id === id)).map((x) => {
+      const c = x.changes.find((y) => y.store === 'users' && y.id === id), b = c.before || {}, a = c.after || {};
+      if ((b.departmentId || '') === (a.departmentId || '') && (b.unitId || '') === (a.unitId || '')) return null;
+      return { at: x.at, by: x.userId, from: lbl(b), to: lbl(a), summary: x.summary, undone: !!x.undoneAt, undo: x.action === 'undo' };
+    }).filter(Boolean).sort((a, b) => b.at - a.at);
+    await UI.modal({ title: `سجل تنقلات ${p.name}`, icon: 'clock', size: 'lg', body: html`<div class="dp-hnow">${UI.avatar(p, 'av-sm')}<div class="grow"><b>${p.name}</b><small>${[Data.nameOf('ranks', p.rankId, ''), p.militaryNo || ''].filter(Boolean).join(' · ')}</small></div><span class="chip tone-teal">${UI.icon('pin')} الآن: ${lbl(p)}</span></div>
+      ${items.length ? html`<ol class="dp-hist">${items.map((x) => html`<li class="${x.undone ? 'undone' : ''}"><span class="dp-hwhen" title="${fmtDateTime(x.at)}">${fmtDate(x.at)}<small>${timeAgo(x.at)}</small></span><div class="grow" style="min-width:0"><div class="dp-hmove"><span>${x.from}</span>${UI.icon('chevron-left')}<b>${x.to}</b></div><small class="muted">${x.undo ? 'تراجع' : x.summary} — بواسطة ${Data.userName(x.by)}${x.undone ? ' — تُراجع عنه لاحقاً' : ''}</small></div></li>`)}</ol>` : html`<p class="hint">لا تنقلات مسجلة لهذا الحساب.</p>`}
+      ${canOrg() ? '' : html`<p class="hint">${UI.icon('info')} يظهر لك ما نفّذته أنت؛ السجل الكامل لمن يملك إدارة الهيكل.</p>`}` });
+  }
+};
+
 /* ══════════ توزيع الحسابات في الهيكل ══════════
    صفحة لموضع واحد (إدارة أو فرع): يمينها من فيه مباشرة ولم يُوزَّعوا على فروعه، ويسارها فروعه بطاقات تُنقل إليها
    الحسابات بالنقر أو بالسحب، ثم «دخول» إلى أي فرع لتوزيع من فيه على ما يتبعه، وهكذا حتى المكاتب.
@@ -8165,18 +8342,19 @@ Pages.orgPeople = async (ctx) => {
       <header>${canHere ? html`<input type="checkbox" data-tpick="${x.id}"${st.tpick.has(x.id) ? raw(' checked') : ''} title="ضمن التوزيع بالتساوي" aria-label="ضمن التوزيع بالتساوي">` : ''}<span class="dp-ic">${UI.icon(x.icon || T(x).icon)}</span><div class="grow" style="min-width:0"><em>${T(x).label}</em><b>${x.name}</b>${x.head ? html`<small>${x.head}</small>` : ''}</div></header>
       <div class="dp-nums"><span title="مباشرة فيه">${UI.icon('user')} ${fmtNum(dn)}</span>${kidsN ? html`<span title="مع ما يتبعه">${UI.icon('users')} ${fmtNum(n)}</span><span title="فروع تابعة">${UI.icon('layers')} ${fmtNum(kidsN)}</span>` : ''}</div>
       ${capBar(x)}
-      <footer>${canHere ? html`<button type="button" class="btn btn-primary btn-sm" data-dpmove="${st.d}|${x.id}"${st.pick.size ? '' : raw(' disabled')}>${UI.icon('swap')} نقل المحدد${st.pick.size ? ` (${fmtNum(st.pick.size)})` : ''}</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-dpgo="${x.id}">دخول ${UI.icon('chevron-left')}</button>${canShape ? html`<button type="button" class="icon-btn" data-dpcap="${x.id}" title="سعة الفرع">${UI.icon('target')}</button>` : ''}</footer>
+      <footer>${canHere ? html`<button type="button" class="btn btn-primary btn-sm" data-dpmove="${st.d}|${x.id}"${st.pick.size ? '' : raw(' disabled')}>${UI.icon('swap')} نقل المحدد${st.pick.size ? ` (${fmtNum(st.pick.size)})` : ''}</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-dpgo="${x.id}">دخول ${UI.icon('chevron-left')}</button><button type="button" class="icon-btn" data-dproster="${x.id}" title="طباعة كشف أسماء الفرع">${UI.icon('print')}</button>${canShape ? html`<button type="button" class="icon-btn" data-dpcap="${x.id}" title="سعة الفرع">${UI.icon('target')}</button>` : ''}</footer>
     </article>`; };
-    const row = (p) => html`<label class="dp-row${st.pick.has(p.id) ? ' on' : ''}" draggable="${canHere ? 'true' : 'false'}" data-dpuser="${p.id}">${canHere ? html`<input type="checkbox" data-pick="${p.id}"${st.pick.has(p.id) ? raw(' checked') : ''}>` : ''}${UI.avatar(p, 'av-sm')}<span class="grow" style="min-width:0"><b class="ellipsis">${p.name}</b><small class="ellipsis">${[rank(p), p.militaryNo || '', ROLES[p.role] || ''].filter(Boolean).join(' · ')}</small></span>${st.view === 'all' && placeOf(p) ? html`<span class="dp-where" title="مكانه الحالي">${placeOf(p)}</span>` : ''}</label>`;
+    const row = (p) => html`<label class="dp-row${st.pick.has(p.id) ? ' on' : ''}" draggable="${canHere ? 'true' : 'false'}" data-dpuser="${p.id}">${canHere ? html`<input type="checkbox" data-pick="${p.id}"${st.pick.has(p.id) ? raw(' checked') : ''}>` : ''}${UI.avatar(p, 'av-sm')}<span class="grow" style="min-width:0"><b class="ellipsis">${p.name}</b><small class="ellipsis">${[rank(p), p.militaryNo || '', ROLES[p.role] || ''].filter(Boolean).join(' · ')}</small></span>${st.view === 'all' && placeOf(p) ? html`<span class="dp-where" title="مكانه الحالي">${placeOf(p)}</span>` : ''}<button type="button" class="icon-btn dp-hbtn" data-dphist="${p.id}" title="سجل تنقلاته" aria-label="سجل تنقلات ${p.name}">${UI.icon('clock')}</button></label>`;
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'توزيع الحسابات', sub: 'وزّع حسابات الإدارة على أقسامها، ثم ادخل كل قسم ووزّع على شعبه ومكاتبه. كل نقل يُسجَّل في سجل تغييرات الهيكل ويمكن التراجع عنه', illu: 'building', actions: html`<select class="input dp-dep" data-dpdep aria-label="الإدارة">${deps.map((d) => html`<option value="${d.id}"${d.id === st.d ? raw(' selected') : ''}>${d.name}</option>`)}</select><a class="btn btn-ghost" href="#/org">${UI.icon('layers')} الهيكل التنظيمي</a>` })}
       <nav class="dp-crumb" aria-label="المسار"><button type="button" data-dpgo=""${st.u ? '' : raw(' aria-current="true"')}>${UI.icon('building')} ${dep.name}</button>${trail.map((x) => html`<span>›</span><button type="button" data-dpgo="${x.id}"${x.id === st.u ? raw(' aria-current="true"') : ''}>${x.name}</button>`)}</nav>
       <div class="dp-stats">${dnotes != null ? html`<a class="dp-notes" href="#/vault?link=dept:${st.d}">${UI.icon('key')} ملاحظات الإدارة: <b>${fmtNum(dnotes)}</b></a>` : ''}<span>${UI.icon('users')} في «${node ? node.name : dep.name}» كله: <b>${fmtNum(inNode.length)}</b></span><span class="${direct.length && kids.length ? 'warn' : ''}">${UI.icon('user')} مباشرة غير موزعين على فروعه: <b>${fmtNum(direct.length)}</b></span><span>${UI.icon('layers')} فروعه: <b>${fmtNum(kids.length)}</b></span></div>
+      <div class="dp-toolbar" role="toolbar" aria-label="أدوات التوزيع">${canHere ? html`<button type="button" class="btn btn-soft btn-sm" data-dpxl>${UI.icon('upload')} توزيع من ملف Excel</button>` : ''}${canHere && kids.length > 1 ? html`<button type="button" class="btn btn-soft btn-sm" data-dprules>${UI.icon('filter')} توزيع بقواعد</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-dpreport>${UI.icon('chart')} تقرير الفروع</button>${kids.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-dprosters>${UI.icon('print')} كشوف أسماء الفروع</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-dproster="">${UI.icon('print')} كشف «${node ? node.name : dep.name}»</button></div>
       <div class="dp-cols">
         <section class="panel dp-people">
           <div class="seg dp-view" role="radiogroup" aria-label="من يُعرض"><label><input type="radio" name="dpview" value="here"${st.view === 'here' ? raw(' checked') : ''}><span>غير الموزعين هنا (${fmtNum(direct.length)})</span></label><label><input type="radio" name="dpview" value="all"${st.view === 'all' ? raw(' checked') : ''}><span>كل من فيه مع فروعه (${fmtNum(inNode.length)})</span></label></div>
           <div class="dp-tools"><div class="search-box">${UI.icon('search')}<input type="search" class="input" data-dpq placeholder="ابحث بالاسم أو الرقم العسكري أو الرتبة" value="${st.q}"></div>${roles.length > 1 ? html`<select class="input" data-dprole aria-label="الدور"><option value="">كل الأدوار</option>${roles.map((r) => html`<option value="${r}"${st.role === r ? raw(' selected') : ''}>${ROLES[r] || r}</option>`)}</select>` : ''}</div>
-          ${canHere ? html`<div class="dp-sel"><button type="button" class="btn btn-ghost btn-sm" data-dpall>${UI.icon('check')} تحديد الظاهر (${fmtNum(list.length)})</button><button type="button" class="btn btn-ghost btn-sm" data-dpnone${st.pick.size ? '' : raw(' disabled')}>إلغاء التحديد</button><b class="grow dp-cnt">${st.pick.size ? `المحدد: ${fmtNum(st.pick.size)}` : 'حدد ثم انقل، أو اسحب إلى فرع'}</b></div>` : ''}
+          ${canHere ? html`<div class="dp-sel"><button type="button" class="btn btn-ghost btn-sm" data-dpall>${UI.icon('check')} تحديد الظاهر (${fmtNum(list.length)})</button><button type="button" class="btn btn-ghost btn-sm" data-dpnone${st.pick.size ? '' : raw(' disabled')}>إلغاء التحديد</button>${st.pick.size === 2 ? (() => { const [a, b] = [...st.pick].map((id) => Data.c.users.get(id)), same = !a || !b || (a.departmentId === b.departmentId && (a.unitId || '') === (b.unitId || '')); return html`<button type="button" class="btn btn-soft btn-sm" data-dpswap${same ? raw(' disabled title="الحسابان في الموضع نفسه"') : raw(' title="ينتقل كل منهما إلى موضع الآخر"')}>${UI.icon('swap')} تبديل مكانيهما</button>`; })() : ''}<b class="grow dp-cnt">${st.pick.size ? `المحدد: ${fmtNum(st.pick.size)}` : 'حدد ثم انقل، أو اسحب إلى فرع'}</b></div>` : ''}
           <div class="dp-list">${list.length ? list.slice(0, 500).map(row) : html`<p class="hint dp-empty">${st.view === 'here' && inNode.length ? 'كل من في هذا الموضع موزَّعون على فروعه. اختر «كل من فيه مع فروعه» لرؤيتهم.' : 'لا حسابات هنا'}</p>`}</div>
         </section>
         <section class="dp-targets">
@@ -8218,6 +8396,119 @@ Pages.orgPeople = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-dpout]', () => run(async () => { if (await UI.confirm(`إخراج ${fmtNum(st.pick.size)} حساب من الإدارة؟ يبقون في «حسابات بلا إدارة» حتى يُوزَّعوا.`, { ok: 'إخراج' })) await moveTo({ departmentId: '', unitId: '' }); }));
   UI.on(ctx.view, 'click', '[data-dpundo]', () => run(async () => { if (!st.last || !st.last.entry) throw new AppError('لا يوجد ما يُتراجع عنه'); await OrgLog.undo(st.last.entry); await Data.refresh('users'); st.last = null; UI.toast('تم التراجع'); draw(); }));
   UI.on(ctx.view, 'click', '[data-dpundox]', () => { st.last = null; draw(); });
+  /* ── أدوات التوزيع ── */
+  const snap = async () => {
+    const units = await DB.getAll('deptUnits'), byId = new Map(units.map((x) => [x.id, x])), people = orgPeople().filter((p) => !isSysAccount(p) && p.departmentId === st.d);
+    const sub = (id) => orgSubtree(units, id), scope = st.u ? sub(st.u) : null, inNode = scope ? people.filter((p) => scope.has(p.unitId)) : people;
+    const kids = units.filter((x) => x.departmentId === st.d && (x.parentId || '') === st.u).sort(sortByOrder);
+    const totalOf = (id) => { const s = sub(id); return people.filter((p) => s.has(p.unitId)).length; };
+    return { units, byId, people, inNode, direct: inNode.filter((p) => (p.unitId || '') === st.u), kids, totalOf, directOf: (id) => people.filter((p) => p.unitId === id).length, here: st.u ? byId.get(st.u) : null };
+  };
+  const hereName = (S) => (S.here ? S.here.name : Data.nameOf('departments', st.d, ''));
+  /* تبديل حسابين: كلٌّ إلى موضع الآخر في قيد واحد */
+  UI.on(ctx.view, 'click', '[data-dpswap]', () => run(async () => {
+    const [a, b] = [...st.pick].map((id) => Data.c.users.get(id)); if (!a || !b) throw new AppError('حدد حسابين');
+    const pa = { departmentId: a.departmentId || '', unitId: a.unitId || '' }, pb = { departmentId: b.departmentId || '', unitId: b.unitId || '' };
+    if (pa.departmentId === pb.departmentId && pa.unitId === pb.unitId) throw new AppError('الحسابان في الموضع نفسه');
+    if (!OrgScope.canMove(a, pb) || !OrgScope.canMove(b, pa)) throw new AppError('نقل أحدهما إلى موضع الآخر خارج صلاحيتك');
+    const units = Data.list('deptUnits'), la = orgLabel(pb.departmentId, pb.unitId, units) || 'بلا إدارة', lb = orgLabel(pa.departmentId, pa.unitId, units) || 'بلا إدارة';
+    await OrgLog.run('assign', `تبديل «${a.name}» و«${b.name}»`, async () => { await Data.org.assign([a.id], pb); await Data.org.assign([b.id], pa); });
+    await moved(`بُدّل الموضعان: «${a.name}» إلى ${la}، و«${b.name}» إلى ${lb}`);
+  }));
+  /* كشوف الأسماء: لفرع واحد (أو للموضع الحالي)، أو لكل فروعه كلٌّ في صفحة */
+  UI.on(ctx.view, 'click', '[data-dproster]', (e, el) => run(async () => { const S = await snap(), x = el.dataset.dproster ? S.byId.get(el.dataset.dproster) : S.here; UI.print(Distrib.roster(x, S.units, S.people, st.d), `كشف ${x ? x.name : hereName(S)}`); }));
+  UI.on(ctx.view, 'click', '[data-dprosters]', () => run(async () => { const S = await snap(); UI.print(html`${S.kids.map((x) => html`<div class="dp-pb">${Distrib.roster(x, S.units, S.people, st.d)}</div>`)}`, `كشوف فروع ${hereName(S)}`); }));
+  /* تقرير الفروع: كل فرع تحت الموضع مع عدده وسعته ورئيسه، وتصفية الممتلئ والفارغ والمتجاوز ومن بلا رئيس */
+  UI.on(ctx.view, 'click', '[data-dpreport]', () => run(async () => {
+    const S = await snap(), scope = st.u ? orgSubtree(S.units, st.u) : null;
+    const rows = orgUnitsFlat(S.units, st.d).filter(({ u }) => u.id !== st.u && (!scope || scope.has(u.id))).map(({ u }) => {
+      const n = S.totalOf(u.id), cap = Number(u.capacity) || 0, head = u.headId ? Data.userName(u.headId) : u.head || '', f = new Set();
+      if (!n) f.add('empty'); if (cap && n > cap) f.add('over'); else if (cap && n === cap) f.add('full'); if (!head) f.add('nohead');
+      return { u, path: Distrib.rel(S.byId, u.id, st.u), type: (UNIT_TYPES[u.type] || UNIT_TYPES.section).label, n, dn: S.directOf(u.id), cap, head, f };
+    });
+    const F = [['all', 'الكل'], ['empty', 'فارغة'], ['full', 'ممتلئة'], ['over', 'تجاوزت السعة'], ['nohead', 'بلا رئيس']], cnt = (k) => (k === 'all' ? rows.length : rows.filter((r) => r.f.has(k)).length);
+    const chip = (r) => html`${r.f.has('over') ? UI.chip('red', 'تجاوز السعة') : r.f.has('full') ? UI.chip('amber', 'ممتلئ') : ''}${r.f.has('empty') ? UI.chip('slate', 'فارغ') : ''}${r.f.has('nohead') ? UI.chip('violet', 'بلا رئيس') : ''}`;
+    const table = (list, print = false) => html`<table class="${print ? '' : 'table'}"><thead><tr><th>الفرع</th><th>النوع</th><th>الرئيس</th><th>العدد</th><th>مباشرة</th><th>السعة</th><th>الحالة</th></tr></thead><tbody>${list.map((r) => html`<tr><td>${r.path}</td><td>${r.type}</td><td>${r.head || '—'}</td><td>${fmtNum(r.n)}</td><td>${fmtNum(r.dn)}</td><td>${r.cap ? fmtNum(r.cap) : '—'}</td><td>${print ? [r.f.has('over') ? 'تجاوز السعة' : r.f.has('full') ? 'ممتلئ' : '', r.f.has('empty') ? 'فارغ' : '', r.f.has('nohead') ? 'بلا رئيس' : ''].filter(Boolean).join('، ') : chip(r)}</td></tr>`)}</tbody></table>`;
+    let cur = 'all'; const pick = () => (cur === 'all' ? rows : rows.filter((r) => r.f.has(cur)));
+    await UI.modal({ title: `تقرير فروع «${hereName(S)}»`, icon: 'chart', size: 'xl',
+      body: html`<div class="dp-rep-sum"><span>${UI.icon('layers')} الفروع: <b>${fmtNum(rows.length)}</b></span><span>${UI.icon('users')} الحسابات: <b>${fmtNum(S.inNode.length)}</b></span><span>${UI.icon('user')} غير موزعين هنا: <b>${fmtNum(S.direct.length)}</b></span></div><div class="tabs dp-rep-f">${F.map(([k, l]) => html`<button type="button" class="tab${k === 'all' ? ' active' : ''}" data-rf="${k}">${l}<span class="count">${fmtNum(cnt(k))}</span></button>`)}</div><div class="table-wrap" data-rtable style="max-height:55vh;overflow:auto">${rows.length ? table(rows) : html`<p class="hint">لا فروع تحت هذا الموضع.</p>`}</div>`,
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'تصدير Excel', kind: 'ghost', icon: 'download', handler: () => { const l = pick(); downloadBlob(XL.write([{ name: 'تقرير الفروع', widths: [44, 12, 24, 10, 10, 10, 26], rows: [['الفرع', 'النوع', 'الرئيس', 'العدد', 'مباشرة', 'السعة', 'الحالة'], ...l.map((r) => [r.path, r.type, r.head, r.n, r.dn, r.cap || '', [r.f.has('over') ? 'تجاوز السعة' : r.f.has('full') ? 'ممتلئ' : '', r.f.has('empty') ? 'فارغ' : '', r.f.has('nohead') ? 'بلا رئيس' : ''].filter(Boolean).join('، ')])] }]), `تقرير-فروع-${hereName(S)}.xlsx`); return false; } }, { label: 'طباعة', kind: 'primary', icon: 'print', handler: () => { UI.print(html`<h2>تقرير فروع «${hereName(S)}»${cur === 'all' ? '' : ` — ${F.find((x) => x[0] === cur)[1]}`}</h2>${table(pick(), true)}`, 'تقرير الفروع'); return false; } }],
+      onMount: (form) => UI.on(form, 'click', '[data-rf]', (e, b) => { cur = b.dataset.rf; $$('[data-rf]', form).forEach((x) => x.classList.toggle('active', x === b)); const l = pick(); $('[data-rtable]', form).innerHTML = l.length ? String(table(l)) : '<p class="hint">لا شيء هنا.</p>'; }) });
+  }));
+  /* التوزيع من ملف: رقم عسكري (أو اسم مستخدم أو اسم) + الموضع الجديد، بمعاينة لكل صف قبل التنفيذ وفي قيد واحد */
+  UI.on(ctx.view, 'click', '[data-dpxl]', () => run(async () => {
+    const S = await snap(); let res = null, fname = '', filt = 'all';
+    const tpl = () => {
+      const flat = orgUnitsFlat(S.units, st.d).filter(({ u }) => u.id !== st.u && (!st.u || orgSubtree(S.units, st.u).has(u.id)));
+      downloadBlob(XL.write([{ name: 'التوزيع', widths: [16, 30, 16, 36, 36], rows: [['الرقم العسكري', 'الاسم', 'الرتبة', 'الموضع الحالي', 'الموضع الجديد'], ...S.inNode.slice().sort((a, b) => AR_COLL.compare(a.name || '', b.name || '')).map((p) => [p.militaryNo || '', p.name, Data.nameOf('ranks', p.rankId, ''), Distrib.rel(S.byId, p.unitId, st.u) || '(غير موزع)', ''])] }, { name: 'المواضع المتاحة', widths: [50, 12], rows: [['الموضع (انسخه كما هو)', 'العدد الحالي'], ...flat.map(({ u }) => [Distrib.rel(S.byId, u.id, st.u), S.totalOf(u.id)])] }]), `توزيع-${hereName(S)}.xlsx`);
+    };
+    const step1 = () => html`<div class="dp-xl1"><p class="muted">ملف فيه عمود <b>الرقم العسكري</b> (أو اسم المستخدم أو الاسم) وعمود <b>الموضع الجديد</b>: اسم الفرع، أو مساره إن تكرر الاسم مثل «قسم السنة الأولى / فصل 3». المواضع داخل «${hereName(S)}».</p>
+      <div class="grid g-3 mt"><button type="button" class="imp-card" data-xltpl>${UI.icon('download')}<b>تنزيل قالب</b><span>بأسماء من في هذا الموضع وورقة بالمواضع المتاحة</span></button><button type="button" class="imp-card" data-xlpick>${UI.icon('upload')}<b>اختيار ملف</b><span>Excel ‏(xlsx) أو CSV</span></button><div class="imp-card"><b>${UI.icon('clipboard')} أو الصق من Excel</b><textarea data-xlpaste rows="4" placeholder="12345	فصل 1&#10;12346	فصل 2"></textarea><button type="button" class="btn btn-soft btn-sm" data-xlread>قراءة الملصق</button></div></div></div>`;
+    const view = () => {
+      const c = (k) => res.filter((r) => r.st === k).length, rows = filt === 'all' ? res : res.filter((r) => r.st === filt);
+      return html`<div class="dp-xlsum"><b>${UI.icon('file')} ${fname}</b><span class="faint">${fmtNum(res.length)} صف</span><button type="button" class="btn btn-ghost btn-sm" data-xlback>${UI.icon('undo')} ملف آخر</button></div>
+        <div class="tabs dp-xlf"><button type="button" class="tab${filt === 'all' ? ' active' : ''}" data-xlf="all">الكل<span class="count">${fmtNum(res.length)}</span></button>${Object.entries(Distrib.ST).filter(([k]) => c(k)).map(([k, [, l]]) => html`<button type="button" class="tab${filt === k ? ' active' : ''}" data-xlf="${k}">${l}<span class="count">${fmtNum(c(k))}</span></button>`)}</div>
+        <div class="table-wrap" style="max-height:48vh;overflow:auto"><table class="table"><thead><tr><th>الصف</th><th>الحساب</th><th>من</th><th>إلى</th><th>الحالة</th></tr></thead><tbody>${rows.slice(0, 600).map((r) => html`<tr><td class="faint">${r.line}</td><td>${r.p ? html`<b>${r.p.name}</b><small class="faint ltr"> ${r.p.militaryNo || ''}</small>` : html`<span class="faint">${r.who}</span>`}</td><td class="small">${r.p ? (r.p.departmentId === st.d ? Distrib.rel(S.byId, r.p.unitId, st.u) || `(${hereName(S)})` : Data.nameOf('departments', r.p.departmentId, 'بلا إدارة')) : '—'}</td><td class="small">${r.unitId != null && ['ok', 'close', 'same', 'denied', 'dup'].includes(r.st) ? html`<b>${Distrib.rel(S.byId, r.unitId, st.u) || hereName(S)}</b>${r.st === 'close' ? html`<small class="faint"> ← «${r.placeText}»</small>` : ''}` : html`<span class="faint">${r.placeText || '—'}</span>${r.options.length ? html`<small class="faint"> (${r.options.slice(0, 3).join('، ')})</small>` : ''}`}</td><td>${r.st === 'close' ? html`<label class="row nowrap" style="gap:6px"><input type="checkbox" data-xlc="${r.line}" checked> ${UI.chip('amber', 'تقريبي — يُنقل')}</label>` : UI.chip(Distrib.ST[r.st][0], Distrib.ST[r.st][1])}</td></tr>`)}</tbody></table></div>
+        <p class="hint">يُنقل «جاهز للنقل» و«التقريبي» المؤشَّر فقط، ويُسجَّل كله قيداً واحداً يمكن التراجع عنه.</p>`;
+    };
+    const take = await UI.modal({ title: `توزيع من ملف على «${hereName(S)}»`, icon: 'upload', size: 'xl', body: html`<div data-xlbox>${step1()}</div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تنفيذ التوزيع', kind: 'primary', icon: 'check', handler: (form) => { if (!res) throw new AppError('اختر ملفاً أو الصق الأسماء أولاً'); const t = res.filter((r) => r.st === 'ok' || (r.st === 'close' && (form.querySelector(`[data-xlc="${r.line}"]`) || {}).checked)); if (!t.length) throw new AppError('لا صفوف جاهزة للنقل'); return t; } }],
+      onMount: (form) => {
+        const box = $('[data-xlbox]', form), paint = (v) => { box.innerHTML = String(v); };
+        const load = (rows, name) => { try { res = Distrib.parse(rows, S.units, st.d, st.u); fname = name; filt = 'all'; paint(view()); } catch (ex) { UI.error(ex); } };
+        UI.on(form, 'click', '[data-xltpl]', () => tpl());
+        UI.on(form, 'click', '[data-xlpick]', async () => { const [f] = await UI.pickFiles({ accept: '.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv', multiple: false }); if (!f) return; try { if (/\.csv$/i.test(f.name) || f.type === 'text/csv') { const objs = parseCSV(await readText(f)), keys = objs.length ? Object.keys(objs[0]) : []; load([keys, ...objs.map((o) => keys.map((k) => o[k]))], f.name); } else { const sh = await XL.read(f); load((sh.find((x) => (x.rows || []).length) || sh[0] || { rows: [] }).rows, f.name); } } catch (ex) { UI.error(ex instanceof AppError ? ex : new AppError('تعذر قراءة الملف')); } });
+        UI.on(form, 'click', '[data-xlread]', () => { const t = ($('[data-xlpaste]', form) || {}).value || ''; if (!t.trim()) { UI.error(new AppError('الصق صفوفاً أولاً')); return; } load(t.split(/\r?\n/).map((l) => l.split(/\t|,|;/)), 'نص ملصق'); });
+        UI.on(form, 'click', '[data-xlback]', () => { res = null; paint(step1()); });
+        UI.on(form, 'click', '[data-xlf]', (e, b) => { filt = b.dataset.xlf; paint(view()); });
+      } });
+    if (!take) return;
+    const groups = new Map(); take.forEach((r) => { if (!groups.has(r.unitId || '')) groups.set(r.unitId || '', []); groups.get(r.unitId || '').push(r.p.id); });
+    await OrgLog.run('assign', `توزيع من ملف «${fname}»: ${fmtNum(take.length)} حساب`, async () => { for (const [u, ids] of groups) await Data.org.assign(ids, { departmentId: st.d, unitId: u }); });
+    await moved(`وُزّع ${fmtNum(take.length)} حساب من «${fname}» على ${fmtNum(groups.size)} موضع`);
+  }));
+  /* التوزيع بقواعد على فروع الموضع: الحرف الأول من الاسم، أو نطاق الرقم العسكري، أو الرتبة. تعبئة متوازنة تلقائية ومعاينة حية */
+  UI.on(ctx.view, 'click', '[data-dprules]', () => run(async () => {
+    const S = await snap(), kids = S.kids; if (kids.length < 2) throw new AppError('القواعد تحتاج فرعين تابعين على الأقل');
+    const pools = { pick: [...st.pick].map((id) => Data.c.users.get(id)).filter((p) => p && S.inNode.includes(p)), here: S.direct, all: S.inNode };
+    /* يبدأ بأول مجموعة فيها أحد: المحدد، ثم غير الموزعين هنا، ثم كل من فيه */
+    const R = { type: 'alpha', who: ['pick', 'here', 'all'].find((k) => pools[k].length) || 'here' }, base = new Map(kids.map((x) => [x.id, S.totalOf(x.id)]));
+    const rankIds = () => [...new Set(pools[R.who].map((p) => p.rankId || ''))].sort((a, b) => { const ra = Data.list('ranks'), ia = ra.findIndex((r) => r.id === a), ib = ra.findIndex((r) => r.id === b); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
+    const rname = (id) => (id ? Data.nameOf('ranks', id, 'رتبة') : 'بلا رتبة');
+    const inputs = () => {
+      const ppl = pools[R.who];
+      if (R.type === 'alpha') { const a = Distrib.autoAlpha(ppl, kids.length); return kids.map((x, i) => html`<input class="input" data-ra="${x.id}" value="${a[i]}" placeholder="مثال: أ-ح" aria-label="حروف ${x.name}">`); }
+      if (R.type === 'mil') { const m = Distrib.autoMil(ppl, kids.length); return kids.map((x, i) => html`<span class="row nowrap" style="gap:6px"><input class="input ltr" type="number" data-rm1="${x.id}" value="${m[i][0]}" placeholder="من" aria-label="من رقم"><span>—</span><input class="input ltr" type="number" data-rm2="${x.id}" value="${m[i][1]}" placeholder="إلى" aria-label="إلى رقم"></span>`); }
+      const r = Distrib.autoRank(ppl, kids), ids = rankIds(); return kids.map((x) => html`<span class="dp-rks">${ids.length ? '' : html`<span class="hint">لا أحد في هذه المجموعة</span>`}${ids.map((id) => html`<label class="qchip"><input type="checkbox" data-rr="${x.id}" value="${id}"${r.get(x.id).has(id) ? raw(' checked') : ''}> ${rname(id)}</label>`)}</span>`);
+    };
+    const spec = (form) => new Map(kids.map((x) => {
+      if (R.type === 'alpha') return [x.id, { letters: Distrib.letters(($(`[data-ra="${x.id}"]`, form) || {}).value || '') }];
+      if (R.type === 'mil') { const v = (k) => { const s = ($(`[data-rm${k}="${x.id}"]`, form) || {}).value; return s === '' || s == null ? '' : Number(s); }; return [x.id, { from: v(1), to: v(2) }]; }
+      return [x.id, { ranks: new Set($$(`[data-rr="${x.id}"]:checked`, form).map((i) => i.value)) }];
+    }));
+    const compute = (form) => Distrib.plan(R.type, pools[R.who], kids, spec(form), base, S.units);
+    const body = () => html`<div class="dp-rtop"><div class="seg" role="radiogroup" aria-label="القاعدة">${[['alpha', 'الحرف الأول من الاسم'], ['mil', 'نطاق الرقم العسكري'], ['rank', 'الرتبة']].map(([k, l]) => html`<label><input type="radio" name="rtype" value="${k}"${R.type === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>
+      <div class="seg" role="radiogroup" aria-label="من يُوزَّع">${[['pick', `المحدد (${fmtNum(pools.pick.length)})`], ['here', `غير الموزعين هنا (${fmtNum(pools.here.length)})`], ['all', `كل من فيه (${fmtNum(pools.all.length)})`]].map(([k, l]) => html`<label><input type="radio" name="rwho" value="${k}"${R.who === k ? raw(' checked') : ''}${pools[k].length ? '' : raw(' disabled')}><span>${l}</span></label>`)}</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-rauto>${UI.icon('sparkle')} تعبئة متوازنة</button></div>
+      <div class="dp-rgrid">${inputs().map((inp, i) => html`<div class="dp-rrow"><div class="dp-rname"><b>${kids[i].name}</b><small>${fmtNum(base.get(kids[i].id))} حالياً${Number(kids[i].capacity) ? ` من ${fmtNum(kids[i].capacity)}` : ''}</small></div><div class="grow">${inp}</div><span class="dp-radd" data-rn="${kids[i].id}">+0</span></div>`)}</div>
+      <p class="hint" data-rmiss></p>`;
+    const res = await UI.modal({ title: `توزيع بقواعد على فروع «${hereName(S)}»`, icon: 'filter', size: 'xl', body: html`<div data-rbox>${body()}</div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تنفيذ', kind: 'primary', icon: 'check', handler: (form) => { const r = compute(form); if (!r.moves) throw new AppError('لا ينطبق نقل على أحد: راجع القواعد'); return r; } }],
+      onMount: (form) => {
+        const box = $('[data-rbox]', form);
+        const prev = () => { const r = compute(form); kids.forEach((x) => { const el = $(`[data-rn="${x.id}"]`, form); if (el) { const n = r.plan.get(x.id).length; el.textContent = `+${fmtNum(n)}`; el.classList.toggle('over', Number(x.capacity) > 0 && base.get(x.id) + n > Number(x.capacity)); } }); const m = $('[data-rmiss]', form); if (m) m.textContent = [`سيُنقل ${fmtNum(r.moves)}`, r.keep.length ? `يبقى ${fmtNum(r.keep.length)} في فرعه المطابق` : '', r.miss.length ? `لا تنطبق قاعدة على ${fmtNum(r.miss.length)}${r.miss.length <= 6 ? `: ${r.miss.map((p) => p.name).join('، ')}` : ''}` : ''].filter(Boolean).join(' — '); };
+        const redraw = () => { box.innerHTML = String(body()); prev(); };
+        form.addEventListener('change', (e) => { if (e.target.name === 'rtype') { R.type = e.target.value; redraw(); } else if (e.target.name === 'rwho') { R.who = e.target.value; redraw(); } else prev(); });
+        form.addEventListener('input', debounce(prev, 150));
+        UI.on(form, 'click', '[data-rauto]', redraw);
+        prev();
+      } });
+    if (!res) return;
+    await OrgLog.run('assign', `توزيع ${fmtNum(res.moves)} حساب بقاعدة «${{ alpha: 'الحرف الأول', mil: 'الرقم العسكري', rank: 'الرتبة' }[R.type]}»`, async () => { for (const x of kids) { const g = res.plan.get(x.id).map((p) => p.id); if (g.length) await Data.org.assign(g, { departmentId: x.departmentId, unitId: x.id }); } });
+    await moved(`وُزّع ${fmtNum(res.moves)} حساب بالقاعدة على ${fmtNum(kids.filter((x) => res.plan.get(x.id).length).length)} فروع`);
+  }));
+  /* سجل تنقلات الشخص */
+  UI.on(ctx.view, 'click', '[data-dphist]', (e, el) => { e.preventDefault(); e.stopPropagation(); run(() => Distrib.history(el.dataset.dphist)); });
   /* السعة: عدد مقترح لكل فرع (مثل سعة الفصل)، يظهر شريطاً ويُراعى في «الأقل عدداً أولاً». إعداد عرض لا يدخل سجل الهيكل */
   UI.on(ctx.view, 'click', '[data-dpcap]', (e, el) => run(async () => {
     const x = await DB.get('deptUnits', el.dataset.dpcap); if (!x) return;
@@ -9840,7 +10131,7 @@ Pages.monitor = async (ctx) => {
   await keepAwake();
   document.addEventListener('visibilitychange', keepAwake);
   ctx.onCleanup(() => { document.removeEventListener('visibilitychange', keepAwake); try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
-  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map() };
+  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map(), drawn: -1, pageAt: now() };
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
@@ -9855,7 +10146,7 @@ Pages.monitor = async (ctx) => {
     </header>
     <section class="tv2-kpis" data-kpis></section>
     <div class="tv2-body">
-      <section class="tv2-queue"><div class="tv2-qhead"><h2>${UI.icon('inbox')} قائمة الوصول</h2><span class="faint" data-qinfo></span></div><div class="tv2-rows" data-rows></div></section>
+      <section class="tv2-queue"><div class="tv2-qhead"><h2>${UI.icon('inbox')} قائمة الوصول</h2><div class="tv2-cats" data-cats></div><span class="tv2-qinfo"><span class="faint" data-qinfo></span><span class="tv2-dots" data-dots></span></span></div><div class="tv2-prog" data-prog hidden><i></i></div><div class="tv2-rows" data-rows></div></section>
       <aside class="tv2-side">
         <section class="tv2-card"><h3>${UI.icon('pulse')} حالة الخدمات</h3><div class="tv2-svcs" data-svcs></div></section>
         <section class="tv2-card grow"><h3>${UI.icon('bell')} التعاميم والتوضيحات</h3><div class="tv2-news" data-news></div></section>
@@ -9876,14 +10167,18 @@ Pages.monitor = async (ctx) => {
     if (st.page >= pages) st.page = 0;
     const slice = [...pins, ...rest.slice(st.page * per, st.page * per + per)];
     const info = $v('[data-qinfo]'); if (info) info.textContent = rows.length ? `${fmtNum(rows.length)} في الانتظار${pages > 1 ? ` — صفحة ${st.page + 1} من ${pages}` : ''}` : '';
+    /* تقليب الصفحات: الصفوف تدخل متتابعة، وشريط رفيع يمتلئ حتى الصفحة التالية، ونقاط تبين موضعها */
+    const turn = st.drawn !== st.page; if (turn) { st.drawn = st.page; st.pageAt = now(); }
+    const dots = $v('[data-dots]'); if (dots) dots.innerHTML = pages > 1 && pages <= 12 ? Array.from({ length: pages }, (_, i) => `<i${i === st.page ? ' class="on"' : ''}></i>`).join('') : '';
+    const prog = $v('[data-prog]'); if (prog) { prog.hidden = pages < 2; if (turn && pages > 1) { const bar = prog.firstElementChild; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; } }
     box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r) => {
       const pr = PRIORITY[r.priority] || {}, stt = r.kind === 'chat' ? { label: r.status === 'new' ? 'بانتظار الرد' : 'قيد المتابعة', tone: 'violet' } : (STATUS[r.status] || { label: r.status, tone: 'slate' });
       const sla = r.due ? Math.min(100, Math.max(0, ((now() - r.at) / Math.max(1, r.due - r.at)) * 100)) : 0;
       const late = r.due && now() > r.due;
-      return html`<div class="tv2-tr${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}">
+      return html`<div class="tv2-tr pe-${r.kind === 'chat' ? 'chat' : r.priority}${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}${turn ? ' enter' : ''}" style="--i:${slice.indexOf(r)}">
         <span class="tv2-n">${rows.indexOf(r) + 1}</span>
         <span class="tv2-kind k-${r.kind}">${UI.icon(r.kind === 'chat' ? 'bell' : 'ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
-        <span class="tv2-subj"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span>
+        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('bell') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span></span>
         <span class="tv2-dep">${r.dep || '—'}${r.office ? html`<small>${r.office}</small>` : ''}</span>
         <span>${r.kind === 'chat' ? html`<i class="tv2-pr p-low"></i>—` : html`<i class="tv2-pr p-${r.priority}"></i>${pr.label || ''}`}</span>
         <span><em class="tv2-st tone-${stt.tone || 'slate'}">${stt.label}</em></span>
@@ -9901,8 +10196,8 @@ Pages.monitor = async (ctx) => {
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
-      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
-      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
+      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
+      ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', catId: '', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
@@ -9912,6 +10207,10 @@ Pages.monitor = async (ctx) => {
     if (st.fresh.length) st.page = 0;
     rows.sort((a, b) => (st.pin.has(b.key) - st.pin.has(a.key)) || (st.pin.has(a.key) ? b.at - a.at : a.at - b.at));
     st.rows = rows;
+    /* شريط الفئات: أيقونة كل فئة وعدد المفتوح منها، وفئة الوارد الجديد تتوهج */
+    const byCat = new Map(); open.forEach((t) => { const k = t.categoryId || 'other'; byCat.set(k, (byCat.get(k) || 0) + 1); });
+    const hot = new Set(st.fresh.filter((r) => r.kind === 'ticket').map((r) => r.catId)), cats = [...byCat].sort((a, b) => b[1] - a[1]), shown = cats.slice(0, 6), more = cats.slice(6).reduce((a, x) => a + x[1], 0);
+    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('bell')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}`);
     const overdue = open.filter((t) => t.dueAt && t.dueAt < now()).length;
     const doneToday = tickets.filter((t) => (t.resolvedAt || t.closedAt || 0) >= t0).length;
     const newToday = tickets.filter((t) => t.createdAt >= t0).length;
@@ -9954,7 +10253,7 @@ Pages.monitor = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
   UI.on(ctx.view, 'click', '[data-act="sound"]', (e, el) => { st.sound = !st.sound; localStorage.setItem('sq_tv_sound', st.sound ? '1' : '0'); el.classList.toggle('off', !st.sound); if (st.sound) tvChime(); UI.toast(st.sound ? 'فُعّل التنبيه الصوتي للوارد الجديد' : 'أُوقف التنبيه الصوتي'); });
-  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { st.page++; drawRows(); }, 12000), iLoad = setInterval(load, 20000);
+  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { if (now() - st.pageAt >= 11800) { st.page++; drawRows(); } }, 400), iLoad = setInterval(load, 20000);
   let idle; const hideCursor = () => { document.body.classList.remove('tv-cursor'); clearTimeout(idle); document.body.classList.add('tv-cursor'); idle = setTimeout(() => document.body.classList.remove('tv-cursor'), 4000); };
   document.addEventListener('mousemove', hideCursor);
   ctx.onCleanup(() => { clearInterval(iClock); clearInterval(iDate); clearInterval(iPage); clearInterval(iLoad); clearTimeout(idle); document.removeEventListener('mousemove', hideCursor); });
@@ -17000,7 +17299,8 @@ const TvAlert = {
     let el = document.getElementById('tvAlert');
     if (!el) { el = document.createElement('div'); el.id = 'tvAlert'; el.className = 'tv-alert'; el.setAttribute('role', 'alert'); el.addEventListener('click', () => this.hide()); document.body.appendChild(el); }
     el.style.setProperty('--t', `var(--${tone})`);
-    el.innerHTML = String(html`<div class="tv-alert-card"><div class="tv-alert-ic">${UI.icon(ic)}</div><div class="grow" style="min-width:0">
+    /* أيقونة فئة البلاغ في البطاقة (طابعة، شبكة، بريد…) وشارة النوع فوقها، بدل أيقونة عامة واحدة لكل البلاغات */
+    el.innerHTML = String(html`<div class="tv-alert-card"><div class="tv-alert-ic${top.kind === 'ticket' ? ' has-cat' : ''}">${top.kind === 'ticket' ? html`${UI.illu(catIllu(top.catId || 'other'), 'tva-cat')}<i class="tva-badge">${UI.icon(ic)}</i>` : UI.icon(ic)}</div><div class="grow" style="min-width:0">
       <span class="tv-alert-kicker">${kick}${rest.length ? ` · ومعه ${fmtNum(rest.length)} غيره` : ''}</span><h2>${top.title}</h2>
       <p>${[top.dep, top.office, top.cat].filter(Boolean).join(' · ') || '—'}</p>
       <div class="tv-alert-meta">${top.number ? html`<span class="ltr">${top.number}</span>` : ''}${top.by ? html`<span>${UI.icon('user')} ${top.by}</span>` : ''}<span>${UI.icon('clock')} ${new Date(top.at).toTimeString().slice(0, 5)}</span></div>
