@@ -1792,7 +1792,7 @@ span.orow-type .ic{width:15px;height:15px}
 .dp-xl1 .imp-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer}.dp-xl1 .imp-card span{font-size:12px;color:var(--ink-3)}.dp-xl1 .imp-card .ic{width:26px;height:26px;color:rgb(var(--accent))}
 .dp-xl1 textarea{width:100%;font-family:var(--f-mono,monospace);font-size:12px;direction:ltr}
 .dp-xlsum{display:flex;align-items:center;gap:10px;margin-bottom:8px}.dp-xlsum b{display:inline-flex;align-items:center;gap:6px}.dp-xlsum .btn{margin-inline-start:auto}
-.dp-xlf,.dp-rep-f{margin-bottom:8px;flex-wrap:wrap}
+.dp-xlf,.dp-rep-f{margin-bottom:8px;flex-wrap:wrap;width:auto}.dp-xlf .tab,.dp-rep-f .tab{flex:none}
 .dp-rep-sum{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.dp-rep-sum span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:13px}
 .dp-hnow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);margin-bottom:12px}.dp-hnow small{display:block;color:var(--ink-3);font-size:12px}
 .dp-hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;position:relative}

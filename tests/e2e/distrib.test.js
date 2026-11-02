@@ -135,7 +135,13 @@ const ABC = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي', first = 
   const p2 = await S.evaluate(() => window.__printed || '');
   ok('«rosters of all branches» prints one page per section', (p2.match(/class="dp-pb"/g) || []).length === 2 && /قسم السنة الثانية/.test(p2));
 
-  /* 5) سجل التنقلات */
+  /* 5) سجل التنقلات: نقلٌ من نموذج الحساب يُسجَّل أيضاً */
+  await S.evaluate(async ({ id, to }) => { const u = await App.DB.get('users', id); await App.Data.users.save({ ...u, unitId: to }, ''); await App.Sync.flush(); }, { id: uid(3), to: ids.c22 }); await S.waitForTimeout(600);
+  await board(); await S.check('input[name="dpview"][value="all"]', { force: true }); await S.waitForTimeout(500);
+  await S.click(`[data-dphist="${uid(3)}"]`); await S.waitForSelector('dialog .dp-hist');
+  const h3 = await S.$$eval('dialog .dp-hist li', (x) => x.map((li) => li.textContent.replace(/\s+/g, ' ')));
+  ok('a move made from the account form shows in the history too', /من نموذج الحساب/.test(h3[0] || '') && /قسم السنة الثانية \/ فصل 2/.test(h3[0] || ''), (h3[0] || '').slice(0, 90));
+  await S.keyboard.press('Escape'); await S.waitForTimeout(300);
   await S.click(`[data-dphist="${uid(0)}"]`); await S.waitForSelector('dialog .dp-hist, dialog .dp-hnow');
   const hist = await S.$$eval('dialog .dp-hist li', (x) => x.map((li) => li.textContent.replace(/\s+/g, ' ')));
   /* أحمد نُقل مرتين: من الملف ثم بالتبديل؛ القواعد أبقته في فصله لأنه داخل فرعه المطابق */

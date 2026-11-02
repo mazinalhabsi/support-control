@@ -6133,6 +6133,23 @@ Data.users.save = async function (input, password) {
   if (isSysAccount(out) && (out.mustChangePassword || !out.system)) { out.mustChangePassword = 0; out.system = 1; await DB.put('users', out); await Data.refresh('users'); }
   return out;
 };
+/* نقل حساب من نموذجه (تغيير إدارته أو فرعه) يُسجَّل في سجل تغييرات الهيكل كالنقل من لوحة التوزيع، فيظهر في «سجل تنقلات» الشخص ويمكن التراجع عنه */
+{
+  const saveOrgLogBase = Data.users.save;
+  Data.users.save = async function (input, password) {
+    const before = input && input.id ? await DB.get('users', input.id) : null;
+    const out = await saveOrgLogBase.call(this, input, password);
+    try {
+      const moved = before && out && ((before.departmentId || '') !== (out.departmentId || '') || (before.unitId || '') !== (out.unitId || ''));
+      if (moved) {
+        const ch = { store: 'users', id: out.id, before: OrgLog.slim('users', before), after: OrgLog.slim('users', out) }, nodes = [...new Set([before.departmentId, before.unitId, out.departmentId, out.unitId].filter(Boolean))];
+        if (OrgLog.cur) { if (!OrgLog.cur.changes.has(`users:${out.id}`)) OrgLog.cur.changes.set(`users:${out.id}`, ch); nodes.forEach((n) => OrgLog.cur.nodes.add(n)); }
+        else await DB.put('orgLog', { id: uid('ol'), at: now(), userId: Auth.user.id, action: 'assign', summary: `نقل «${out.name}» من نموذج الحساب`, nodes, changes: [ch] });
+      }
+    } catch (_) { /* السجل لا يمنع حفظ الحساب */ }
+    return out;
+  };
+}
 const setPwSysBase = Data.users.setPassword;
 Data.users.setPassword = async (id, password, mustChange = 0) => {
   const target = await DB.get('users', id);
