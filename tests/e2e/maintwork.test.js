@@ -72,13 +72,14 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   r = await srv('maintenance', mid); a = await srv('assets', fx.assetId);
   ok('after handover the device is back in use where it was, awaiting the receiver\'s confirmation', r.data.status === 'sent' && a.data.status === 'issued' && a.data.unitId === fx.unitId && a.data.holderId === fx.depUser);
   await until(E, (id) => App.DB.get('maintenance', id).then((x) => x && x.status === 'sent'), mid);
+  await sync(E); await E.evaluate((id) => { location.hash = `#/maint-receipt/${id}`; }, mid); await E.waitForSelector('[data-mrok]');
+  ok('the receiver sees what was done on his device', /ذاكرة 8GB/.test(await E.textContent('main, #view, body')));
+  if (SH) await E.screenshot({ path: `${SH}/maint-receipt.png` });
   /* المستلم لا يغيّر غير التأكيد */
   const hack = await E.evaluate(async (id) => { const x = await App.DB.get('maintenance', id); await App.DB.put('maintenance', { ...x, workDone: 'تلاعب', updatedAt: Date.now() }); await App.Sync.flush(); return true; }, mid);
   await E.waitForTimeout(800); r = await srv('maintenance', mid);
   ok('the receiver cannot change the work order', hack && r.data.workDone === 'استبدال مزود الطاقة وتنظيف داخلي');
-  await sync(E); await E.evaluate((id) => { location.hash = `#/maint-receipt/${id}`; }, mid); await E.waitForSelector('[data-mrok]');
-  ok('the receiver sees what was done on his device', /ذاكرة 8GB/.test(await E.textContent('main, #view, body')));
-  if (SH) await E.screenshot({ path: `${SH}/maint-receipt.png` });
+  await sync(E); await E.waitForTimeout(500); await E.waitForSelector('[data-mrok]');
   await E.click('[data-mrok]'); await E.waitForTimeout(900); await sync(E); await E.waitForTimeout(500);
   r = await srv('maintenance', mid);
   ok('…and confirms receipt from his account', r.data.status === 'returned' && r.data.receivedConfirm === 1 && r.data.receivedAt > 0);
