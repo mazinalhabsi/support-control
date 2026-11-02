@@ -31,6 +31,8 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const b0 = await (async () => { await go(tech, '#/tickets'); return badge(tech); })();
   /* 1) ملاحظة جديدة من الموظف */
   await go(dep, `#/tickets/${tid}`); await dep.fill('#cmt', 'جربت إعادة التشغيل ولم تنفع، والضوء الأحمر يومض'); await dep.click('[data-act="send"]'); await dep.waitForTimeout(800); await sync(dep);
+  /* الموظف يغادر البلاغ: لو بقي مفتوحاً أمامه لعُدّ رد الفني مقروءاً حين يصل */
+  await go(dep, '#/profile');
   await until(tech, (id) => App.DB.get('tickets', id).then((t) => t && t.noteFrom === 'requester'), tid);
   await go(tech, '#/tickets?scope=mine');
   const r1 = await rowTxt(tech, tid);
@@ -68,13 +70,19 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   const icons = await M.evaluate(() => [...document.querySelectorAll('.tv2-tr:not(.tv2-th)')].map((r) => ({ cat: !!r.querySelector('.tv2-cat'), img: !!r.querySelector('.tv2-cat .cat-ic, .tv2-cat svg, .tv2-cat img'), chat: !!r.querySelector('.tv2-cat.chat') })));
   ok('the display shows a category icon on every queue row', icons.length > 0 && icons.every((x) => x.cat && (x.img || x.chat)), `${icons.length} rows`);
   ok('…a band of categories with their open counts', /الطابعات/.test(await M.textContent('[data-cats]')) && (await M.$$('.tv2-cchip')).length > 0);
+  /* تقليب الصفحات كل 12 ثانية، ولا يُعاد رسم القائمة أكثر من ذلك (كان مع صفحة واحدة يُعاد كل 400 جزء من الثانية) */
+  await dep.evaluate(async () => { for (let i = 0; i < 10; i++) await App.Data.tickets.create({ title: `عطل للتقليب ${i}`, description: 'x', categoryId: i % 2 ? 'network' : 'hardware', priority: 'low' }); await App.Sync.flush(); });
+  for (let i = 0; i < 20 && (await M.$$('.tv2-dots i')).length < 2; i++) { await M.evaluate(() => App.Sync.pull()); await M.waitForTimeout(800); }
+  await M.evaluate(() => { const x = document.getElementById('tvAlert'); if (x) x.click(); });
+  const turnInfo = await M.evaluate(() => new Promise((res) => { const on0 = [...document.querySelectorAll('.tv2-dots i')].findIndex((x) => x.classList.contains('on')); let c = 0; const o = new MutationObserver(() => c++); o.observe(document.querySelector('[data-rows]'), { childList: true }); setTimeout(() => { o.disconnect(); res({ c, on0, on1: [...document.querySelectorAll('.tv2-dots i')].findIndex((x) => x.classList.contains('on')), dots: document.querySelectorAll('.tv2-dots i').length }); }, 13000); }));
+  ok('pages turn on their 12-second cycle with page dots, without redrawing in between', turnInfo.dots >= 2 && turnInfo.on1 !== turnInfo.on0 && turnInfo.c >= 1 && turnInfo.c <= 3, JSON.stringify(turnInfo));
   ok('…and each row has a priority edge', await M.evaluate(() => [...document.querySelectorAll('.tv2-tr:not(.tv2-th)')].every((r) => /\bpe-/.test(r.className))));
   const tid2 = await dep.evaluate(async () => { const t = await App.Data.tickets.create({ title: 'الطابعة الملونة متوقفة', description: 'x', categoryId: 'printer', priority: 'medium' }); await App.Sync.flush(); return t.id; });
   let card = false; for (let i = 0; i < 20 && !card; i++) { await M.evaluate(() => App.Sync.pull()); await M.waitForTimeout(800); card = await has(M, '#tvAlert .tv-alert-ic.has-cat'); }
   ok('a new ticket\'s arrival card shows its category icon with a type badge', card && (await has(M, '#tvAlert .tva-badge')));
   ok('…and its category glows in the band', (await M.$$('.tv2-cchip.hot')).length >= 1);
   /* لا يبقى بلاغ مفتوح يربك الاختبارات التالية */
-  await tech.evaluate(async (ids) => { await App.Sync.pull(); for (const id of ids) await App.Data.tickets.setStatus(id, 'cancelled').catch(() => {}); await App.Sync.flush(); }, [tid, tid2]).catch(() => {});
+  await tech.evaluate(async (ids) => { await App.Sync.pull(); const extra = (await App.DB.getAll('tickets')).filter((t) => /^عطل للتقليب /.test(t.title)).map((t) => t.id); for (const id of [...ids, ...extra]) await App.Data.tickets.setStatus(id, 'cancelled').catch(() => {}); await App.Sync.flush(); }, [tid, tid2]).catch(() => {});
   ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
   console.log(res.join('\n'));
   await b.close();

@@ -6309,7 +6309,8 @@ Pages.ticket = async (ctx) => {
     if (tpl) tpl.onchange = () => { const x = templates.find((y) => y.id === tpl.value); if (x) { const box = $('#cmt', view); box.value = (box.value ? box.value + '\n' : '') + x.body; box.focus(); } tpl.value = ''; };
     UI.hydrate(view);
     if (staff) Pages.paintLive(view, t);
-    if (nk) NoteSeen.mark(t);
+    /* يُعدّ مقروءاً حين يكون البلاغ مفتوحاً أمام صاحبه فعلاً، لا في تبويب مخفي وصله فيه الرد */
+    if (nk && !document.hidden) NoteSeen.mark(t);
   };
   if (staff) { const liveT = setInterval(() => { if (ctx.alive() && t) Pages.paintLive(view, t); }, 20000); ctx.onCleanup(() => clearInterval(liveT)); }
   const run = async (fn, msg) => { try { await fn(); if (msg) UI.toast(msg); } catch (ex) { UI.error(ex); } };
@@ -14024,7 +14025,8 @@ Pages.monitor = async (ctx) => {
     const slice = [...pins, ...rest.slice(st.page * per, st.page * per + per)];
     const info = $v('[data-qinfo]'); if (info) info.textContent = rows.length ? `${fmtNum(rows.length)} في الانتظار${pages > 1 ? ` — صفحة ${st.page + 1} من ${pages}` : ''}` : '';
     /* تقليب الصفحات: الصفوف تدخل متتابعة، وشريط رفيع يمتلئ حتى الصفحة التالية، ونقاط تبين موضعها */
-    const turn = st.drawn !== st.page; if (turn) { st.drawn = st.page; st.pageAt = now(); }
+    const turn = st.drawn !== st.page; if (turn || pages < 2) { st.drawn = st.page; st.pageAt = now(); }
+    /* صفحة واحدة: لا تقليب، فيُعاد الرسم في دورته العادية (كل 12 ثانية) لا كل 400 جزء من الثانية */
     const dots = $v('[data-dots]'); if (dots) dots.innerHTML = pages > 1 && pages <= 12 ? Array.from({ length: pages }, (_, i) => `<i${i === st.page ? ' class="on"' : ''}></i>`).join('') : '';
     const prog = $v('[data-prog]'); if (prog) { prog.hidden = pages < 2; if (turn && pages > 1) { const bar = prog.firstElementChild; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; } }
     box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r) => {
