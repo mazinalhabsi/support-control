@@ -1,4 +1,4 @@
-/* اختبار طرفي: علامات ملاحظات البلاغ للفني والموظف، وأيقونات الفئات في شاشة العرض.
+/* اختبار طرفي: علامات ملاحظات البلاغ للفني والموظف، وأيقونات الفئات في الإشعارات وشاشة العرض.
    - ملاحظة جديدة من الموظف (لا رد): الفني يرى في قائمة البلاغات سطراً مظللاً بمقتطفها ونقطة «لم تُفتح»،
      وعلامة «ملاحظة من الموظف»، وتبويب «ملاحظات الموظفين» بعددها، وشارة مستقلة بجانب «البلاغات»
    - داخل البلاغ: شريط «ملاحظة جديدة» ورسالتها في المحادثة مميزة، ثم تهدأ العلامة في القائمة بعد الفتح (وتبقى حتى الرد)
@@ -29,6 +29,15 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   await sync(dep); await until(tech, (id) => App.DB.get('tickets', id).then(Boolean), tid);
   await tech.evaluate(async (id) => { await App.Data.tickets.assign(id, App.Auth.user.id); }, tid); await sync(tech); await until(dep, (id) => App.DB.get('tickets', id).then((t) => t && t.assigneeId), tid);
   const b0 = await (async () => { await go(tech, '#/tickets'); return badge(tech); })();
+  /* أيقونة الفئة في الإشعارات: تُحفظ على الإشعار، وتظهر في قائمة الجرس وصفحة الإشعارات */
+  await until(tech, (id) => App.DB.getAll('notifications').then((x) => x.some((n) => n.userId === App.Auth.user.id && n.link === `/tickets/${id}`)), tid);
+  const nt = await tech.evaluate((id) => App.DB.getAll('notifications').then((x) => x.filter((n) => n.userId === App.Auth.user.id && n.link === `/tickets/${id}`).map((n) => n.cat)), tid);
+  ok('a ticket notification carries the ticket\'s category', nt.length > 0 && nt.every((c) => c === 'printer'), JSON.stringify(nt));
+  await tech.click('#bellBtn'); await tech.waitForTimeout(700);
+  ok('…and the bell list shows the category icon instead of a generic one', await tech.evaluate((id) => { const n = document.querySelector(`#bellPop .note[data-link="/tickets/${id}"]`); return !!n && !!n.querySelector('.n-cat .cat-ic, .n-cat svg:not(.ic), .n-cat img') && /الطابعات/.test(n.querySelector('.n-cat').title); }, tid));
+  await tech.keyboard.press('Escape'); await go(tech, '#/notifications');
+  ok('…as does the notifications page', await tech.evaluate((id) => !!document.querySelector(`#nList .note[data-link="/tickets/${id}"] .n-cat`), tid));
+  await go(tech, '#/tickets');
   /* 1) ملاحظة جديدة من الموظف */
   await go(dep, `#/tickets/${tid}`); await dep.fill('#cmt', 'جربت إعادة التشغيل ولم تنفع، والضوء الأحمر يومض'); await dep.click('[data-act="send"]'); await dep.waitForTimeout(800); await sync(dep);
   /* الموظف يغادر البلاغ: لو بقي مفتوحاً أمامه لعُدّ رد الفني مقروءاً حين يصل */

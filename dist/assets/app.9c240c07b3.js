@@ -577,8 +577,11 @@ const Data = {
   async notify(userIds, n) {
     const me = Auth.user && Auth.user.id, ids = [...new Set(userIds.filter((x) => x && x !== me))];
     if (!ids.length) return; const at = now();
+    /* فئة البلاغ تُحفظ على الإشعار (cat) لتظهر أيقونتها في قائمة الإشعارات ولو لم يكن البلاغ على جهاز المستلم */
+    let cat = n.cat || ''; const tm = !cat && /^\/tickets\/([^/?#]+)/.exec(n.link || '');
+    if (tm && tm[1] !== 'new') { try { const t = await DB.get('tickets', tm[1]); if (t) cat = t.categoryId || 'other'; } catch (_) { /* تجاهل */ } }
     /* key: معرّف ثابت للحدث، فإن أرسله جهازان معاً (استلام متزامن) قبِل الخادم الأول ورفض الثاني، ولا يصل المستفيدَ إشعاران */
-    await DB.bulkPut('notifications', ids.map((userId) => ({ id: n.key ? `nt:${n.key}:${userId}` : uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '' })));
+    await DB.bulkPut('notifications', ids.map((userId) => ({ id: n.key ? `nt:${n.key}:${userId}` : uid('nt'), userId, at, read: 0, title: n.title, body: n.body || '', link: n.link || '', kind: n.kind || 'info', tone: n.tone || '', ...(cat ? { cat } : {}) })));
     Bus.emit('notifications');
   },
   async saveSettings(patch, what = '') { const s = { ...this.c.settings, ...patch }; await DB.put('meta', { key: 'settings', value: s }); this.c.settings = s; await this.log('update', 'settings', '', what ? `تحديث الإعدادات: ${what}` : 'تحديث إعدادات النظام'); Bus.emit('settings'); },
@@ -1813,9 +1816,9 @@ const Shell = {
     this._bellN = n;
   },
   async renderBell() {
-    const p = $('#bellPop'), me = Auth.user.id, { rows } = await DB.page('notifications', { index: 'user_at', range: KR([me, 0], [me, Infinity]), limit: 7 });
+    const p = $('#bellPop'), me = Auth.user.id, { rows } = await DB.page('notifications', { index: 'user_at', range: KR([me, 0], [me, Infinity]), limit: 7 }), cats = await NotifCat.map(rows);
     const tone = (k) => (k === 'inventory' ? 'amber' : k === 'ticket' ? 'sky' : 'teal');
-    p.innerHTML = String(html`<div class="pop-head">الإشعارات<button class="btn btn-ghost btn-sm" data-act="readall">${UI.icon('check')} قراءة الكل</button></div>${rows.length ? rows.map((n) => html`<div class="note tone-${tone(n.kind)} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}"><span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span><div style="min-width:0"><b>${n.title}</b><small>${n.body ? n.body + ' — ' : ''}${timeAgo(n.at)}</small></div></div>`) : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستظهر هنا التحديثات على البلاغات.' })}<a class="btn btn-ghost btn-sm btn-block" href="#/notifications" style="margin-top:6px">كل الإشعارات</a>`);
+    p.innerHTML = String(html`<div class="pop-head">الإشعارات<button class="btn btn-ghost btn-sm" data-act="readall">${UI.icon('check')} قراءة الكل</button></div>${rows.length ? rows.map((n) => html`<div class="note tone-${tone(n.kind)} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}">${NotifCat.ic(n, cats, html`<span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span>`)}<div style="min-width:0"><b>${n.title}</b><small>${n.body ? n.body + ' — ' : ''}${timeAgo(n.at)}</small></div></div>`) : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستظهر هنا التحديثات على البلاغات.' })}<a class="btn btn-ghost btn-sm btn-block" href="#/notifications" style="margin-top:6px">كل الإشعارات</a>`);
     p.onclick = async (e) => {
       if (e.target.closest('[data-act="readall"]')) { e.stopPropagation(); await Data.notes.readAll(); return this.renderBell(); }
       const n = e.target.closest('.note'); if (!n) return;
@@ -2872,13 +2875,25 @@ Pages.kb = async (ctx) => {
 };
 
 /* ── الإشعارات وسجل النشاط ─────────────────────────────────── */
+/* أيقونة فئة البلاغ في الإشعار (طابعة، شبكة، بريد…) مع شارة صغيرة لنوعه، بدل أيقونة «بلاغ» واحدة لكل البلاغات.
+   الفئة من الإشعار نفسه، وللإشعارات الأقدم من البلاغ إن كان على الجهاز */
+const NotifCat = {
+  tid(n) { const m = /^\/tickets\/([^/?#]+)/.exec(n.link || ''); return m && m[1] !== 'new' ? m[1] : ''; },
+  async map(rows) {
+    const out = new Map();
+    await Promise.all(rows.map(async (n) => { let c = n.cat || ''; const id = !c && NotifCat.tid(n); if (id) { try { const t = await DB.get('tickets', id); if (t) c = t.categoryId || 'other'; } catch (_) { /* تجاهل */ } } if (c) out.set(n.id, c); }));
+    return out;
+  },
+  ic(n, cats, fallback) { const c = cats.get(n.id); return c ? html`<span class="n-ic n-cat" title="${Data.nameOf('categories', c, 'أخرى')}">${UI.illu(catIllu(c))}<i class="n-kind${n.tone === 'urgent' ? ' urgent' : ''}">${UI.icon(n.tone === 'urgent' ? 'alert' : 'ticket')}</i></span>` : fallback; }
+};
 Pages.notifications = async (ctx) => {
   const st = { unread: false, offset: 0, limit: 40 }, me = Auth.user.id;
   ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الإشعارات', sub: 'كل ما يخصك من تحديثات', illu: 'bell', actions: html`<label class="switch"><input type="checkbox" id="nUnread"><i></i><span>غير المقروءة فقط</span></label><button class="btn" data-act="readall">${UI.icon('check')} قراءة الكل</button><button class="btn" data-act="delread">${UI.icon('trash')} حذف المقروءة</button>` })}<section class="panel"><div class="panel-body" id="nList"></div></section><p class="hint mt">تُحذف الإشعارات المقروءة تلقائياً بعد ${NOTE_KEEP_DAYS} أيام من فتحها.</p>`);
   const load = async () => {
     const { rows, hasMore } = await DB.page('notifications', { index: 'user_at', range: KR([me, 0], [me, Infinity]), offset: st.offset, limit: st.limit, filter: st.unread ? (n) => !n.read : null }); if (!ctx.alive()) return;
+    const cats = await NotifCat.map(rows); if (!ctx.alive()) return;
     let last = '';
-    $('#nList', ctx.view).innerHTML = String(rows.length ? html`${rows.map((n) => { const day = fmtDate(n.at), headRow = day !== last ? html`<div class="day-head">${startOfDay(n.at) === startOfDay() ? 'اليوم' : startOfDay(n.at) === startOfDay() - DAY ? 'أمس' : day}</div>` : ''; last = day; return html`${headRow}<div class="note tone-${n.kind === 'inventory' ? 'amber' : n.kind === 'ticket' ? 'sky' : 'teal'} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}"><span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span><div class="grow"><b>${n.title}</b><small>${n.body || ''}</small></div><small class="faint nowrap">${fmtTime(n.at)}</small><button type="button" class="icon-btn n-del" data-del="${n.id}" aria-label="حذف الإشعار" title="حذف">${UI.icon('x')}</button></div>`; })}${UI.pager({ offset: st.offset, limit: st.limit, count: rows.length, hasMore })}` : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستصلك هنا تحديثات البلاغات والمخازن.' }));
+    $('#nList', ctx.view).innerHTML = String(rows.length ? html`${rows.map((n) => { const day = fmtDate(n.at), headRow = day !== last ? html`<div class="day-head">${startOfDay(n.at) === startOfDay() ? 'اليوم' : startOfDay(n.at) === startOfDay() - DAY ? 'أمس' : day}</div>` : ''; last = day; return html`${headRow}<div class="note tone-${n.kind === 'inventory' ? 'amber' : n.kind === 'ticket' ? 'sky' : 'teal'} ${n.read ? '' : 'unread'}" data-id="${n.id}" data-link="${n.link}">${NotifCat.ic(n, cats, html`<span class="n-ic">${UI.icon(n.kind === 'inventory' ? 'box' : n.kind === 'ticket' ? 'ticket' : 'bell')}</span>`)}<div class="grow"><b>${n.title}</b><small>${n.body || ''}</small></div><small class="faint nowrap">${fmtTime(n.at)}</small><button type="button" class="icon-btn n-del" data-del="${n.id}" aria-label="حذف الإشعار" title="حذف">${UI.icon('x')}</button></div>`; })}${UI.pager({ offset: st.offset, limit: st.limit, count: rows.length, hasMore })}` : UI.empty({ illu: 'bell', title: 'لا توجد إشعارات', text: 'ستصلك هنا تحديثات البلاغات والمخازن.' }));
   };
   $('#nUnread', ctx.view).onchange = (e) => { st.unread = e.target.checked; st.offset = 0; load(); };
   UI.on(ctx.view, 'click', '[data-act="readall"]', async () => { await Data.notes.readAll(); load(); });
@@ -4763,7 +4778,7 @@ const Sync = {
     const work = Auth.can('tickets.work'), answer = Auth.can('chat.answer'), since = this.bootAt - MIN;
     for (const d of docs) {
       if (d.deleted || !d.data || this.seen.has(`${d.store}:${d.id}`)) continue;
-      if (work && d.store === 'tickets' && d.data.status === 'new' && d.data.requesterId !== u.id && d.data.createdAt > since) { this.seen.add(`tickets:${d.id}`); out.push({ kind: 'ticket', id: d.data.id, title: d.data.title, by: d.data.requesterId, urgent: d.data.priority === 'urgent' }); }
+      if (work && d.store === 'tickets' && d.data.status === 'new' && d.data.requesterId !== u.id && d.data.createdAt > since) { this.seen.add(`tickets:${d.id}`); out.push({ kind: 'ticket', id: d.data.id, title: d.data.title, by: d.data.requesterId, urgent: d.data.priority === 'urgent', cat: d.data.categoryId || 'other' }); }
       if (answer && d.store === 'chats' && d.data.userId !== u.id && d.data.createdAt > since) { this.seen.add(`chats:${d.id}`); out.push({ kind: 'chat', id: d.data.id, title: d.data.subject, by: d.data.userId }); }
     }
     return out;
@@ -4773,6 +4788,9 @@ const Sync = {
     const msg = one ? `${one.kind === 'ticket' ? 'بلاغ جديد' : 'استفسار جديد'}: ${one.title} — ${Data.userName(one.by)}` : `وصل ${[tickets ? arCount(tickets, AR.ticket) : '', chats ? `${fmtNum(chats)} استفسار` : ''].filter(Boolean).join(' و')} جديد`;
     UI.toast(msg, 'info', 10000); Snd.alert(list.some((x) => x.urgent) ? 'urgent' : tickets ? 'ticket' : 'message');
     const el = $('#toasts') && $('#toasts').lastElementChild;
+    /* أيقونة فئة البلاغ في التنبيه بدل أيقونة المعلومات (حتى ثلاث فئات إن وصل أكثر من بلاغ) */
+    const tc = [...new Set(list.filter((x) => x.kind === 'ticket').map((x) => x.cat))].slice(0, 3), first = el && el.firstElementChild;
+    if (el && tc.length && first && first.tagName.toLowerCase() === 'svg') { const box = document.createElement('span'); box.className = 'toast-cats'; box.innerHTML = String(html`${tc.map((c) => UI.illu(catIllu(c)))}`); first.replaceWith(box); }
     if (el) { el.classList.add('toast-link'); el.title = 'اضغط للفتح'; el.addEventListener('click', (e) => { if (e.target.closest('.toast-x')) return; Router.go(one ? (one.kind === 'ticket' ? `/tickets/${one.id}` : `/chat/${one.id}`) : tickets ? '/tickets?scope=unassigned' : '/chat'); el.remove(); }); }
   },
   /* سحب كامل فقط أول مرة على الجهاز أو إذا أُعيد تهيئة الخادم، وإلا فالتغييرات الجديدة فقط */
