@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const BASE = process.env.BASE || 'http://127.0.0.1:8106/', B = BASE + 'api/api.php', U = BASE;
 const api = async (a, body, tok) => { const r = await fetch(`${B}?a=${a}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tok ? { 'X-Token': tok } : {}) }, body: JSON.stringify(body || {}) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
 const pull = async (tok) => { let since = 0; const out = []; for (;;) { const r = await fetch(`${B}?a=pull&since=${since}&limit=3000`, { headers: { 'X-Token': tok } }).then((x) => x.json()); out.push(...r.docs); since = r.rev; if (!r.more) return out; } };
+/* اختيار موضع من شجرة المواضع كما يفعل المستخدم: فتح الإدارة ثم فروعها حتى يظهر الموضع */
+const pickPlace = async (p, scope, v) => { await p.click(`${scope} [data-ppopen]`); await p.waitForSelector('.pp-pop'); const d = v.split('|')[0]; if (!(await p.$(`.pp-pop [data-ppv="${v}"]`))) await p.click(`.pp-pop .pp-x[data-ppx="d:${d}"]`); for (let i = 0; i < 8 && !(await p.$(`.pp-pop [data-ppv="${v}"]`)); i++) { const x = await p.$('.pp-pop .pp-x[data-ppx^="u:"]:not(.open)'); if (!x) break; await x.click(); } await p.click(`.pp-pop [data-ppv="${v}"]`); await p.waitForTimeout(200); };
 const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  ' : 'FAIL'} ${name}${info ? ' — ' + info : ''}`); };
 const N = 320;
 (async () => {
@@ -29,14 +31,14 @@ const N = 320;
   const server = async () => (await pull(sup)).filter((d) => d.store === 'users' && ids.includes(d.id) && !d.deleted).map((d) => d.data);
   const filterDep = async (p) => { await p.evaluate(() => { location.hash = '#/users'; }); await p.waitForSelector('#udep'); await p.selectOption('#udep', org.a); await p.waitForTimeout(800); };
   const selectAll = async (p) => { await p.check('[data-selall]'); await p.waitForTimeout(600); return p.evaluate(() => (document.querySelector('#bulkBar b') || {}).textContent || ''); };
-  const apply = async (p, act, fill) => { await p.click(`[data-bulk="${act}"]`); await p.waitForSelector('dialog [name="v"]'); if (fill) await fill(p); await p.click('dialog .btn-primary'); await p.waitForSelector('dialog', { state: 'detached', timeout: 60000 }); await p.evaluate(() => App.Sync.flush()); await p.waitForTimeout(3500); };
+  const apply = async (p, act, fill) => { await p.click(`[data-bulk="${act}"]`); await p.waitForSelector('dialog [name="v"]', { state: 'attached' }); if (fill) await fill(p); await p.click('dialog .btn-primary'); await p.waitForSelector('dialog', { state: 'detached', timeout: 60000 }); await p.evaluate(() => App.Sync.flush()); await p.waitForTimeout(3500); };
 
   /* 1) «تحديد الكل» يشمل كل النتائج */
   await filterDep(S);
   const shown = await S.$$eval('#ubody tbody tr', (x) => x.length), bar = await selectAll(S);
   ok(`users page shows ${shown} rows but select-all picks all ${N} results`, shown < N && bar.includes(String(N)), bar);
   /* 2) الموضع في الهيكل: الإدارة والقسم معاً */
-  await apply(S, 'place', (p) => p.selectOption('dialog [name="v"]', `${org.z}|${org.unit}`));
+  await apply(S, 'place', (p) => pickPlace(p, 'dialog', `${org.z}|${org.unit}`));
   let srv = await server();
   ok('placement applied to every selected account, department and section together', srv.length === N && srv.every((u) => u.departmentId === org.z && u.unitId === org.unit), String(srv.filter((u) => u.unitId === org.unit).length));
   /* 3) الرتبة، والإلزام بتغيير كلمة المرور، والتخصصات (لا تنطبق على الموظفين) */

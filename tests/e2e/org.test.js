@@ -5,6 +5,8 @@ const { chromium } = require('playwright');
 const crypto = require('crypto');
 const BASE = process.env.BASE || 'http://127.0.0.1:8106/', B = BASE + 'api/api.php', U = BASE;
 const api = async (a, body, tok) => { const r = await fetch(`${B}?a=${a}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tok ? { 'X-Token': tok } : {}) }, body: JSON.stringify(body || {}) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+/* اختيار موضع من شجرة المواضع كما يفعل المستخدم: فتح الإدارة ثم فروعها حتى يظهر الموضع */
+const pickPlace = async (p, scope, v) => { await p.click(`${scope} [data-ppopen]`); await p.waitForSelector('.pp-pop'); const d = v.split('|')[0]; if (!(await p.$(`.pp-pop [data-ppv="${v}"]`))) await p.click(`.pp-pop .pp-x[data-ppx="d:${d}"]`); for (let i = 0; i < 8 && !(await p.$(`.pp-pop [data-ppv="${v}"]`)); i++) { const x = await p.$('.pp-pop .pp-x[data-ppx^="u:"]:not(.open)'); if (!x) break; await x.click(); } await p.click(`.pp-pop [data-ppv="${v}"]`); await p.waitForTimeout(200); };
 const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  ' : 'FAIL'} ${name}${info ? ' — ' + info : ''}`); };
 const docs = async (tok) => { let since = 0; const out = []; for (;;) { const r = await fetch(`${B}?a=pull&since=${since}&limit=3000`, { headers: { 'X-Token': tok } }).then((x) => x.json()); out.push(...r.docs); since = r.rev; if (!r.more) break; } const m = new Map(); out.forEach((d) => m.set(`${d.store}:${d.id}`, d)); return m; };
 const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(16), hash = crypto.pbkdf2Sync('Passw0rd!', salt, 1000, 32, 'sha256').toString('hex'); return { store: 'users', id, rev: -1, data: { id, username, name: 'حساب ' + username, role: 'department', active: 1, mustChangePassword: 0, pass: { algo: 'pbkdf2-sha256', iter: 1000, salt: salt.toString('hex'), hash }, createdAt: Date.now(), updatedAt: Date.now(), ...extra } }; };
@@ -39,7 +41,7 @@ const mkUser = (id, username, extra = {}) => { const salt = crypto.randomBytes(1
   await S.click(`[data-members="${ids.a}|"]`); await S.waitForSelector('dialog [data-list] .list-row');
   const listed = await S.$$eval('dialog [data-list] .list-row b', (x) => x.map((e) => e.textContent));
   ok('position dialog lists the department accounts', listed.length === 3, listed.join('، '));
-  await S.check(`dialog [data-pick="${uC}"]`); await S.selectOption('dialog [data-to]', `${ids.a}|${ids.sup}`); await S.click('dialog [data-move]'); await S.waitForTimeout(1200);
+  await S.check(`dialog [data-pick="${uC}"]`); await pickPlace(S, 'dialog [data-bulk]', `${ids.a}|${ids.sup}`); await S.click('dialog [data-move]'); await S.waitForTimeout(1200);
   await S.click('dialog [data-x]'); await S.waitForTimeout(2500);
   let m = await docs(sup);
   ok('moved account saved on the server', (m.get(`users:${uC}`).data.unitId || '') === ids.sup);
