@@ -5192,7 +5192,10 @@ const Img3D = (() => {
   };
   const LABELS = { computer: 'حاسب مكتبي', laptop: 'حاسب محمول', printer: 'طابعة', network: 'شبكة وواي فاي', software: 'برامج وأنظمة', email: 'بريد إلكتروني', card: 'بطاقة دخول', passcode: 'رمز تحقق', archive: 'أرشفة وحفظ', ink: 'أحبار', scanner: 'ماسح ضوئي', bell: 'طلب خدمة', toolbox: 'صيانة وأدوات', server: 'خوادم', database: 'قواعد بيانات', shield: 'أمن المعلومات', headset: 'دعم فني', projector: 'جهاز عرض', cctv: 'كاميرات مراقبة', phone: 'هاتف', tablet: 'جهاز لوحي', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', usb: 'فلاش USB', harddisk: 'قرص تخزين', globe: 'إنترنت', gear: 'إعدادات', fingerprint: 'بصمة', ups: 'طاقة احتياطية', cable: 'كابلات', display: 'شاشة', speaker: 'صوتيات', calendar: 'مواعيد', chart: 'تقارير', folder: 'مجلدات', bug: 'أعطال برمجية', cloud: 'سحابة ونسخ', lock: 'صلاحيات', key: 'مفاتيح ورموز', ticket: 'بلاغات', cpu: 'معالجات وقطع', webcam: 'كاميرا ويب', mic: 'مايكروفون', battery: 'بطارية', box: 'أخرى' };
   const cache = new Map();
-  const get = (name, cls = '') => { const k = D[name] ? name : 'box'; if (!cache.has(k)) cache.set(k, D[k]().out(LABELS[k])); const svg = cache.get(k); return cls ? svg.replace('class="iso img3d"', `class="iso img3d ${cls}"`) : svg; };
+  /* كل نسخة بمعرّفات تدرّج خاصة بها: المعرّفات كانت ثابتة لكل أيقونة، فإن كانت أول نسخة في الصفحة داخل عنصر مخفي (قائمة الإشعارات المغلقة مثلاً)
+     فقدت النسخ الظاهرة تدرّجها وظهرت باهتة مسطحة */
+  let seq = 0;
+  const get = (name, cls = '') => { const k = D[name] ? name : 'box'; if (!cache.has(k)) cache.set(k, D[k]().out(LABELS[k])); const u = (seq = (seq + 1) % 1e9).toString(36); const svg = cache.get(k).replace(/(id="|url\(#|href="#)m3/g, `$1m3${u}_`); return cls ? svg.replace('class="iso img3d"', `class="iso img3d ${cls}"`) : svg; };
   return { get, names: Object.keys(D), LABELS };
 })();
 /* ── مخزن الصور: الصور المدمجة ثلاثية الأبعاد + صور يرفعها المشرف، ومرجع الصورة بالشكل i3d:<اسم> أو lib:<معرّف> ── */

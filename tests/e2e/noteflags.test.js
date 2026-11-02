@@ -35,7 +35,10 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   ok('a ticket notification carries the ticket\'s category', nt.length > 0 && nt.every((c) => c === 'printer'), JSON.stringify(nt));
   await tech.click('#bellBtn'); await tech.waitForTimeout(700);
   ok('…and the bell list shows the category icon instead of a generic one', await tech.evaluate((id) => { const n = document.querySelector(`#bellPop .note[data-link="/tickets/${id}"]`); return !!n && !!n.querySelector('.n-cat .cat-ic, .n-cat svg:not(.ic), .n-cat img') && /الطابعات/.test(n.querySelector('.n-cat').title); }, tid));
-  await tech.keyboard.press('Escape'); await go(tech, '#/notifications');
+  await tech.keyboard.press('Escape'); await tech.mouse.click(700, 600); await go(tech, '#/tickets?scope=all');
+  /* القائمة المغلقة تبقى في الصفحة بأيقوناتها: إن تكررت معرّفات التدرّج أخذت الأيقونات الظاهرة تدرّج النسخة المخفية فبهتت */
+  ok('icon gradient ids are unique on the page even after the bell list is closed', await tech.evaluate(() => { const ids = [...document.querySelectorAll('svg.img3d [id]')].map((x) => x.id); return ids.length > 0 && new Set(ids).size === ids.length && !!document.querySelector('#bellPop svg.img3d'); }));
+  await go(tech, '#/notifications');
   ok('…as does the notifications page', await tech.evaluate((id) => !!document.querySelector(`#nList .note[data-link="/tickets/${id}"] .n-cat`), tid));
   await go(tech, '#/tickets');
   /* 1) ملاحظة جديدة من الموظف */
