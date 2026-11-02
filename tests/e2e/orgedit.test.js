@@ -143,6 +143,9 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
   /* إدارة إلى داخل إدارة أخرى: تصبح فرعاً بأقسامها وحساباتها، والتراجع يعيدها */
   await api('push', { ops: [mkUser(P + 'c', P + 'c', { departmentId: c1.id, unitId: '' })] }, sup); await settle(); await have(P + 'c'); await go();
   const c1kids = st.kids(c1.id).length, logs5 = await logCount();
+  /* تُصفّى الصفحة على إدارات هذا الاختبار: مع كثرة الإدارات من الاختبارات السابقة قد تقع الإدارتان في صفين يتباعدان أكثر من ارتفاع
+     الشاشة (1078 بكسل في شاشة 900)، والسحب الآلي لا يمرّر الصفحة أثناء السحب كما يفعل المتصفح عند حافتها */
+  await S.fill('#oq', T); await S.waitForTimeout(900);
   /* السحب من عنوان الإدارة (لا من أزرارها)، ومحاولة ثانية إن أُعيد رسم الصفحة أثناء السحب */
   for (let i = 0; i < 2 && !(await S.$('dialog .btn-primary')); i++) {
     const hb = await (await S.$(`[data-drag="dept:${c1.id}"] b`)).boundingBox(), src = await (await S.$(`[data-drag="dept:${c1.id}"]`)).boundingBox();
@@ -150,7 +153,7 @@ const res = []; const ok = (name, cond, info = '') => { res.push(`${cond ? 'OK  
     await S.waitForSelector('dialog .btn-primary', { timeout: 4000 }).catch(() => null);
   }
   ok('dropping a department on another asks whether to reorder or move inside', /ترتيبها قبلها/.test(await S.textContent('dialog')) && /نقلها إلى الداخل/.test(await S.textContent('dialog')));
-  await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle();
+  await S.click('dialog .btn-primary'); await S.waitForTimeout(1500); await settle(); await S.fill('#oq', '').catch(() => {});
   st = await struct(); const nu = st.kids(c2.id).find((u) => u.name === c1.name), acc = st.users.find((u) => u.id === P + 'c');
   ok('a department moved inside another becomes a branch with its sections and accounts, in one history entry', !st.dep(c1.name) && !!nu && st.kids(c2.id, nu.id).length === c1kids && acc.departmentId === c2.id && acc.unitId === nu.id && (await logCount()) === logs5 + 1);
   await S.evaluate(async () => { const e = (await App.DB.getAll('orgLog')).sort((a, b) => b.at - a.at)[0]; return App.OrgLog.undo(e); }); await settle();
