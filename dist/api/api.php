@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'maintenance', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -280,6 +280,8 @@ function pull_full(array $u): array {
   $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
   $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
   $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
+  /* صيانة الأجهزة: البحث بالرقم التسلسلي في كل الوحدات، وسجل الصيانة كله */
+  $grant(['maint.work'], ['maintenance', 'assets']);
   $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups', 'noteReads']);
   $grant(['surveys.manage', 'reports'], ['surveyResponses', 'surveyMarks']);
   $grant(['org.manage'], ['orgLog']);
@@ -310,6 +312,8 @@ function self_sql(array $u, array $full = []): array {
   $add($own('surveyResponses'), "store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?", [$me]);
   $add(true, "store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?", [$me]);
   $add($own('orgLog'), "store <> 'orgLog' OR {$j('userId')} = ?", [$me]);
+  /* سجل صيانة جهاز: يصل الموظف إن كان مستلمه المعيَّن أو حائز الجهاز حين دخل الصيانة، ليتابعه ويؤكد استلامه */
+  $add($own('maintenance'), "store <> 'maintenance' OR {$j('receiverId')} = ? OR {$j('fromHolderId')} = ?", [$me, $me]);
   return [$cond . '))', $args];
 }
 /** ملّاك سجلات أب (بلاغ أو استفسار) لمعرفة من يرى السجلات التابعة لها */
@@ -360,6 +364,7 @@ function visible_rows(array $rows, array $u, array $full = []): array {
       /* الردود الخاصة لا تصل إلا لصاحبها */
       case 'replies': $ok = ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me; break;
       case 'orgLog': $ok = (string) ($d['userId'] ?? '') === $me; break;
+      case 'maintenance': $ok = (string) ($d['receiverId'] ?? '') === $me || (string) ($d['fromHolderId'] ?? '') === $me; break;
       default: $ok = true;
     }
     if ($ok) $out[] = $r;
@@ -609,8 +614,8 @@ const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work
 function role_perms(string $role): array {
   switch ($role) {
     case 'department': return ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'];
-    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage']);
-    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage']);
+    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage', 'maint.work']);
+    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work']);
     case 'supervisor': return ['*'];
     case 'monitor': return ['monitor'];
   }
@@ -1034,6 +1039,31 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'worklog': case 'workFolders': case 'workItems': return can_any($user, ['worklog', 'worklog.all', 'works', 'settings']) ? $new : null;
     /* مقابض المجلدات محلية في كل جهاز ولا تُزامن */
     case 'handles': return null;
+  }
+  /* ── صيانة الأجهزة لمن يملك «maint.work» دون صلاحيات المخزن ──
+     سجل الصيانة: يُنشأ بنمط «يبقى في عهدته» (keep) فلا يمس أرصدة العهد، ولا يُغيَّر منه ما يحدد الجهاز ومن أين جاء.
+     الوحدة: تتغير حالتها فقط (إلى «تحت الصيانة» ثم إلى حالتها السابقة)، ولا يتغير مكانها ولا حائزها.
+     ومستلم الجهاز المعيَّن يؤكد الاستلام فقط */
+  if ($store === 'maintenance' && !can_any($user, INV_PERMS)) {
+    if ($deleted) return null;
+    if (can($user, 'maint.work')) {
+      if (!$old) return !empty($data['keep']) && (string) ($data['openedBy'] ?? '') === $me ? $new : null;
+      if (empty($old['keep'])) return null;
+      return keep_fields($data, $old, ['id', 'keep', 'itemId', 'assetId', 'serial', 'tag', 'itemName', 'brand', 'model', 'fromDepartmentId', 'fromUnitId', 'fromHolder', 'fromHolderId', 'fromWarehouseId', 'prevStatus', 'openedAt', 'openedBy']);
+    }
+    if ($old && (string) ($old['receiverId'] ?? '') === $me && ($old['status'] ?? '') === 'sent' && ($data['status'] ?? '') === 'returned') {
+      $t = now_ms(); return array_merge($old, ['status' => 'returned', 'receivedAt' => $t, 'receivedConfirm' => 1, 'updatedAt' => $t]);
+    }
+    return null;
+  }
+  if ($store === 'assets' && !can_any($user, INV_PERMS) && can($user, 'maint.work')) {
+    if ($deleted || !$old) return null;
+    $s0 = (string) ($old['status'] ?? ''); $s1 = (string) ($data['status'] ?? '');
+    $back = ['issued', 'in_store', 'loaned'];
+    /* الحالة نفسها مقبولة: الاستلام ثم التسليم دون اتصال يصلان الخادم تعديلاً واحداً يعيد الحالة كما كانت */
+    $ok = $s1 === $s0 || ($s1 === 'maintenance' && in_array($s0, $back, true)) || ($s0 === 'maintenance' && in_array($s1, $back, true));
+    if (!$ok) return null;
+    return array_merge($old, ['status' => $s1, 'maintId' => $s1 === 'maintenance' ? (string) ($data['maintId'] ?? '') : '', 'updatedAt' => $data['updatedAt'] ?? now_ms()]);
   }
   /* ── المخزن والعهد ── */
   if (in_array($store, INV_STORES, true)) {

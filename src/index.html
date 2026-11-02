@@ -1830,6 +1830,11 @@ span.orow-type .ic{width:15px;height:15px}
 .dp-plan{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:10px}
 .dp-pl{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .dp-pl b{display:block}.dp-pl small{display:block;color:var(--ink-3);font-size:11.5px}.dp-pl p{margin:6px 0 0;font-size:12.5px;line-height:1.7}
+.md-find .panel-body{padding:16px 18px}.md-search{display:flex;gap:14px;align-items:flex-start}.md-search .md-ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:rgba(var(--accent),.14);color:rgb(var(--accent));flex:none}.md-search .md-ic .ic{width:24px;height:24px}
+.md-search input{flex:1;height:44px;font-size:16px;letter-spacing:.5px}
+.md-card{margin-top:14px;border:1.5px solid rgba(var(--accent),.35)}.md-head{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.md-head h3{margin:0 0 6px;font-size:18px}.md-head .iso{width:64px;height:58px;flex:none}.md-acts{display:flex;gap:8px;flex-wrap:wrap}
+.md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.md-grid .kv{padding:12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);margin:0}
+.mt-add{align-items:flex-start;gap:10px}.md-confirm{align-items:center}
 .dp-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;padding:8px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line-2)}
 .dp-row .dp-hbtn{width:30px;height:30px;flex:none;opacity:.55}.dp-row:hover .dp-hbtn,.dp-row .dp-hbtn:focus-visible{opacity:1}.dp-hbtn .ic{width:15px;height:15px}
 .dp-rtop{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
@@ -4268,8 +4273,8 @@ const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work
 const PERMS = {
   department: ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'],
   /* الملاحظات للفنيين والإداريين والمشرفين؛ وكل ملاحظة يراها من اختارهم كاتبها */
-  technician: [...TECH_PERMS, 'vault.read', 'vault.manage'],
-  support_manager: [...TECH_PERMS, 'reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage'],
+  technician: [...TECH_PERMS, 'vault.read', 'vault.manage', 'maint.work'],
+  support_manager: [...TECH_PERMS, 'reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work'],
   supervisor: ['*'],
   monitor: ['monitor']
 };
@@ -5582,10 +5587,11 @@ Data.notes = {
 /* ── الهيكل العام ───────────────────────────────────────────── */
 const Shell = {
   mounted: false, offs: [],
-  nav() { return this.navAll().map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm) && !Nav.hidden(i.path)) })).filter((g) => g.items.length); },
+  /* الصفحة الواحدة تظهر مرة واحدة: «الصيانة» في العمليات لمن يملك صيانة الأجهزة، وفي المخازن لغيره */
+  nav() { const seen = new Set(); return this.navAll().map((g) => ({ ...g, items: g.items.filter((i) => Auth.can(i.perm) && !Nav.hidden(i.path) && !seen.has(i.path) && !!seen.add(i.path)) })).filter((g) => g.items.length); },
   navAll() {
     return [
-      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/surveys', label: 'الاستبيانات', icon: 'poll', perm: '', badge: 'surveys' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }] },
+      { group: 'العمليات', items: [{ path: '/dashboard', label: 'لوحة القيادة', icon: 'grid', perm: 'dashboard'  }, { path: '/tickets', label: 'البلاغات', icon: 'ticket', perm: 'tickets.view', badge: 'tickets' }, { path: '/tickets/new', label: 'بلاغ جديد', icon: 'plus', perm: 'tickets.create' }, { path: '/chat', label: 'الاستفسارات', icon: 'bell', perm: '' }, { path: '/surveys', label: 'الاستبيانات', icon: 'poll', perm: '', badge: 'surveys' }, { path: '/status', label: 'حالة الخدمات', icon: 'pulse', perm: '' }, { path: '/worklog', label: 'أعمال القسم', icon: 'clipboard', perm: 'worklog' }, { path: '/works', label: 'متابعة الأعمال', icon: 'archive', perm: 'works' }, { path: '/maintenance', label: 'صيانة الأجهزة', icon: 'tools', perm: 'maint.work' }] },
       { group: 'المخازن والعهد', items: [{ path: '/inventory', label: 'نظرة عامة', icon: 'warehouse', perm: 'inventory.read' }, { path: '/inventory/browse', label: 'تصفح المخزن', icon: 'grid', perm: 'inventory.read' }, { path: '/inventory/search', label: 'البحث في المخزن', icon: 'search', perm: 'inventory.read' }, { path: '/inventory/items', label: 'الأصناف والأرصدة', icon: 'box', perm: 'inventory.read', badge: 'low' }, { path: '/inventory/movements', label: 'حركات المخزون', icon: 'swap', perm: 'inventory.read' }, { path: '/inventory/loans', label: 'العهد والإعارات', icon: 'clipboard', perm: 'inventory.read', badge: 'overdue' }, { path: '/inventory/departments', label: 'عهدة الإدارات', icon: 'building', perm: 'inventory.read|custody.direct' }, { path: '/inventory/report', label: 'تقارير المخزون', icon: 'chart', perm: 'inventory.read' }, { path: '/inventory/vouchers', label: 'سندات الصرف', icon: 'file', perm: 'inventory.read' }, { path: '/maintenance', label: 'الصيانة', icon: 'tools', perm: 'inventory.read' }, { path: '/ext-maint', label: (Data.c.xmCfg && Data.c.xmCfg.name) || 'الصيانة الخارجية', icon: 'external', perm: 'extmaint.read' }, { path: '/printers', label: 'الطابعات والأحبار', icon: 'printer', perm: 'inventory.read' }, { path: '/inventory/retired', label: 'الخارج عن الخدمة', icon: 'x', perm: 'inventory.read' }] },
       { group: 'المعرفة', items: [{ path: '/kb', label: 'قاعدة المعرفة', icon: 'book', perm: 'kb.read' }, { path: '/forms', label: 'النماذج والاستمارات', icon: 'file', perm: 'forms|forms.manage|forms.hide|users.manage' }, { path: '/replies', label: 'الردود الجاهزة', icon: 'message', perm: 'tickets.work' }, { path: '/vault', label: 'الملاحظات', icon: 'key', perm: 'vault.read', badge: 'notes' }] },
       { group: 'التقارير والمتابعة', items: [{ path: '/reports', label: 'التقارير والتحليلات', icon: 'chart', perm: 'reports' }, { path: '/activity', label: 'سجل النشاط', icon: 'pulse', perm: 'activity' }] },
@@ -6871,7 +6877,7 @@ async function boot() {
   }
   const R = (p, perm, fn, t, bare) => Router.add(p, perm, fn, t, bare);
   R('/dashboard', 'dashboard', Pages.dashboard, 'لوحة القيادة'); R('/tickets', 'tickets.view', Pages.tickets, 'البلاغات'); R('/tickets/new', 'tickets.create', Pages.newTicket, 'بلاغ جديد'); R('/tickets/:id', 'tickets.view', Pages.ticket, 'تفاصيل البلاغ');
-  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read|custody.direct', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read|custody.direct', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', 'forms|forms.manage|forms.hide|users.manage', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read', Pages.maintenance, 'الصيانة'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
+  R('/inventory', 'inventory.read', Pages.inventory, 'المخازن'); R('/inventory/items', 'inventory.read', Pages.items, 'الأصناف'); R('/inventory/items/:id', 'inventory.read', Pages.item, 'تفاصيل الصنف'); R('/inventory/movements', 'inventory.read', Pages.movements, 'حركات المخزون'); R('/inventory/loans', 'inventory.read', Pages.loans, 'العهد'); R('/inventory/departments', 'inventory.read|custody.direct', Pages.deptStock, 'عهدة الإدارات'); R('/inventory/departments/:id', 'inventory.read|custody.direct', Pages.deptDetail, 'عهدة إدارة'); R('/inventory/report', 'inventory.read', Pages.invReport, 'تقرير المخزون'); R('/inventory/browse', 'inventory.read', Pages.browse, 'تصفح المخزن'); R('/inventory/search', 'inventory.read', Pages.invSearch, 'البحث في المخزن'); R('/chat', '', Pages.chat, 'الاستفسارات'); R('/forms', 'forms|forms.manage|forms.hide|users.manage', Pages.formsPage, 'النماذج والاستمارات'); R('/backup', 'backup.manage', Pages.backup, 'النسخ الاحتياطي'); R('/status', '', Pages.status, 'حالة الخدمات'); R('/worklog', 'worklog', Pages.worklog, 'أعمال القسم'); R('/works', 'works', Pages.works, 'متابعة الأعمال'); R('/passwords', 'users.password', Pages.passwords, 'كلمات المرور'); R('/chat/report', 'reports', Pages.chatReport, 'تقرير الاستفسارات'); R('/chat/:id', '', Pages.chat, 'الاستفسارات'); R('/inventory/vouchers', 'inventory.read', Pages.vouchers, 'سندات الصرف'); R('/maintenance', 'inventory.read|maint.work', Pages.maintenance, 'الصيانة'); R('/maintenance/:id', 'inventory.read|maint.work', Pages.maintOrder, 'أمر صيانة'); R('/maint-receipt/:id', '', Pages.maintReceipt, 'صيانة جهازي'); R('/inventory/retired', 'inventory.read', Pages.retired, 'الخارج عن الخدمة');
   R('/kb', 'kb.read', Pages.kb, 'قاعدة المعرفة'); R('/org', 'org.manage|org.assign|org.head', Pages.org, 'الهيكل التنظيمي'); R('/reports', 'reports', Pages.reports, 'التقارير'); R('/users', 'users.manage', Pages.users, 'المستخدمون'); R('/activity', 'activity', Pages.activity, 'سجل النشاط'); R('/settings', 'settings', Pages.settings, 'الإعدادات');
   R('/notifications', null, Pages.notifications, 'الإشعارات'); R('/profile', null, Pages.profile, 'الملف الشخصي'); R('/welcome', null, Pages.welcome, 'أكمل بياناتك', true); R('/monitor', null, Pages.monitor, 'شاشة المراقبة', true);
   window.addEventListener('hashchange', () => Router.resolve());
@@ -7086,6 +7092,7 @@ const BASE_PERMS = ['dashboard', 'profile', 'notifications'];
 const PERM_GROUPS = [
   { title: 'البلاغات', icon: 'ticket', items: [['tickets.create', 'تقديم البلاغات', 'فتح بلاغ أو طلب خدمة'], ['tickets.view', 'متابعة البلاغات', 'عرض البلاغات المسموح بها'], ['tickets.all', 'عرض كل البلاغات', 'بلاغات جميع الأقسام والمواقع'], ['tickets.work', 'استلام البلاغات وحلها', 'الاستلام والرد وتحديث الحالة'], ['chat.answer', 'الرد على الاستفسارات', 'استقبال استفسارات الموظفين والرد عليها'], ['users.password', 'إصدار كلمات المرور', 'إصدار أو تغيير كلمة مرور الحسابات الأدنى'], ['forms.manage', 'إدارة النماذج والاستمارات', 'إضافة الاستمارات وتعديلها وحذفها'], ['backup.manage', 'النسخ الاحتياطي والبيانات', 'أخذ النسخ والاسترداد وجدولة النسخ التلقائي'], ['announce.manage', 'التعاميم وحالة الخدمات', 'نشر الإعلانات وتحديث حالة الخدمات'], ['worklog', 'تسجيل أعمال القسم', 'تسجيل الأعمال اليومية والزيارات والورش'], ['worklog.all', 'الاطلاع على أعمال القسم كاملة', 'عرض أعمال جميع الفنيين والإداريين وتقاريرها'], ['works', 'متابعة الأعمال الداخلية والخارجية', 'المجلدات والمواضيع والمرفقات ومتابعتها'], ['tickets.manage', 'إدارة البلاغات', 'الإسناد لفني آخر وتغيير الأولوية والإلغاء']] },
   { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة'], ['extmaint.read', 'عرض الصيانة الخارجية', 'الاطلاع على الأجهزة المرسلة للجهات الخارجية ومتابعتها'], ['extmaint.manage', 'إدارة الصيانة الخارجية', 'إرسال الأجهزة للجهات واستلامها وتسليمها وتسمية القسم'], ['vouchers.design', 'تصميم الاستمارات الرسمية', 'تعديل الشعار والترويسة والخطوط والتواقيع لسندات الصرف والإعارة والنقل والاستبدال']] },
+  { title: 'الصيانة', icon: 'tools', items: [['maint.work', 'صيانة الأجهزة', 'استلام الجهاز برقمه التسلسلي، وتسجيل ما تم فيه، وتسليمه إلى موقعه، مع سجل كل صيانة سابقة']] },
   { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['forms.hide', 'إخفاء المستندات', 'إخفاء النماذج والاستمارات عن الموظفين وإظهارها'], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه'], ['formfill.manage', 'إدارة التعبئة الفورية', 'إيقاف التعبئة الفورية للاستمارات أو إتاحتها، وحفظ قوالب التعبئة']] },
   { title: 'الاستبيانات والتقييم', icon: 'poll', items: [['surveys.manage', 'إدارة الاستبيانات', 'إنشاء الاستبيانات والاختبارات ونشرها ومتابعة نتائجها'], ['ratings.manage', 'إدارة تقييم البلاغات', 'تفعيل التقييم وإعداده ومتابعة رضا المستفيدين'], ['replies.manage', 'الردود الجاهزة العامة', 'إضافة الردود والحلول الجاهزة لكل الفنيين وتعديلها']] },
   { title: 'التقارير والإدارة', icon: 'chart', items: [['reports', 'التقارير والتحليلات', ''], ['activity', 'سجل النشاط', ''], ['users.manage', 'إدارة المستخدمين', 'إضافة الحسابات وتعديلها'], ['org.manage', 'تعديل الهيكل التنظيمي', 'إضافة الإدارات والأقسام ورسمها'], ['org.assign', 'توزيع الحسابات على الهيكل', 'نقل الموظفين بين الإدارات والأقسام دون تعديل الهيكل نفسه'], ['sync.manage', 'المزامنة مع الخادم', 'ربط النظام بخادم XAMPP ومتابعة حالته'], ['settings', 'الإعدادات والبيانات', 'القوائم والنسخ الاحتياطي'], ['nav.manage', 'إظهار وإخفاء أقسام القائمة', 'تحديد ما يظهر للموظفين والفنيين والإداريين من صفحات'], ['vault.read', 'الاطلاع على الملاحظات', 'رؤية الملاحظات التي يختاره كاتبها لها، أو المرسلة للجميع'], ['vault.manage', 'إضافة الملاحظات وتعديلها', 'كتابة الملاحظات والمهام واختيار من يراها، وإنشاء المجموعات']] }
@@ -8717,7 +8724,7 @@ const Sync = {
     if (look.length) { look.forEach((x) => (this._look = this._look || new Set()).add(x)); clearTimeout(this._lookT); this._lookT = setTimeout(() => { const l = [...this._look]; this._look.clear(); Promise.all(l.map((x) => Data.refresh(x))).catch(() => {}).then(() => this.relay(l)); }, 700); }
     this.relay([...set].filter((s) => !LOOK.includes(s) && s !== 'meta'));
     if (set.has('tickets') || set.has('ticketEvents')) Bus.emit('tickets', { remote: true });
-    if (['items', 'stock', 'movements', 'loans', 'deptStock', 'assets', 'vouchers'].some((s) => set.has(s))) Bus.emit('inventory', { remote: true });
+    if (['items', 'stock', 'movements', 'loans', 'deptStock', 'assets', 'vouchers', 'maintenance'].some((s) => set.has(s))) Bus.emit('inventory', { remote: true });
     if (set.has('users')) Bus.emit('users', { remote: true, synced: true });
     if (set.has('notifications')) Bus.emit('notifications', { remote: true });
     if (set.has('kb')) Bus.emit('data:kb', { remote: true });
@@ -10508,7 +10515,7 @@ Pages.exportModal = () => UI.modal({
 /* ── الصيانة والأجهزة الخارجة عن الخدمة ── */
 const MAINT_STATUS = {
   open: { label: 'تحت الصيانة', tone: 'sky', icon: 'tools' },
-  done: { label: 'انتهت الصيانة — بانتظار الإرجاع', tone: 'teal', icon: 'check' },
+  done: { label: 'انتهت الصيانة — بانتظار التسليم', tone: 'teal', icon: 'check' },
   returned: { label: 'أُرجع إلى الموقع', tone: 'green', icon: 'undo' },
   retired: { label: 'خارج عن الخدمة (تالف)', tone: 'red', icon: 'x' }
 };
@@ -10643,9 +10650,256 @@ Pages.retireModal = async (itemId, scope = {}) => {
   });
 };
 
+/* ══════════ صيانة الأجهزة للفنيين والإداريين والمشرفين ══════════
+   الاستلام بالرقم التسلسلي ← أمر صيانة يُسجَّل فيه ما تم والقطع والإضافات والتعديلات والملاحظات ← التسليم إلى الموقع السابق.
+   نمط «يبقى في عهدته» (keep): لا يخرج الجهاز من عهدة إدارته ولا تتغير أرصدتها، بل تصير حالته «تحت الصيانة»
+   ويُحفظ مكانه وحائزه في السجل فيعود إليهما. كل دخول للصيانة سجل مستقل، فيبقى تاريخ الجهاز كاملاً ويُرجع إليه */
+Object.assign(MAINT_STATUS, {
+  sent: { label: 'سُلّم — بانتظار تأكيد المستلم', tone: 'violet', icon: 'send' },
+  unrepairable: { label: 'تعذر الإصلاح — بانتظار القرار', tone: 'amber', icon: 'alert' }
+});
+const MAINT_ACTIVE = ['open', 'done', 'unrepairable'];
+const maintTicketByNo = async (raw) => {
+  const q = String(raw || '').trim().toUpperCase(); if (!q) return null;
+  let tk = (await DB.getAll('tickets', 'number', KR(q)))[0] || null;
+  if (!tk && /^\d+$/.test(q)) tk = (await DB.getAll('tickets')).filter((x) => Number(String(x.number || '').split('-').pop()) === Number(q)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+  if (!tk) throw new AppError(`لم أجد بلاغاً برقم ${raw}`);
+  return tk;
+};
+Object.assign(Data.maint, {
+  canWork: () => Auth.can('maint.work') || Auth.can('inventory.move'),
+  /* كل سجلات الرقم التسلسلي (أو رقم الأصل)، الأحدث أولاً: للأجهزة المسجلة وغير المسجلة */
+  async bySerial(serial) {
+    const k = Data.assets.norm(serial); if (!k) return [];
+    return (await DB.getAll('maintenance')).filter((r) => Data.assets.norm(r.serial) === k || (r.tag && Data.assets.norm(r.tag) === k)).sort((a, b) => b.openedAt - a.openedAt);
+  },
+  async activeOf(serial) { return (await Data.maint.bySerial(serial)).find((r) => MAINT_ACTIVE.includes(r.status)) || null; },
+  /* مكان الجهاز كما هو الآن (أو كما حُفظ في سجل): الإدارة والفرع والحائز والمخزن */
+  placeText(x, units = Data.list('deptUnits')) {
+    const dep = x.fromDepartmentId !== undefined ? x.fromDepartmentId : x.departmentId, unit = x.fromUnitId !== undefined ? x.fromUnitId : x.unitId, holder = x.fromHolder !== undefined ? x.fromHolder : x.holder, wh = x.fromWarehouseId !== undefined ? x.fromWarehouseId : x.warehouseId;
+    const place = dep ? orgLabel(dep, unit || '', units) : wh ? `المخزن: ${Data.nameOf('warehouses', wh)}` : '';
+    return [place, holder ? `الحائز: ${holder}` : ''].filter(Boolean).join(' — ') || 'غير محدد';
+  },
+  async intake({ assetId = '', serial = '', manual = null, reason, symptom = '', broughtBy = '', accessories = '', ticketNo = '' }) {
+    if (!Data.maint.canWork()) throw new AppError('لا تملك صلاحية صيانة الأجهزة');
+    if (!String(reason || '').trim()) throw new AppError('اختر سبب دخول الصيانة');
+    const a = assetId ? await DB.get('assets', assetId) : null;
+    const sn = a ? a.serial : String(serial || '').trim(); if (!sn) throw new AppError('اكتب الرقم التسلسلي');
+    if (a && a.status === 'retired') throw new AppError('هذا الجهاز مسجّل خارجاً عن الخدمة');
+    const act = await Data.maint.activeOf(sn); if (act) throw new AppError(`الجهاز ${sn} في الصيانة الآن منذ ${fmtDate(act.openedAt)}`);
+    const tk = ticketNo ? await maintTicketByNo(ticketNo) : null;
+    const it = a ? await DB.get('items', a.itemId) : null, m = manual || {}, t = now();
+    if (!a && !String(m.name || '').trim()) throw new AppError('اكتب اسم الجهاز أو نوعه');
+    const holderU = !a && m.holderId ? Data.c.users.get(m.holderId) : null;
+    const rec = {
+      id: uid('mt'), keep: 1, itemId: a ? a.itemId : '', assetId: a ? a.id : '', serial: sn, tag: a ? a.tag || '' : '', host: a ? a.host || '' : '',
+      itemName: it ? it.name : String(m.name || '').trim(), brand: it ? it.brand || '' : String(m.brand || '').trim(), model: it ? it.model || '' : String(m.model || '').trim(),
+      fromDepartmentId: a ? a.departmentId || '' : m.departmentId || '', fromUnitId: a ? a.unitId || '' : m.unitId || '', fromHolder: a ? a.holder || '' : (holderU ? holderU.name : String(m.holder || '').trim()), fromHolderId: a ? a.holderId || '' : m.holderId || '',
+      fromWarehouseId: a ? a.warehouseId || '' : '', prevStatus: a ? a.status : '', registered: a ? 1 : 0,
+      reason: String(reason).trim(), symptom: String(symptom || '').trim(), broughtBy: String(broughtBy || '').trim(), accessories: String(accessories || '').trim(), ticketId: tk ? tk.id : '', ticketNo: tk ? tk.number : '',
+      status: 'open', openedAt: t, openedBy: Auth.user.id, log: [], workDone: '', parts: '', additions: '', changes: '', notes: '', result: '',
+      closedAt: 0, closedBy: '', returnedAt: 0, returnedBy: '', receiverId: '', receiverName: '', receivedAt: 0, handoverNote: '', toDepartmentId: '', toUnitId: '', updatedAt: t
+    };
+    await DB.put('maintenance', rec);
+    if (a) await DB.put('assets', { ...a, status: 'maintenance', maintId: rec.id, updatedAt: t });
+    await Data.log('update', 'maintenance', rec.id, `استلام ${rec.itemName} (${sn}) للصيانة — ${rec.reason}`);
+    if (rec.fromHolderId) await Data.notify([rec.fromHolderId], { title: `استُلم جهازك للصيانة: ${rec.itemName}`, body: `${sn} — ${rec.reason}`, link: `/maint-receipt/${rec.id}`, kind: 'inventory' });
+    Bus.emit('inventory', {}); return rec;
+  },
+  async _get(id) { const r = await DB.get('maintenance', id); if (!r) throw new AppError('سجل الصيانة غير موجود'); return r; },
+  /* ملاحظة متابعة أثناء العمل: من كتبها ومتى */
+  async addLog(id, text) {
+    const r = await Data.maint._get(id), x = String(text || '').trim(); if (!x) throw new AppError('اكتب الملاحظة');
+    if (!MAINT_ACTIVE.includes(r.status)) throw new AppError('أُغلق أمر الصيانة');
+    r.log = [...(r.log || []), { at: now(), by: Auth.user.id, text: x }]; r.updatedAt = now(); await DB.put('maintenance', r); Bus.emit('inventory', {}); return r;
+  },
+  /* إنهاء الصيانة (ويمكن تعديل ما كُتب حتى التسليم) */
+  async finish(id, { workDone, parts = '', additions = '', changes = '', notes = '', result = 'repaired' }) {
+    const r = await Data.maint._get(id);
+    if (!MAINT_ACTIVE.includes(r.status)) throw new AppError('سُلّم الجهاز، فلا يُعدَّل أمر صيانته');
+    if (!String(workDone || '').trim()) throw new AppError('اكتب ما تم في الصيانة');
+    const first = r.status === 'open', t = now();
+    Object.assign(r, { workDone: String(workDone).trim(), parts: String(parts || '').trim(), additions: String(additions || '').trim(), changes: String(changes || '').trim(), notes: String(notes || '').trim(), result, status: result === 'unrepairable' ? 'unrepairable' : 'done', closedAt: first ? t : r.closedAt || t, closedBy: first ? Auth.user.id : r.closedBy || Auth.user.id, updatedAt: t });
+    if (!first) r.editedAt = t;
+    await DB.put('maintenance', r);
+    await Data.log('update', 'maintenance', r.id, `${result === 'unrepairable' ? 'تعذر إصلاح' : 'انتهت صيانة'} ${r.itemName} (${r.serial})`);
+    if (first && r.fromHolderId) await Data.notify([r.fromHolderId], { title: result === 'unrepairable' ? `تعذر إصلاح جهازك: ${r.itemName}` : `جهازك جاهز بعد الصيانة: ${r.itemName}`, body: r.serial, link: `/maint-receipt/${r.id}`, kind: 'inventory' });
+    if (first && result === 'unrepairable') { const mgr = Data.list('users').filter((u) => u.active && canUser(u, 'inventory.move')).map((u) => u.id); if (mgr.length) await Data.notify(mgr, { title: `تعذر إصلاح جهاز: ${r.itemName}`, body: `${r.serial} — يحتاج قرار إخراجه من الخدمة أو إرساله لجهة خارجية`, link: `/maintenance/${r.id}`, kind: 'inventory' }); }
+    Bus.emit('inventory', {}); return r;
+  },
+  /* التسليم: يعود الجهاز إلى مكانه وحائزه كما كانا عند الاستلام. «الآن» يسلّمه الفني يداً بيد،
+     و«بتأكيد المستلم» يصل المستلمَ إشعار فيؤكد من حسابه */
+  async deliver(id, { receiverId = '', receiverName = '', mode = 'now', note = '' }) {
+    const r = await Data.maint._get(id);
+    if (!['done', 'unrepairable'].includes(r.status)) throw new AppError(r.status === 'open' ? 'أنهِ الصيانة أولاً' : 'سُلّم الجهاز من قبل');
+    const ru = receiverId ? Data.c.users.get(receiverId) : null, name = ru ? ru.name : String(receiverName || '').trim();
+    if (!name) throw new AppError('حدد مستلم الجهاز');
+    if (mode === 'confirm' && !ru) throw new AppError('التأكيد من المستلم يحتاج أن يكون له حساب؛ اختر «تسليم الآن» إن لم يكن');
+    const t = now();
+    Object.assign(r, { status: mode === 'confirm' ? 'sent' : 'returned', returnedAt: t, returnedBy: Auth.user.id, receiverId: ru ? ru.id : '', receiverName: name, receivedAt: mode === 'confirm' ? 0 : t, handoverNote: String(note || '').trim(), toDepartmentId: r.fromDepartmentId, toUnitId: r.fromUnitId, updatedAt: t });
+    await DB.put('maintenance', r);
+    if (r.assetId) { const a = await DB.get('assets', r.assetId); if (a && a.status === 'maintenance') await DB.put('assets', { ...a, status: r.prevStatus && r.prevStatus !== 'maintenance' ? r.prevStatus : 'issued', maintId: '', updatedAt: t }); }
+    await Data.log('move', 'maintenance', r.id, `تسليم ${r.itemName} (${r.serial}) بعد الصيانة إلى ${name}`);
+    if (ru) await Data.notify([ru.id], { title: mode === 'confirm' ? `جهاز بانتظار تأكيد استلامك: ${r.itemName}` : `سُلّم إليك جهاز بعد الصيانة: ${r.itemName}`, body: `${r.serial} — ${Data.maint.placeText(r)}`, link: `/maint-receipt/${r.id}`, kind: 'inventory' });
+    Bus.emit('inventory', {}); return r;
+  },
+  /* المستلم يؤكد من حسابه (والخادم لا يقبل منه إلا هذا التغيير) */
+  async confirmReceipt(id) {
+    const r = await Data.maint._get(id);
+    if (r.receiverId !== Auth.user.id) throw new AppError('التأكيد للمستلم المعيَّن فقط');
+    if (r.status !== 'sent') throw new AppError('لا ينتظر هذا الجهاز تأكيداً');
+    const t = now(); Object.assign(r, { status: 'returned', receivedAt: t, receivedConfirm: 1, updatedAt: t }); await DB.put('maintenance', r);
+    const to = [r.returnedBy, r.closedBy].filter((x, i, a) => x && a.indexOf(x) === i); if (to.length) await Data.notify(to, { title: `أكّد ${Auth.user.name} استلام ${r.itemName}`, body: r.serial, link: `/maintenance/${r.id}`, kind: 'inventory' });
+    Bus.emit('inventory', {}); return r;
+  }
+});
+
+/* ── واجهات صيانة الأجهزة ── */
+/* الإضافات والتعديلات المتراكمة على الجهاز من كل صيانة سابقة: تُعرض كأنها مواصفاته الحالية فوق مواصفات الصنف */
+Pages.maintAdds = (rows) => { const list = rows.filter((r) => r.additions || r.changes).slice(0, 12); return list.length ? html`<div class="u-sec mt"><h3>${UI.icon('plus')} ما أُضيف وعُدّل على الجهاز في صياناته</h3><div class="list">${list.map((r) => html`<div class="list-row mt-add"><span class="faint small nowrap">${fmtDate(r.closedAt || r.openedAt)}</span><div class="grow">${r.additions ? html`<div><b>إضافات:</b> ${r.additions}</div>` : ''}${r.changes ? html`<div><b>تعديلات:</b> ${r.changes}</div>` : ''}</div></div>`)}</div></div>` : ''; };
+/* بطاقة الجهاز بعد إدخال رقمه التسلسلي: كل بياناته ومكانه وحائزه وسجل صيانته، وزر الاستلام */
+Pages.maintDeviceCard = async (q) => {
+  const code = String(q || '').trim(); if (!code) return '';
+  const a = await Data.assets.bySerialOrTag(code), hist = await Data.maint.bySerial(a ? a.serial : code), act = hist.find((r) => MAINT_ACTIVE.includes(r.status));
+  if (!a) {
+    return html`<div class="panel md-card" data-mdcard><div class="panel-body"><div class="md-head">${UI.illu('box', 'lg')}<div class="grow"><h3>الرقم <span class="ltr">${code}</span> غير مسجل في المخزن</h3><p class="muted small" style="margin:4px 0 0">${hist.length ? `دخل جهاز بهذا الرقم الصيانة ${fmtNum(hist.length)} ${hist.length === 1 ? 'مرة' : 'مرات'} من قبل، وسجلاته أدناه.` : 'لم يُسجَّل في المخزن ولم يدخل الصيانة من قبل. يمكن استلامه بإدخال بياناته يدوياً.'}</p></div>
+      <div class="md-acts">${act ? html`<a class="btn btn-primary" href="#/maintenance/${act.id}">${UI.icon('tools')} أمر الصيانة الحالي</a>` : Data.maint.canWork() ? html`<button type="button" class="btn btn-primary" data-mdin="" data-mdsn="${code}">${UI.icon('tools')} استلام كجهاز غير مسجل</button>` : ''}</div></div>
+      ${hist.length ? html`${Pages.maintAdds(hist)}<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة (${fmtNum(hist.length)})</h3>${Pages.maintSummary(hist)}${Pages.maintTimeline(hist)}</div>` : ''}</div></div>`;
+  }
+  const it = (await DB.get('items', a.itemId)) || { name: 'صنف محذوف', categoryId: '' }, S = ASSET_STATUS[a.status] || ASSET_STATUS.in_store, specs = Object.entries(it.specs || {}), defs = specsOf(it.categoryId), lab = (k) => (defs.find((d) => d.k === k) || {}).l || k;
+  const hu = a.holderId ? Data.c.users.get(a.holderId) : null, loan = a.loanId ? await DB.get('loans', a.loanId) : null;
+  /* الفروع من قاعدة الجهاز مباشرة: الذاكرة تُحدَّث بعد وصول التغييرات بلحظة، فقد لا يظهر فرع أُضيف للتو */
+  const units = await DB.getAll('deptUnits'), place = a.departmentId ? orgLabel(a.departmentId, a.unitId || '', units) : '';
+  const tks = hu ? (await DB.getAll('tickets', 'requester_createdAt', KR([hu.id, 0], [hu.id, Infinity]))).filter((t) => OPEN.includes(t.status)).slice(-3).reverse() : [];
+  return html`<div class="panel md-card" data-mdcard><div class="panel-body">
+    <div class="md-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow" style="min-width:0"><h3>${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip(S.tone, S.label, S.icon)}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${act ? UI.chip('sky', `في الصيانة منذ ${fmtDate(act.openedAt)}`, 'tools') : ''}</div></div>
+      <div class="md-acts">${act ? html`<a class="btn btn-primary" href="#/maintenance/${act.id}">${UI.icon('tools')} أمر الصيانة الحالي</a>` : Data.maint.canWork() && a.status !== 'retired' ? html`<button type="button" class="btn btn-primary" data-mdin="${a.id}">${UI.icon('tools')} استلام للصيانة</button>` : ''}<button type="button" class="btn btn-ghost" data-asset="${a.id}">${UI.icon('info')} بطاقة الوحدة</button></div></div>
+    <div class="md-grid mt">
+      <dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial}</dd>${a.tag ? html`<dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag}</dd>` : ''}${a.host ? html`<dt>اسم الجهاز في الشبكة</dt><dd class="ltr" style="text-align:start">${a.host}</dd>` : ''}<dt>الصنف</dt><dd>${IC.label(it.categoryId) || '—'}</dd>${a.addedAt ? html`<dt>سُجّل في</dt><dd>${fmtDate(a.addedAt)}</dd>` : ''}${a.note ? html`<dt>ملاحظة</dt><dd>${a.note}</dd>` : ''}</dl>
+      <dl class="kv"><dt>${UI.icon('building')} الإدارة والموقع</dt><dd>${place || (a.status === 'in_store' ? `المخزن: ${Data.nameOf('warehouses', a.warehouseId)}` : '—')}</dd><dt>${UI.icon('user')} الحائز</dt><dd>${hu ? html`<span class="row nowrap" style="gap:6px">${UI.avatar(hu, 'av-sm')}${hu.name}</span>` : a.holder || '—'}</dd>${hu && hu.phone ? html`<dt>${UI.icon('phone')} هاتفه</dt><dd class="ltr" style="text-align:start">${hu.phone}</dd>` : ''}${hu && (hu.locationId || hu.office) ? html`<dt>${UI.icon('pin')} مكتبه</dt><dd>${[Data.nameOf('locations', hu.locationId, ''), hu.office].filter(Boolean).join(' — ')}</dd>` : ''}${loan ? html`<dt>${UI.icon('clipboard')} إعارة</dt><dd>${loan.borrower || a.holder || '—'}${loan.dueAt ? ` حتى ${fmtDate(loan.dueAt)}` : ''}</dd>` : ''}</dl>
+    </div>
+    ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl></div>` : ''}
+    ${Pages.maintAdds(hist)}
+    ${tks.length ? html`<div class="u-sec mt"><h3>${UI.icon('ticket')} بلاغات مفتوحة لحائز الجهاز</h3><div class="list">${tks.map((t) => html`<a class="list-row" href="#/tickets/${t.id}"><span class="ltr faint small">${t.number}</span><b class="grow ellipsis">${t.title}</b>${UI.status(t.status)}</a>`)}</div></div>` : ''}
+    <div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة${hist.length ? ` (${fmtNum(hist.length)})` : ''}</h3>${hist.length ? html`${Pages.maintSummary(hist)}${Pages.maintTimeline(hist)}` : html`<p class="faint small" style="margin:0">لم يدخل الصيانة من قبل.</p>`}</div>
+  </div></div>`;
+};
+/* استلام الجهاز: سبب الدخول ووصف العطل ومن أحضره والملحقات، وربط ببلاغ. وللجهاز غير المسجل بياناته ومكانه */
+Pages.maintIntakeModal = async (assetId, serial = '') => {
+  const a = assetId ? await DB.get('assets', assetId) : null, it = a ? await DB.get('items', a.itemId) : null;
+  const hu = a && a.holderId ? Data.c.users.get(a.holderId) : null;
+  const tks = hu ? (await DB.getAll('tickets', 'requester_createdAt', KR([hu.id, 0], [hu.id, Infinity]))).filter((t) => OPEN.includes(t.status)).reverse() : [];
+  const units = await DB.getAll('deptUnits');
+  return UI.modal({
+    title: a ? `استلام ${it ? it.name : 'الجهاز'} للصيانة` : 'استلام جهاز غير مسجل للصيانة', icon: 'tools', size: 'lg',
+    body: html`${a ? html`<div class="banner tone-sky">${UI.icon('info')}<div class="grow"><b class="ltr">${a.serial}</b> — يبقى في عهدة ${Data.maint.placeText(a, units)}، وتصير حالته «تحت الصيانة» حتى يُسلَّم إلى المكان نفسه.</div></div>` : html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">الرقم <b class="ltr">${serial}</b> غير مسجل في المخزن. أدخل بياناته ليُحفظ سجل صيانته ويُرجع إليه كلما عاد.</div></div>
+      <div class="form-grid mt">${UI.field({ name: 'mname', label: 'الجهاز أو نوعه', required: true, placeholder: 'مثال: حاسب مكتبي، طابعة ليزر' })}${UI.field({ name: 'mbrand', label: 'الماركة' })}${UI.field({ name: 'mmodel', label: 'الموديل' })}${UI.field({ name: 'mplace', label: 'الإدارة والفرع', type: 'select', options: [] })}${UI.field({ name: 'mholderId', label: 'الحائز (حساب)', type: 'select', options: UI.userOpts() })}${UI.field({ name: 'mholder', label: 'أو اسم الحائز', placeholder: 'إن لم يكن له حساب' })}</div>`}
+      <div class="form-grid mt">
+        ${UI.field({ name: 'reason', label: 'سبب دخول الصيانة', type: 'select', placeholder: false, options: MAINT_REASONS.map((r) => ({ value: r, label: r })) })}
+        ${UI.field({ name: 'broughtBy', label: 'أحضره', placeholder: 'اسم من سلّم الجهاز' }, hu ? hu.name : a ? a.holder || '' : '')}
+        ${UI.field({ name: 'symptom', label: 'وصف العطل كما ذكره صاحبه', type: 'textarea', rows: 3, wide: true, placeholder: 'ما المشكلة؟ متى بدأت؟' })}
+        ${UI.field({ name: 'accessories', label: 'ما استُلم معه', placeholder: 'مثال: شاحن، حقيبة، كابل طاقة' })}
+        ${tks.length ? UI.field({ name: 'ticketSel', label: 'مرتبط ببلاغ لحائزه', type: 'select', options: tks.map((t) => ({ value: t.number, label: `${t.number} — ${t.title}` })) }) : ''}
+        ${UI.field({ name: 'ticketNo', label: tks.length ? 'أو رقم بلاغ آخر' : 'مرتبط ببلاغ (اختياري)', dir: 'ltr', placeholder: 'IT-2026-00020 أو 20' })}
+      </div>`,
+    onMount: (form) => { const sel = form.querySelector('[name="mplace"]'); if (sel) sel.outerHTML = `<select name="mplace" id="mplace">${String(orgPlaceOptions(units, '', '— غير محدد —'))}</select>`; },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'استلام وفتح أمر الصيانة', kind: 'primary', icon: 'tools', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), pl = orgPlaceOf(v.mplace || '');
+      const rec = await Data.maint.intake({ assetId: a ? a.id : '', serial, reason: v.reason, symptom: v.symptom, broughtBy: v.broughtBy, accessories: v.accessories, ticketNo: v.ticketNo || v.ticketSel || '', manual: a ? null : { name: v.mname, brand: v.mbrand, model: v.mmodel, departmentId: pl.departmentId, unitId: pl.unitId, holderId: v.mholderId || '', holder: v.mholder } });
+      UI.toast('استُلم الجهاز وفُتح أمر صيانته'); UI.sound('success'); return rec;
+    } }]
+  });
+};
+Pages.maintFinishModal = (r) => UI.modal({
+  title: `${r.status === 'open' ? 'إنهاء صيانة' : 'تعديل ما تم في صيانة'} ${r.itemName}`, icon: 'check', size: 'lg',
+  body: html`<p class="muted small" style="margin:0 0 10px">يُحفظ هذا مع الجهاز، ويظهر في سجله كلما عاد للصيانة.</p><div class="form-grid">
+    ${UI.field({ name: 'workDone', label: 'ما تم في الصيانة', type: 'textarea', rows: 3, required: true, wide: true, placeholder: 'مثال: فحص مزود الطاقة واستبداله، تنظيف داخلي، تحديث التعريفات' }, r.workDone)}
+    ${UI.field({ name: 'parts', label: 'القطع المستبدلة', placeholder: 'مثال: مزود طاقة 500W' }, r.parts)}
+    ${UI.field({ name: 'additions', label: 'الإضافات على الجهاز', placeholder: 'مثال: ذاكرة 8GB، قرص SSD 512GB' }, r.additions)}
+    ${UI.field({ name: 'changes', label: 'التعديلات', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: إعادة تثبيت النظام، تغيير اسم الجهاز، ضبط الطابعة الافتراضية' }, r.changes)}
+    ${UI.field({ name: 'notes', label: 'ملاحظات', type: 'textarea', rows: 2, wide: true, placeholder: 'ما يجب أن يعرفه من يصونه لاحقاً' }, r.notes)}
+    ${UI.field({ name: 'result', label: 'النتيجة', type: 'select', placeholder: false, options: [{ value: 'repaired', label: 'تم الإصلاح ويعمل' }, { value: 'unrepairable', label: 'تعذر الإصلاح — يحتاج قرار المخزن' }] }, r.result || 'repaired')}
+  </div>`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const out = await Data.maint.finish(r.id, UI.formValues(form)); UI.toast(out.status === 'unrepairable' ? 'سُجّل تعذر الإصلاح وأُبلغ المخزن' : 'حُفظت نتيجة الصيانة'); return out; } }]
+});
+Pages.maintDeliverModal = (r) => {
+  const hu = r.fromHolderId ? Data.c.users.get(r.fromHolderId) : null;
+  return UI.modal({
+    title: `تسليم ${r.itemName} بعد الصيانة`, icon: 'undo', size: 'lg',
+    body: html`<div class="banner tone-teal">${UI.icon('pin')}<div class="grow">يعود إلى مكانه السابق: <b>${Data.maint.placeText(r)}</b></div></div>
+      <div class="form-grid mt">
+        ${UI.field({ name: 'receiverId', label: 'المستلم (حساب)', type: 'select', options: UI.userOpts() }, hu ? hu.id : '')}
+        ${UI.field({ name: 'receiverName', label: 'أو اسم المستلم', placeholder: 'إن لم يكن له حساب' }, hu ? '' : r.fromHolder || '')}
+        <div class="field wide"><label>طريقة التسليم</label><div class="seg"><label><input type="radio" name="mode" value="now" checked><span>${UI.icon('check')} سُلّم الآن يداً بيد</span></label><label><input type="radio" name="mode" value="confirm"><span>${UI.icon('send')} يؤكد المستلم من حسابه</span></label></div></div>
+        ${UI.field({ name: 'note', label: 'ملاحظة التسليم', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: سُلّم مع الشاحن' })}
+      </div>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تسليم', kind: 'ok', icon: 'check', submit: true, handler: async (form) => { const v = UI.formValues(form); const out = await Data.maint.deliver(r.id, v); UI.toast(out.status === 'sent' ? 'أُرسل للمستلم ليؤكد الاستلام' : 'سُلّم الجهاز وعاد إلى مكانه'); return out; } }]
+  });
+};
+/* أمر الصيانة */
+Pages.maintOrder = async (ctx) => {
+  const id = ctx.params.id;
+  const draw = async () => {
+    const r = await DB.get('maintenance', id); if (!ctx.alive()) return;
+    if (!r) { ctx.view.innerHTML = String(UI.empty({ illu: 'tools', title: 'أمر الصيانة غير موجود', action: html`<a class="btn btn-primary" href="#/maintenance">الصيانة</a>` })); return; }
+    const S = MAINT_STATUS[r.status] || MAINT_STATUS.open, can = Data.maint.canWork() && (r.keep || Auth.can('inventory.move'));
+    const prev = (await Data.maint.bySerial(r.serial)).filter((x) => x.id !== r.id), units = await DB.getAll('deptUnits'); if (!ctx.alive()) return;
+    const acts = [];
+    if (can && r.keep && r.status === 'open') acts.push(html`<button class="btn btn-soft" data-mo="log">${UI.icon('edit')} ملاحظة متابعة</button>`, html`<button class="btn btn-ok" data-mo="finish">${UI.icon('check')} إنهاء الصيانة</button>`);
+    if (can && r.keep && ['done', 'unrepairable'].includes(r.status)) acts.push(html`<button class="btn btn-ghost" data-mo="finish">${UI.icon('edit')} تعديل ما تم</button>`, html`<button class="btn btn-primary" data-mo="deliver">${UI.icon('undo')} تسليم الجهاز</button>`);
+    if (r.status === 'unrepairable' && r.assetId && Auth.can('inventory.move')) acts.push(html`<button class="btn btn-danger" data-mo="retire">${UI.icon('x')} إخراج من الخدمة</button>`);
+    acts.push(html`<button class="icon-btn" data-mo="print" title="طباعة سند الصيانة">${UI.icon('print')}</button>`);
+    const kv = (l, v) => (v ? html`<dt>${l}</dt><dd>${v}</dd>` : '');
+    ctx.view.innerHTML = String(html`
+      ${UI.pageHead({ crumbs: html`<a href="#/maintenance">الصيانة</a>${UI.icon('chevron-left')}<span class="ltr">${r.serial || '—'}</span>`, title: r.itemName, illu: 'tools', sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.chip(S.tone, S.label, S.icon)}<span class="faint small">استُلم ${timeAgo(r.openedAt)} بواسطة ${Data.userName(r.openedBy)}</span></span>`, actions: acts })}
+      <div class="grid g-side">
+        <div class="stack">
+          ${UI.panel({ title: 'الاستلام', icon: 'inbox', body: html`<dl class="kv">${kv('سبب الدخول', r.reason)}${kv('وصف العطل', r.symptom)}${kv('أحضره', r.broughtBy)}${kv('ما استُلم معه', r.accessories)}${r.ticketId ? html`<dt>البلاغ</dt><dd><a href="#/tickets/${r.ticketId}" class="ltr">${r.ticketNo || 'فتح البلاغ'}</a></dd>` : ''}<dt>استلمه</dt><dd>${Data.userName(r.openedBy)} — ${fmtDateTime(r.openedAt)}</dd></dl>` })}
+          ${r.keep ? UI.panel({ title: `المتابعة${(r.log || []).length ? ` (${fmtNum(r.log.length)})` : ''}`, icon: 'pulse', body: (r.log || []).length ? html`<div class="timeline">${r.log.map((x) => html`<div class="tl"><span class="tl-icon tone-sky">${UI.icon('edit')}</span><div style="min-width:0"><div class="tl-head"><b>${Data.userName(x.by)}</b><span class="tl-time" title="${fmtDateTime(x.at)}">${timeAgo(x.at)}</span></div><div class="bubble">${x.text}</div></div></div>`)}</div>` : html`<p class="faint small" style="margin:0">لا ملاحظات بعد. سجّل ما تكتشفه أثناء العمل بزر «ملاحظة متابعة».</p>` }) : ''}
+          ${r.closedAt ? UI.panel({ title: r.status === 'unrepairable' || r.result === 'unrepairable' ? 'النتيجة: تعذر الإصلاح' : 'ما تم في الصيانة', icon: 'check', body: html`<dl class="kv">${kv('ما تم', r.workDone)}${kv('القطع المستبدلة', r.parts)}${kv('الإضافات', r.additions)}${kv('التعديلات', r.changes)}${kv('ملاحظات', r.notes)}<dt>أنهاه</dt><dd>${Data.userName(r.closedBy)} — ${fmtDateTime(r.closedAt)}${r.editedAt ? html` <span class="faint small">(عُدّل ${timeAgo(r.editedAt)})</span>` : ''}</dd></dl>` }) : ''}
+          ${r.returnedAt ? UI.panel({ title: 'التسليم', icon: 'undo', body: html`<dl class="kv"><dt>المستلم</dt><dd>${r.receiverName || '—'}</dd><dt>إلى</dt><dd>${Data.maint.placeText(r, units)}</dd><dt>سلّمه</dt><dd>${Data.userName(r.returnedBy)} — ${fmtDateTime(r.returnedAt)}</dd>${kv('ملاحظة التسليم', r.handoverNote)}<dt>الاستلام</dt><dd>${r.status === 'sent' ? UI.chip('violet', 'بانتظار تأكيد المستلم', 'send') : r.receivedConfirm ? UI.chip('green', `أكّده المستلم ${fmtDateTime(r.receivedAt)}`, 'check') : UI.chip('green', 'سُلّم يداً بيد', 'check')}</dd></dl>` }) : ''}
+          ${prev.length ? UI.panel({ title: `صيانات سابقة لهذا الجهاز (${fmtNum(prev.length)})`, icon: 'clock', body: html`${Pages.maintSummary(prev)}${Pages.maintTimeline(prev)}` }) : ''}
+        </div>
+        <div class="stack">
+          ${UI.panel({ title: 'الجهاز', icon: 'box', body: html`<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${r.serial || '—'}</dd>${r.tag ? html`<dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${r.tag}</dd>` : ''}${kv('الماركة والموديل', [r.brand, r.model].filter(Boolean).join(' '))}<dt>${r.status === 'returned' || r.status === 'sent' ? 'مكانه' : 'يعود إلى'}</dt><dd>${Data.maint.placeText(r, units)}</dd>${r.registered === 0 ? html`<dt>التسجيل</dt><dd>${UI.chip('amber', 'غير مسجل في المخزن', 'alert')}</dd>` : ''}</dl>${r.assetId ? html`<button type="button" class="btn btn-ghost btn-sm mt" data-asset="${r.assetId}">${UI.icon('info')} بطاقة الوحدة</button>` : ''}` })}
+          ${Pages.maintAdds(prev).toString() ? UI.panel({ title: 'الجهاز من صياناته السابقة', icon: 'plus', body: Pages.maintAdds(prev) }) : ''}
+        </div>
+      </div>`);
+    UI.hydrate(ctx.view);
+  };
+  UI.on(ctx.view, 'click', '[data-mo]', async (e, el) => {
+    const r = await DB.get('maintenance', id); if (!r) return; const a = el.dataset.mo;
+    try {
+      if (a === 'print') return Pages.printMaint(r);
+      if (a === 'finish') { if (await Pages.maintFinishModal(r)) draw(); return; }
+      if (a === 'deliver') { if (await Pages.maintDeliverModal(r)) draw(); return; }
+      if (a === 'log') { const v = await UI.modal({ title: 'ملاحظة متابعة', icon: 'edit', body: UI.field({ name: 'text', label: 'ما الذي وجدته أو فعلته؟', type: 'textarea', rows: 3, required: true }), actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (form) => UI.formValues(form).text }] }); if (v) { await Data.maint.addLog(id, v); draw(); } return; }
+      if (a === 'retire') { const n = await Pages.retireModal(r.itemId, { departmentId: r.fromDepartmentId }); if (n) { const x = await DB.get('maintenance', id); await DB.put('maintenance', { ...x, status: 'retired', retireReason: 'تعذر الإصلاح', updatedAt: now() }); draw(); } }
+    } catch (ex) { UI.error(ex); }
+  });
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
+  await draw();
+};
+/* صفحة المستلم: يرى جهازه وما تم فيه، ويؤكد استلامه إن كان المستلم المعيَّن */
+Pages.maintReceipt = async (ctx) => {
+  const id = ctx.params.id;
+  const draw = async () => {
+    const r = await DB.get('maintenance', id); if (!ctx.alive()) return;
+    if (!r) { ctx.view.innerHTML = String(UI.empty({ illu: 'tools', title: 'لا يتوفر سجل الصيانة', text: 'ربما لم يصل جهازك بعد. حاول بعد قليل.' })); return; }
+    const S = MAINT_STATUS[r.status] || MAINT_STATUS.open, mine = r.receiverId === Auth.user.id && r.status === 'sent';
+    const kv = (l, v) => (v ? html`<dt>${l}</dt><dd>${v}</dd>` : '');
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: `صيانة ${r.itemName}`, illu: 'tools', sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.chip(S.tone, S.label, S.icon)}<span class="ltr faint small">${r.serial}</span></span>` })}
+      ${mine ? html`<div class="banner tone-violet md-confirm">${UI.icon('send')}<div class="grow"><b>سُلّم إليك هذا الجهاز بعد الصيانة.</b> أكّد استلامه ليُسجَّل.</div><button type="button" class="btn btn-primary" data-mrok>${UI.icon('check')} تأكيد الاستلام</button></div>` : ''}
+      <section class="panel"><div class="panel-body"><dl class="kv">${kv('الجهاز', [r.itemName, r.brand, r.model].filter(Boolean).join(' '))}${kv('مكانه', Data.maint.placeText(r))}${kv('سبب الدخول', r.reason)}${kv('وصف العطل', r.symptom)}<dt>استُلم للصيانة</dt><dd>${fmtDateTime(r.openedAt)}</dd>${kv('ما تم', r.workDone)}${kv('القطع المستبدلة', r.parts)}${kv('الإضافات', r.additions)}${kv('التعديلات', r.changes)}${kv('ملاحظات', r.notes)}${r.returnedAt ? html`<dt>سُلّم</dt><dd>${fmtDateTime(r.returnedAt)}${r.receiverName ? ` إلى ${r.receiverName}` : ''}</dd>` : ''}${r.receivedConfirm ? html`<dt>تأكيد الاستلام</dt><dd>${fmtDateTime(r.receivedAt)}</dd>` : ''}</dl></div></section>`);
+  };
+  UI.on(ctx.view, 'click', '[data-mrok]', async (e, el) => { UI.busy(el, true); try { await Data.maint.confirmReceipt(id); UI.toast('شكراً، سُجّل استلامك للجهاز'); draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive()) draw(); }, 400)));
+  await draw();
+};
+
 /* صفحة الصيانة */
 Pages.maintenance = async (ctx) => {
-  const st = { tab: 'open', q: '', from: '', to: '' };
+  const st = { tab: 'open', q: '', from: '', to: '', sn: ctx.query.sn || '' };
   const draw = async () => {
     const all = (await Data.maint.list()).sort((a, b) => b.openedAt - a.openedAt);
     if (!ctx.alive()) return;
@@ -10654,26 +10908,37 @@ Pages.maintenance = async (ctx) => {
     const rows = all.filter((r) => (st.tab === 'all' || r.status === st.tab) && inRange(r) && (!qn || normalizeAr(`${r.itemName} ${r.serial} ${r.tag} ${r.reason} ${r.workDone} ${Data.nameOf('departments', r.fromDepartmentId, '')}`).includes(qn)));
     const count = (s) => all.filter((r) => r.status === s).length;
     ctx.view.innerHTML = String(html`
-      ${UI.pageHead({ title: 'الصيانة', sub: 'الأجهزة المرسلة للصيانة وما تم فيها وإرجاعها إلى مواقعها', illu: 'tools', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-primary" data-act="send">${UI.icon('tools')} إرسال جهاز للصيانة</button>` : ''}<a class="btn btn-ghost" href="#/inventory/retired">${UI.icon('x')} الخارج عن الخدمة</a><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
+      ${UI.pageHead({ title: 'الصيانة', sub: 'استلام الأجهزة برقمها التسلسلي، وما تم فيها، وتسليمها إلى مواقعها، مع سجل كل صيانة سابقة', illu: 'tools', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-ghost" data-act="send" title="يخرج الجهاز من رصيد عهدة الإدارة حتى يُرجع">${UI.icon('tools')} إرسال من العهدة</button>` : ''}${Auth.can('inventory.read') ? html`<a class="btn btn-ghost" href="#/inventory/retired">${UI.icon('x')} الخارج عن الخدمة</a>` : ''}<button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
+      ${Data.maint.canWork() ? html`<section class="panel md-find"><div class="panel-body"><form class="md-search" data-mdfind><span class="md-ic">${UI.icon('tools')}</span><div class="grow"><label for="mdsn"><b>استلام جهاز أو البحث عنه</b><span class="faint small"> — أدخل الرقم التسلسلي أو رقم الأصل لعرض كل بياناته ومكانه وسجل صيانته</span></label><div class="row nowrap" style="gap:8px;margin-top:6px"><input id="mdsn" class="input ltr" dir="ltr" autocomplete="off" placeholder="SN / Asset tag" value="${st.sn}"><button type="submit" class="btn btn-primary">${UI.icon('search')} عرض الجهاز</button>${UI.scanBtn('mdsn', 'btn btn-soft')}</div></div></form><div data-mdout></div></div></section>` : ''}
       <div class="kpis">
         ${UI.kpi({ label: 'تحت الصيانة', icon: 'tools', tone: 'sky', value: count('open') })}
-        ${UI.kpi({ label: 'بانتظار الإرجاع', icon: 'check', tone: 'teal', value: count('done') })}
+        ${UI.kpi({ label: 'بانتظار التسليم', icon: 'check', tone: 'teal', value: count('done') + count('unrepairable') })}
         ${UI.kpi({ label: 'أُرجعت للمواقع', icon: 'undo', tone: 'green', value: count('returned') })}
         ${UI.kpi({ label: 'خارجة عن الخدمة', icon: 'x', tone: 'red', value: count('retired') })}
       </div>
       <section class="panel mt"><div class="toolbar">
-        <div class="tabs">${[['open', 'تحت الصيانة'], ['done', 'بانتظار الإرجاع'], ['returned', 'مكتملة'], ['retired', 'خارجة عن الخدمة'], ['all', 'الكل']].map(([k, l]) => html`<button class="tab${st.tab === k ? ' active' : ''}" data-tab="${k}">${l}</button>`)}</div>
+        <div class="tabs">${[['open', 'تحت الصيانة'], ['done', 'بانتظار التسليم'], ['unrepairable', 'تعذر إصلاحها'], ['sent', 'بانتظار تأكيد المستلم'], ['returned', 'مكتملة'], ['retired', 'خارجة عن الخدمة'], ['all', 'الكل']].filter(([k]) => k === 'all' || ['open', 'done', 'returned'].includes(k) || count(k)).map(([k, l]) => html`<button class="tab${st.tab === k ? ' active' : ''}" data-tab="${k}">${l}${count(k) && k !== 'all' ? html`<span class="count">${fmtNum(count(k))}</span>` : ''}</button>`)}</div>
         <div class="search-box">${UI.icon('search')}<input id="mq" type="search" placeholder="الجهاز أو الرقم التسلسلي أو الإدارة" value="${st.q}"></div>
         <div class="range-bar"><span class="faint small">من</span><input type="date" id="mFrom" dir="ltr" lang="en-GB" value="${st.from}"><span class="faint small">إلى</span><input type="date" id="mTo" dir="ltr" lang="en-GB" value="${st.to}"></div>
       </div>
-      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>الرقم التسلسلي</th><th>من</th><th>السبب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((r) => html`<tr><td><button type="button" class="t-title link-title" data-device="${r.itemId}"><div><div>${r.itemName}</div><div class="t-sub">${[r.brand, r.model].filter(Boolean).join(' ')}</div></div></button></td><td class="t-num ltr">${r.serial || '—'}${r.tag ? html`<div class="t-sub ltr" style="text-align:start">أصل: ${r.tag}</div>` : ''}</td><td class="small">${Data.nameOf('departments', r.fromDepartmentId, '—')}</td><td class="small">${r.reason}</td><td>${UI.chip(MAINT_STATUS[r.status].tone, MAINT_STATUS[r.status].label, MAINT_STATUS[r.status].icon)}</td><td class="faint nowrap">${fmtDate(r.openedAt)}</td><td class="nowrap">${Auth.can('inventory.move') ? html`${r.status === 'open' ? html`<button class="btn btn-sm btn-ok" data-done="${r.id}">${UI.icon('check')} إنهاء الصيانة</button>` : ''}${r.status === 'done' ? html`<button class="btn btn-sm btn-primary" data-back="${r.id}">${UI.icon('undo')} إرجاع للموقع</button>` : ''}` : ''}<button class="btn btn-ghost btn-sm" data-print="${r.id}">${UI.icon('print')}</button></td></tr>`)}</tbody></table></div>`
+      ${rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>الرقم التسلسلي</th><th>من</th><th>السبب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((r) => html`<tr><td><button type="button" class="t-title link-title" data-device="${r.itemId}"><div><div>${r.itemName}</div><div class="t-sub">${[r.brand, r.model].filter(Boolean).join(' ')}</div></div></button></td><td class="t-num ltr">${r.serial || '—'}${r.tag ? html`<div class="t-sub ltr" style="text-align:start">أصل: ${r.tag}</div>` : ''}</td><td class="small">${Data.nameOf('departments', r.fromDepartmentId, '—')}</td><td class="small">${r.reason}</td><td>${UI.chip(MAINT_STATUS[r.status].tone, MAINT_STATUS[r.status].label, MAINT_STATUS[r.status].icon)}</td><td class="faint nowrap">${fmtDate(r.openedAt)}</td><td class="nowrap">${r.keep ? html`<a class="btn btn-sm ${MAINT_ACTIVE.includes(r.status) ? 'btn-primary' : 'btn-ghost'}" href="#/maintenance/${r.id}">${UI.icon(MAINT_ACTIVE.includes(r.status) ? 'tools' : 'eye')} أمر الصيانة</a>` : Auth.can('inventory.move') ? html`${r.status === 'open' ? html`<button class="btn btn-sm btn-ok" data-done="${r.id}">${UI.icon('check')} إنهاء الصيانة</button>` : ''}${r.status === 'done' ? html`<button class="btn btn-sm btn-primary" data-back="${r.id}">${UI.icon('undo')} إرجاع للموقع</button>` : ''}` : ''}<button class="btn btn-ghost btn-sm" data-print="${r.id}">${UI.icon('print')}</button></td></tr>`)}</tbody></table></div>`
         : html`<div class="panel-body">${UI.empty({ illu: 'tools', title: 'لا توجد سجلات صيانة', text: 'أرسل جهازاً للصيانة من صفحة العهدة أو من بطاقة الجهاز.' })}</div>`}</section>`);
     UI.hydrate(ctx.view);
     ctx.rows = rows;
+    if (st.sn) showDevice(st.sn, false);
     $('#mq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw(); }, 250));
     ['mFrom', 'mTo'].forEach((id) => { const el = $('#' + id, ctx.view); if (el) el.onchange = () => { st[id === 'mFrom' ? 'from' : 'to'] = el.value; draw(); }; });
   };
   UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; draw(); });
+  /* عرض الجهاز بالرقم التسلسلي، ثم الاستلام */
+  const showDevice = async (sn, scroll = true) => {
+    const out = $('[data-mdout]', ctx.view); if (!out) return;
+    st.sn = String(sn || '').trim(); try { history.replaceState(history.state, '', `#/maintenance${st.sn ? `?sn=${encodeURIComponent(st.sn)}` : ''}`); } catch (_) { /* تجاهل */ }
+    out.innerHTML = st.sn ? String(await Pages.maintDeviceCard(st.sn)) : ''; UI.hydrate(out);
+    if (scroll && out.firstElementChild) out.firstElementChild.scrollIntoView({ block: 'nearest', behavior: UI.reduced() ? 'auto' : 'smooth' });
+  };
+  ctx.view.addEventListener('submit', (e) => { if (!e.target.matches('[data-mdfind]')) return; e.preventDefault(); const v = ($('#mdsn', ctx.view) || {}).value || ''; if (!v.trim()) { UI.toast('أدخل الرقم التسلسلي', 'warn'); return; } showDevice(v); });
+  UI.on(ctx.view, 'click', '[data-mdin]', async (e, el) => { const rec = await Pages.maintIntakeModal(el.dataset.mdin, el.dataset.mdsn || st.sn); if (rec) Router.go(`/maintenance/${rec.id}`); });
   UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, {}); });
   UI.on(ctx.view, 'click', '[data-done]', async (e, el) => { const r = await DB.get('maintenance', el.dataset.done); if (r && (await Pages.maintDoneModal(r))) { st.tab = 'done'; draw(); } });
   UI.on(ctx.view, 'click', '[data-back]', async (e, el) => { const r = await DB.get('maintenance', el.dataset.back); if (r && (await Pages.maintBackModal(r))) draw(); });
@@ -10696,6 +10961,8 @@ Pages.printMaint = (r) => UI.print(html`<h2 style="text-align:center">سند ص�
     <tr><th>وصف العطل</th><td colspan="3">${r.symptom || '—'}</td></tr>
     <tr><th>ما تم في الصيانة</th><td colspan="3">${r.workDone || '—'}</td></tr>
     <tr><th>القطع المستخدمة</th><td colspan="3">${r.parts || '—'}</td></tr>
+    ${r.additions ? html`<tr><th>الإضافات</th><td colspan="3">${r.additions}</td></tr>` : ''}${r.changes ? html`<tr><th>التعديلات</th><td colspan="3">${r.changes}</td></tr>` : ''}${r.notes ? html`<tr><th>ملاحظات</th><td colspan="3">${r.notes}</td></tr>` : ''}
+    ${r.keep ? html`<tr><th>مكان الجهاز</th><td colspan="3">${Data.maint.placeText(r)}</td></tr>${r.accessories ? html`<tr><th>ما استُلم معه</th><td colspan="3">${r.accessories}</td></tr>` : ''}${r.receiverName ? html`<tr><th>المستلم</th><td>${r.receiverName}</td><th>تاريخ التسليم</th><td>${r.returnedAt ? fmtDateTime(r.returnedAt) : '—'}</td></tr>` : ''}` : ''}
     ${r.returnedAt ? html`<tr><th>تاريخ الإرجاع</th><td>${fmtDateTime(r.returnedAt)}</td><th>أُرجع إلى</th><td>${Data.nameOf('departments', r.toDepartmentId, '—')}</td></tr>` : ''}</table>
   ${UI.signBlock([{ title: 'الفني المنفّذ للصيانة', userId: r.closedBy || r.openedBy }, { title: 'مستلم الجهاز' }])}`, `سند صيانة ${r.itemName}`);
 
@@ -15094,7 +15361,7 @@ UI.stateLegend = (keys, labels = {}) => { const def = { off: 'موقوف أو م
 /* ── تفاصيل الوحدة (العهدة): المواصفات والموقع والملاحظات وسجل الصيانة كاملاً ── */
 Pages.maintTimeline = (rows) => html`<div class="mt-list">${rows.map((r, i) => { const S = MAINT_STATUS[r.status] || MAINT_STATUS.open, end = r.returnedAt || r.closedAt || 0; return html`<div class="mt-rec tone-${S.tone}">
   <div class="mt-rec-head"><span class="mt-no">${fmtNum(rows.length - i)}</span><b>${r.reason || 'صيانة'}</b>${UI.chip(S.tone, S.label, S.icon)}<span class="faint small">${fmtDate(r.openedAt)}${end ? ` ← ${fmtDate(end)}` : ''} · ${end ? `استغرقت ${fmtDuration(end - r.openedAt)}` : `منذ ${fmtDuration(now() - r.openedAt)}`}</span></div>
-  <dl class="kv mt-kv">${r.serial ? html`<dt>الوحدة</dt><dd class="ltr" style="text-align:start">${r.serial}${r.tag && r.tag !== r.serial ? ` · ${r.tag}` : ''}</dd>` : ''}${r.symptom ? html`<dt>الأعراض</dt><dd>${r.symptom}</dd>` : ''}${r.fromDepartmentId ? html`<dt>أُرسل من</dt><dd>${Data.nameOf('departments', r.fromDepartmentId)}</dd>` : ''}<dt>أرسله</dt><dd>${Data.userName(r.openedBy)} — ${fmtDateTime(r.openedAt)}</dd>${r.workDone ? html`<dt>ما تم</dt><dd>${r.workDone}</dd>` : ''}${r.parts ? html`<dt>القطع المستبدلة</dt><dd>${r.parts}</dd>` : ''}${r.closedAt ? html`<dt>أنهاها</dt><dd>${Data.userName(r.closedBy)} — ${fmtDateTime(r.closedAt)}</dd>` : ''}${r.retireReason ? html`<dt>سبب الإخراج من الخدمة</dt><dd>${r.retireReason}</dd>` : ''}${r.returnedAt ? html`<dt>أُرجع إلى</dt><dd>${Data.nameOf('departments', r.toDepartmentId, 'المخزن')} — ${fmtDateTime(r.returnedAt)}</dd>` : ''}${r.ticketId ? html`<dt>البلاغ</dt><dd><a href="#/tickets/${r.ticketId}" data-closemodal>فتح البلاغ المرتبط</a></dd>` : ''}</dl></div>`; })}</div>`;
+  <dl class="kv mt-kv">${r.serial ? html`<dt>الوحدة</dt><dd class="ltr" style="text-align:start">${r.serial}${r.tag && r.tag !== r.serial ? ` · ${r.tag}` : ''}</dd>` : ''}${r.symptom ? html`<dt>الأعراض</dt><dd>${r.symptom}</dd>` : ''}${r.keep ? html`<dt>كان في</dt><dd>${Data.maint.placeText(r)}</dd>` : r.fromDepartmentId ? html`<dt>أُرسل من</dt><dd>${Data.nameOf('departments', r.fromDepartmentId)}</dd>` : ''}<dt>${r.keep ? 'استلمه' : 'أرسله'}</dt><dd>${Data.userName(r.openedBy)} — ${fmtDateTime(r.openedAt)}</dd>${r.workDone ? html`<dt>ما تم</dt><dd>${r.workDone}</dd>` : ''}${r.parts ? html`<dt>القطع المستبدلة</dt><dd>${r.parts}</dd>` : ''}${r.additions ? html`<dt>الإضافات</dt><dd>${r.additions}</dd>` : ''}${r.changes ? html`<dt>التعديلات</dt><dd>${r.changes}</dd>` : ''}${r.notes ? html`<dt>ملاحظات</dt><dd>${r.notes}</dd>` : ''}${(r.log || []).length ? html`<dt>المتابعة</dt><dd>${r.log.map((x) => html`<div class="small">${fmtDate(x.at)} — ${Data.userName(x.by)}: ${x.text}</div>`)}</dd>` : ''}${r.closedAt ? html`<dt>أنهاها</dt><dd>${Data.userName(r.closedBy)} — ${fmtDateTime(r.closedAt)}</dd>` : ''}${r.receiverName ? html`<dt>سُلّم إلى</dt><dd>${r.receiverName}${r.receivedConfirm ? ' (أكّد الاستلام)' : r.status === 'sent' ? ' (بانتظار تأكيده)' : ''}</dd>` : ''}${r.keep ? html`<dd style="grid-column:1/-1"><a href="#/maintenance/${r.id}" data-closemodal>فتح أمر الصيانة</a></dd>` : ''}${r.retireReason ? html`<dt>سبب الإخراج من الخدمة</dt><dd>${r.retireReason}</dd>` : ''}${r.returnedAt ? html`<dt>أُرجع إلى</dt><dd>${Data.nameOf('departments', r.toDepartmentId, 'المخزن')} — ${fmtDateTime(r.returnedAt)}</dd>` : ''}${r.ticketId ? html`<dt>البلاغ</dt><dd><a href="#/tickets/${r.ticketId}" data-closemodal>فتح البلاغ المرتبط</a></dd>` : ''}</dl></div>`; })}</div>`;
 Pages.maintSummary = (rows) => { const days = rows.reduce((s, r) => s + Math.max(0, (r.returnedAt || r.closedAt || now()) - r.openedAt), 0), open = rows.filter((r) => r.status === 'open').length; return html`<div class="mt-sum"><span><b>${fmtNum(rows.length)}</b> ${rows.length === 1 ? 'مرة' : 'مرات'} دخل الصيانة</span><span><b>${fmtDuration(days)}</b> إجمالي مدة الصيانة</span>${open ? html`<span class="tone-sky"><b>${fmtNum(open)}</b> قيد الصيانة الآن</span>` : ''}${rows[0] ? html`<span>آخر صيانة ${fmtDate(rows[0].openedAt)}</span>` : ''}</div>`; };
 Pages.maintHistory = async (itemId, assetId = '') => {
   const rows = assetId ? await Data.maint.byAsset(assetId) : await Data.maint.byItem(itemId);

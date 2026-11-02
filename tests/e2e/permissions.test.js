@@ -30,6 +30,7 @@ const ACT = {
   'custody.lock': ['await App.Custody.set(true)'],
   'extmaint.manage': ['await App.XM.saveCfg({ name: App.XM.name() })'],
   'vouchers.design': ['await App.VTPL.save(App.VTPL.data ? App.VTPL.data() : {})'],
+  'maint.work': ["const r = await App.Data.maint.intake({ assetId: fx.asset, reason: 'سبب آخر', symptom: 'اختبار' }); await App.Data.maint.addLog(r.id, 'فحص'); await App.Data.maint.finish(r.id, { workDone: 'تم الإصلاح', additions: 'ذاكرة' }); await App.Data.maint.deliver(r.id, { receiverName: 'موظف', mode: 'now' })"],
   'kb.write': ["const k = await App.Data.saveRecord('kb', { title: 'مقال اختبار', body: 'خطوات', categoryId: 'other', tags: [], author: App.Auth.user.name, views: 0, helpful: 0 }, 'مقال'); await App.Data.deleteRecord('kb', k.id, 'مقال')"],
   'categories.docs': ["const c = App.Data.c.categories.get('other'); await App.Data.saveRecord('categories', { ...c, docNote: 'ملاحظة' }, 'فئة')"],
   'categories.manage': ["await App.Data.catAdmin.setHidden('other', false)"],
@@ -66,7 +67,9 @@ const ACT = {
     await App.Data.inv.move({ type: 'receive', itemId: item.id, warehouseId: wh, qty: 20, note: 'رصيد اختبار' });
     const forms = await App.Data.forms.list(); const custody = await App.Custody.state().catch(() => null); await App.Custody.set(true);
     const dep = users.find((u) => u.username === 'dep');
-    return { T, tkWork: await mk('بلاغ لاختبار الفني'), tkMgr: await mk('بلاغ لاختبار المدير'), techId: users.find((u) => u.username === 'tech').id, depId: dep.id, depOf: dep.departmentId || deps[0].id, dep: deps[0].id, dep2: deps[1].id, item: item.id, wh, form: forms[0].id, custodyWas: custody };
+    /* وحدة مسلسلة بعهدة إدارة لاختبار «صيانة الأجهزة» */
+    const asset = { id: 'as_pm_' + T, itemId: item.id, serial: 'PM-' + T, tag: '', host: '', status: 'issued', warehouseId: '', departmentId: deps[0].id, unitId: '', holder: '', holderId: '', loanId: '', note: '', addedAt: Date.now(), updatedAt: Date.now() }; await App.DB.put('assets', asset);
+    return { T, tkWork: await mk('بلاغ لاختبار الفني'), tkMgr: await mk('بلاغ لاختبار المدير'), techId: users.find((u) => u.username === 'tech').id, depId: dep.id, depOf: dep.departmentId || deps[0].id, dep: deps[0].id, dep2: deps[1].id, item: item.id, asset: asset.id, wh, form: forms[0].id, custodyWas: custody };
   }, T);
   fx.chat = await D.evaluate(async () => (await App.Data.chat.start({ subject: 'استفسار اختبار', text: 'مرحبا' })).id);
   await S.evaluate(() => App.Sync.flush()); await D.evaluate(() => App.Sync.flush()); await S.waitForTimeout(2500);
