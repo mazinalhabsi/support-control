@@ -2177,6 +2177,28 @@ td .rank{display:inline-grid}
 .vm-grid .table-wrap .table td:first-child{font-weight:600}
 .vm-grid .table-wrap .table tr.t-live{border:2px solid rgb(var(--teal));box-shadow:0 0 0 4px rgba(var(--teal),.12)}
 .vm-grid .table-wrap .ellipsis{max-width:100%!important}
+/* ملاحظات البلاغات: سطر مظلل وشريط جانبي ومقتطف، ونقطة نابضة لما لم يُفتح بعد */
+.table tr.t-note td{background:rgba(var(--t),.045)}.table tr.t-note td:first-child{box-shadow:inset -4px 0 0 rgb(var(--t))}
+.table tr.t-note-teal{--t:var(--teal)}.table tr.t-note-amber{--t:var(--amber)}
+.table tr.t-note-new td{background:rgba(var(--t),.09)}
+.vm-grid .table-wrap .table tr.t-note{border:2px solid rgba(var(--t),.55)}
+.t-ico{position:relative;display:inline-flex;flex:none}
+.t-ico-dot{position:absolute;top:-3px;inset-inline-end:-3px;width:12px;height:12px;border-radius:50%;background:rgb(var(--teal));border:2px solid var(--surface);animation:livePulse 1.6s infinite}
+.t-note-amber .t-ico-dot{background:rgb(var(--amber))}
+.t-noteln{--t:var(--teal);display:flex;align-items:center;gap:6px;margin-top:5px;padding:4px 9px;border-radius:8px;font-size:12px;font-weight:500;color:var(--ink-2,inherit);background:rgba(var(--t),.1);border:1px solid rgba(var(--t),.28);max-width:460px;min-width:0}
+.t-noteln.tone-amber{--t:var(--amber)}.t-noteln b{color:rgb(var(--t));white-space:nowrap}.t-noteln .ellipsis{min-width:0;flex:1}.t-noteln svg{width:14px;height:14px;color:rgb(var(--t));flex:none}.t-noteln .faint{white-space:nowrap;font-size:11px}
+.nd{display:inline-block;width:8px;height:8px;border-radius:50%;background:rgb(var(--t,var(--teal)));flex:none;animation:livePulse 1.6s infinite}
+.nchip{display:inline-flex}.nchip.is-new .chip{box-shadow:0 0 0 0 rgba(var(--teal),.5);animation:halo 1.8s infinite;font-weight:800}
+.tab.tab-note .count{background:rgb(var(--teal));color:#fff}.tab.tab-note.has-new{border-color:rgba(var(--teal),.6)}
+.tab.tab-note.has-new svg{color:rgb(var(--teal));animation:beat-o 1.4s infinite}
+.nav-badge.note{background:rgb(var(--teal));color:#fff;margin-inline-start:auto}.nav-badge.note+.nav-badge{margin-inline-start:4px}
+.tcard.has-note{box-shadow:inset 0 0 0 1.5px rgba(var(--teal),.55)}.tcard.has-note.is-new::after{content:'';position:absolute;top:8px;inset-inline-end:8px;width:10px;height:10px;border-radius:50%;background:rgb(var(--teal));animation:livePulse 1.6s infinite}
+.note-bar{position:relative}.note-bar .nb-ico{position:relative;display:inline-flex}.note-bar .nb-ico .nd{position:absolute;top:-4px;inset-inline-end:-4px}
+.note-bar.is-new{animation:halo 2s 3;border-width:2px}.note-bar .nb-new{display:inline-block;padding:1px 8px;border-radius:999px;background:rgb(var(--t));color:#fff;font-size:11px;font-weight:800;vertical-align:1px}
+.tl.tl-note .bubble{border:2px solid rgba(var(--t),.55);background:rgba(var(--t),.08)}.tl.tl-note.tone-teal{--t:var(--teal)}.tl.tl-note.tone-amber{--t:var(--amber)}
+.tl-flag{display:inline-block;margin-inline-start:6px;padding:0 7px;border-radius:999px;font-size:10.5px;font-weight:800;color:#fff;background:rgb(var(--t))}
+.tl.tl-note.flash .bubble{animation:halo 1s 2}
+@media (prefers-reduced-motion:reduce){.t-ico-dot,.nd,.nchip.is-new .chip,.tab.tab-note.has-new svg,.tcard.has-note.is-new::after,.note-bar.is-new{animation:none}}
 /* إطارات الحالات: موقوف/مخفي، مقيّد، معدّل، مؤقت */
 .x-off{border:2px solid #e5484d!important;box-shadow:0 0 0 4px rgba(229,72,77,.12)!important}
 .x-lock{border:2px solid #f59e0b!important;box-shadow:0 0 0 4px rgba(245,158,11,.15)!important}
@@ -4465,7 +4487,8 @@ Data.tickets = {
       if (!fromReq && !(t.followers || []).includes(me)) t.followers = [...(t.followers || []), me].slice(-20);
       if (!internal) {
         n.title = fromReq ? (t.noteFrom === 'staff' ? 'ردّ الموظف على الملاحظة' : 'رد جديد من الموظف') : `ملاحظة من ${Data.userName(me)}`;
-        Object.assign(t, { noteAt: now(), noteBy: me, noteFrom: fromReq ? 'requester' : 'staff', noteText: text.slice(0, 300) });
+        /* noteReply: ردٌّ على ملاحظة الطرف الآخر أم ملاحظة جديدة؟ فتقول العلامة «ردّ الموظف» أو «ملاحظة من الموظف» بدل عبارة واحدة للحالتين */
+        Object.assign(t, { noteAt: now(), noteBy: me, noteFrom: fromReq ? 'requester' : 'staff', noteReply: (fromReq ? t.noteFrom === 'staff' : t.noteFrom === 'requester') ? 1 : 0, noteText: text.slice(0, 300) });
       } else n.title = `ملاحظة داخلية من ${Data.userName(me)}`;
       if (!internal && t.status === 'waiting' && fromReq) { t.status = 'in_progress'; n.title = 'ردّ المستفيد على البلاغ المعلّق'; ev.push({ type: 'status', from: 'waiting', to: 'in_progress', text: '' }); }
       return ev;
@@ -5513,7 +5536,7 @@ const Shell = {
     $('#app').innerHTML = String(html`<div class="shell" id="shell">
       <aside class="sidebar" aria-label="القائمة الجانبية">
         <a class="brand" href="#/dashboard"><img src="${ASSETS.logo}" alt=""><span><b>${s.systemName}</b><small>${s.orgName}</small></span></a>
-        <nav class="nav">${this.nav().map((g) => html`<div class="nav-group"><span class="nav-title">${g.group}</span>${g.items.map((i) => html`<a class="nav-link" href="#${i.path}" data-path="${i.path}">${UI.icon(i.icon)}<span>${(i.labelFor && Auth.user && i.labelFor[Auth.user.role]) || i.label}</span>${i.badge ? html`<b class="nav-badge${i.badge === 'tickets' ? '' : ' soft'}" data-badge="${i.badge}" hidden></b>` : ''}</a>`)}</div>`)}</nav>
+        <nav class="nav">${this.nav().map((g) => html`<div class="nav-group"><span class="nav-title">${g.group}</span>${g.items.map((i) => html`<a class="nav-link" href="#${i.path}" data-path="${i.path}">${UI.icon(i.icon)}<span>${(i.labelFor && Auth.user && i.labelFor[Auth.user.role]) || i.label}</span>${i.badge === 'tickets' ? html`<b class="nav-badge note" data-badge="tnotes" hidden></b>` : ''}${i.badge ? html`<b class="nav-badge${i.badge === 'tickets' ? '' : ' soft'}" data-badge="${i.badge}" hidden></b>` : ''}</a>`)}</div>`)}</nav>
         <a class="side-user" href="#/profile">${UI.avatar(u)}<span><b>${u.name}</b><small>${ROLES[u.role]}</small></span></a>
         <div class="side-phone">${UI.icon('phone')} الدعم الفني <span class="ltr">${s.supportPhone}</span></div>
       </aside>
@@ -5554,7 +5577,7 @@ const Shell = {
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
     this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
     document.addEventListener('click', this._doc);
-    this.offs.push(Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
+    this.offs.push(Bus.on('noteseen', debounce(() => this.refreshBadges(), 200)), Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
   },
   unmount() { Presence.stop(); this.offs.splice(0).forEach((f) => f()); if (this._doc) document.removeEventListener('click', this._doc); this.mounted = false; this._bellN = null; },
   setActive(path) { let best = null; $$('.nav-link').forEach((a) => { a.classList.remove('active'); const p = a.dataset.path; if ((path === p || path.startsWith(p + '/')) && (!best || p.length > best.dataset.path.length)) best = a; }); if (best) best.classList.add('active'); },
@@ -5564,6 +5587,8 @@ const Shell = {
     try {
       /* ما ينتظر الفني: غير المستلم، وما أُسند إليه ولم يبدأه (الإسناد التلقائي يجعل أغلب الجديد «مُسنداً» فكان العداد صفراً) */
       if (Auth.can('tickets.work')) { const [neu, mine] = await Promise.all([DB.count('tickets', 'status', KR('new')), DB.count('tickets', 'assignee_status', KR([Auth.user.id, 'assigned']))]); set('tickets', neu + mine); }
+      /* ملاحظات البلاغات التي لم تُفتح بعد: شارة مستقلة بجانب «البلاغات» (للفني ملاحظات الموظفين، وللموظف ملاحظات الفني) */
+      if (Auth.can('tickets.view')) { const n = (await Pages.noteTickets()).filter(Pages.noteNew).length, b = $('[data-badge="tnotes"]'); set('tnotes', n); if (b) b.title = n ? `${n} ملاحظة على البلاغات لم تفتحها بعد` : ''; }
       if (Auth.can('inventory.read')) { const s = await Data.inv.summary(); set('low', s.low + s.out); set('overdue', s.overdue); }
     } catch (e) { console.warn(e); }
   },
@@ -5674,7 +5699,7 @@ const Board = {
       { key: 'waiting', title: 'معلّق', tone: 'slate', icon: 'pause', q: all ? { status: 'waiting' } : { assigneeId: me, status: 'waiting' } }
     ];
   },
-  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b>${Pages.noteChip(t)}<div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
+  card: (t) => html`<a class="tcard tone-${PRIORITY[t.priority].tone}${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? ' spec' : ''}${Pages.notePending(t) ? ` has-note${Pages.noteNew(t) ? ' is-new' : ''}` : ''}" href="#/tickets/${t.id}" draggable="true" data-id="${t.id}" data-status="${t.status}"><span class="t-num">${t.number}</span>${((Auth.user && Auth.user.categories) || []).includes(t.categoryId) ? html`<i class="spec-tag">${UI.icon('tag')}تخصصك</i>` : ''}<b>${t.title}</b>${Pages.noteChip(t)}<div class="meta">${UI.priority(t.priority)}${t.assigneeId ? UI.avatar(t.assigneeId, 'av-sm') : ''}${UI.sla(t)}</div></a>`,
   async render(el, { all = false, limit = 10, animate = true } = {}) {
     const data = await Promise.all(this.lanes(all).map(async (l) => ({ ...l, count: l.q.assigneeId ? await DB.count('tickets', 'assignee_status', KR([l.q.assigneeId, l.q.status])) : await DB.count('tickets', 'status', KR(l.q.status)), rows: (await Data.tickets.list({ ...l.q, limit })).rows })));
     el.innerHTML = String(html`<div class="lanes">${data.map((l) => html`<section class="lane tone-${l.tone}" data-lane="${l.key}" data-title="${l.title}"><header class="lane-head"><i class="lbar"></i>${l.title}<span class="lane-count" data-count="${l.count}">${fmtNum(l.count)}</span></header><div class="lane-body">${l.rows.length ? l.rows.map((t) => this.card(t)) : html`<div class="lane-empty">${UI.icon(l.icon)}لا توجد بلاغات</div>`}</div></section>`)}</div>`);
@@ -5930,13 +5955,38 @@ Pages.notePending = (t) => {
   if (me.id === t.requesterId) return t.noteFrom === 'staff' ? 'staff' : '';
   return t.noteFrom === 'requester' && canUser(me, 'tickets.work') ? 'requester' : '';
 };
-Pages.noteChip = (t) => { const k = Pages.notePending(t); return k === 'staff' ? UI.chip('amber', 'ملاحظة من الفني', 'send') : k === 'requester' ? UI.chip('teal', 'ردّ الموظف', 'send') : ''; };
+/* ما رآه هذا الحساب من ملاحظات البلاغات على هذا الجهاز: الملاحظة التي لم تُفتح بعد تظهر بنقطة نابضة وسطر مظلل، وتهدأ بعد فتح البلاغ.
+   وتبقى العلامة نفسها حتى يرد الطرف الآخر (لا تختفي بمجرد النظر) */
+const NoteSeen = {
+  key: () => `sq_nseen_${(Auth.user || {}).id || ''}`,
+  map() { try { return JSON.parse(localStorage.getItem(this.key()) || '{}') || {}; } catch (_) { return {}; } },
+  seen(t) { return (Number(this.map()[t.id]) || 0) >= (t.noteAt || 0); },
+  mark(t) {
+    if (!t || !t.noteAt || this.seen(t)) return;
+    try { const m = this.map(); m[t.id] = t.noteAt; const ks = Object.keys(m); if (ks.length > 500) ks.sort((a, b) => m[a] - m[b]).slice(0, ks.length - 500).forEach((k) => { delete m[k]; }); localStorage.setItem(this.key(), JSON.stringify(m)); } catch (_) { /* تجاهل */ }
+    Bus.emit('noteseen', { id: t.id });
+  },
+};
+Pages.noteLabel = (t) => { const k = Pages.notePending(t); if (!k) return ''; const reply = t.noteReply === 1 || t.noteReply === true; return k === 'staff' ? (reply ? 'ردّ الفني' : 'ملاحظة من الفني') : t.noteReply == null ? 'ردّ الموظف' : reply ? 'ردّ الموظف' : 'ملاحظة من الموظف'; };
+Pages.noteNew = (t) => !!Pages.notePending(t) && !NoteSeen.seen(t);
+Pages.noteChip = (t) => { const k = Pages.notePending(t); if (!k) return ''; return html`<span class="nchip${Pages.noteNew(t) ? ' is-new' : ''}" title="${Pages.noteNew(t) ? 'لم تفتحها بعد' : 'بانتظار ردك'}">${UI.chip(k === 'staff' ? 'amber' : 'teal', Pages.noteLabel(t), 'send')}</span>`; };
+/* سطر الملاحظة تحت عنوان البلاغ في القوائم: من كتبها ومقتطف منها، فيعرف الفني ما كُتب قبل أن يفتح البلاغ */
+Pages.noteLine = (t) => { const k = Pages.notePending(t); if (!k || !t.noteText) return ''; const tx = String(t.noteText).replace(/\s+/g, ' '); return html`<div class="t-noteln tone-${k === 'staff' ? 'amber' : 'teal'}">${Pages.noteNew(t) ? html`<i class="nd" aria-label="جديدة"></i>` : UI.icon('send')}<b>${Data.userName(t.noteBy)}:</b> <span class="ellipsis">«${tx.length > 110 ? `${tx.slice(0, 110)}…` : tx}»</span> <span class="faint">${timeAgo(t.noteAt)}</span></div>`; };
+Pages.noteRowCls = (t) => { const k = Pages.notePending(t); return k ? ` t-note t-note-${k === 'staff' ? 'amber' : 'teal'}${Pages.noteNew(t) ? ' t-note-new' : ''}` : ''; };
+/* البلاغات التي فيها ملاحظة بانتظار رد هذا الحساب: للفني ما أُسند إليه أو يتابعه أو لم يُستلم بعد (ولمن يدير البلاغات كلها)، وللموظف بلاغاته */
+Pages.noteTickets = async () => {
+  const me = Auth.user; if (!me) return [];
+  const pool = canUser(me, 'tickets.work') ? (await Promise.all(OPEN.map((s) => DB.getAll('tickets', 'status', KR(s))))).flat() : await DB.getAll('tickets', 'requester_createdAt', KR([me.id, 0], [me.id, Infinity]));
+  const all = canUser(me, 'tickets.manage');
+  return pool.filter((t) => { const k = Pages.notePending(t); if (!k) return false; if (k === 'staff') return true; return all || !t.assigneeId || t.assigneeId === me.id || (t.followers || []).includes(me.id); }).sort((a, b) => b.noteAt - a.noteAt);
+};
 Pages.tickets = async (ctx) => {
   const q = ctx.query, staff = Auth.can('tickets.all'), me = Auth.user.id;
   /* الفني يبدأ بما ينتظر الاستلام، فإن لم يكن شيء فبالمسند إليه */
   const first = !staff ? 'all' : q.scope ? '' : (await DB.count('tickets', 'status', KR('new'))) ? 'unassigned' : 'mine';
   const st = { scope: q.scope || first, view: q.view || localStorage.getItem(staff ? 'sq_tview' : 'sq_tview_e') || 'table', q: q.q || '', status: q.status || '', priority: q.priority || '', categoryId: q.cat || '', departmentId: q.dep || '', from: q.from || '', to: q.to || '', offset: Number(q.offset) || 0, limit: 25 };
-  const scopes = staff ? [['unassigned', 'بانتظار الاستلام', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['closed', 'المنتهية', 'check']];
+  /* «ملاحظات الموظفين»: البلاغات التي كتب فيها الموظف ملاحظة أو رداً ينتظر الفني، وللموظف «ملاحظات الفني» التي تنتظر رده */
+  const scopes = staff ? [['unassigned', 'بانتظار الاستلام', 'inbox'], ...((Auth.user.categories || []).length ? [['spec', 'تخصصي', 'tag']] : []), ['mine', 'المسندة إليّ', 'user'], ...(Auth.can('tickets.work') ? [['notes', 'ملاحظات الموظفين', 'send']] : []), ['open', 'كل المفتوحة', 'layers'], ['overdue', 'المتأخرة', 'alert'], ['all', 'كل البلاغات', 'database']] : [['all', 'كل بلاغاتي', 'ticket'], ['open', 'قيد المتابعة', 'clock'], ['notes', 'ملاحظات الفني', 'send'], ['closed', 'المنتهية', 'check']];
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
     ${UI.pageHead({ title: staff ? 'البلاغات' : 'بلاغاتي', sub: staff ? 'تابع البلاغات ووزّعها وأنجزها ضمن مواعيدها' : 'كل البلاغات التي قدّمتها وحالتها لحظة بلحظة', illu: 'bell', actions: html`${Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : ''}<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button>` })}
@@ -5965,6 +6015,10 @@ Pages.tickets = async (ctx) => {
   };
   const fetch = async (all = false) => {
     const f = filter(); if (all) { f.offset = 0; f.limit = 1e6; }
+    if (st.scope === 'notes') {
+      const qn = normalizeAr(f.q), rows = (await Pages.noteTickets()).filter((t) => (!st.status || t.status === st.status) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to));
+      return { rows: rows.slice(f.offset, f.offset + f.limit), hasMore: rows.length > f.offset + f.limit };
+    }
     if (staff && Array.isArray(f.status) && ['mine', 'open', 'spec'].includes(st.scope)) {
       const lists = await Promise.all(f.status.map((s) => (st.scope === 'mine' ? DB.getAll('tickets', 'assignee_status', KR([me, s])) : DB.getAll('tickets', 'status_createdAt', KR([s, f.from || 0], [s, f.to || Infinity])))));
       const qn = normalizeAr(f.q), rows = lists.flat().filter((t) => (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to) && (st.scope !== 'spec' || (myCats.has(t.categoryId) && (!t.assigneeId || t.assigneeId === me)))).sort((a, b) => b.createdAt - a.createdAt);
@@ -5973,7 +6027,7 @@ Pages.tickets = async (ctx) => {
     if (f.status === '') delete f.status;
     return Data.tickets.list(f);
   };
-  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) ? raw(' class="t-live"') : ''}><td><div class="t-title">${UI.illu(catIllu(t.categoryId))}<div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''} ${Pages.noteChip(t)}</div></div></div></td>
+  const row = (t) => html`<tr data-href="#/tickets/${t.id}"${liveOn(t) || Pages.notePending(t) ? raw(` class="${liveOn(t) ? 't-live' : ''}${Pages.noteRowCls(t)}"`) : ''}><td><div class="t-title"><span class="t-ico">${UI.illu(catIllu(t.categoryId))}${Pages.noteNew(t) ? html`<i class="t-ico-dot" title="ملاحظة لم تفتحها بعد"></i>` : ''}</span><div style="min-width:0"><div class="ellipsis" style="max-width:400px">${t.title}</div><div class="t-sub"><span class="t-num">${t.number}</span> ${Data.nameOf('categories', t.categoryId, 'أخرى')}${t.attachmentCount ? html` ${UI.icon('clip')}${t.attachmentCount}` : ''} ${Pages.noteChip(t)}</div>${Pages.noteLine(t)}</div></div></td>
     <td>${staff ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.requesterId, 'av-sm')}<div><div>${Data.userName(t.requesterId)}</div><div class="t-sub">${Data.nameOf('departments', t.departmentId, '')}</div></div></div>` : Data.nameOf('departments', t.departmentId)}</td>
     <td>${UI.priority(t.priority)}</td><td>${UI.status(t.status)}</td>
     <td>${t.assigneeId ? html`<div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(t.assigneeId, 'av-sm')}<span>${Data.userName(t.assigneeId)}</span>${liveOn(t) ? html`<span class="live-chip" title="الفني متصل ونشط الآن">قيد العمل</span>` : ''}${staff && t.handover && t.handover.text && OPEN.includes(t.status) ? html`<span class="ho-dot" title="ملاحظة تسليم: ${t.handover.text}">${UI.icon('clipboard')}</span>` : ''}</div>` : html`<span class="faint">لم يُسند بعد</span>`}</td>
@@ -5981,10 +6035,12 @@ Pages.tickets = async (ctx) => {
   const sync = () => history.replaceState(null, '', '#/tickets?' + new URLSearchParams(Object.entries({ scope: st.scope, view: st.view === 'table' ? '' : st.view, q: st.q, status: st.status, priority: st.priority, cat: st.categoryId, dep: st.departmentId, from: st.from, to: st.to, offset: st.offset || '' }).filter(([, v]) => v !== '' && v != null)));
   const tabs = async () => {
     let counts = {};
+    const notes = await Pages.noteTickets(), fresh = notes.filter(Pages.noteNew).length;
     if (staff) { const [mine, neu, all, over] = await Promise.all([Promise.all(OPEN.map((s) => Data.tickets.countFor(me, s))), DB.count('tickets', 'status', KR('new')), Data.tickets.countByStatus(), Data.tickets.countOverdue()]); counts = { mine: mine.reduce((a, b) => a + b, 0), unassigned: neu, open: OPEN.reduce((a, k) => a + all[k], 0), overdue: over }; }
     else { const mineAll = await DB.getAll('tickets', 'requester_createdAt', KR([me, 0], [me, Infinity])); counts = { all: mineAll.length, open: mineAll.filter((t) => OPEN.includes(t.status)).length, closed: mineAll.filter((t) => !OPEN.includes(t.status)).length }; }
+    counts.notes = notes.length;
     if (!ctx.alive()) return;
-    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab ${st.scope === k ? 'active' : ''}" data-scope="${k}">${UI.icon(ic)}${l}${counts[k] != null ? html`<span class="count">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
+    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab ${st.scope === k ? 'active' : ''}${k === 'notes' && notes.length ? ' tab-note' : ''}${k === 'notes' && fresh ? ' has-new' : ''}" data-scope="${k}"${k === 'notes' && fresh ? raw(` title="${fresh} لم تفتحها بعد"`) : ''}>${UI.icon(ic)}${l}${counts[k] != null ? html`<span class="count">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
   };
   const load = async () => {
     sync();
@@ -6148,9 +6204,15 @@ Pages.ticket = async (ctx) => {
   if (!t) { view.innerHTML = String(UI.empty({ illu: 'box', title: 'البلاغ غير موجود', text: 'ربما حُذف أو أن الرابط غير صحيح.', action: html`<a class="btn btn-primary" href="#/tickets">العودة إلى البلاغات</a>` })); return; }
   if (!staff && t.requesterId !== me.id) throw new AppError('لا تملك صلاحية عرض هذا البلاغ');
   const templates = staff && !(await DB.get('meta', 'migrate:templates')) ? await DB.getAll('templates') : [];
+  /* الملاحظة التي كانت جديدة حين فُتح البلاغ تبقى معلَّمة «جديدة» في هذه الزيارة، وتُسجَّل مقروءة فلا تنبض في القوائم بعد ذلك */
+  let shownNew = 0;
   const draw = async () => {
     t = await Data.tickets.get(id); const events = await Data.tickets.events(id); atts = await Data.tickets.attachments(id);
     if (!ctx.alive()) return;
+    const nk = Pages.notePending(t); if (Pages.noteNew(t)) shownNew = t.noteAt;
+    const nFresh = !!nk && shownNew === t.noteAt, nReply = t.noteReply === 1 || t.noteReply === true, nName = Data.userName(t.noteBy);
+    const nHead = nk === 'requester' ? (t.noteReply == null || nReply ? `ردّ ${nName} على الملاحظة` : `ملاحظة جديدة من ${nName}`) : nReply ? `ردّ ${nName} على ملاحظتك` : `ملاحظة من ${nName}`;
+    const noteEv = nk ? events.filter((e) => e.type === 'comment' && !e.internal && e.userId === t.noteBy && Math.abs((e.at || 0) - t.noteAt) < 120000).pop() : null;
     urls.splice(0).forEach((x) => URL.revokeObjectURL(x));
     const c = Data.c.categories.get(t.categoryId) || { name: 'أخرى', illustration: 'box' }, req = Data.c.users.get(t.requesterId), mine = t.requesterId === me.id, can = staff && (t.assigneeId === me.id || mgr);
     const acts = [];
@@ -6165,11 +6227,11 @@ Pages.ticket = async (ctx) => {
     if ((mine && ['new', 'assigned'].includes(t.status)) || (mgr && OPEN.includes(t.status))) acts.push(html`<button class="btn btn-ghost" data-act="cancel">${UI.icon('x')} إلغاء</button>`);
     acts.push(html`<button class="icon-btn" data-act="print" title="طباعة" aria-label="طباعة">${UI.icon('print')}</button>`);
     const gallery = atts.map((a) => { let thumb = UI.icon('file'); if (a.blob && String(a.type).startsWith('image/')) { a._url = URL.createObjectURL(a.blob); urls.push(a._url); thumb = html`<img src="${a._url}" alt="">`; } return html`<div class="file" data-att="${a.id}" title="${a.name}"><div class="thumb">${thumb}</div><div class="fname">${a.name}</div></div>`; });
-    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e); return html`<div class="tl"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
+    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e), hot = noteEv && e === noteEv; return html`<div class="tl${hot ? ` tl-note tone-${nk === 'staff' ? 'amber' : 'teal'}` : ''}"${hot ? raw(' id="tlNote"') : ''}><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}${hot ? html` <span class="tl-flag">${nFresh ? 'جديدة' : 'بانتظار الرد'}</span>` : ''}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
       ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}${Ratings.ticketBar(t, staff)}
-      ${Pages.notePending(t) ? html`<div class="banner tone-${Pages.notePending(t) === 'staff' ? 'amber' : 'teal'} note-bar">${UI.icon('send')}<div class="grow"><b>${Pages.notePending(t) === 'staff' ? `ملاحظة من ${Data.userName(t.noteBy)}` : `ردّ ${Data.userName(t.noteBy)}`}</b> <span class="faint small">${timeAgo(t.noteAt)}</span><p class="note-text">${t.noteText}</p></div><button type="button" class="btn btn-sm ${Pages.notePending(t) === 'staff' ? 'btn-primary' : 'btn-soft'}" data-act="replynote">${UI.icon('send')} ${Pages.notePending(t) === 'staff' ? 'الرد على الملاحظة' : 'الرد'}</button></div>` : ''}
+      ${nk ? html`<div class="banner tone-${nk === 'staff' ? 'amber' : 'teal'} note-bar${nFresh ? ' is-new' : ''}" role="status"><span class="nb-ico">${UI.icon('send')}${nFresh ? html`<i class="nd"></i>` : ''}</span><div class="grow"><b>${nHead}</b>${nFresh ? html` <span class="nb-new">جديدة</span>` : ''} <span class="faint small">${timeAgo(t.noteAt)}</span><p class="note-text">${t.noteText}</p></div><div class="row" style="gap:6px;flex-wrap:nowrap">${noteEv ? html`<button type="button" class="btn btn-sm btn-ghost" data-act="seenote">${UI.icon('eye')} في المحادثة</button>` : ''}<button type="button" class="btn btn-sm ${nk === 'staff' ? 'btn-primary' : 'btn-soft'}" data-act="replynote">${UI.icon('send')} ${nk === 'staff' ? 'الرد على الملاحظة' : 'الرد على الموظف'}</button></div></div>` : ''}
       <div class="grid g-side">
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
@@ -6195,6 +6257,7 @@ Pages.ticket = async (ctx) => {
     if (tpl) tpl.onchange = () => { const x = templates.find((y) => y.id === tpl.value); if (x) { const box = $('#cmt', view); box.value = (box.value ? box.value + '\n' : '') + x.body; box.focus(); } tpl.value = ''; };
     UI.hydrate(view);
     if (staff) Pages.paintLive(view, t);
+    if (nk) NoteSeen.mark(t);
   };
   if (staff) { const liveT = setInterval(() => { if (ctx.alive() && t) Pages.paintLive(view, t); }, 20000); ctx.onCleanup(() => clearInterval(liveT)); }
   const run = async (fn, msg) => { try { await fn(); if (msg) UI.toast(msg); } catch (ex) { UI.error(ex); } };
@@ -6214,6 +6277,7 @@ Pages.ticket = async (ctx) => {
     if (a === 'rate') return Pages.rateModal(id);
     if (a === 'confirmfix') return run(() => Data.tickets.confirmFix(id), 'شكراً لتأكيدك، أُغلق البلاغ');
     if (a === 'replynote') { const box = $('#cmt', view); if (box) { box.scrollIntoView({ block: 'center', behavior: UI.reduced() ? 'auto' : 'smooth' }); box.focus(); } return; }
+    if (a === 'seenote') { const el = $('#tlNote', view); if (el) { el.scrollIntoView({ block: 'center', behavior: UI.reduced() ? 'auto' : 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } return; }
     if (a === 'send') { const box = $('#cmt', view), internal = $('#internal', view); if (!box.value.trim()) { box.focus(); return; } UI.busy(el, true); try { await Data.tickets.comment(id, box.value, !!(internal && internal.checked)); UI.toast('تم إرسال الرد'); } catch (ex) { UI.error(ex); UI.busy(el, false); } return; }
     if (a === 'attach') { const fl = (await UI.pickFiles({ accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt' })).filter((f) => f.size <= 10 * 1048576).slice(0, 5); if (fl.length) run(() => Data.tickets.addAttachments(id, fl), 'تمت إضافة المرفقات'); return; }
     if (a === 'parts') { const mv = await Pages.moveModal({ type: 'issue', ref: t.number }); if (mv) { const it = await DB.get('items', mv.itemId); run(() => Data.tickets.comment(id, `تم صرف ${mv.qty} ${it ? it.unit : ''} من «${it ? it.name : ''}» لهذا البلاغ.`, true)); } return; }
