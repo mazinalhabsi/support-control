@@ -8324,13 +8324,13 @@ Data.org = {
       for (const r of rows) {
         if (r.depth === 0) {
           const hit = Data.list('departments').find((d) => OrgMatch.key(d.name) === OrgMatch.key(r.name));
-          r.departmentId = hit ? hit.id : (deps++, (await this.saveDept({ name: r.name })).id); r.unitId = '';
+          r.departmentId = hit ? hit.id : (deps++, (await this.saveDept({ name: r.name, ...(r.icon ? { icon: r.icon } : {}), ...(r.tone ? { tone: r.tone } : {}) })).id); r.unitId = '';
           continue;
         }
         const p = r.parent; if (!p || !p.departmentId) continue;
         const all = await DB.getAll('deptUnits'), hit = all.find((u) => u.departmentId === p.departmentId && (u.parentId || '') === p.unitId && OrgMatch.key(u.name) === OrgMatch.key(r.name));
         r.departmentId = p.departmentId;
-        r.unitId = hit ? hit.id : (units++, (await this.saveUnit({ departmentId: p.departmentId, parentId: p.unitId, type: r.type, name: r.name, order: '' })).id);
+        r.unitId = hit ? hit.id : (units++, (await this.saveUnit({ departmentId: p.departmentId, parentId: p.unitId, type: r.type, name: r.name, icon: r.icon || '', tone: r.tone || '', order: '' })).id);
       }
       return { deps, units };
     });
@@ -8366,8 +8366,7 @@ UI.bindHeadSearch = (form) => {
 };
 /* نافذة الإدارة أو الوحدة: الاسم والرمز والأيقونة واللون، وإضافة عدة فروع دفعة واحدة */
 Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' }) => {
-  const look = (rec, defIcon, defTone) => html`<div class="field mt"><label>الأيقونة</label><div class="org-icpick">${ORG_ICONS.map((k) => html`<label title="${k}"><input type="radio" name="icon" value="${k}"${(rec.icon || defIcon) === k ? raw(' checked') : ''}><span>${UI.icon(k)}</span></label>`)}</div></div>
-    <div class="field mt"><label>اللون</label><div class="org-tonepick">${ORG_TONES.map((t) => html`<label><input type="radio" name="tone" value="${t}"${(rec.tone || defTone) === t ? raw(' checked') : ''}><span class="tone-${t}"></span></label>`)}</div></div>`;
+  const look = (rec, defIcon, defTone) => html`<div class="field mt">${orgLookPicker({ icon: rec.icon || defIcon, tone: rec.tone || defTone })}</div>`;
   if (kind === 'dept') {
     const rec = id ? Data.c.departments.get(id) : {};
     return UI.modal({ title: id ? `تعديل الإدارة: ${rec.name}` : 'إدارة جديدة', icon: 'building', size: 'lg',
@@ -9002,23 +9001,28 @@ const orgPlanPreview = (rows, at, units) => {
 /* ── خانات الإضافة: خانة لكل إدارة أو فرع. «+ خانة» يضيف خانة، أو عدداً تختاره مرة واحدة، و«تحته» يضيف خانة داخلها.
    Enter في الخانة يفتح التالية، وBackspace في خانة فارغة يحذفها. النوع يتبع أول كلمة في الاسم أو المستوى ما لم يُغيَّر يدوياً.
    تُخرج الأسطر بصيغة planOutline/planBranch نفسها. kind: 'dept' (المستوى الأول إدارات) أو 'unit'؛ base: عمق الموضع ── */
-const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange = () => {} } = {}) => {
+const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange = () => {}, looks = null } = {}) => {
   let seq = 0; const rows = [];
   const maxDepth = kind === 'dept' ? ORG_MAX_DEPTH : ORG_MAX_DEPTH - base - 1;
   const auto = (r) => (kind === 'dept' ? (r.depth === 0 ? 'dept' : orgTypeOf(r.name, r.depth)) : orgTypeWord(r.name) || (r.depth === 0 && topType() ? topType() : ORG_TYPE_ORDER[Math.min(base + r.depth, ORG_TYPE_ORDER.length - 1)]));
   const typeOf = (r) => (r.manual && !(kind === 'dept' && r.depth === 0) ? r.type : auto(r));
-  const mk = (r = {}) => ({ k: ++seq, depth: Math.min(r.depth || 0, maxDepth), name: r.name || '', type: r.type || '', manual: !!r.manual, icon: r.icon || '', tone: r.tone || '' });
+  const mk = (r = {}) => ({ k: ++seq, depth: Math.min(r.depth || 0, maxDepth), name: r.name || '', type: r.type || '', manual: !!r.manual, icon: r.icon || '', tone: r.tone || '', own: !!r.own });
   const endOf = (i) => { let j = i + 1; while (j < rows.length && rows[j].depth > rows[i].depth) j++; return j; };
   const at = (el) => rows.findIndex((r) => r.k === Number((el.closest('[data-k]') || {}).dataset.k));
   const hint = (r) => (kind === 'dept' && r.depth === 0 ? 'اسم الإدارة' : 'اسم الفرع');
   /* ما يضيفه زر الخانة الداخلية: النوع التالي لنوع الخانة (إدارة ← قسم ← شعبة ← وحدة ← مكتب) */
   const kidType = (r) => { if (kind === 'dept' && r.depth === 0) return 'section'; const i = ORG_TYPE_ORDER.indexOf(typeOf(r)); return ORG_TYPE_ORDER[Math.min((i < 0 ? 0 : i) + 1, ORG_TYPE_ORDER.length - 1)]; };
-  const row = (r) => html`<div class="orow${r.depth ? ' sub' : ''}" data-k="${r.k}" style="--d:${r.depth}">${kind === 'dept' && r.depth === 0 ? html`<span class="orow-type">${UI.icon('building')}إدارة</span>` : html`<select class="input orow-type" data-type aria-label="النوع">${ORG_TYPE_ORDER.map((k) => html`<option value="${k}"${typeOf(r) === k ? raw(' selected') : ''}>${UNIT_TYPES[k].label}</option>`)}</select>`}<input class="input" data-name value="${r.name}" placeholder="${hint(r)}" aria-label="${hint(r)}" autocomplete="off"><span class="orow-st" data-st></span>${r.depth < maxDepth ? html`<button type="button" class="btn btn-ghost btn-sm" data-sub title="إضافة ${ORG_KID_LABEL[kidType(r)]} داخل هذه الخانة" aria-label="إضافة ${ORG_KID_LABEL[kidType(r)]}">${UI.icon('plus')}<span class="orow-lbl">${ORG_KID_LABEL[kidType(r)]}</span></button>` : ''}<button type="button" class="icon-btn" data-del title="حذف الخانة" aria-label="حذف الخانة">${UI.icon('x')}</button></div>`;
+  const row = (r) => html`<div class="orow${r.depth ? ' sub' : ''}" data-k="${r.k}" style="--d:${r.depth}">${kind === 'dept' && r.depth === 0 ? html`<span class="orow-type">${UI.icon('building')}إدارة</span>` : html`<select class="input orow-type" data-type aria-label="النوع">${ORG_TYPE_ORDER.map((k) => html`<option value="${k}"${typeOf(r) === k ? raw(' selected') : ''}>${UNIT_TYPES[k].label}</option>`)}</select>`}${looks ? html`<button type="button" class="orow-look" data-look title="مظهر هذه الخانة: الأيقونة واللون" aria-label="مظهر الخانة"></button>` : ''}<input class="input" data-name value="${r.name}" placeholder="${hint(r)}" aria-label="${hint(r)}" autocomplete="off"><span class="orow-st" data-st></span>${r.depth < maxDepth ? html`<button type="button" class="btn btn-ghost btn-sm" data-sub title="إضافة ${ORG_KID_LABEL[kidType(r)]} داخل هذه الخانة" aria-label="إضافة ${ORG_KID_LABEL[kidType(r)]}">${UI.icon('plus')}<span class="orow-lbl">${ORG_KID_LABEL[kidType(r)]}</span></button>` : ''}<button type="button" class="icon-btn" data-del title="حذف الخانة" aria-label="حذف الخانة">${UI.icon('x')}</button></div>`;
   const draw = (focus) => {
     if (!rows.length) rows.push(mk());
     host.innerHTML = String(html`<div class="orows">${rows.map(row)}</div><div class="orow-foot"><button type="button" class="btn btn-soft btn-sm" data-addrow>${UI.icon('plus')} ${kind === 'dept' ? 'خانة إدارة' : 'خانة فرع'}</button><span class="faint small">أو أضف</span><input type="number" class="input" data-n min="1" max="50" value="3" aria-label="عدد الخانات"><button type="button" class="btn btn-ghost btn-sm" data-addn>خانات مرة واحدة</button></div>`);
     if (focus) { const i = host.querySelector(`[data-k="${focus}"] [data-name]`); if (i) i.focus(); }
-    onChange();
+    paint(); onChange();
+  };
+  /* شارة المظهر في كل خانة: ما ستأخذه فعلاً (اختيارها، أو الإعداد العام، أو حسب النوع) */
+  const paint = () => {
+    if (!looks) return; const plan = api.plan(); looks(plan); const byK = new Map(plan.map((p) => [p.k, p]));
+    rows.forEach((r) => { const b = host.querySelector(`[data-k="${r.k}"] [data-look]`); if (!b) return; const p = byK.get(r.k), lk = orgLookOf(p || { type: typeOf(r), _icon: r.icon, _tone: r.tone }); b.className = `orow-look tone-${lk.tone}${r.own ? ' own' : ''}`; b.innerHTML = String(UI.icon(lk.icon)); });
   };
   const insert = (i, list) => { rows.splice(i, 0, ...list); draw(list[0].k); };
   const drop = (i) => { const prev = rows[i - 1]; rows.splice(i, endOf(i) - i); draw(prev && prev.k); };
@@ -9028,28 +9032,35 @@ const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange =
     else if (b.matches('[data-addn]')) { const n = clamp(Number(host.querySelector('[data-n]').value) || 1, 1, 50); insert(rows.length, Array.from({ length: n }, () => mk())); }
     else if (b.matches('[data-sub]')) { const i = at(b); insert(endOf(i), [mk({ depth: rows[i].depth + 1 })]); }
     else if (b.matches('[data-del]')) drop(at(b));
+    else if (b.matches('[data-look]')) {
+      const r = rows[at(b)], p = looks(api.plan()).find((x) => x.k === r.k), lk = orgLookOf(p || { type: typeOf(r), _icon: r.icon, _tone: r.tone });
+      Pages.orgLookOne({ name: r.name.trim(), icon: lk.icon, tone: lk.tone, own: r.own }).then((v) => {
+        if (!v) return; if (v === 'reset') { r.own = false; r.icon = ''; r.tone = ''; } else { r.own = true; r.icon = v.icon; r.tone = v.tone; }
+        paint(); onChange();
+      });
+    }
   });
   host.addEventListener('input', (e) => {
     if (!e.target.matches('[data-name]')) return;
     const r = rows[at(e.target)]; r.name = e.target.value;
     const sel = e.target.parentNode.querySelector('[data-type]'); if (sel && !r.manual) sel.value = typeOf(r); const lb = e.target.parentNode.querySelector('.orow-lbl'); if (lb) lb.textContent = ORG_KID_LABEL[kidType(r)];
-    onChange();
+    paint(); onChange();
   });
-  host.addEventListener('change', (e) => { if (!e.target.matches('[data-type]')) return; const r = rows[at(e.target)]; r.type = e.target.value; r.manual = true; const lb = e.target.parentNode.querySelector('.orow-lbl'); if (lb) lb.textContent = ORG_KID_LABEL[kidType(r)]; onChange(); });
+  host.addEventListener('change', (e) => { if (!e.target.matches('[data-type]')) return; const r = rows[at(e.target)]; r.type = e.target.value; r.manual = true; const lb = e.target.parentNode.querySelector('.orow-lbl'); if (lb) lb.textContent = ORG_KID_LABEL[kidType(r)]; paint(); onChange(); });
   host.addEventListener('keydown', (e) => {
     if (!e.target.matches('[data-name]')) return;
     const i = at(e.target);
     if (e.key === 'Enter') { e.preventDefault(); insert(endOf(i), [mk({ depth: rows[i].depth })]); }
     else if (e.key === 'Backspace' && !e.target.value && rows.length > 1 && endOf(i) === i + 1) { e.preventDefault(); drop(i); }
   });
-  return {
+  const api = {
     /* الأسطر المكتوبة: خانة فارغة تُترك، وما تحتها يُترك معها ويُعلَّم (لا يُعرف أين يُضاف) */
     plan() {
       const out = [], stack = [];
       rows.forEach((r) => {
         while (stack.length && stack[stack.length - 1].r.depth >= r.depth) stack.pop();
         const up = stack[stack.length - 1], name = r.name.trim();
-        const p = name && (r.depth === 0 || (up && up.p && up.r.depth === r.depth - 1)) ? { name, depth: r.depth, parent: up ? up.p : null, type: typeOf(r), icon: r.icon, tone: r.tone, k: r.k } : null;
+        const p = name && (r.depth === 0 || (up && up.p && up.r.depth === r.depth - 1)) ? { name, depth: r.depth, parent: up ? up.p : null, type: typeOf(r), icon: r.icon, tone: r.tone, ownLook: r.own, k: r.k } : null;
         if (p) { p.tooDeep = kind === 'dept' ? p.depth > ORG_MAX_DEPTH : base + p.depth + 1 > ORG_MAX_DEPTH; out.push(p); }
         r.orphan = !!name && !p; stack.push({ r, p });
       });
@@ -9062,8 +9073,9 @@ const OrgRows = (host, { kind = 'unit', base = 0, topType = () => '', onChange =
       const byK = new Map(plan.map((p) => [p.k, p]));
       rows.forEach((r) => { const el = host.querySelector(`[data-k="${r.k}"] [data-st]`); if (!el) return; const p = byK.get(r.k); el.innerHTML = p ? String(orgPlanChip(p)) : r.orphan ? String(UI.chip('amber', 'الخانة التي فوقها فارغة')) : ''; });
     },
-    draw
+    draw, paint
   };
+  return api;
 };
 /* وضع الإدخال المفضل: خانات أو لصق قائمة */
 const orgAddMode = { get() { try { return localStorage.getItem('sq_org_addmode') === 'text' ? 'text' : 'rows'; } catch (_) { return 'rows'; } }, set(v) { try { localStorage.setItem('sq_org_addmode', v); } catch (_) { /* تجاهل */ } } };
@@ -9077,11 +9089,13 @@ Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return 
     <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل إدارة، وزر «+ قسم تابع» في كل خانة لأقسامها، ثم داخل كل قسم ما يتبعه. Enter في الخانة يفتح التالية. ما هو موجود في الهيكل لا يتكرر.</p><div data-rowsbox></div></div>
     <div data-text${mode === 'text' ? '' : raw(' hidden')}><p class="muted small">اكتب كل إدارة في سطر. ولإضافة أقسامها معها اكتبها في الأسطر التالية بإزاحة (زر Tab، أو مسافتين، أو «-» في أول السطر)، وتحت كل قسم شُعبه ومكاتبه بإزاحة أكبر. أو الصق من Excel أعمدة: الإدارة ثم القسم ثم الشعبة. ما هو موجود في الهيكل لا يتكرر.</p>
     <div class="field"><textarea name="outline" rows="10" dir="rtl" placeholder="الموارد البشرية&#10;  قسم شؤون الموظفين&#10;  قسم التدريب&#10;    مكتب التطوير&#10;الشؤون المالية&#10;  قسم الحسابات"></textarea></div></div>
+    ${orgLookBox(orgLookPref.get())}
     <div class="field"><label>وأضف لكل إدارة في القائمة أقسام إدارة قائمة <small class="faint">(اختياري)</small></label><select name="copyfrom"><option value="">— بلا —</option>${Data.list('departments').map((d) => html`<option value="${d.id}">${d.name}</option>`)}</select></div>
     <div class="mt" data-prev></div>`,
   actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إدارة واحدة بكل تفاصيلها', kind: 'ghost', icon: 'edit', value: 'one' }, { label: 'إضافة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
     const rows = orgAddMode.get() === 'rows' ? R.plan() : Data.org.planOutline(form.querySelector('[name="outline"]').value), from = form.querySelector('[name="copyfrom"]').value;
     if (!rows.length) throw new AppError('اكتب الإدارات أولاً');
+    const look = orgLookRead(form); if (look) { orgLookApply(rows, look, new Set(Data.list('departments').map((d) => d.tone).filter(Boolean))); rows.forEach((x) => { x.icon = x._icon; x.tone = x._tone; }); orgLookPref.set(look); }
     const names = rows.filter((r) => r.depth === 0).map((r) => r.name);
     const r = await OrgLog.run('create', `إضافة ${fmtNum(names.length)} إدارة: ${names.slice(0, 3).join('، ')}${names.length > 3 ? '…' : ''}`, async () => {
       const out = await Data.org.buildOutline(rows);
@@ -9100,7 +9114,9 @@ Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return 
       const copy = n && rows.length ? html`<div class="small mt">${UI.icon('copy')} ويُضاف لكل إدارة ${fmtNum(n)} فرع من «${Data.nameOf('departments', cp.value)}» (ما لا يوجد فيها)</div>` : '';
       if (orgAddMode.get() === 'rows') { const sum = orgPlanSim(rows, at, units); R.mark(rows); box.innerHTML = String(html`${rows.length ? orgPlanSummary(sum) : ''}${copy}`); } else box.innerHTML = String(html`${orgPlanPreview(rows, at, units)}${copy}`);
     };
-    R = OrgRows($('[data-rowsbox]', form), { kind: 'dept', onChange: debounce(show, 200) }); R.draw();
+    const deptUsed = new Set(Data.list('departments').map((d) => d.tone).filter(Boolean));
+    R = OrgRows($('[data-rowsbox]', form), { kind: 'dept', onChange: debounce(show, 200), looks: (rows) => orgLookApply(rows, orgLookRead(form) || orgLookPref.get(), deptUsed) }); R.draw();
+    UI.on(form, 'change', '[data-lookbox] input', () => { const lk = orgLookRead(form); $('[data-looksum]', form).textContent = orgLookSummary(lk); R.paint(); });
     UI.on(form, 'change', '[name="addmode"]', (e, el) => {
       if (el.value === 'text') ta.value = Data.org.branchText(R.plan()); else R.set(Data.org.planOutline(ta.value));
       orgAddMode.set(el.value); $('[data-rows]', form).hidden = el.value !== 'rows'; $('[data-text]', form).hidden = el.value !== 'text'; show();
@@ -9116,6 +9132,7 @@ Pages.orgAddDepts = () => { let R = null; const mode = orgAddMode.get(); return 
 Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
   const units = await DB.getAll('deptUnits'), base = parentId ? orgDepth(units, parentId) : 0, where = orgLabel(departmentId, parentId, units);
   const st = { copied: null, text: '' }, mode = orgAddMode.get(); let R = null;
+  const sibTones = new Set(units.filter((u) => u.departmentId === departmentId && (u.parentId || '') === parentId && u.tone).map((u) => u.tone));
   const plan = (form) => {
     if (orgAddMode.get() === 'rows') return R.plan();
     const ta = form.querySelector('[name="lines"]'), top = (form.querySelector('[name="type"]:checked') || {}).value || '';
@@ -9129,6 +9146,7 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
       ${orgModeSeg(mode)}
       <div data-rows${mode === 'rows' ? '' : raw(' hidden')}><p class="muted small">خانة لكل فرع، وزر «+ … تابع» في كل خانة لما يتبعها. Enter في الخانة يفتح التالية.</p><div data-rowsbox></div></div>
       <div class="field" data-text${mode === 'text' ? '' : raw(' hidden')}><label>الفروع: كل فرع في سطر، وأزِح السطر (مسافتين أو Tab أو «-») ليصبح داخل ما فوقه</label><textarea name="lines" rows="9" dir="rtl" placeholder="قسم الشبكات&#10;  شعبة الخوادم&#10;  مكتب الدعم الميداني&#10;قسم البرمجيات&#10;  شعبة الأنظمة"></textarea></div>
+      ${orgLookBox(orgLookPref.get())}
       <div class="field"><label>أو ابدأ بفروع موضع قائم ثم عدّلها <small class="faint">(اختياري)</small></label><select data-copyfrom>${orgPlaceOptions(units, '', '— اختر الموضع —')}</select></div>
       <div class="mt" data-prev></div>`,
     onMount: (form) => {
@@ -9138,7 +9156,8 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
         const rows = plan(form);
         if (orgAddMode.get() === 'rows') { const sum = orgPlanSim(rows, here, units); R.mark(rows); box.innerHTML = rows.length ? String(orgPlanSummary(sum)) : ''; } else box.innerHTML = String(orgPlanPreview(rows, here, units));
       };
-      R = OrgRows($('[data-rowsbox]', form), { kind: 'unit', base, topType: () => (form.querySelector('[name="type"]:checked') || {}).value || '', onChange: debounce(show, 200) }); R.draw();
+      R = OrgRows($('[data-rowsbox]', form), { kind: 'unit', base, topType: () => (form.querySelector('[name="type"]:checked') || {}).value || '', onChange: debounce(show, 200), looks: (rows) => orgLookApply(rows, orgLookRead(form) || orgLookPref.get(), sibTones) }); R.draw();
+      UI.on(form, 'change', '[data-lookbox] input', () => { const lk = orgLookRead(form); $('[data-looksum]', form).textContent = orgLookSummary(lk); R.paint(); });
       ta.addEventListener('input', debounce(show, 250));
       UI.on(form, 'change', '[name="type"]', () => { if (orgAddMode.get() === 'rows') R.draw(); else show(); });
       UI.on(form, 'change', '[name="addmode"]', (e, el) => {
@@ -9157,6 +9176,7 @@ Pages.orgAddBranches = async ({ departmentId, parentId = '', type = '' }) => {
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'فرع واحد بكل تفاصيله', kind: 'ghost', icon: 'edit', value: 'one' }, { label: 'إضافة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const rows = plan(form); if (!rows.length) throw new AppError('اكتب الفروع أولاً، كل فرع في سطر');
+      const look = orgLookRead(form); if (look) { orgLookApply(rows, look, sibTones); rows.forEach((x) => { x.icon = x._icon; x.tone = x._tone; }); orgLookPref.set(look); }
       const r = await Data.org.buildBranch(rows, departmentId, parentId, `إضافة ${fmtNum(rows.length)} فرعاً في ${where}`);
       UI.toast(r.added ? `أُضيف ${fmtNum(r.added)} فرع${r.found ? `، و${fmtNum(r.found)} موجود أصلاً` : ''}${r.skipped ? `، وتُرك ${fmtNum(r.skipped)} يتجاوز الحد` : ''}` : 'كل الفروع موجودة في هذا الموضع', r.added ? 'ok' : 'warn');
       return r;
@@ -9467,7 +9487,7 @@ Pages.org = async (ctx) => {
         <button type="button" class="btn btn-ghost btn-sm" data-act="expand">${UI.icon(st.all ? 'chevron-down' : 'chevron-left')} ${st.all ? 'طي الكل' : 'توسيع الكل'}</button>
         ${st.mode === 'chart' ? html`<button type="button" class="btn ${st.compact ? 'btn-soft' : 'btn-ghost'} btn-sm" data-act="compact" aria-pressed="${st.compact ? 'true' : 'false'}" title="ما يتجاوز ${ORG_COMPACT_N} فرعاً تابعاً لموضع واحد يُعرض قائمة أو شبكة مضغوطة، ما لم تحدد له عرضاً">${UI.icon('grid')} ضغط الكثير</button>` : ''}${st.mode === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="odir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label><label><input type="radio" name="odir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label></div><div class="org-zoom"><button type="button" class="icon-btn" data-zoom="-1" aria-label="تصغير">−</button><span class="small">${Math.round(st.zoom * 100)}%</span><button type="button" class="icon-btn" data-zoom="1" aria-label="تكبير">+</button><button type="button" class="btn btn-soft btn-sm" data-act="fit">${UI.icon('grid')} عرض الشجرة كاملة</button></div>` : ''}</div>
         ${legend}
-        ${st.selMode ? html`<div class="org-selbar" role="toolbar" aria-label="إجراءات المحدد"><b data-selcount></b><button type="button" class="btn btn-primary btn-sm" data-selact="move">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-soft btn-sm" data-selact="copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-selact="type">${UI.icon('layers')} النوع</button><button type="button" class="btn btn-ghost btn-sm" data-selact="head">${UI.icon('user')} الرئيس</button><button type="button" class="btn btn-ghost btn-sm" data-selact="del">${UI.icon('trash')} حذف</button><button type="button" class="btn btn-ghost btn-sm" data-selact="clear">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
+        ${st.selMode ? html`<div class="org-selbar" role="toolbar" aria-label="إجراءات المحدد"><b data-selcount></b><button type="button" class="btn btn-primary btn-sm" data-selact="move">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-soft btn-sm" data-selact="copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-selact="type">${UI.icon('layers')} النوع</button><button type="button" class="btn btn-ghost btn-sm" data-selact="look">${UI.icon('palette')} المظهر</button><button type="button" class="btn btn-ghost btn-sm" data-selact="head">${UI.icon('user')} الرئيس</button><button type="button" class="btn btn-ghost btn-sm" data-selact="del">${UI.icon('trash')} حذف</button><button type="button" class="btn btn-ghost btn-sm" data-selact="clear">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
         <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
         ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما يتبعه وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وللنسخ بدل النقل اختر «السحب ينسخ» أو اضغط Ctrl أثناء الإفلات (لا تُنسخ الحسابات). وعلى الهاتف: «تحديد متعدد» ثم «نقل» أو «نسخ». اسحب خلفية المخطط لتحريكه، وCtrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     ctx.data = { deps, units }; selSync();
@@ -9536,7 +9556,7 @@ Pages.org = async (ctx) => {
   });
   UI.on(ctx.view, 'click', '[data-selact]', (e, el) => {
     const ids = [...st.sel], done = (r) => { if (r) st.sel.clear(); return !!r; };
-    const acts = { move: () => Pages.orgMoveMany(ids), copy: () => Pages.orgCopy({ unitIds: ids }), type: () => Pages.orgTypeMany(ids), head: () => Pages.orgHeadMany(ids), del: () => Pages.orgDeleteMany(ids) };
+    const acts = { move: () => Pages.orgMoveMany(ids), copy: () => Pages.orgCopy({ unitIds: ids }), type: () => Pages.orgTypeMany(ids), look: () => Pages.orgLookMany(ids), head: () => Pages.orgHeadMany(ids), del: () => Pages.orgDeleteMany(ids) };
     if (el.dataset.selact === 'clear') { st.sel.clear(); selSync(); return; }
     run(async () => done(await acts[el.dataset.selact]()));
   });
@@ -9858,10 +9878,12 @@ Data.backup = {
       if (!Auth.user || !canBackup() || !Data.backup.due()) return;
       if (!(await Jobs.claim('backup:at', 6 * HOUR))) return;
       const bk = await Data.backup.create({ scope: 'full', note: 'نسخة تلقائية مجدولة' });
-      const wrote = await Data.backup.writeToFolder(bk.blob, bk.name);
+      let wrote = await Data.backup.writeToFolder(bk.blob, bk.name), dest = wrote ? 'folder' : 'pending';
+      /* على http لا يُتاح الحفظ في مجلد: تُنزَّل النسخة إلى مجلد التنزيلات بدل الاكتفاء بتذكير لا يُنفَّذ غالباً */
+      if (!wrote && !dirSupported()) { downloadBlob(bk.blob, bk.name); wrote = true; dest = 'download'; }
       await Data.backup.setSchedule({ lastAt: now() });
-      await Data.backup.log({ kind: 'auto', name: bk.name, size: bk.size, rows: bk.rows, dest: wrote ? 'folder' : 'pending' });
-      if (wrote) UI.toast(`حُفظت نسخة احتياطية تلقائية (${fmtBytes(bk.size)})`);
+      await Data.backup.log({ kind: 'auto', name: bk.name, size: bk.size, rows: bk.rows, dest });
+      if (wrote) UI.toast(dest === 'download' ? `نُزِّلت النسخة الاحتياطية التلقائية إلى مجلد التنزيلات (${fmtBytes(bk.size)})` : `حُفظت نسخة احتياطية تلقائية (${fmtBytes(bk.size)})`);
       else await Data.notify([Auth.user.id], { title: 'موعد النسخة الاحتياطية', body: 'حان وقت النسخة المجدولة، افتح مركز النسخ لحفظها على القرص.', link: '/backup', kind: 'system' });
     } catch (e) { console.warn('auto backup', e); }
   }
@@ -9909,7 +9931,7 @@ Pages.backup = async (ctx) => {
               ${UI.field({ name: 'hour', label: srv && !srv.failed ? 'بعد الساعة (بتوقيت الخادم)' : 'بعد الساعة', type: 'number', min: 0, max: 23, value: plan.hour })}
               ${srv && !srv.failed ? UI.field({ name: 'keep', label: 'عدد النسخ المحفوظة على الخادم', type: 'number', min: 1, max: 365, value: plan.keep || 8 }) : ''}
             </div>
-            ${srv && !srv.failed ? html`<div class="form-bar mt">${UI.icon('drive')}<div class="grow"><b>تُحفظ النسخ المجدولة في مجلد الخادم</b><div class="t-sub">يحفظها الخادم في موعدها ما دام أحد متصلاً بالنظام، ولا يلزم فتح هذه الصفحة</div></div></div>` : html`<div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : window.isSecureContext ? 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً' : `${httpBlocked('الحفظ التلقائي في مجلد')}. ستصلك تذكيرات لحفظ النسخة يدوياً، ونسخ الخادم المجدولة تعمل دائماً`}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
+            ${srv && !srv.failed ? Pages.bkSchedInfo(srv, plan) : html`<div class="form-bar mt">${UI.icon('folder')}<div class="grow"><b>${folder ? `مجلد الحفظ: ${folder.name}` : 'لم يُحدد مجلد حفظ'}</b><div class="t-sub">${dirSupported() ? 'اختر مجلداً على القرص الخارجي أو الشبكة لتُحفظ فيه النسخ تلقائياً' : window.isSecureContext ? 'متصفحك لا يدعم الحفظ التلقائي في مجلد، ستصلك تذكيرات لحفظ النسخة يدوياً' : 'على http لا يسمح المتصفح بالحفظ في مجلد، فتُنزَّل النسخة المجدولة تلقائياً إلى مجلد التنزيلات في موعدها ما دام النظام مفتوحاً. والأفضل تشغيل النظام مع الخادم: نسخه المجدولة تعمل دائماً على http'}</div></div>${dirSupported() ? html`<button class="btn btn-sm btn-soft" data-act="folder">${UI.icon('folder')} اختيار مجلد</button>` : ''}</div>
             `}
             <button class="btn btn-primary btn-block mt" data-act="saveplan">${UI.icon('check')} حفظ الجدولة</button>
             ${plan.lastAt ? html`<p class="hint mt">آخر نسخة تلقائية: ${timeAgo(plan.lastAt)}</p>` : ''}` })}
@@ -18820,6 +18842,30 @@ const NavNames = {
   const rt = Router.routes.find((r) => r.re.test('/nav-visibility')); if (rt) rt.render = Pages.navVisibility;
 }
 
+/* ══════════ النسخ التلقائي على الخادم: يعمل على http ودون أن يفتح أحد النظام ══════════
+   الحفظ التلقائي من المتصفح في مجلد يمنعه المتصفح على http (showDirectoryPicker يتطلب https)، ولا حل له إلا https.
+   الحل هنا من الخادم نفسه: يحفظ النسخة في مجلد على جهاز الخادم، والموعد الفائت يُلحق عند أول فرصة، ومهمة ويندوز المجدولة
+   تشغّل «php api.php backup» كل ساعة فتُنشأ النسخة في موعدها ولو لم يدخل أحد */
+const BK_VIA = { cli: 'المهمة المجدولة على الخادم', web: 'عند اتصال أحد المستخدمين', manual: 'يدوياً من مركز النسخ' };
+Pages.bkSchedInfo = (srv, plan) => {
+  const s = srv.state || {}, cli = srv.cli, taskOk = (s.cliAt || 0) > now() - 2 * HOUR;
+  const code = (txt, label) => html`<div class="bk-code"><code class="ltr" dir="ltr">${txt}</code><button type="button" class="btn btn-ghost btn-xs" data-bkcopy="${txt}" title="نسخ">${UI.icon('copy')} ${label || 'نسخ'}</button></div>`;
+  return html`<div class="bk-sched mt">
+    <div class="form-bar">${UI.icon('drive')}<div class="grow"><b>تُحفظ النسخ المجدولة على الخادم — تعمل على http دون أي إعداد في المتصفح</b><div class="t-sub">${plan.on ? (srv.due ? 'حان موعد نسخة: تُنشأ عند أول اتصال بالنظام أو عند تشغيل المهمة المجدولة' : srv.nextAt ? `النسخة القادمة: ${fmtDateTime(srv.nextAt)} بتوقيت الخادم` : '') : 'النسخ التلقائي غير مفعّل: فعّله أدناه ثم احفظ الجدولة'}</div></div>${plan.on ? UI.chip(srv.due ? 'amber' : 'teal', srv.due ? 'مستحقة' : 'مجدولة', srv.due ? 'clock' : 'check') : UI.chip('slate', 'متوقف', 'x')}</div>
+    ${s.lastAt ? html`<p class="hint mt">آخر نسخة ${timeAgo(s.lastAt)} (${fmtDateTime(s.lastAt)}) — ${BK_VIA[s.lastVia] || 'تلقائياً'}</p>` : ''}
+    ${s.lastError && (s.errorAt || 0) > (s.lastAt || 0) ? html`<div class="banner tone-red mt">${UI.icon('alert')}<div class="grow"><b>تعذّرت آخر محاولة ${timeAgo(s.errorAt)}</b><div class="small">${s.lastError}</div></div></div>` : ''}
+    <div class="bk-task mt"><div class="bk-th">${UI.icon('clock')}<b>النسخ دون أن يفتح أحد النظام</b>${taskOk ? UI.chip('green', `المهمة تعمل — آخر فحص ${timeAgo(s.cliAt)}`, 'check') : UI.chip('amber', 'لم تُفعَّل بعد', 'alert')}</div>
+      <p class="small muted">${taskOk ? `${cli && !cli.win ? 'cron' : 'مُجدوِل مهام ويندوز'} يشغّل فحص النسخ كل ساعة، فتُنشأ النسخة في موعدها ولو كانت كل الأجهزة مغلقة.` : 'دونها تُنشأ النسخة عند أول اتصال بالنظام بعد موعدها (مثلاً صباح اليوم التالي). لتُنشأ في موعدها تماماً ولو لم يدخل أحد، فعّل المهمة المجدولة مرة واحدة:'}</p>
+      ${cli ? html`${cli.win ? html`<ol class="bk-steps"><li>على جهاز الخادم افتح «موجه الأوامر» بصلاحية المسؤول (Run as administrator).</li><li>الصق هذا الأمر واضغط Enter (مرة واحدة فقط):${code(cli.task)}</li><li>للتجربة الآن (اختياري):${code(cli.run)}</li></ol>` : html`<p class="small">أضف هذا السطر إلى crontab على الخادم:</p>${code(cli.cron)}`}
+        <p class="hint">المهمة تفحص كل ساعة، والنظام يقرر بنفسه حسب الجدولة في هذه الصفحة هل حان موعد النسخة؛ فتغيير الجدولة لاحقاً لا يحتاج تعديل المهمة. ولنسخة فورية من سطر الأوامر:</p>${code(cli.manual)}` : html`<p class="hint">يفعّلها مشرف النظام من هذه الصفحة.</p>`}
+    </div></div>`;
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-bkcopy]'); if (!b) return;
+  e.preventDefault();
+  UI.toast((await copyText(b.dataset.bkcopy)) ? 'نُسخ الأمر' : 'تعذر النسخ، حدّد النص وانسخه يدوياً', 'info', 2500);
+});
+
 /* ══════════ الموضع في الهيكل: الإدارة ← القسم ← الوحدة ← المكتب ══════════
    كان اختيار القسم في البلاغ سطراً تحت الإدارة لا يظهر إلا بعد اختيارها، وبجانبه «المبنى» و«المكتب» نصاً حراً يقترح المكاتب وحدها،
    فلا يجد المستخدم وحدته. الآن كتلة واحدة: الإدارة أول خطوة، ثم ما يتفرع منها مستوى بعد مستوى حتى تنتهي الفروع،
@@ -19348,6 +19394,229 @@ Pages.models = async (ctx) => {
   await draw();
 };
 Router.add('/inventory/models', 'inventory.read', Pages.models, 'نماذج الأجهزة');
+
+
+/* ══════════ أيقونات الهيكل ثلاثية الأبعاد ══════════
+   رسوم SVG بعمق وإضاءة وظل، تأخذ لون الفرع نفسه (المتغير --t من فئة tone-*) فتتلون بأي لون من اللوحة.
+   تُحفظ في الإدارة أو الفرع بصيغة «o3d:الاسم»، وUI.icon يرسمها أينما ظهرت أيقونته */
+const Org3D = (() => {
+  const N = { white: '#F5F8FC', silver: '#D3DAE5', graphite: '#4A5468', navy: '#2E3B58', gold: '#F3B33A', glass: '#CFE6FF', ink: '#1D2433' };
+  const TC = 'rgb(var(--t,59,139,235))', fill = (c) => (c === 'T' ? `style="fill:${TC}"` : `fill="${N[c] || c}"`), tf = (op = 1) => `style="fill:${TC}" fill-opacity="${op}"`;
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const star = (cx, cy, R, r, n = 5) => { let d = ''; for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + (i * Math.PI) / n, q = i % 2 ? r : R; d += `${i ? 'L' : 'M'}${r1(cx + q * Math.cos(a))} ${r1(cy + q * Math.sin(a))} `; } return `${d}Z`; };
+  const gear = (cx, cy, R, r, n = 8, w = 0.18) => { let d = ''; for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; [[a - w * 1.7, r], [a - w, R], [a + w, R], [a + w * 1.7, r]].forEach(([b, q], j) => { d += `${!i && !j ? 'M' : 'L'}${r1(cx + q * Math.cos(b))} ${r1(cy + q * Math.sin(b))} `; }); } return `${d}Z`; };
+  const build = (draw) => {
+    let n = 0, L = '', R = ''; const defs = [], parts = [];
+    const grad = (tag, at, stops) => { const i = `o3Z_${n++}`; defs.push(`<${tag} id="${i}" ${at}>${stops.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}" stop-opacity="${a}"/>`).join('')}</${tag}>`); return `url(#${i})`; };
+    const lit = (rad) => (rad ? R || (R = grad('radialGradient', 'cx=".34" cy=".26" r=".9"', [[0, '#fff', 0.62], [0.5, '#fff', 0.08], [1, '#0B1530', 0.24]])) : L || (L = grad('linearGradient', 'x1="0" y1="0" x2="0" y2="1"', [[0, '#fff', 0.52], [0.48, '#fff', 0.06], [1, '#0B1530', 0.2]])));
+    const o = {
+      /* شكل بوجه مضاء وجانب أغمق (العمق d) وحافة لامعة */
+      el(tag, a, c, { d = 0, rad = false, gloss = true, rim = true, shade = 0 } = {}) {
+        if (d) parts.push(`<${tag} ${a} transform="translate(0 ${d})" ${fill(c)}/><${tag} ${a} transform="translate(0 ${d})" fill="#0B1530" fill-opacity=".4"/>`);
+        parts.push(`<${tag} ${a} ${fill(c)}/>`);
+        if (shade) parts.push(`<${tag} ${a} fill="#0B1530" fill-opacity="${shade}"/>`);
+        if (gloss) parts.push(`<${tag} ${a} fill="${lit(rad)}"/>`);
+        if (rim) parts.push(`<${tag} ${a} fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="1.2"/>`);
+        return o;
+      },
+      rect: (x, y, w, h, r, c, opt) => o.el('rect', `x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"`, c, opt),
+      path: (d, c, opt) => o.el('path', `d="${d}"`, c, { rad: true, ...opt }),
+      circ: (cx, cy, r, c, opt) => o.el('circle', `cx="${cx}" cy="${cy}" r="${r}"`, c, { rad: true, ...opt }),
+      ell: (cx, cy, rx, ry, c, opt) => o.el('ellipse', `cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"`, c, { rad: true, ...opt }),
+      /* أسطوانة (قطعة نقد، قاعدة بيانات): جانب منحنٍ ثم وجه علوي */
+      cyl(cx, cy, rx, ry, h, c) { parts.push(`<path d="M${cx - rx} ${cy} V${cy + h} A${rx} ${ry} 0 0 0 ${cx + rx} ${cy + h} V${cy} Z" ${fill(c)}/><path d="M${cx - rx} ${cy} V${cy + h} A${rx} ${ry} 0 0 0 ${cx + rx} ${cy + h} V${cy} Z" fill="#0B1530" fill-opacity=".34"/>`); return o.ell(cx, cy, rx, ry, c); },
+      line(d, c = 'graphite', w = 6, op = 1) { parts.push(`<path d="${d}" fill="none" ${c === 'T' ? `style="stroke:${TC}"` : `stroke="${N[c] || c}"`} stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="${op}"/>`); return o; },
+      raw(s) { parts.push(s); return o; },
+      shadow(cx, cy, rx, ry = rx * 0.2) { parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${r1(ry)}" fill="${grad('radialGradient', 'cx=".5" cy=".5" r=".5"', [[0, '#0B1830', 0.42], [1, '#0B1830', 0]])}"/>`); return o; },
+      /* شخص نصفي: رأس وكتفان */
+      bust(cx, top, s, c) { o.circ(cx, r1(top + 14 * s), r1(13 * s), c, { d: 3 }); return o.path(`M${r1(cx - 25 * s)} ${r1(top + 64 * s)} Q${r1(cx - 25 * s)} ${r1(top + 31 * s)} ${cx} ${r1(top + 31 * s)} Q${r1(cx + 25 * s)} ${r1(top + 31 * s)} ${r1(cx + 25 * s)} ${r1(top + 64 * s)} Z`, c, { d: 4 }); }
+    };
+    draw(o);
+    return `<svg class="ic o3d %C%" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><defs>${defs.join('')}</defs>${parts.join('')}</svg>`;
+  };
+  const W = (op) => `fill="#fff" fill-opacity="${op}"`;
+  const D = {
+    building: (o) => { o.shadow(64, 118, 48).rect(26, 22, 76, 88, 9, 'T', { d: 6 }).rect(20, 12, 88, 15, 6, 'T', { d: 4, shade: 0.12 }); let w = ''; [36, 52, 68].forEach((y) => [36, 58, 80].forEach((x) => { w += `<rect x="${x}" y="${y}" width="12" height="10" rx="2.5" ${W(0.88)}/>`; })); o.raw(w).rect(53, 86, 22, 24, 4, 'navy', { gloss: false }); },
+    office: (o) => { o.shadow(64, 120, 52).rect(22, 92, 10, 24, 3, 'graphite', { gloss: false, rim: false }).rect(96, 92, 10, 24, 3, 'graphite', { gloss: false, rim: false }).rect(10, 80, 108, 14, 6, 'T', { d: 6 }).rect(57, 62, 14, 20, 3, 'silver', { rim: false }).rect(24, 12, 80, 54, 9, 'graphite', { d: 5 }).rect(30, 18, 68, 42, 6, 'T').raw(`<rect x="37" y="26" width="28" height="5" rx="2.5" ${W(0.9)}/><rect x="37" y="36" width="44" height="4" rx="2" ${W(0.55)}/><rect x="37" y="45" width="34" height="4" rx="2" ${W(0.55)}/>`); },
+    team: (o) => { o.shadow(64, 114, 56).bust(30, 26, 1, 'silver').bust(98, 26, 1, 'silver').bust(64, 20, 1.3, 'T'); },
+    person: (o) => { o.shadow(64, 120, 44).bust(64, 12, 1.55, 'T').raw('<path d="M55 61 L64 76 L73 61" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="5" stroke-linejoin="round"/><path d="M61 70 H67 L70 96 L64 103 L58 96 Z" fill="#2E3B58"/>'); },
+    briefcase: (o) => { o.shadow(64, 118, 52).line('M46 40 V30 Q46 22 54 22 H74 Q82 22 82 30 V40', 'graphite', 8).rect(12, 38, 104, 68, 13, 'T', { d: 7 }).raw('<rect x="12" y="63" width="104" height="7" fill="#0B1530" fill-opacity=".2"/>').rect(54, 56, 20, 20, 5, 'gold', { d: 2 }); },
+    finance: (o) => { o.shadow(64, 120, 50); [[88, 'T'], [70, 'T'], [52, 'T']].forEach(([y, c]) => o.cyl(64, y, 44, 15, 12, c)); o.raw('<ellipse cx="64" cy="52" rx="30" ry="9.5" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="3"/>').circ(100, 26, 15, 'gold', { d: 3 }).raw('<circle cx="100" cy="26" r="8" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2.5"/>'); },
+    legal: (o) => { o.shadow(64, 120, 42).rect(60, 30, 8, 72, 4, 'silver', { rim: false }).rect(36, 100, 56, 12, 6, 'T', { d: 5 }).rect(14, 28, 100, 8, 4, 'silver').line('M26 34 L12 70 M26 34 L40 70 M102 34 L88 70 M102 34 L116 70', 'graphite', 2.5, 0.75).path('M6 70 H46 Q46 88 26 88 Q6 88 6 70 Z', 'T', { d: 4 }).path('M82 70 H122 Q122 88 102 88 Q82 88 82 70 Z', 'T', { d: 4 }).circ(64, 25, 9, 'T', { d: 2 }); },
+    badge: (o) => { o.shadow(64, 120, 42).rect(26, 18, 76, 96, 12, 'white', { d: 6 }).path('M26 30 Q26 18 38 18 H90 Q102 18 102 30 V42 H26 Z', 'T', { rim: false }).rect(52, 8, 24, 16, 5, 'silver').raw('<rect x="57" y="13" width="14" height="4" rx="2" fill="#2E3B58"/>').circ(64, 64, 13, 'T', { d: 2 }).path('M40 100 Q40 80 64 80 Q88 80 88 100 Z', 'T', { d: 2 }); },
+    training: (o) => { o.shadow(64, 118, 48).path('M34 56 V84 Q64 102 94 84 V56 Z', 'T', { d: 4, shade: 0.22 }).path('M64 20 L120 46 L64 72 L8 46 Z', 'T', { d: 6 }).line('M64 46 L102 58 V86', 'gold', 3.5).circ(102, 90, 6, 'gold', { d: 1, rim: false }); },
+    shield: (o) => { o.shadow(64, 122, 38).path('M64 8 L106 23 V58 Q106 96 64 116 Q22 96 22 58 V23 Z', 'T', { d: 6 }).line('M45 60 L59 74 L85 46', '#fff', 10); },
+    it: (o) => { o.shadow(64, 118, 46).rect(42, 102, 44, 9, 4.5, 'silver', { d: 3 }).rect(58, 82, 12, 22, 3, 'silver', { rim: false }).rect(10, 14, 108, 72, 11, 'graphite', { d: 6 }).rect(17, 21, 94, 58, 6, 'T').line('M44 40 L33 50 L44 60 M84 40 L95 50 L84 60 M71 36 L57 64', '#fff', 5.5, 0.92); },
+    network: (o) => { o.shadow(64, 120, 52).line('M64 62 L24 28 M64 62 L104 28 M64 62 L24 98 M64 62 L104 98', 'graphite', 5, 0.55); [[24, 28], [104, 28], [24, 98], [104, 98]].forEach(([x, y]) => o.circ(x, y, 14, 'silver', { d: 3 }).raw(`<circle cx="${x}" cy="${y}" r="5.5" ${tf(1)}/>`)); o.circ(64, 62, 23, 'T', { d: 5 }); },
+    support: (o) => { o.shadow(64, 120, 42).line('M28 66 V58 Q28 20 64 20 Q100 20 100 58 V66', 'T', 10).line('M28 66 V58 Q28 20 64 20 Q100 20 100 58 V66', '#fff', 3, 0.35).rect(14, 54, 24, 40, 11, 'T', { d: 4 }).rect(90, 54, 24, 40, 11, 'T', { d: 4 }).line('M102 94 V100 Q102 110 88 110 H74', 'graphite', 4).rect(56, 103, 20, 12, 6, 'graphite'); },
+    archive: (o) => { o.shadow(64, 122, 44).rect(26, 8, 76, 106, 10, 'T', { d: 7 }); [16, 48, 80].forEach((y) => o.raw(`<rect x="34" y="${y}" width="60" height="27" rx="6" ${W(0.26)} stroke="#fff" stroke-opacity=".5" stroke-width="1.5"/><rect x="52" y="${y + 9}" width="24" height="8" rx="4" ${W(0.92)}/>`)); },
+    docs: (o) => { o.shadow(64, 120, 44).rect(40, 10, 62, 84, 9, 'silver', { d: 4 }).rect(24, 24, 66, 90, 9, 'white', { d: 5 }).path('M24 33 Q24 24 33 24 H81 Q90 24 90 33 V42 H24 Z', 'T', { rim: false }).raw(`<rect x="34" y="54" width="46" height="5" rx="2.5" ${tf(0.6)}/><rect x="34" y="66" width="38" height="5" rx="2.5" ${tf(0.45)}/><rect x="34" y="78" width="46" height="5" rx="2.5" ${tf(0.45)}/><rect x="34" y="90" width="28" height="5" rx="2.5" ${tf(0.45)}/>`); },
+    mail: (o) => { o.shadow(64, 116, 54).rect(10, 28, 108, 74, 12, 'T', { d: 7 }).raw('<path d="M18 94 L52 62 M110 94 L76 62" stroke="#fff" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/><path d="M17 36 L64 72 L111 36" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'); },
+    stats: (o) => { o.shadow(64, 120, 54).rect(22, 62, 20, 38, 5, 'T', { d: 4, shade: 0.24 }).rect(54, 40, 20, 60, 5, 'T', { d: 4, shade: 0.12 }).rect(86, 16, 20, 84, 5, 'T', { d: 4 }).rect(10, 98, 108, 11, 5.5, 'silver', { d: 4 }); },
+    medical: (o) => { o.shadow(64, 120, 48).rect(14, 14, 100, 98, 26, 'white', { d: 7 }).path('M51 28 H77 V50 H99 V76 H77 V98 H51 V76 H29 V50 H51 Z', 'T', { d: 4 }); },
+    vehicle: (o) => { o.shadow(64, 114, 58).path('M8 80 Q8 64 24 62 L37 40 Q41 32 51 32 H79 Q89 32 93 40 L106 62 Q120 64 120 80 V88 Q120 96 112 96 H16 Q8 96 8 88 Z', 'T', { d: 6 }).raw('<path d="M46 41 H61 V60 H35 Z M67 41 H82 L93 60 H67 Z" fill="#CFE6FF" fill-opacity=".94"/>').circ(36, 96, 14, 'graphite', { d: 2 }).circ(92, 96, 14, 'graphite', { d: 2 }).circ(36, 96, 5.5, 'silver', { rim: false }).circ(92, 96, 5.5, 'silver', { rim: false }).rect(108, 68, 10, 7, 3.5, 'gold', { rim: false }); },
+    warehouse: (o) => { o.shadow(64, 120, 56).rect(18, 50, 92, 62, 6, 'white', { d: 5 }).rect(40, 70, 48, 42, 4, 'T', { shade: 0.2, gloss: false }).raw(`<g stroke="#fff" stroke-opacity=".45" stroke-width="3">${[80, 89, 98, 107].map((y) => `<path d="M43 ${y} H85"/>`).join('')}</g>`).path('M4 54 L64 14 L124 54 L116 62 L64 28 L12 62 Z', 'T', { d: 5 }); },
+    tools: (o) => { o.shadow(64, 120, 50).path(gear(52, 56, 42, 33, 9, 0.16), 'T', { d: 6 }).raw('<circle cx="52" cy="56" r="13" fill="#0B1530" fill-opacity=".35"/>').path(gear(96, 92, 24, 18, 7, 0.2), 'silver', { d: 4 }).raw('<circle cx="96" cy="92" r="7" fill="#0B1530" fill-opacity=".3"/>'); },
+    media: (o) => { o.shadow(60, 118, 48).rect(34, 70, 14, 32, 6, 'graphite', { d: 2 }).path('M30 44 L88 16 Q96 12 96 21 V99 Q96 108 88 104 L30 78 Z', 'T', { d: 6 }).rect(10, 42, 26, 38, 10, 'silver', { d: 4 }).line('M106 44 Q114 60 106 76 M112 30 Q126 60 112 90', 'T', 5, 0.75); },
+    calendar: (o) => { o.shadow(64, 120, 50).rect(14, 24, 100, 90, 14, 'white', { d: 6 }).path('M14 38 Q14 24 28 24 H100 Q114 24 114 38 V48 H14 Z', 'T', { rim: false }).rect(34, 12, 11, 24, 5.5, 'graphite').rect(83, 12, 11, 24, 5.5, 'graphite'); let g = ''; [60, 76, 92].forEach((y, i) => [28, 50, 72, 94].forEach((x, j) => { g += `<rect x="${x}" y="${y}" width="14" height="11" rx="3" ${tf(i === 1 && j === 2 ? 1 : 0.3)}/>`; })); o.raw(g); },
+    quality: (o) => { o.shadow(64, 120, 42).path(star(64, 62, 54, 25), 'T', { d: 6 }); },
+    globe: (o) => { o.shadow(64, 120, 44).circ(64, 60, 48, 'T', { d: 5 }).raw('<g fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="3"><ellipse cx="64" cy="60" rx="21" ry="48"/><path d="M16 60 H112 M22 36 Q64 47 106 36 M22 84 Q64 73 106 84"/></g>'); },
+    key: (o) => { o.shadow(64, 118, 50).rect(86, 64, 11, 18, 3, 'T', { d: 3, shade: 0.15 }).rect(103, 64, 11, 26, 3, 'T', { d: 3, shade: 0.15 }).rect(50, 52, 68, 16, 7, 'T', { d: 5 }).circ(38, 60, 30, 'T', { d: 5 }).raw('<circle cx="34" cy="60" r="11" fill="#0B1530" fill-opacity=".5"/>'); },
+    phone: (o) => { o.shadow(64, 122, 36).rect(34, 6, 60, 112, 15, 'graphite', { d: 6 }).rect(40, 17, 48, 88, 8, 'T').raw('<rect x="55" y="10" width="18" height="4" rx="2" fill="#1D2433"/><circle cx="64" cy="70" r="5" fill="#fff"/>').line('M53 59 Q64 49 75 59 M46 51 Q64 35 82 51', '#fff', 4.5, 0.9); },
+    folder: (o) => { o.shadow(64, 116, 54).path('M10 34 Q10 22 22 22 H50 L60 32 H106 Q118 32 118 44 V96 Q118 104 110 104 H18 Q10 104 10 96 Z', 'T', { shade: 0.25, gloss: false }).rect(22, 38, 84, 50, 6, 'white', { gloss: false }).path('M8 54 Q8 46 16 46 H112 Q120 46 120 54 L116 98 Q115 106 107 106 H21 Q13 106 12 98 Z', 'T', { d: 5 }); },
+    idea: (o) => { o.shadow(64, 122, 30).path('M64 8 Q100 8 100 46 Q100 64 86 76 Q81 81 81 88 H47 Q47 81 42 76 Q28 64 28 46 Q28 8 64 8 Z', 'T', { d: 3 }).line('M55 62 Q64 48 73 62 V86 M55 62 V86', '#fff', 3.5, 0.75).rect(46, 86, 36, 10, 4, 'silver').rect(46, 98, 36, 10, 4, 'silver').rect(54, 108, 20, 8, 4, 'graphite'); },
+    structure: (o) => { o.shadow(64, 120, 54).line('M64 44 V62 M24 62 H104 M24 62 V80 M64 62 V80 M104 62 V80', 'graphite', 4, 0.6).rect(36, 12, 56, 32, 9, 'T', { d: 4 }).rect(6, 80, 36, 28, 8, 'T', { d: 4, shade: 0.18 }).rect(46, 80, 36, 28, 8, 'T', { d: 4, shade: 0.18 }).rect(86, 80, 36, 28, 8, 'T', { d: 4, shade: 0.18 }); },
+    server: (o) => { o.shadow(64, 122, 42); [10, 44, 78].forEach((y) => { o.rect(20, y, 88, 28, 8, 'T', { d: 5 }).raw(`<rect x="31" y="${y + 11}" width="36" height="6" rx="3" ${W(0.6)}/><circle cx="92" cy="${y + 14}" r="4" fill="#5CF2A0"/><circle cx="80" cy="${y + 14}" r="4" ${W(0.6)}/>`); }); },
+    library: (o) => { o.shadow(64, 120, 54).rect(16, 28, 22, 78, 5, 'T').rect(40, 14, 24, 92, 5, 'white').rect(66, 34, 20, 72, 5, 'T', { shade: 0.25 }).path('M88 106 L101 38 Q102 34 106 35 L115 37 Q119 38 118 42 L106 108 Z', 'silver').raw(`<g ${W(0.65)}><rect x="16" y="40" width="22" height="4"/><rect x="16" y="88" width="22" height="4"/><rect x="66" y="46" width="20" height="4"/><rect x="66" y="90" width="20" height="4"/></g><rect x="40" y="28" width="24" height="5" ${tf(0.75)}/><rect x="40" y="86" width="24" height="5" ${tf(0.75)}/>`).rect(10, 104, 108, 11, 5.5, 'graphite', { d: 3 }); },
+    reception: (o) => { o.shadow(64, 118, 56).rect(58, 26, 12, 20, 4, 'graphite').rect(46, 20, 36, 10, 5, 'silver').path('M16 92 Q16 42 64 42 Q112 42 112 92 Z', 'T').rect(8, 90, 112, 16, 8, 'silver', { d: 5 }); },
+    flag: (o) => { o.shadow(44, 120, 34).rect(24, 12, 9, 106, 4.5, 'silver').circ(28.5, 11, 7, 'gold', { d: 1 }).path('M33 20 Q55 8 76 20 T120 20 V70 Q98 58 76 70 T33 70 Z', 'T', { d: 5 }); },
+    camera: (o) => { o.shadow(64, 120, 42).rect(60, 66, 9, 40, 4, 'silver', { rim: false }).rect(38, 102, 52, 10, 5, 'silver', { d: 3 }).path('M16 32 L98 22 Q108 21 108 31 V58 Q108 68 98 68 L16 64 Q8 64 8 56 V40 Q8 33 16 32 Z', 'T', { d: 6 }).circ(94, 45, 11, 'graphite').raw('<circle cx="94" cy="45" r="5" fill="#9CC8FF"/><circle cx="24" cy="44" r="3.5" fill="#FF6B6B"/>'); }
+  };
+  const LABELS = { building: 'مبنى إداري', office: 'مكتب', team: 'فريق عمل', person: 'موظف', briefcase: 'شؤون إدارية', finance: 'شؤون مالية', legal: 'شؤون قانونية', badge: 'موارد بشرية', training: 'تدريب وتعليم', shield: 'أمن وحماية', it: 'تقنية المعلومات', network: 'شبكات', support: 'دعم فني', archive: 'أرشيف', docs: 'مستندات', mail: 'مراسلات', stats: 'تخطيط وإحصاء', medical: 'خدمات طبية', vehicle: 'نقل وحركة', warehouse: 'مخازن', tools: 'صيانة', media: 'إعلام وعلاقات', calendar: 'مواعيد', quality: 'جودة وتميز', globe: 'علاقات خارجية', key: 'صلاحيات', phone: 'اتصالات', folder: 'ملفات', idea: 'تطوير وابتكار', structure: 'هيكل تنظيمي', server: 'خوادم', library: 'مكتبة', reception: 'استقبال', flag: 'مراسم', camera: 'مراقبة' };
+  const cache = new Map(); let seq = 0;
+  const get = (name, cls = '') => {
+    const k = D[name] ? name : 'building';
+    if (!cache.has(k)) cache.set(k, build(D[k]));
+    const u = (seq = (seq + 1) % 1e9).toString(36);
+    return cache.get(k).replace(/o3Z_/g, `o3${u}_`).replace('%C%', cls);
+  };
+  return { get, names: Object.keys(D), LABELS };
+})();
+const o3dOf = (ref) => (String(ref || '').startsWith('o3d:') ? String(ref).slice(4) : '');
+/* UI.icon يرسم الأيقونة ثلاثية الأبعاد أينما طُلبت أيقونة إدارة أو فرع */
+{ const ic0 = UI.icon; UI.icon = (n, cls = '') => (o3dOf(n) ? raw(Org3D.get(o3dOf(n), cls)) : ic0(n, cls)); }
+
+/* لوحة الألوان: تسعة قديمة وسبعة عشر جديداً، وترتيب متباين للتلوين التلقائي (لا يتجاور لونان متقاربان) */
+ORG_TONES.push('indigo', 'ocean', 'cyan', 'mint', 'emerald', 'lime', 'olive', 'gold', 'orange', 'coral', 'brown', 'rose', 'crimson', 'fuchsia', 'purple', 'plum', 'navy');
+const TONE_NAMES = { sky: 'سماوي', violet: 'بنفسجي', teal: 'فيروزي', brass: 'نحاسي', amber: 'كهرماني', green: 'أخضر', red: 'أحمر', pink: 'وردي', slate: 'رمادي', indigo: 'نيلي', ocean: 'أزرق محيطي', cyan: 'سماوي فاتح', mint: 'نعناعي', emerald: 'زمردي', lime: 'ليموني', olive: 'زيتوني', gold: 'ذهبي', orange: 'برتقالي', coral: 'مرجاني', brown: 'بني', rose: 'وردي غامق', crimson: 'قرمزي', fuchsia: 'فوشيا', purple: 'أرجواني', plum: 'برقوقي', navy: 'كحلي' };
+const ORG_VARY = ['sky', 'orange', 'teal', 'violet', 'rose', 'lime', 'indigo', 'gold', 'cyan', 'fuchsia', 'emerald', 'coral', 'purple', 'olive', 'ocean', 'brown', 'mint', 'crimson', 'plum', 'navy', 'amber', 'green', 'pink', 'brass', 'red', 'slate'];
+
+/* أيقونة ذكية من اسم الفرع: «قسم المكتبة» ← مكتبة، «الاستقبال» ← استقبال. الكلمات بعد التطبيع (ة←ه، أ←ا) */
+/* الكلمة بعد التطبيع ونزع «ال» وأخواتها: «الماليه» ← «ماليه»، «للتدريب» ← «تدريب» */
+const orgWords = (s) => normalizeAr(s).split(' ').filter(Boolean).map((w) => w.replace(/^(وال|بال|كال|فال|لل|ال)(?=..)/, ''));
+/* كل كلمة مفتاحية تُطابق بداية كلمة في الاسم (لا وسطها: «كتب» لا تطابق «مكتب»)، والمركّبة تُطابق كلمات متتالية */
+const ORG_ICON_WORDS = [
+  ['person', ['مكتب المدير', 'مكتب الرئيس', 'مكتب القائد', 'مدير المكتب', 'سكرتاري']],
+  ['library', ['مكتبه', 'كتب', 'مطبوعات']], ['reception', ['استقبال', 'مراجعين']],
+  ['finance', ['مالي', 'حساب', 'محاسب', 'رواتب', 'ميزاني', 'مشتريات', 'صندوق', 'خزين']],
+  ['legal', ['قانون', 'قضاي', 'تحقيق', 'عقود', 'نياب', 'تشريع']], ['badge', ['موارد بشريه', 'موارد', 'افراد', 'شؤون موظفين', 'موظفين', 'توظيف', 'شؤون ضباط']],
+  ['training', ['تدريب', 'تعليم', 'دورات', 'تاهيل', 'اكاديمي', 'كليه', 'معهد', 'دراسات عليا']], ['shield', ['امن', 'حمايه', 'حراس', 'سلامه', 'انضباط']],
+  ['server', ['خوادم', 'مركز بيانات', 'قواعد بيانات']], ['network', ['شبك']], ['support', ['دعم', 'مساعده فنيه']],
+  ['it', ['تقني', 'معلومات', 'حاسب', 'برمجيات', 'انظمه', 'رقمي', 'برمج', 'تحول']], ['archive', ['ارشيف', 'ارشفه', 'محفوظات', 'وثائق']],
+  ['docs', ['مستندات', 'سجلات', 'توثيق', 'قيد', 'طباع']], ['mail', ['بريد', 'مراسلات', 'صادر', 'وارد', 'مكاتبات']],
+  ['stats', ['تخطيط', 'احصاء', 'متابعه', 'تقييم', 'تقارير', 'مؤشرات']], ['medical', ['طبي', 'صحي', 'صحه', 'عياد', 'اسعاف', 'تمريض', 'مستشف', 'مختبر']],
+  ['vehicle', ['نقل', 'حركه', 'مركبات', 'الاليات', 'سيارات', 'مواصلات']], ['warehouse', ['مخازن', 'مخزن', 'مستودع', 'لوازم', 'امداد', 'تموين', 'عهد']],
+  ['tools', ['صيان', 'ورش', 'هندس', 'كهرباء', 'خدمات فنيه', 'منشات']], ['media', ['اعلام', 'علاقات عامه', 'توعيه', 'نشر', 'صحاف']],
+  ['calendar', ['مواعيد', 'جدول', 'مناوبات']], ['quality', ['جوده', 'تميز', 'اعتماد', 'تدقيق', 'رقابه']], ['globe', ['خارجيه', 'دولي', 'تعاون', 'ابتعاث']],
+  ['key', ['صلاحيات', 'تصاريح', 'بطاقات', 'دخول', 'هويه']], ['phone', ['اتصالات', 'هاتف', 'سنترال', 'بداله', 'لاسلكي']],
+  ['idea', ['ابتكار', 'تطوير', 'بحوث', 'ابحاث', 'دراسات']], ['flag', ['مراسم', 'تشريفات', 'بروتوكول']], ['camera', ['مراقبه', 'كاميرات', 'رصد']],
+  ['team', ['لجان', 'لجنه', 'فرق', 'فريق']], ['structure', ['تنظيم', 'هيكل']], ['briefcase', ['اداري', 'خدمات', 'شؤون']]
+].map(([k, ws]) => [k, ws.map(orgWords)]);
+const ORG_TYPE3D = { section: 'structure', branch: 'folder', unit: 'team', office: 'office', dept: 'building' };
+const orgSmartIcon = (name, type) => {
+  const nw = orgWords(name), has = (kw) => nw.some((_, i) => kw.every((x, j) => nw[i + j] && nw[i + j].startsWith(x)));
+  const hit = ORG_ICON_WORDS.find(([, kws]) => kws.some(has)); return `o3d:${hit ? hit[0] : ORG_TYPE3D[type] || 'structure'}`;
+};
+
+/* منتقي المظهر: أيقونات ثلاثية الأبعاد أو بسيطة، ولوحة ألوان. معاينة الأيقونات تتلون باللون المختار.
+   extra: خيارات إضافية في رأس كل قائمة (تلقائي، حسب الاسم، لون لكل فرع...) */
+const orgLookTab = { get() { try { return localStorage.getItem('sq_org_looktab') === 'flat' ? 'flat' : '3d'; } catch (_) { return '3d'; } }, set(v) { try { localStorage.setItem('sq_org_looktab', v); } catch (_) { /* تجاهل */ } } };
+const orgLookPicker = ({ icon = '', tone = '', iconExtra = [], toneExtra = [], previewTone = '' } = {}) => {
+  const tab = icon && !o3dOf(icon) && !iconExtra.some(([v]) => v === icon) ? 'flat' : o3dOf(icon) ? '3d' : orgLookTab.get();
+  const pv = previewTone || (ORG_TONES.includes(tone) ? tone : 'sky');
+  const xIcon = ([v, label, ic]) => html`<label class="olk-x" title="${label}"><input type="radio" name="icon" value="${v}"${icon === v ? raw(' checked') : ''}><span>${UI.icon(ic)}<b>${label}</b></span></label>`;
+  return html`<div class="olk tone-${pv}" data-olk>
+    <div class="olk-head"><b>${UI.icon('palette')} الأيقونة</b><div class="seg sm" role="radiogroup" aria-label="نوع الأيقونات"><label><input type="radio" name="olktab" value="3d"${tab === '3d' ? raw(' checked') : ''}><span>ثلاثية الأبعاد</span></label><label><input type="radio" name="olktab" value="flat"${tab === 'flat' ? raw(' checked') : ''}><span>بسيطة</span></label></div></div>
+    ${iconExtra.length ? html`<div class="olk-xs">${iconExtra.map(xIcon)}</div>` : ''}
+    <div class="org-icpick o3pick" data-olkp="3d"${tab === '3d' ? '' : raw(' hidden')}>${Org3D.names.map((k) => html`<label title="${Org3D.LABELS[k]}"><input type="radio" name="icon" value="o3d:${k}"${icon === `o3d:${k}` ? raw(' checked') : ''}><span>${raw(Org3D.get(k))}<small>${Org3D.LABELS[k]}</small></span></label>`)}</div>
+    <div class="org-icpick" data-olkp="flat"${tab === 'flat' ? '' : raw(' hidden')}>${ORG_ICONS.map((k) => html`<label title="${k}"><input type="radio" name="icon" value="${k}"${icon === k ? raw(' checked') : ''}><span>${UI.icon(k)}</span></label>`)}</div>
+    <div class="olk-head mt"><b>${UI.icon('flag')} اللون</b><span class="faint small" data-olkname>${TONE_NAMES[tone] || ''}</span></div>
+    ${toneExtra.length ? html`<div class="olk-xs">${toneExtra.map(([v, label, ic]) => html`<label class="olk-x" title="${label}"><input type="radio" name="tone" value="${v}"${tone === v ? raw(' checked') : ''}><span>${UI.icon(ic)}<b>${label}</b></span></label>`)}</div>` : ''}
+    <div class="org-tonepick">${ORG_TONES.map((t) => html`<label title="${TONE_NAMES[t] || t}"><input type="radio" name="tone" value="${t}"${tone === t ? raw(' checked') : ''}><span class="tone-${t}"></span></label>`)}</div>
+  </div>`;
+};
+/* تفاعل المنتقي في أي نافذة: تبديل القائمة، وتلوين المعاينة باللون المختار */
+document.addEventListener('change', (e) => {
+  const box = e.target.closest && e.target.closest('[data-olk]'); if (!box) return;
+  if (e.target.name === 'olktab') { $$('[data-olkp]', box).forEach((p) => { p.hidden = p.dataset.olkp !== e.target.value; }); orgLookTab.set(e.target.value); }
+  if (e.target.name === 'tone') {
+    const t = e.target.value; if (ORG_TONES.includes(t)) { box.className = box.className.replace(/\btone-[a-z]+/, `tone-${t}`); }
+    const nm = $('[data-olkname]', box); if (nm) nm.textContent = TONE_NAMES[t] || '';
+  }
+});
+
+/* مظهر الفروع المضافة: الأيقونة واللون لكل الخانات مرة واحدة، ويبقى لكل خانة أن تختار مظهرها.
+   icon: '*smart' حسب الاسم، '' حسب النوع، أو أيقونة. tone: '*vary' لون لكل فرع وما تحته بلونه، '' حسب النوع، أو لون.
+   scope: 'all' كل الخانات أو 'top' المستوى الأول فقط */
+const orgLookPref = {
+  get() { try { const v = JSON.parse(localStorage.getItem('sq_org_look') || 'null'); if (v && typeof v === 'object') return { icon: String(v.icon || ''), tone: String(v.tone || ''), scope: v.scope === 'top' ? 'top' : 'all' }; } catch (_) { /* تجاهل */ } return { icon: '*smart', tone: '*vary', scope: 'all' }; },
+  set(v) { try { localStorage.setItem('sq_org_look', JSON.stringify(v)); } catch (_) { /* تجاهل */ } }
+};
+const ORG_ICON_X = [['*smart', 'حسب الاسم تلقائياً', 'sparkle'], ['', 'حسب النوع', 'layers']];
+const ORG_TONE_X = [['*vary', 'لون لكل فرع', 'palette'], ['', 'حسب النوع', 'layers']];
+/* تطبيق المظهر على أسطر الإضافة: _icon و_tone لكل سطر. used: ألوان إخوة الموضع القائمة فلا تتكرر أولاً */
+const orgLookApply = (rows, look, used = new Set()) => {
+  const fresh = ORG_VARY.filter((t) => !used.has(t)), pal = fresh.length >= 6 ? fresh : ORG_VARY; let vi = 0;
+  rows.forEach((r) => {
+    let icon = r.icon || '', tone = r.tone || '';
+    if (!r.ownLook && (look.scope !== 'top' || r.depth === 0)) {
+      if (look.icon === '*smart') icon = orgSmartIcon(r.name, r.type); else if (look.icon) icon = look.icon;
+      if (look.tone === '*vary') tone = r.depth && r.parent && r.parent._tone ? r.parent._tone : pal[vi++ % pal.length]; else if (look.tone) tone = look.tone;
+    }
+    r._icon = icon; r._tone = tone;
+  });
+  return rows;
+};
+const orgLookOf = (r) => ({ icon: r._icon || (r.type === 'dept' ? 'building' : (UNIT_TYPES[r.type] || UNIT_TYPES.section).icon), tone: r._tone || (r.type === 'dept' ? 'brass' : (UNIT_TYPES[r.type] || UNIT_TYPES.section).tone) });
+const orgLookSummary = (look) => {
+  const ic = look.icon === '*smart' ? 'حسب الاسم' : look.icon === '' ? 'حسب النوع' : o3dOf(look.icon) ? Org3D.LABELS[o3dOf(look.icon)] : 'أيقونة بسيطة';
+  const tn = look.tone === '*vary' ? 'لون لكل فرع' : look.tone === '' ? 'حسب النوع' : TONE_NAMES[look.tone] || look.tone;
+  return `${ic} · ${tn}${look.scope === 'top' ? ' · المستوى الأول فقط' : ''}`;
+};
+/* لوحة المظهر داخل نوافذ الإضافة: مطوية بملخص، وتُفتح للاختيار */
+const orgLookBox = (look) => html`<details class="olk-box" data-lookbox open><summary>${UI.icon('palette')}<b>مظهر الفروع المضافة</b><span class="faint small" data-looksum>${orgLookSummary(look)}</span></summary>
+  <div class="olk-body">${orgLookPicker({ icon: look.icon, tone: look.tone, iconExtra: ORG_ICON_X, toneExtra: ORG_TONE_X })}
+  <div class="seg sm mt" role="radiogroup" aria-label="يُطبَّق على"><label><input type="radio" name="lookscope" value="all"${look.scope !== 'top' ? raw(' checked') : ''}><span>${UI.icon('layers')} على كل الخانات</span></label><label><input type="radio" name="lookscope" value="top"${look.scope === 'top' ? raw(' checked') : ''}><span>${UI.icon('building')} المستوى الأول فقط</span></label></div>
+  <p class="hint">لكل خانة أن تختار مظهرها من الزر الملون بجانب اسمها. «لون لكل فرع» يعطي كل فرع لوناً لا يستعمله إخوته، وما تحته بلونه.</p></div></details>`;
+const orgLookRead = (form) => { const box = $('[data-lookbox]', form); if (!box) return null; const v = (n) => { const x = box.querySelector(`[name="${n}"]:checked`); return x ? x.value : ''; }; return { icon: v('icon'), tone: v('tone'), scope: v('lookscope') === 'top' ? 'top' : 'all' }; };
+
+/* مظهر خانة واحدة: نافذة صغيرة فوق نافذة الإضافة */
+Pages.orgLookOne = ({ name = '', icon = '', tone = '', own = false }) => UI.modal({
+  title: `مظهر «${name || 'الفرع'}»`, icon: 'palette', size: 'lg',
+  body: orgLookPicker({ icon, tone }),
+  actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, ...(own ? [{ label: 'مثل الإعداد العام', kind: 'ghost', icon: 'refresh', value: 'reset' }] : []), { label: 'اعتماد', kind: 'primary', icon: 'check', submit: true, handler: (form) => { const v = UI.formValues(form); return { icon: v.icon || '', tone: v.tone || '' }; } }]
+});
+
+/* مظهر عدة فروع قائمة دفعة واحدة (من شريط التحديد في الهيكل) */
+Pages.orgLookMany = (ids) => {
+  const units = Data.list('deptUnits'), list = ids.map((id) => units.find((u) => u.id === id)).filter(Boolean);
+  return UI.modal({
+    title: `مظهر ${fmtNum(list.length)} فرع`, icon: 'palette', size: 'lg',
+    body: html`<p class="muted small">${list.slice(0, 6).map((u) => u.name).join('، ')}${list.length > 6 ? '…' : ''}</p>${orgLookPicker({ icon: '', tone: '', iconExtra: [['', 'بلا تغيير', 'x'], ['*smart', 'حسب الاسم تلقائياً', 'sparkle'], ['*type', 'الافتراضية حسب النوع', 'layers']], toneExtra: [['', 'بلا تغيير', 'x'], ['*vary', 'لون لكل فرع', 'palette'], ['*type', 'الافتراضي حسب النوع', 'layers']] })}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form); if (!v.icon && !v.tone) throw new AppError('اختر أيقونة أو لوناً');
+      const n = await Data.org.setLook(list.map((u) => u.id), v.icon || '', v.tone || ''); UI.toast(`تغيّر مظهر ${fmtNum(n)} فرع`); return true;
+    } }]
+  });
+};
+Data.org.setLook = async function (ids, icon, tone) {
+  const all = await DB.getAll('deptUnits'), list = ids.map((id) => all.find((u) => u.id === id)).filter(Boolean);
+  list.forEach((u) => this.guardNode(u.departmentId, u.id));
+  /* «لون لكل فرع»: يتجنب ألوان الإخوة غير المحددين، ويتوزع على المحددين بالترتيب */
+  const sel = new Set(list.map((u) => u.id)), byPlace = new Map();
+  return OrgLog.run('update', `تغيير مظهر ${fmtNum(list.length)} فرع`, async () => {
+    for (const u of list) {
+      const cur = await DB.get('deptUnits', u.id); if (!cur) continue;
+      const key = `${cur.departmentId}|${cur.parentId || ''}`;
+      if (!byPlace.has(key)) { const used = new Set(all.filter((x) => x.departmentId === cur.departmentId && (x.parentId || '') === (cur.parentId || '') && !sel.has(x.id) && x.tone).map((x) => x.tone)); const fresh = ORG_VARY.filter((t) => !used.has(t)); byPlace.set(key, { pal: fresh.length >= 6 ? fresh : ORG_VARY, i: 0 }); }
+      const pl = byPlace.get(key), patch = {};
+      if (icon === '*smart') patch.icon = orgSmartIcon(cur.name, cur.type); else if (icon === '*type') patch.icon = ''; else if (icon) patch.icon = icon;
+      if (tone === '*vary') patch.tone = pl.pal[pl.i++ % pl.pal.length]; else if (tone === '*type') patch.tone = ''; else if (tone) patch.tone = tone;
+      await this.saveUnit({ ...cur, ...patch });
+    }
+    return list.length;
+  });
+};
 
 boot();
 })();

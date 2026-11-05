@@ -4109,3 +4109,54 @@ button.mt-lb{cursor:pointer}[data-theme] button.mt-lb.on{background:rgb(var(--t)
 .ba-sum{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px;border-radius:12px;background:rgba(var(--accent),.08);border:1px solid rgba(var(--accent),.3);font-size:13px}.ba-sum>.ic{width:16px;height:16px;color:rgb(var(--accent-ink))}
 @media (max-width:1100px){.ba{grid-template-columns:minmax(0,1fr)}.ba-side{position:static;max-height:340px}.ba-head{display:none}.ba-row{grid-template-columns:36px minmax(0,1fr) 74px;}.ba-row>.ba-s,.ba-row>.ba-u,.ba-row>.ba-note{grid-column:2/-1}.ba-row>.ba-acts{grid-column:1/-1}}
 .mdl-card>footer{flex-wrap:nowrap}.mdl-card>footer .btn-xs{white-space:nowrap}.mdl-card>footer .icon-btn{width:30px;height:30px;flex:none}.mdl-card>footer .icon-btn .ic{width:15px;height:15px}
+
+/* ═══════════ النسخ التلقائي على الخادم ═══════════ */
+.bk-task{padding:12px 14px;border-radius:14px;border:1px solid var(--line-2);background:var(--surface-2)}
+.bk-th{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}.bk-th>.ic{width:17px;height:17px;color:rgb(var(--accent-ink))}.bk-th b{font-size:14px}
+.bk-steps{margin:6px 0;padding-inline-start:20px;font-size:13px;line-height:1.9}
+.bk-code{display:flex;align-items:flex-start;gap:8px;margin:6px 0;padding:8px 10px;border-radius:10px;background:#0b1424;border:1px solid rgba(255,255,255,.08)}
+.bk-code code{flex:1;min-width:0;font:12px/1.6 var(--f-mono,ui-monospace,Consolas,monospace);color:#cfe3ff;white-space:pre-wrap;word-break:break-all;text-align:left}
+.bk-code .btn{flex:none}
+
+/* ═══════════ ألوان إضافية للهيكل، وأيقوناته ثلاثية الأبعاد، ومنتقي المظهر ═══════════ */
+.tone-indigo{--t:79,70,229;--td:165,160,250;--tl:67,56,202}.tone-ocean{--t:2,132,199;--td:125,211,252;--tl:3,105,161}.tone-cyan{--t:6,182,212;--td:103,232,249;--tl:14,116,144}.tone-mint{--t:45,212,191;--td:153,246,228;--tl:15,118,110}.tone-emerald{--t:16,185,129;--td:110,231,183;--tl:4,120,87}.tone-lime{--t:101,163,13;--td:190,242,100;--tl:77,124,15}.tone-olive{--t:128,128,32;--td:204,204,110;--tl:96,96,20}.tone-gold{--t:234,179,8;--td:253,224,71;--tl:161,98,7}.tone-orange{--t:249,115,22;--td:253,186,116;--tl:194,65,12}.tone-coral{--t:255,127,80;--td:255,180,150;--tl:196,72,36}.tone-brown{--t:146,96,58;--td:214,170,130;--tl:120,72,38}.tone-rose{--t:244,63,94;--td:253,164,175;--tl:190,18,60}.tone-crimson{--t:185,28,28;--td:248,140,140;--tl:153,27,27}.tone-fuchsia{--t:217,70,239;--td:240,171,252;--tl:162,28,175}.tone-purple{--t:147,51,234;--td:216,180,254;--tl:126,34,206}.tone-plum{--t:142,68,173;--td:205,160,225;--tl:110,40,140}.tone-navy{--t:30,64,175;--td:147,170,240;--tl:30,58,138}
+.ic.o3d{overflow:visible;transform:scale(1.25)}
+.oc-ic:has(>.o3d),.ocf-ic:has(>.o3d),.org-ic:has(>.o3d),.org-dic:has(>.o3d),.org-dept .org-dic:has(>.o3d){background:none;box-shadow:none}
+.oc-ic>.ic.o3d{width:40px;height:40px;transform:none;filter:drop-shadow(0 5px 7px rgba(11,21,48,.22))}
+.org-ic>.ic.o3d,.ocf-ic>.ic.o3d{width:30px;height:30px;transform:none}
+.org-dic>.ic.o3d{width:40px;height:40px;transform:none}
+.olk-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.olk-head>b{display:flex;align-items:center;gap:6px;font-size:13px}
+.olk-head>b .ic{width:16px;height:16px;color:rgb(var(--accent-ink))}
+.olk-xs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.olk-x{position:relative;cursor:pointer}
+.olk-x input{position:absolute;opacity:0}
+.olk-x span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line-2);background:var(--surface-solid);font-size:12.5px;color:var(--ink-2);transition:all .2s}
+.olk-x span .ic{width:15px;height:15px}
+.olk-x input:checked+span{border-color:rgb(var(--accent));background:rgba(var(--accent),.14);color:rgb(var(--accent-ink));font-weight:700}
+.olk-x input:focus-visible+span,.org-icpick input:focus-visible+span,.org-tonepick input:focus-visible+span{outline:2px solid rgb(var(--accent));outline-offset:2px}
+.o3pick{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));max-height:296px;overflow:auto;padding:4px 2px}
+.org-icpick.o3pick span{height:auto;min-height:84px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.o3pick .ic.o3d{width:46px;height:46px;transform:none;filter:drop-shadow(0 4px 6px rgba(11,21,48,.18));transition:transform .3s var(--spring)}
+.o3pick label:hover .ic.o3d{transform:translateY(-3px) scale(1.06)}
+.o3pick small{font-size:10.5px;line-height:1.3;color:var(--ink-3);text-align:center}
+.o3pick input:checked+span small{color:rgb(var(--accent-ink));font-weight:700}
+.olk .org-tonepick{gap:7px}
+.olk .org-tonepick span{width:28px;height:28px}
+.olk-box{border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface-2);margin:12px 0}
+.olk-box>summary{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;list-style:none;user-select:none}
+.olk-box>summary::-webkit-details-marker{display:none}
+.olk-box>summary .ic{color:rgb(var(--accent-ink))}
+.olk-box>summary [data-looksum]{margin-inline-start:auto;text-align:end}
+.olk-box>summary::after{content:"";width:8px;height:8px;border-inline-end:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:rotate(45deg);transition:transform .2s;margin-inline-start:4px}
+.olk-box[open]>summary::after{transform:rotate(-135deg)}
+.olk-body{padding:2px 12px 12px}
+.orow-look{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;border:1.5px solid rgba(var(--t,var(--accent)),.4);background:rgba(var(--t,var(--accent)),.12);color:rgb(var(--t,var(--accent)));cursor:pointer;padding:0;transition:transform .25s var(--spring),box-shadow .2s}
+.orow-look:hover{transform:scale(1.1)}
+.orow-look:empty{visibility:hidden}
+.orow-look>.ic{width:17px;height:17px}
+.orow-look>.ic.o3d{width:32px;height:32px;transform:none}
+.orow-look:has(>.o3d){background:transparent;border-color:transparent}
+.orow-look.own{box-shadow:0 0 0 2px rgb(var(--accent))}
+/* بطاقة الفرع في عرض البطاقات بشريط بلونه، كما في العرض الشجري، فيتميز كل فرع بلونه */
+.org-node{border-inline-start:3px solid rgba(var(--t,var(--accent)),.85)}

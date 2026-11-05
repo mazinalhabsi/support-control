@@ -1135,6 +1135,23 @@ function verify_password(string $password, $pass): bool {
 }
 
 setup();
+/* ── سطر الأوامر: النسخة الاحتياطية دون متصفح (مُجدوِل مهام ويندوز أو cron) ──
+   php api.php backup        يفحص جدولة «مركز النسخ» وينشئ النسخة إن حان موعدها أو فات
+   php api.php backup --now  نسخة فورية
+   لا يعمل هذا الفرع إلا من سطر الأوامر، فلا يمكن استدعاؤه من المتصفح */
+if (PHP_SAPI === 'cli') {
+  $argv = $_SERVER['argv'] ?? [];
+  if (($argv[1] ?? '') === 'backup') {
+    try {
+      if (in_array('--now', $argv, true)) { bk_save_state(['cliAt' => now_ms()]); $r = bk_run('نسخة يدوية من سطر الأوامر', '', 'سطر الأوامر', 'cli'); }
+      else $r = bk_maybe_run('cli', false);
+      fwrite(STDOUT, $r ? "OK {$r['name']} ({$r['size']} bytes, {$r['rows']} rows)\n" : "SKIP: not due yet\n");
+      exit(0);
+    } catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); fwrite(STDERR, 'ERROR: ' . $e->getMessage() . "\n"); exit(1); }
+  }
+  fwrite(STDERR, "usage: php api.php backup [--now]\n");
+  exit(2);
+}
 $action = (string) ($_GET['a'] ?? $_GET['action'] ?? 'ping');
 
 /* ══ النسخ الاحتياطي على الخادم ══
@@ -1172,7 +1189,7 @@ function bk_files(string $dir): array {
 }
 function bk_plan(): array { $s = doc_data('meta', 'settings'); $p = is_array($s) ? (($s['value'] ?? [])['backupPlan'] ?? []) : []; return is_array($p) ? $p : []; }
 /** نسخة كاملة: كل السجلات بصيغة ملف النسخة في الواجهة (فتُسترد من مركز النسخ)، ومرآة للمرفقات بجانبها، وحذف الأقدم من العدد المحدد */
-function bk_run(string $note, string $by = '', string $byName = ''): array {
+function bk_run(string $note, string $by = '', string $byName = '', string $via = 'web'): array {
   bk_tz();
   $dir = bk_dir(); $err = bk_check_dir($dir); if ($err !== '') throw new RuntimeException($err);
   $lock = @fopen(bk_base() . DIRECTORY_SEPARATOR . 'backup.lock', 'c');
@@ -1201,22 +1218,57 @@ function bk_run(string $note, string $by = '', string $byName = ''): array {
     $keep = max(1, (int) (bk_plan()['keep'] ?? 8));
     foreach (array_slice(bk_files($real), $keep) as $old) @unlink($real . DIRECTORY_SEPARATOR . $old['name']);
     $size = (int) filesize($path);
-    bk_save_state(['lastAt' => now_ms(), 'lastName' => $name, 'lastSize' => $size, 'lastRows' => $rows, 'lastError' => '', 'lastBy' => $byName ?: 'تلقائي']);
+    bk_save_state(['lastAt' => now_ms(), 'lastName' => $name, 'lastSize' => $size, 'lastRows' => $rows, 'lastError' => '', 'lastBy' => $byName ?: 'تلقائي', 'lastVia' => $via]);
     return ['name' => $name, 'size' => $size, 'rows' => $rows, 'files' => $copied];
   } finally { flock($lock, LOCK_UN); fclose($lock); }
 }
-/** النسخة المجدولة: تُفحص مع نبضات المتصلين (مرة في الدقيقة على الأكثر)، وتُنشأ إن حان موعدها بتوقيت الخادم */
-function bk_maybe_run(): void {
+/** النسخة المجدولة.
+    كانت تُنشأ فقط إن كان أحد متصلاً بالنظام بعد الساعة المحددة (22 افتراضياً) في اليوم نفسه؛ وفي بيئة عمل لا يفتح فيها أحد
+    النظام ليلاً لا تُنشأ أبداً. الآن: موعد فات يُلحق عند أول فرصة (أول اتصال صباحاً، أو تشغيل مهمة ويندوز المجدولة)،
+    ومهمة ويندوز (أو cron) تشغّل «php api.php backup» كل ساعة فتعمل النسخة دون متصفح ودون أن يدخل أحد */
+function bk_gap(array $p): int { $e = (string) ($p['every'] ?? 'weekly'); return $e === 'daily' ? 86400000 : ($e === 'monthly' ? 30 * 86400000 : 7 * 86400000); }
+/** آخر موعد مجدول حلّ (الساعة المحددة اليوم إن مرّت، وإلا أمس) بالمللي ثانية */
+function bk_slot(array $p, ?int $t = null): int {
+  bk_tz(); $t = $t ?? time(); $h = max(0, min(23, (int) ($p['hour'] ?? 22)));
+  $slot = mktime($h, 0, 0, (int) date('n', $t), (int) date('j', $t), (int) date('Y', $t));
+  if ($slot > $t) $slot = mktime($h, 0, 0, (int) date('n', $t - 86400), (int) date('j', $t - 86400), (int) date('Y', $t - 86400));
+  return $slot * 1000;
+}
+function bk_due(array $p, int $last): bool {
+  if (empty($p['on'])) return false;
+  if ($last && now_ms() - $last < bk_gap($p) - 2 * 3600000) return false;
+  return !$last || $last < bk_slot($p);
+}
+/** موعد النسخة التالية للعرض: أول موعد مجدول بعد انقضاء المدة منذ آخر نسخة */
+function bk_next(array $p, int $last): int {
+  if (empty($p['on'])) return 0;
+  bk_tz(); $base = (int) (($last ? $last + bk_gap($p) - 2 * 3600000 : now_ms()) / 1000); $h = max(0, min(23, (int) ($p['hour'] ?? 22)));
+  $slot = mktime($h, 0, 0, (int) date('n', $base), (int) date('j', $base), (int) date('Y', $base));
+  if ($slot < $base) $slot = mktime($h, 0, 0, (int) date('n', $base + 86400), (int) date('j', $base + 86400), (int) date('Y', $base + 86400));
+  return $slot * 1000;
+}
+/** يفحص الجدولة وينشئ النسخة إن حان موعدها أو فات. $throttle: مرة في الدقيقة على الأكثر مع النبضات */
+function bk_maybe_run(string $via = 'web', bool $throttle = true): ?array {
   $mark = bk_base() . DIRECTORY_SEPARATOR . 'backup-check';
-  if (is_file($mark) && time() - (int) @filemtime($mark) < 60) return;
+  if ($throttle && is_file($mark) && time() - (int) @filemtime($mark) < 60) return null;
   @touch($mark);
-  $p = bk_plan(); if (empty($p['on'])) return;
-  bk_tz();
-  $gap = ($p['every'] ?? 'weekly') === 'daily' ? 86400000 : (($p['every'] ?? '') === 'monthly' ? 30 * 86400000 : 7 * 86400000);
-  $last = (int) (bk_state()['lastAt'] ?? 0);
-  if ($last && now_ms() - $last < $gap - 2 * 3600000) return;
-  if ((int) date('G') < (int) ($p['hour'] ?? 22)) return;
-  try { bk_run('نسخة تلقائية مجدولة'); } catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); }
+  if ($via === 'cli') bk_save_state(['cliAt' => now_ms()]);
+  $p = bk_plan();
+  if (!bk_due($p, (int) (bk_state()['lastAt'] ?? 0))) return null;
+  try { return bk_run('نسخة تلقائية مجدولة', '', '', $via); } catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); throw $e; }
+}
+/** أمر مُجدوِل مهام ويندوز (أو cron) الذي يشغّل النسخة كل ساعة دون متصفح؛ والنظام يقرر بنفسه هل حان الموعد */
+function bk_cli_info(): array {
+  $win = DIRECTORY_SEPARATOR === '\\';
+  $cands = array_filter([PHP_BINARY && preg_match('~php[^/\\\\]*$~i', basename(PHP_BINARY)) ? PHP_BINARY : '', php_ini_loaded_file() ? dirname((string) php_ini_loaded_file()) . DIRECTORY_SEPARATOR . ($win ? 'php.exe' : 'php') : '', PHP_BINDIR . DIRECTORY_SEPARATOR . ($win ? 'php.exe' : 'php')]);
+  $php = $win ? 'C:\\xampp\\php\\php.exe' : 'php';
+  foreach ($cands as $c) if (@is_file($c)) { $php = $c; break; }
+  $script = __FILE__;
+  return ['php' => $php, 'script' => $script, 'win' => $win,
+    'task' => 'schtasks /Create /F /SC HOURLY /MO 1 /RU SYSTEM /TN "SQAPA-IT-Backup" /TR "\\"' . $php . '\\" \\"' . $script . '\\" backup"',
+    'run' => 'schtasks /Run /TN "SQAPA-IT-Backup"',
+    'cron' => '0 * * * * ' . $php . ' ' . $script . ' backup',
+    'manual' => '"' . $php . '" "' . $script . '" backup --now'];
 }
 function can_backup(array $u): bool { return is_sup($u) || can_any($u, ['backup.manage', 'users.manage']); }
 
@@ -1443,7 +1495,7 @@ case 'beat': {
   db()->prepare("REPLACE INTO presence (user_id, at, role, data) VALUES (?, ?, ?, ?)")->execute([$uid, $t, (string) ($user['role'] ?? ''), json_encode($val, JSON_UNESCAPED_UNICODE)]);
   if (mt_rand(1, 50) === 1) db()->prepare("DELETE FROM presence WHERE at < ?")->execute([$t - PRESENCE_TTL]);
   $list = presence_list($user);
-  try { bk_maybe_run(); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
+  try { bk_maybe_run('web'); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
   try { notes_maintain(); } catch (Throwable $e) { /* لا يُفسد النبضة */ }
   out(['ok' => true, 'presence' => $list]);
 }
@@ -1452,7 +1504,8 @@ case 'beat': {
 case 'backup_srv': {
   $user = session_user(); if (!can_backup($user)) fail('للمشرف ومن يملك صلاحية البيانات', 403);
   bk_tz(); $dir = bk_dir(); $err = bk_check_dir($dir); $s = bk_state();
-  out(['dir' => $dir, 'default' => bk_default_dir(), 'custom' => !empty($s['dir']), 'error' => $err, 'state' => $s, 'files' => $err === '' ? array_slice(bk_files(realpath($dir) ?: $dir), 0, 30) : [], 'serverTime' => date('Y-m-d H:i'), 'canSet' => is_sup($user)]);
+  $p = bk_plan();
+  out(['dir' => $dir, 'default' => bk_default_dir(), 'custom' => !empty($s['dir']), 'error' => $err, 'state' => $s, 'files' => $err === '' ? array_slice(bk_files(realpath($dir) ?: $dir), 0, 30) : [], 'serverTime' => date('Y-m-d H:i'), 'canSet' => is_sup($user), 'nextAt' => bk_next($p, (int) ($s['lastAt'] ?? 0)), 'due' => bk_due($p, (int) ($s['lastAt'] ?? 0)), 'cli' => is_sup($user) ? bk_cli_info() : null]);
 }
 case 'backup_srv_dir': {
   $user = session_user(); if (!is_sup($user)) fail('اختيار مجلد النسخ للمشرف وحده', 403);
@@ -1464,7 +1517,7 @@ case 'backup_srv_dir': {
 case 'backup_srv_run': {
   $user = session_user(); if (!can_backup($user)) fail('للمشرف ومن يملك صلاحية البيانات', 403);
   @set_time_limit(600);
-  try { out(['ok' => true] + bk_run('نسخة يدوية على الخادم', (string) $user['id'], (string) ($user['name'] ?? ''))); }
+  try { out(['ok' => true] + bk_run('نسخة يدوية على الخادم', (string) $user['id'], (string) ($user['name'] ?? ''), 'manual')); }
   catch (Throwable $e) { bk_save_state(['lastError' => $e->getMessage(), 'errorAt' => now_ms()]); fail($e->getMessage(), 400); }
 }
 case 'backup_srv_get': {
