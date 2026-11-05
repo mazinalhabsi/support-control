@@ -962,6 +962,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'xmcfg') return can_any($user, ['settings', 'extmaint.manage']) ? $new : null;
       if ($key === 'mtcfg') return can_any($user, ['settings', 'mtrack.manage']) ? $new : null;
       if ($key === 'navnames') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
+      if ($key === 'invkits') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;

@@ -610,7 +610,7 @@ Data.tickets = {
     const u = Auth.user, s = Data.c.settings, title = String(input.title || '').trim();
     if (title.length < 3) throw new AppError('اكتب عنواناً واضحاً للبلاغ (3 أحرف على الأقل)');
     const priority = PRIORITY[input.priority] ? input.priority : 'medium', t0 = now();
-    const t = { id: uid('t'), number: '', legacyId: '', title, description: String(input.description || '').trim(), categoryId: input.categoryId || 'other', priority, status: 'new', requesterId: u.id, departmentId: input.departmentId || u.departmentId || '', unitId: String(input.unitId || ''), unitPath: String(input.unitPath || ''), assigneeId: '', locationId: input.locationId || u.locationId || '', location: String(input.location != null ? input.location : u.office || '').trim(), contact: String(input.contact || u.phone || '').trim(), deviceName: String(input.deviceName || '').trim(), assetTag: String(input.assetTag || '').trim(), extra: input.extra || null, createdAt: t0, updatedAt: t0, respondBy: t0 + s.sla[priority].respond * MIN, dueAt: t0 + s.sla[priority].resolve * MIN, firstResponseAt: 0, resolvedAt: 0, closedAt: 0, rating: 0, ratingComment: '', attachmentCount: files.length };
+    const t = { id: uid('t'), number: '', legacyId: '', title, description: String(input.description || '').trim(), categoryId: input.categoryId || 'other', priority, status: 'new', requesterId: u.id, departmentId: input.departmentId || u.departmentId || '', unitId: String(input.unitId || ''), unitPath: String(input.unitPath || ''), assigneeId: '', locationId: '', location: '', contact: String(input.contact || u.phone || '').trim(), deviceName: String(input.deviceName || '').trim(), assetTag: String(input.assetTag || '').trim(), extra: input.extra || null, createdAt: t0, updatedAt: t0, respondBy: t0 + s.sla[priority].respond * MIN, dueAt: t0 + s.sla[priority].resolve * MIN, firstResponseAt: 0, resolvedAt: 0, closedAt: 0, rating: 0, ratingComment: '', attachmentCount: files.length };
     await DB.run(['meta', 'tickets', 'ticketEvents', 'attachments'], async (T) => {
       const seq = (await T.get('meta', 'seq:ticket')) || { key: 'seq:ticket', value: 0 };
       seq.value += 1; await T.put('meta', seq);
@@ -2357,7 +2357,7 @@ Pages.newTicket = async (ctx) => {
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-main">
       ${UI.panel({ title: 'راجع بلاغك قبل الإرسال', icon: 'eye', body: html`<div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">${c.name}</div><b style="font-size:18px">${st.title}</b></div>${UI.priority(pr)}</div>
         ${st.description ? html`<p class="bubble mt">${st.description}</p>` : ''}
-        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} الإدارة</dt><dd>${Data.nameOf('departments', st.departmentId)}${st.unitPath ? html`<div class="t-sub">${st.unitPath}</div>` : ''}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd>${st.cat === 'card' && (st.persons || []).length ? html`<dt>${UI.icon('users')} أشخاص إضافيون</dt><dd>${st.persons.map((p) => [p.rank, p.name, p.militaryNo ? `(${p.militaryNo})` : ''].filter(Boolean).join(' ')).join('، ')}</dd>` : ''}${st.cat === 'path_code' && (st.codes || []).length ? html`<dt>${UI.icon('key')} الأشخاص المطلوب إصدار رمز لهم (${fmtNum(st.codes.length)})</dt><dd><ol class="codes-ol">${st.codes.map((p) => html`<li>${p.name || '—'}${p.militaryNo ? html` <span class="ltr faint">${p.militaryNo}</span>` : ''}</li>`)}</ol></dd>` : ''}<dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
+        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} الإدارة</dt><dd>${Data.nameOf('departments', st.departmentId)}${st.unitPath ? html`<div class="t-sub">${st.unitPath}</div>` : ''}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd>${st.cat === 'card' && (st.persons || []).length ? html`<dt>${UI.icon('users')} أشخاص إضافيون</dt><dd>${st.persons.map((p) => [p.rank, p.name, p.militaryNo ? `(${p.militaryNo})` : ''].filter(Boolean).join(' ')).join('، ')}</dd>` : ''}${st.cat === 'path_code' && (st.codes || []).length ? html`<dt>${UI.icon('key')} الأشخاص المطلوب إصدار رمز لهم (${fmtNum(st.codes.length)})</dt><dd><ol class="codes-ol">${st.codes.map((p) => html`<li>${p.name || '—'}${p.militaryNo ? html` <span class="ltr faint">${p.militaryNo}</span>` : ''}</li>`)}</ol></dd>` : ''}<dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
       ${UI.panel({ title: 'جاهز للإرسال', icon: 'send', body: html`<div class="center stack" style="gap:12px;align-items:center">${UI.illu('bell', 'head-illu')}<p class="muted">سيصل البلاغ إلى فريق الدعم الفني فور الإرسال، وستتلقى إشعاراً عند كل تحديث.</p><button class="btn btn-primary btn-lg btn-block" data-act="submit">${UI.icon('send')} إرسال البلاغ</button><button class="btn btn-ghost btn-block" data-act="back2">${UI.icon('edit')} تعديل التفاصيل</button></div>` })}
     </div>`);
   };
@@ -2462,7 +2462,7 @@ Pages.ticket = async (ctx) => {
         </div>
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
-          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
+          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('layers')} الموضع</dt><dd>${[Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← ') || t.location || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
           ${staff && VAULT.on() && VAULT.canRead() ? html`<div data-tknotes="${t.id}"></div>` : ''}
           ${staff ? UI.panel({ title: 'الإسناد والأولوية', icon: 'user-plus', body: html`<div class="stack" style="gap:12px"><div class="row" style="flex-wrap:nowrap">${t.assigneeId ? html`${UI.avatar(t.assigneeId, 'av-lg')}<div><b>${Data.userName(t.assigneeId)}</b><div class="t-sub">الفني المسؤول</div></div>` : html`<span class="faint">لم يُسند إلى فني بعد</span>`}</div>${mgr && OPEN.includes(t.status) ? html`${UI.field({ name: 'assign', label: 'إسناد إلى', type: 'select', options: UI.userOpts(['technician', 'support_manager', 'supervisor']) }, t.assigneeId)}${UI.field({ name: 'prio', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([k, p]) => ({ value: k, label: p.label })) }, t.priority)}` : ''}</div>` }) : ''}
           ${staff ? Pages.ticketFlow(t) : ''}
@@ -2524,7 +2524,8 @@ const itemIllu = (it) => (Data.c.itemCategories.get(it && it.categoryId) || {}).
 const MOVE_TONE = { receive: 'teal', issue: 'amber', transfer_out: 'violet', transfer_in: 'sky', adjust: 'slate', loan_out: 'pink', loan_return: 'green' };
 Data.inv.summary = async () => {
   let units = 0, low = 0, out = 0, skus = 0, overdue = 0, active = 0; const t = now();
-  await DB.each('items', {}, (i) => { skus++; units += Math.max(0, i.onHand || 0); if ((i.onHand || 0) <= 0) out++; else if (i.minQty > 0 && i.onHand <= i.minQty) low++; });
+  /* «نفدت» و«منخفضة» لما له حد تنبيه فقط: النموذج بلا رصيد بعد، أو الصنف الموزّع كله على الإدارات، ليس نقصاً يُنبَّه عليه */
+  await DB.each('items', {}, (i) => { if (i.archived) return; skus++; units += Math.max(0, i.onHand || 0); const oh = i.onHand || 0; if (i.minQty > 0 && oh <= 0) out++; else if (i.minQty > 0 && oh <= i.minQty) low++; });
   await DB.each('loans', { index: 'status', range: KR('active') }, (l) => { active++; if (l.dueAt && l.dueAt < t) overdue++; });
   return { skus, units, low, out, active, overdue };
 };
@@ -2763,7 +2764,7 @@ Pages.reports = async (ctx) => {
       <div class="grid g-3 mt">
         ${UI.panel({ title: 'حسب الفئة', icon: 'tag', body: UI.chart.hbars(Stats.group(win.created, 'categoryId').slice(0, 8).map(([id, v], i) => ({ label: Data.nameOf('categories', id, 'أخرى'), value: v, tone: TONES[i % TONES.length], lead: Iso.get(catIllu(id)) }))) })}
         ${UI.panel({ title: 'حسب القسم', icon: 'building', body: UI.chart.treemap(Stats.group(win.created, 'departmentId').map(([id, v]) => ({ label: Data.nameOf('departments', id, 'غير محدد'), value: v }))) })}
-        ${UI.panel({ title: 'حسب الموقع', icon: 'pin', body: UI.chart.hbars(Stats.group(win.created.filter((t) => t.locationId), 'locationId').slice(0, 8).map(([id, v], i) => ({ label: Data.nameOf('locations', id, 'غير محدد'), value: v, tone: TONES[(i + 3) % TONES.length] }))) })}
+        ${UI.panel({ title: 'حسب القسم والمكتب', icon: 'layers', body: UI.chart.hbars(Stats.group(win.created.filter((t) => t.unitId), 'unitId').slice(0, 8).map(([id, v], i) => ({ label: Data.nameOf('deptUnits', id, 'فرع محذوف'), value: v, tone: TONES[(i + 3) % TONES.length] }))) })}
       </div>
       <div class="grid g-main mt">
         ${UI.panel({ title: 'أداء الفنيين', icon: 'users', flush: true, body: lb.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>الفني</th><th>مسندة</th><th>محلولة</th><th>متوسط الحل</th><th>ضمن الموعد</th></tr></thead><tbody class="stagger">${lb.map((r, i) => { const mine = win.resolved.filter((t) => t.assigneeId === r.userId), p = Stats.slaPct(mine); return html`<tr><td><span class="rank">${i + 1}</span></td><td><div class="row nowrap" style="flex-wrap:nowrap;gap:8px">${UI.avatar(r.userId, 'av-sm')}${Data.userName(r.userId)}</div></td><td>${fmtNum((assignedBy.find(([id]) => id === r.userId) || [0, 0])[1])}</td><td><b>${fmtNum(r.value)}</b></td><td class="nowrap">${fmtDuration(r.avg)}</td><td><div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.ring(p / 100, p >= 90 ? 'teal' : p >= 70 ? 'amber' : 'red')}${Math.round(p)}%</div></td><td>${r.rate ? html`${UI.stars(Math.round(r.rate))} <span class="small faint">${r.rate.toFixed(1)}</span>` : html`<span class="faint">—</span>`}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد بلاغات محلولة في هذه الفترة')}</div>` })}
@@ -2942,11 +2943,11 @@ const SETTINGS_PARTS = {
   security: ['الدخول والجلسات', 'مدة الجلسة، وتغيير كلمة المرور المؤقتة عند أول دخول، والصور الشخصية للحسابات', 'lock', 'key'],
   handling: ['توزيع البلاغات وإغلاقها', 'الإسناد التلقائي حسب التخصص، وتنبيه المسؤولين عند التأخر، والإغلاق التلقائي للمحلول', 'swap', 'tools'],
   sla: ['اتفاقية مستوى الخدمة', 'موعد أول استجابة وموعد الحل لكل أولوية', 'clock', 'check'],
-  orglists: ['المواقع والرتب', 'المباني والمواقع التي تُختار في البلاغات والهيكل، والرتب العسكرية للحسابات', 'pin', 'building'],
+  orglists: ['الرتب', 'الرتب العسكرية التي تُختار للحسابات', 'pin', 'building'],
   invlists: ['المخازن وتصنيفات الأصناف', 'المخازن وأماكنها وأمناؤها، وتصنيفات الأصناف ورسوماتها', 'warehouse', 'box'],
   data: ['البيانات وأدوات الصيانة', 'محتوى قاعدة البيانات، وإعادة بناء عهد الإدارات، والبيانات التجريبية، وتنظيف التجربة', 'database', 'drive']
 };
-const SETTINGS_LISTS = { orglists: ['locations', 'ranks'], invlists: ['warehouses', 'itemCategories'] };
+const SETTINGS_LISTS = { orglists: ['ranks'], invlists: ['warehouses', 'itemCategories'] };
 const DB_STORE_NAMES = { users: 'المستخدمون', tickets: 'البلاغات', ticketEvents: 'أحداث البلاغات', attachments: 'المرفقات', items: 'الأصناف', stock: 'أرصدة المخازن', movements: 'الحركات', loans: 'العهد', kb: 'مقالات المعرفة', notifications: 'الإشعارات', activity: 'سجل النشاط', departments: 'الأقسام', categories: 'فئات البلاغات', itemCategories: 'تصنيفات الأصناف', warehouses: 'المخازن', ranks: 'الرتب', printers: 'الطابعات', replies: 'الردود الجاهزة', sessions: 'الجلسات', meta: 'إعدادات داخلية' };
 Pages.settings = async (ctx, part0) => {
   const part = SETTINGS_PARTS[part0] ? part0 : 'info', [title, sub, icon, illu] = SETTINGS_PARTS[part], lists = SETTINGS_LISTS[part] || [];
@@ -3284,7 +3285,7 @@ Data.users.save = async function (input, password) {
     }
   }
   if (Array.isArray(input.categories)) { const cats = ['technician', 'support_manager', 'supervisor'].includes(rec.role) ? input.categories.filter((c) => Data.c.categories.has(c)) : []; if (JSON.stringify(cats) !== JSON.stringify(rec.categories || [])) { rec.categories = cats; changed = true; } }
-  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [...new Set(input.monitor.locations || [])], sound: input.monitor.sound ? 1 : 0, style: SND_TIMBRE[input.monitor.style] ? input.monitor.style : '' }; changed = true; }
+  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [], departments: [...new Set(input.monitor.departments || [])], sound: input.monitor.sound ? 1 : 0, style: SND_TIMBRE[input.monitor.style] ? input.monitor.style : '' }; changed = true; }
   if (before && before.role !== rec.role) await Data.log('update', 'user', rec.id, `تغيير دور ${rec.username} من ${ROLES[before.role]} إلى ${ROLES[rec.role]}`);
   if (changed) { rec.updatedAt = now(); await DB.put('users', rec); await Data.refresh('users'); Bus.emit('users'); }
   return rec;
@@ -3302,17 +3303,17 @@ Bus.on('users', async () => {
 
 /* ── صفحة المستخدمين ── */
 Pages.userModal = async (id) => {
-  const sup = Auth.user.role === 'supervisor', u = id ? await DB.get('users', id) : { role: 'department', active: 1, mustChangePassword: 0, extraPerms: [], deniedPerms: [], locationId: Auth.user.locationId || '', monitor: { categories: [], locations: [], sound: 1 } };
-  const mcfg = { categories: [], locations: [], sound: 1, ...(u.monitor || {}) }, roleOk = (k) => sup || !['supervisor', 'support_manager'].includes(k);
+  const sup = Auth.user.role === 'supervisor', u = id ? await DB.get('users', id) : { role: 'department', active: 1, mustChangePassword: 0, extraPerms: [], deniedPerms: [], monitor: { categories: [], departments: [], sound: 1 } };
+  const mcfg = { categories: [], departments: [], sound: 1, ...(u.monitor || {}) }, roleOk = (k) => sup || !['supervisor', 'support_manager'].includes(k);
   let role = u.role, perms = new Set(effPerms(u));
   const permsHTML = () => {
     const defaults = new Set(roleDefaults(role)), all = role === 'supervisor';
     return html`<h3>${UI.icon('key')} الصلاحيات ${sup ? html`<small class="faint">فعّل أي صلاحية إضافية لهذا المستخدم أو اسحب صلاحية من دوره</small>` : html`<small class="faint">(يعدّلها المشرف فقط)</small>`}</h3>${all ? html`<div class="banner tone-brass">${UI.icon('key')}<div class="grow">المشرف يملك كل الصلاحيات دون استثناء.</div></div>` : ''}${sup && role !== 'supervisor' ? html`<div class="perm-presets"><span class="faint small">حزم جاهزة:</span>${PERM_PRESETS.map((p) => html`<button type="button" class="qchip" data-preset="${p.id}">${UI.icon(p.icon)}${p.label}</button>`)}</div>` : ''}<div class="perm-groups">${PERM_GROUPS.map((g) => html`<div class="perm-group"><div class="pg-head">${UI.icon(g.icon)}${g.title}</div>${g.items.map(([k, label, hint]) => { const on = all || perms.has(k), isDef = defaults.has(k); return html`<label class="perm${all ? '' : isDef && !on ? ' x-off' : !isDef && on ? ' x-mod' : ''}"><input type="checkbox" data-perm="${k}"${on ? raw(' checked') : ''}${all || !sup ? raw(' disabled') : ''}><i></i><span><b>${label}</b>${hint ? html`<small>${hint}</small>` : ''}</span>${all ? '' : isDef ? (on ? html`<em class="perm-tag">من الدور</em>` : html`<em class="perm-tag off">مسحوبة</em>`) : on ? html`<em class="perm-tag extra">إضافية</em>` : ''}</label>`; })}</div>`)}</div>`;
   };
-  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والمواقع التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>المواقع</label><div class="chip-pick">${Data.list('locations').map((l) => html`<label><input type="checkbox" data-mloc="${l.id}"${mcfg.locations.includes(l.id) ? raw(' checked') : ''}><span>${l.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div><div class="field mt"><label>نغمة هذه الشاشة <small class="faint">(تُسمع عند اختيارها)</small></label><select name="mstyle" data-tone-preview><option value="">— نغمة شاشات العرض من «الأصوات والتنبيهات» —</option>${SND_STYLES.map(([k, l]) => html`<option value="${k}"${mcfg.style === k ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
+  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والإدارات التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>الإدارات</label><div class="chip-pick">${Data.list('departments').map((d) => html`<label><input type="checkbox" data-mdep="${d.id}"${(mcfg.departments || []).includes(d.id) ? raw(' checked') : ''}><span>${d.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div><div class="field mt"><label>نغمة هذه الشاشة <small class="faint">(تُسمع عند اختيارها)</small></label><select name="mstyle" data-tone-preview><option value="">— نغمة شاشات العرض من «الأصوات والتنبيهات» —</option>${SND_STYLES.map(([k, l]) => html`<option value="${k}"${mcfg.style === k ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
   const body = html`<div class="umodal">
     <div class="u-sec"><h3>${UI.icon('user')} البيانات الأساسية</h3>${UI.fields([{ name: 'name', label: 'الاسم الكامل', required: true }, { name: 'username', label: 'اسم المستخدم للدخول', required: true, dir: 'ltr', autocomplete: 'off' }, { name: 'militaryNo', label: 'الرقم العسكري', dir: 'ltr' }, { name: 'rankId', label: 'الرتبة', type: 'select', options: UI.opts('ranks') }, { name: 'phone', label: 'الهاتف', type: 'tel', dir: 'ltr' }, { name: 'email', label: 'البريد الإلكتروني', type: 'email', dir: 'ltr' }], u)}</div>
-    <div class="u-sec"><h3>${UI.icon('pin')} الانتماء والموقع</h3>${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments') }, { name: 'unitId', label: 'القسم / الشعبة / المكتب', type: 'select', options: [] }, { name: 'locationId', label: 'الموقع / المبنى', type: 'select', options: UI.opts('locations') }, { name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214 - الطابق الثاني', wide: true }], u)}</div>
+    <div class="u-sec"><h3>${UI.icon('layers')} الانتماء في الهيكل</h3>${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments') }, { name: 'unitId', label: 'القسم / الشعبة / الوحدة / المكتب', type: 'select', options: [] }], u)}</div>
     <div class="u-sec"><h3>${UI.icon('shield')} الدور</h3><div class="role-pick">${Object.entries(ROLE_INFO).map(([k, r]) => html`<label class="tone-${r.tone} ${roleOk(k) ? '' : 'locked'}" title="${roleOk(k) ? '' : 'من صلاحية المشرف فقط'}"><input type="radio" name="role" value="${k}"${k === role ? raw(' checked') : ''}${roleOk(k) ? '' : raw(' disabled')}><span>${UI.icon(r.icon)}<b>${r.label}</b><small>${r.desc}</small></span></label>`)}</div></div>
     ${sup && (u.avatarPending || u.avatar) ? html`<div class="u-sec"><h3>${UI.icon('user')} الصورة الشخصية</h3><div class="row" style="gap:10px;align-items:center">${u.avatarPending ? html`<img src="${u.avatarPending}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover"><span class="chip tone-amber"><i class="dot"></i>بانتظار الاعتماد</span><button type="button" class="btn btn-sm btn-ok" data-avatar="ok">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-sm btn-danger" data-avatar="no">${UI.icon('x')} رفض</button>` : html`<img src="${u.avatar}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover"><button type="button" class="btn btn-sm btn-danger" data-avatar="del">${UI.icon('trash')} إزالة الصورة</button>`}</div></div>` : ''}
     <div class="u-sec" data-spec${['technician', 'support_manager', 'supervisor'].includes(role) ? '' : raw(' hidden')}>${Pages.specSection(u, role)}</div>
@@ -3338,7 +3339,7 @@ Pages.userModal = async (id) => {
       const input = { ...v, id, role };
       if (sup) { if (role === 'supervisor' || role === 'monitor') { input.extraPerms = []; input.deniedPerms = []; } else { const d = new Set(roleDefaults(role)); input.extraPerms = [...perms].filter((p) => !d.has(p)); input.deniedPerms = [...d].filter((p) => !perms.has(p) && !BASE_PERMS.includes(p)); } }
       input.categories = ['technician', 'support_manager', 'supervisor'].includes(role) ? $$('[data-spec]:checked', form).map((x) => x.dataset.spec) : [];
-      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), locations: $$('[data-mloc]:checked', form).map((x) => x.dataset.mloc), sound: Number(v.msound) ? 1 : 0, style: v.mstyle || '' };
+      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), departments: $$('[data-mdep]:checked', form).map((x) => x.dataset.mdep), sound: Number(v.msound) ? 1 : 0, style: v.mstyle || '' };
       const saved = await Data.users.save(input, v.password || '');
       const rec = await DB.get('users', saved.id); if (rec && 'mustChange' in v && Number(rec.mustChangePassword || 0) !== Number(v.mustChange)) { rec.mustChangePassword = Number(v.mustChange) ? 1 : 0; await DB.put('users', rec); await Data.refresh('users'); }
       UI.toast(id ? 'تم حفظ الحساب' : `أُنشئ حساب ${saved.name} (${ROLES[saved.role]})${v.password ? ` — كلمة المرور المؤقتة: ${v.password}` : ''}`, 'ok', 9000); return saved;
@@ -3351,8 +3352,8 @@ Pages.users = async (ctx) => {
   ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'المستخدمون والصلاحيات', sub: 'لكل مستخدم حسابه الخاص ودوره وموقعه، ويمنح المشرف الصلاحيات الإضافية', illu: 'card', actions: html`<a class="btn btn-ghost" href="#/settings?s=perms">${UI.icon('key')} الصلاحيات</a><button class="btn btn-soft" data-act="bulkadd">${UI.icon('users')} إضافة مجموعة</button><button class="btn btn-primary" data-act="new">${UI.icon('user-plus')} مستخدم جديد</button><button class="btn btn-ghost" data-act="import">${UI.icon('upload')} استيراد</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير</button>` })}
     <div class="role-cards" id="roleCards"></div>
     <div class="mt">${UI.stateLegend(['off', 'mod'], { off: 'حساب موقوف', mod: 'صلاحيات معدّلة عن الدور' })}</div>
-    <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الإدارات', [...UI.opts('departments'), { value: '-', label: '— بلا إدارة —' }])}<select id="uunit" aria-label="القسم" hidden></select>${sel('uloc', 'كل المواقع', UI.opts('locations'))}${sel('urank', 'كل الرتب', UI.opts('ranks'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}${sel('ulogin', 'آخر دخول', [{ value: 'never', label: 'لم يدخل أبداً' }, { value: '30', label: 'لم يدخل منذ 30 يوماً' }, { value: '90', label: 'لم يدخل منذ 90 يوماً' }])}${sel('uperm', 'الصلاحيات', [{ value: 'mod', label: 'معدّلة عن الدور' }, { value: 'role', label: 'صلاحيات الدور فقط' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
-  const where = (u) => [Data.nameOf('locations', u.locationId, ''), u.office].filter(Boolean).join(' — ');
+    <section class="panel mt"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="uq" type="search" placeholder="الاسم أو اسم المستخدم أو الرقم العسكري أو المكتب"></div>${sel('urole', 'كل الأدوار', Object.entries(ROLE_INFO).map(([k, r]) => ({ value: k, label: r.label })))}${sel('udep', 'كل الإدارات', [...UI.opts('departments'), { value: '-', label: '— بلا إدارة —' }])}<select id="uunit" aria-label="القسم" hidden></select>${sel('urank', 'كل الرتب', UI.opts('ranks'))}${sel('uact', 'كل الحالات', [{ value: '1', label: 'مفعّل' }, { value: '0', label: 'موقوف' }])}${sel('ulogin', 'آخر دخول', [{ value: 'never', label: 'لم يدخل أبداً' }, { value: '30', label: 'لم يدخل منذ 30 يوماً' }, { value: '90', label: 'لم يدخل منذ 90 يوماً' }])}${sel('uperm', 'الصلاحيات', [{ value: 'mod', label: 'معدّلة عن الدور' }, { value: 'role', label: 'صلاحيات الدور فقط' }])}<button class="btn btn-ghost btn-sm" data-act="bulkmode" style="margin-inline-start:auto">${UI.icon('layers')} تعديل جماعي</button><div class="seg"><label><input type="radio" name="uview" value="cards"${st.view === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')}</span></label><label><input type="radio" name="uview" value="table"${st.view === 'table' ? raw(' checked') : ''}><span>${UI.icon('menu')}</span></label></div></div><div class="bulk-bar" id="bulkBar" hidden></div><div id="ubody"></div></section>`);
+  const where = (u) => (u.unitId ? orgLabel(u.departmentId, u.unitId, Data.list('deptUnits')).split(' / ').slice(1).join(' ← ') : '');
   /* التحديد يشمل كل نتائج التصفية لا الظاهر منها فقط: القائمة تُعرض على دفعات، وكان «تحديد الكل» يحدد الظاهر وحده */
   const picked = new Set(); let rows = [];
   const sup = Auth.user.role === 'supervisor';
@@ -3360,7 +3361,7 @@ Pages.users = async (ctx) => {
     const b = $('#bulkBar', ctx.view); if (!b) return; b.hidden = !picked.size || st.view !== 'table'; if (b.hidden) return;
     const inRows = rows.filter((u) => picked.has(u.id)).length, outside = picked.size - inRows, rest = rows.length - inRows;
     b.innerHTML = String(html`<b>المحدد: ${arCount(picked.size, AR.user)}${outside ? html` <small class="faint">(${fmtNum(outside)} خارج نتائج التصفية الحالية)</small>` : ''}</b>${rest ? html`<button class="btn btn-sm btn-ghost" data-bulk="all">${UI.icon('check')} تحديد كل النتائج (${fmtNum(rows.length)})</button>` : ''}
-      <span class="bulk-acts"><button class="btn btn-sm btn-soft" data-bulk="place">${UI.icon('building')} الموضع في الهيكل</button><button class="btn btn-sm btn-soft" data-bulk="location">${UI.icon('pin')} المبنى</button><button class="btn btn-sm btn-soft" data-bulk="rank">${UI.icon('shield')} الرتبة</button><button class="btn btn-sm" data-bulk="role">${UI.icon('user')} الدور</button><button class="btn btn-sm" data-bulk="active">${UI.icon('lock')} تفعيل / إيقاف</button><button class="btn btn-sm" data-bulk="password">${UI.icon('key')} كلمة المرور</button><button class="btn btn-sm" data-bulk="must">${UI.icon('refresh')} تغيير كلمة المرور عند الدخول</button>${sup ? html`<button class="btn btn-sm" data-bulk="perms">${UI.icon('key')} الصلاحيات</button>` : ''}<button class="btn btn-sm" data-bulk="spec">${UI.icon('tag')} التخصصات</button><button class="btn btn-sm btn-ghost" data-bulk="export">${UI.icon('download')} تصدير المحدد</button></span>
+      <span class="bulk-acts"><button class="btn btn-sm btn-soft" data-bulk="place">${UI.icon('building')} الموضع في الهيكل</button><button class="btn btn-sm btn-soft" data-bulk="rank">${UI.icon('shield')} الرتبة</button><button class="btn btn-sm" data-bulk="role">${UI.icon('user')} الدور</button><button class="btn btn-sm" data-bulk="active">${UI.icon('lock')} تفعيل / إيقاف</button><button class="btn btn-sm" data-bulk="password">${UI.icon('key')} كلمة المرور</button><button class="btn btn-sm" data-bulk="must">${UI.icon('refresh')} تغيير كلمة المرور عند الدخول</button>${sup ? html`<button class="btn btn-sm" data-bulk="perms">${UI.icon('key')} الصلاحيات</button>` : ''}<button class="btn btn-sm" data-bulk="spec">${UI.icon('tag')} التخصصات</button><button class="btn btn-sm btn-ghost" data-bulk="export">${UI.icon('download')} تصدير المحدد</button></span>
       <button class="btn btn-sm btn-ghost" data-bulk="clear">${UI.icon('x')} إلغاء التحديد</button>`);
   };
   const syncHead = () => { const h = $('[data-selall]', ctx.view); if (!h) return; const n = rows.filter((u) => picked.has(u.id)).length; h.checked = !!rows.length && n === rows.length; h.indeterminate = n > 0 && n < rows.length; };
@@ -3383,12 +3384,12 @@ Pages.users = async (ctx) => {
     $('#roleCards', ctx.view).innerHTML = String(html`${Object.entries(ROLE_INFO).map(([k, r]) => html`<button class="role-card tone-${r.tone} ${st.role === k ? 'active' : ''}" data-rolecard="${k}">${UI.illu(r.illu)}<div class="rc-top"><b>${r.label}</b><span class="rc-count">${fmtNum(all.filter((x) => x.role === k).length)}</span></div><p>${r.desc}</p></button>`)}`);
     $('#urole', ctx.view).value = st.role;
     rows = all.filter((u) => match(u, qn, units));
-    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, st.limit).map((u) => html`<div class="ucard ${u.active ? '' : 'off x-off'}${u.active && ((u.extraPerms || []).length || (u.deniedPerms || []).length) ? ' x-mod' : ''}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم يُحدد الموقع')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد كل النتائج (${fmtNum(rows.length)})" title="تحديد كل النتائج (${fmtNum(rows.length)})"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.slice(0, st.limit).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}${u.active ? ((u.extraPerms || []).length || (u.deniedPerms || []).length ? ' tr-mod' : '') : ' tr-off'}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>${rows.length > st.limit ? html`<div class="more-row"><button class="btn btn-soft" data-act="more">${UI.icon('plus')} عرض المزيد (${fmtNum(rows.length - st.limit)} متبقٍ)</button></div>` : ''}`);
+    $('#ubody', ctx.view).innerHTML = String(!rows.length ? UI.empty({ illu: 'card', title: 'لا يوجد مستخدمون مطابقون', text: 'غيّر البحث أو عوامل التصفية، أو أضف مستخدماً جديداً.' }) : st.view === 'cards' ? html`<div class="ucards stagger">${rows.slice(0, st.limit).map((u) => html`<div class="ucard ${u.active ? '' : 'off x-off'}${u.active && ((u.extraPerms || []).length || (u.deniedPerms || []).length) ? ' x-mod' : ''}" data-user="${u.id}" style="--h:${UI.hueOf(u)}" tabindex="0" role="button">${ROLE_INFO[u.role] && ROLE_INFO[u.role].illu ? html`<span class="ucard-role" title="${ROLES[u.role]}">${UI.illu(ROLE_INFO[u.role].illu)}</span>` : ''}${UI.avatar(u, 'av-lg')}<b>${u.name}</b><span class="t-sub">@${u.username}</span><span class="row" style="justify-content:center;gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role], ROLE_INFO[u.role] ? ROLE_INFO[u.role].icon : 'user')}${permBadge(u)}${u.active ? '' : UI.chip('red', 'موقوف', 'lock')}${u.demo ? UI.chip('amber', 'تجريبي') : ''}${isSysAccount(u) ? UI.chip('brass', 'حساب أساسي', 'shield') : ''}</span><div class="u-where">${UI.icon('pin')}<span>${where(u) || Data.nameOf('departments', u.departmentId, 'لم تُحدد الإدارة')}</span></div><div class="u-foot"><span>${Data.nameOf('departments', u.departmentId, 'بدون قسم')}</span><span>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'لم يدخل بعد'}</span></div></div>`)}</div>` : html`<div class="table-wrap"><table class="table"><thead><tr><th class="sel-col"><input type="checkbox" data-selall aria-label="تحديد كل النتائج (${fmtNum(rows.length)})" title="تحديد كل النتائج (${fmtNum(rows.length)})"></th><th>المستخدم</th><th>الدور</th><th>القسم</th><th>الموقع والمكتب</th><th>الهاتف</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>${rows.slice(0, st.limit).map((u) => html`<tr class="${picked.has(u.id) ? 'selected' : ''}${u.active ? ((u.extraPerms || []).length || (u.deniedPerms || []).length ? ' tr-mod' : '') : ' tr-off'}"><td class="sel-col"><input type="checkbox" data-sel="${u.id}"${picked.has(u.id) ? raw(' checked') : ''} aria-label="تحديد ${u.name}"></td><td><div class="row nowrap" style="flex-wrap:nowrap">${UI.avatar(u)}<div><b>${u.name}</b><div class="t-sub ltr" style="text-align:start">@${u.username}</div></div></div></td><td><div class="row" style="gap:6px">${UI.chip(ROLE_INFO[u.role] ? ROLE_INFO[u.role].tone : 'slate', ROLES[u.role])}${permBadge(u)}</div></td><td>${Data.nameOf('departments', u.departmentId)}</td><td class="small">${where(u) || '—'}</td><td><span class="ltr">${u.phone || '—'}</span></td><td class="faint nowrap">${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td><td>${u.active ? UI.chip('teal', 'مفعّل') : UI.chip('red', 'موقوف')}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-user="${u.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-reset="${u.id}">${UI.icon('key')} كلمة المرور</button></td></tr>`)}</tbody></table></div>${rows.length > st.limit ? html`<div class="more-row"><button class="btn btn-soft" data-act="more">${UI.icon('plus')} عرض المزيد (${fmtNum(rows.length - st.limit)} متبقٍ)</button></div>` : ''}`);
     syncHead(); renderBulk();
   };
   const refilter = () => { st.limit = 60; load(); };
   $('#uq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value; refilter(); }, 200));
-  [['urole', 'role'], ['uloc', 'loc'], ['urank', 'rank'], ['uact', 'active'], ['ulogin', 'login'], ['uperm', 'perm'], ['uunit', 'unit']].forEach(([i, k]) => { $('#' + i, ctx.view).onchange = (e) => { st[k] = e.target.value; refilter(); }; });
+  [['urole', 'role'], ['urank', 'rank'], ['uact', 'active'], ['ulogin', 'login'], ['uperm', 'perm'], ['uunit', 'unit']].forEach(([i, k]) => { $('#' + i, ctx.view).onchange = (e) => { st[k] = e.target.value; refilter(); }; });
   $('#udep', ctx.view).onchange = (e) => { st.dep = e.target.value; st.unit = ''; unitSel(); refilter(); };
   UI.on(ctx.view, 'change', '[data-sel]', (e, el) => { if (el.checked) picked.add(el.dataset.sel); else picked.delete(el.dataset.sel); el.closest('tr').classList.toggle('selected', el.checked); syncHead(); renderBulk(); });
   UI.on(ctx.view, 'change', '[data-selall]', (e, el) => { rows.forEach((u) => (el.checked ? picked.add(u.id) : picked.delete(u.id))); load(); });
@@ -3423,10 +3424,10 @@ Pages.profile = async (ctx) => {
   const u = Auth.user, r = ROLE_INFO[u.role] || ROLE_INFO.department, eff = effPerms(u), hero = $('.profile-hero', ctx.view); if (!hero) return;
   hero.insertAdjacentHTML('afterend', String(html`<div class="grid g-2 mb">
     ${UI.panel({ title: 'دوري وصلاحياتي', icon: 'key', body: html`<div class="my-role tone-${r.tone}">${UI.illu(r.illu)}<div><b>${r.label}</b><p>${r.desc}</p></div></div><div class="perm-chips">${u.role === 'supervisor' ? UI.chip('brass', 'كل الصلاحيات', 'key') : eff.map((p) => UI.chip((u.extraPerms || []).includes(p) ? 'pink' : 'teal', PERM_LABEL[p], (u.extraPerms || []).includes(p) ? 'plus' : 'check'))}</div>${(u.extraPerms || []).length ? html`<p class="small faint mt">الصلاحيات الوردية منحها لك المشرف إضافةً إلى دورك.</p>` : ''}` })}
-    ${UI.panel({ title: 'بياناتي وموقعي', icon: 'pin', body: html`<form id="meForm" novalidate>${UI.fields([{ name: 'phone', label: 'رقم الهاتف', type: 'tel', dir: 'ltr' }, { name: 'locationId', label: 'الموقع / المبنى', type: 'select', options: UI.opts('locations') }, { name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214 - الطابق الثاني', wide: true }], u)}<p class="hint mt">يُستخدم موقعك تلقائياً عند تقديم البلاغات ليصل الفني إليك بسرعة.</p><button class="btn btn-primary mt" type="submit">${UI.icon('check')} حفظ بياناتي</button></form>` })}
+    ${UI.panel({ title: 'بياناتي', icon: 'user', body: html`<form id="meForm" novalidate>${UI.fields([{ name: 'phone', label: 'رقم الهاتف', type: 'tel', dir: 'ltr' }], u)}<div class="me-place mt">${UI.icon('layers')}<div><b>${[Data.nameOf('departments', u.departmentId, 'لم تُحدد إدارتك بعد'), u.unitId ? orgLabel(u.departmentId, u.unitId, Data.list('deptUnits')).split(' / ').slice(1).join(' ← ') : ''].filter(Boolean).join(' ← ')}</b><small>إدارتك وقسمك ووحدتك ومكتبك من الهيكل التنظيمي، ويحددها المشرف. تُستخدم تلقائياً في البلاغات.</small></div></div><button class="btn btn-primary mt" type="submit">${UI.icon('check')} حفظ بياناتي</button></form>` })}
   </div>`));
   const f = $('#meForm', ctx.view);
-  f.addEventListener('submit', async (e) => { e.preventDefault(); const v = UI.formValues(f), rec = await DB.get('users', u.id); Object.assign(rec, { phone: String(v.phone || '').trim(), locationId: v.locationId || '', office: String(v.office || '').trim(), updatedAt: now() }); await DB.put('users', rec); await Data.refresh('users'); Auth.user = rec; await Data.log('update', 'user', rec.id, 'تحديث البيانات الشخصية والموقع'); UI.toast('تم حفظ بياناتك'); });
+  f.addEventListener('submit', async (e) => { e.preventDefault(); const v = UI.formValues(f), rec = await DB.get('users', u.id); Object.assign(rec, { phone: String(v.phone || '').trim(), updatedAt: now() }); await DB.put('users', rec); await Data.refresh('users'); Auth.user = rec; await Data.log('update', 'user', rec.id, 'تحديث البيانات الشخصية والموقع'); UI.toast('تم حفظ بياناتك'); });
 };
 
 /* ── شاشة المراقبة: تصفية حسب الفئة والموقع مع تنبيه البلاغ الجديد ── */
@@ -3567,13 +3568,12 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
   const t = now(), me = Auth.user, ok = a.rows.filter((r) => r.status === 'new' || (r.status === 'update' && update));
   const addLookups = async (store, names) => { if (!names.length) return; const base = await DB.count(store); await DB.bulkPut(store, names.map((name, i) => ({ id: uid(store === 'departments' ? 'dep' : 'loc'), name, description: '', order: base + i, createdAt: t, updatedAt: t }))); await Data.refresh(store); };
   const usedLocs = new Set(ok.map((r) => normalizeAr(r.location)));
-  await addLookups('locations', a.newLocs.filter((n) => usedLocs.has(normalizeAr(n))));
   const idOf = (store) => new Map(Data.list(store).map((x) => [normalizeAr(x.name), x.id])), locBy = idOf('locations'), rankBy = idOf('ranks');
   /* النص الأصلي من الملف يبقى مع الحساب غير المُسند، فيقترح النظام موضعه حين تُضاف الإدارة إلى الهيكل */
   const orgText = (r) => [r.department, r.unit].filter(Boolean).join(' / ');
   const taken = new Set(Data.list('users').map((u) => userKey(u.username))), creds = [], batch = []; let created = 0, updated = 0, skippedDup = 0;
   for (let i = 0; i < ok.length; i++) {
-    const r = ok[i], placed = r.place && r.place.departmentId ? r.place : null, depId = placed ? placed.departmentId : '', unitId = placed ? placed.unitId || '' : '', locId = r.location ? locBy.get(normalizeAr(r.location)) || '' : '', rankId = r.rank ? rankBy.get(normalizeAr(r.rank)) || '' : '';
+    const r = ok[i], placed = r.place && r.place.departmentId ? r.place : null, depId = placed ? placed.departmentId : '', unitId = placed ? placed.unitId || '' : '', locId = '', rankId = r.rank ? rankBy.get(normalizeAr(r.rank)) || '' : '';
     if (r.existing) {
       const u = await DB.get('users', r.existing.id);
       if (u) { u.name = r.name; if (u.id !== me.id) u.role = r.role; if (depId) { u.departmentId = depId; u.unitId = unitId; u.orgText = ''; } else if (orgText(r) && !u.departmentId) u.orgText = orgText(r); if (locId) u.locationId = locId; if (r.office) u.office = r.office; if (r.phone) u.phone = r.phone; if (rankId) u.rankId = rankId; u.militaryNo = r.militaryNo; u.updatedAt = t; batch.push(u); updated += 1; }
@@ -3587,7 +3587,7 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
         /* تجزئة سريعة عند الاستيراد (يرقّيها الخادم إلى 100 ألف تكرار عند أول دخول)، ولا تُحفظ كلمة مرور نصاً أبداً */
         const pass = { algo: 'pbkdf2-sha256', iter: 1000, salt, hash: Crypto.hex(Crypto.pbkdf2(pw, Crypto.unhex(salt), 1000)) };
         batch.push({ id: uid('u'), username, name: r.name, role: r.role, departmentId: depId, unitId, orgText: depId ? '' : orgText(r), locationId: locId, office: r.office || '', rankId, militaryNo: r.militaryNo, phone: r.phone || '', email: '', active: 1, mustChangePassword: pwForce() ? 1 : 0, pass, extraPerms: [], deniedPerms: [], createdAt: t, updatedAt: t, lastLoginAt: 0, imported: 1 });
-        creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], placed ? placed.label : '', Data.nameOf('locations', locId, '')]); created += 1;
+        creds.push([r.name, r.militaryNo, username, pw, ROLES[r.role], placed ? placed.label : '']); created += 1;
       }
     }
     if (batch.length >= 150 || i === ok.length - 1) { await DB.bulkPut('users', batch.splice(0)); if (onProgress) onProgress(i + 1, ok.length); await new Promise((res) => setTimeout(res, 0)); }
@@ -3598,23 +3598,23 @@ Pages.runImport = async (a, { mode = 'random', update = true, sharedPw = '' } = 
 };
 
 Pages.usersTemplate = async () => {
-  const units = await DB.getAll('deptUnits'), deps = Data.list('departments').map((d) => d.name), locs = Data.list('locations').map((l) => l.name), ranks = Data.list('ranks').map((r) => r.name);
+  const units = await DB.getAll('deptUnits'), deps = Data.list('departments').map((d) => d.name), ranks = Data.list('ranks').map((r) => r.name);
   /* أقسام الهيكل بأسمائها (للاختيار من القائمة) ومساراتها كاملة (للتوضيح) */
   const flat = Data.list('departments').flatMap((d) => orgUnitsFlat(units, d.id).map(({ u, path }) => [u.name, `${d.name} / ${path}`]));
-  const n = Math.max(deps.length, locs.length, ranks.length, flat.length, 1);
-  const lists = [['الإدارات', 'المباني', 'الرتب', 'الأقسام', 'موضع القسم في الهيكل'], ...Array.from({ length: n }, (_, i) => [deps[i] || '', locs[i] || '', ranks[i] || '', (flat[i] || [])[0] || '', (flat[i] || [])[1] || ''])];
+  const n = Math.max(deps.length, ranks.length, flat.length, 1);
+  const lists = [['الإدارات', 'الرتب', 'الأقسام والوحدات والمكاتب', 'موضعها في الهيكل'], ...Array.from({ length: n }, (_, i) => [deps[i] || '', ranks[i] || '', (flat[i] || [])[0] || '', (flat[i] || [])[1] || ''])];
   const blob = XL.write([
-    { name: 'المستخدمون', widths: [32, 16, 12, 28, 26, 26, 22, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'القسم', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', '', locs[1] || '', 'مكتب 214', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '', '', '']],
-      validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$D$2:$D$${n + 1}` }, { sqref: 'F2:F10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }, { sqref: 'I2:I10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }] },
-    { name: 'القوائم', widths: [34, 30, 22, 30, 48], rows: lists },
-    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارة والقسم يُطابَقان مع الهيكل التنظيمي: الاسم المطابق يُسند إليه، والمكتوب بصيغة قريبة يُسند لأقرب إدارة أو قسم، والمختلف تماماً يُسجَّل حسابه بلا إدارة وتُحدَّد إدارته لاحقاً. ولا تُنشأ إدارات من الملف. والمباني غير الموجودة تُضاف تلقائياً.'], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. يمكن لكل مستخدم تغيير كلمة مروره من «الملف الشخصي».']] }
+    { name: 'المستخدمون', widths: [32, 16, 12, 28, 30, 16, 16], rows: [['الاسم', 'الرقم العسكري', 'الدور', 'الإدارة', 'القسم', 'الهاتف', 'الرتبة'], ['أحمد بن سالم الحارثي', '123456', 'موظف', deps[0] || 'المالية', '', '99123456', ranks[0] || ''], ['سالم بن خميس البلوشي', '234567', 'فني', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', ''], ['مريم بنت سعيد الكندية', '345678', 'إداري', deps.find((d) => /تقنية/.test(d)) || deps[0] || '', '', '', '']],
+      validations: [{ sqref: 'C2:C10000', formula: '"موظف,فني,إداري,مشرف"', strict: true }, { sqref: 'D2:D10000', formula: `'القوائم'!$A$2:$A$${n + 1}` }, { sqref: 'E2:E10000', formula: `'القوائم'!$C$2:$C$${n + 1}` }, { sqref: 'G2:G10000', formula: `'القوائم'!$B$2:$B$${n + 1}` }] },
+    { name: 'القوائم', widths: [34, 22, 30, 48], rows: lists },
+    { name: 'تعليمات', header: false, widths: [110], rows: [['تعليمات استيراد المستخدمين'], ['1. الأعمدة المطلوبة: الاسم، الرقم العسكري، الدور. بقية الأعمدة اختيارية.'], ['2. قيم الدور: موظف، فني، إداري، مشرف. الصف الذي يُترك دوره فارغاً يُسجَّل موظفاً.'], ['3. اسم الدخول لكل مستخدم هو رقمه العسكري.'], ['4. الإدارة والقسم يُطابَقان مع الهيكل التنظيمي: الاسم المطابق يُسند إليه، والمكتوب بصيغة قريبة يُسند لأقرب إدارة أو قسم، والمختلف تماماً يُسجَّل حسابه بلا إدارة وتُحدَّد إدارته لاحقاً. ولا تُنشأ إدارات من الملف. '], ['5. إذا وُجد مستخدم بنفس الرقم العسكري تُحدَّث بياناته ولا تتغير كلمة مروره.'], ['6. الصف الذي اسم دخوله (رقمه العسكري) مستخدم لحساب آخر يُتجاوز وحده، ويُسجَّل باقي الملف.'], ['7. يمكن لكل مستخدم تغيير كلمة مروره من «الملف الشخصي».']] }
   ]);
   downloadBlob(blob, 'قالب-استيراد-المستخدمين.xlsx');
 };
 
 Pages.exportUsers = () => {
-  const rows = Data.list('users').map((u) => [u.name, u.militaryNo || '', u.username, ROLES[u.role] || u.role, Data.nameOf('departments', u.departmentId, ''), Data.nameOf('locations', u.locationId, ''), u.office || '', u.phone || '', Data.nameOf('ranks', u.rankId, ''), u.active ? 'مفعّل' : 'موقوف', u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : '', (u.extraPerms || []).map((p) => PERM_LABEL[p]).join('، ')]);
-  downloadBlob(XL.write([{ name: 'المستخدمون', widths: [32, 16, 16, 14, 28, 26, 22, 14, 16, 10, 20, 34], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'الدور', 'الإدارة', 'المبنى', 'المكتب', 'الهاتف', 'الرتبة', 'الحالة', 'آخر دخول', 'صلاحيات إضافية'], ...rows] }]), `المستخدمون-${dateInput(now())}.xlsx`);
+  const rows = Data.list('users').map((u) => [u.name, u.militaryNo || '', u.username, ROLES[u.role] || u.role, Data.nameOf('departments', u.departmentId, ''), u.unitId ? orgLabel(u.departmentId, u.unitId, Data.list('deptUnits')).split(' / ').slice(1).join(' / ') : '', u.phone || '', Data.nameOf('ranks', u.rankId, ''), u.active ? 'مفعّل' : 'موقوف', u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : '', (u.extraPerms || []).map((p) => PERM_LABEL[p]).join('، ')]);
+  downloadBlob(XL.write([{ name: 'المستخدمون', widths: [32, 16, 16, 14, 28, 40, 14, 16, 10, 20, 34], rows: [['الاسم', 'الرقم العسكري', 'اسم المستخدم', 'الدور', 'الإدارة', 'القسم والوحدة والمكتب', 'الهاتف', 'الرتبة', 'الحالة', 'آخر دخول', 'صلاحيات إضافية'], ...rows] }]), `المستخدمون-${dateInput(now())}.xlsx`);
   UI.toast(`تم تصدير ${arCount(rows.length, AR.user)} إلى Excel`);
 };
 
@@ -3637,7 +3637,7 @@ Pages.importUsers = () => new Promise((resolve) => {
       ${pc.exact + pc.close + pc.none ? html`<div class="banner tone-${pc.none ? 'amber' : 'teal'}">${UI.icon('building')}<div class="grow"><b>موضع الحسابات في الهيكل التنظيمي</b><div class="small muted">مطابق للهيكل: ${fmtNum(pc.exact)} — أُسند لأقرب إدارة أو قسم: ${fmtNum(pc.close)} — بلا إدارة: ${fmtNum(pc.none)}${pc.none ? '. تُحدَّد إدارتهم لاحقاً من «الهيكل التنظيمي ← حسابات بلا إدارة» أو من ملف المستخدم' : ''}</div></div></div>` : ''}
       ${a.newLocs.length ? html`<div class="banner tone-sky">${UI.icon('pin')}<div class="grow"><b>مبانٍ جديدة ستُضاف تلقائياً (${fmtNum(a.newLocs.length)})</b><div class="small muted">${a.newLocs.join('، ')}</div></div></div>` : ''}
       <div class="imp-options"><div class="field"><label>كلمة المرور الأولية</label><div class="seg"><label><input type="radio" name="pwmode" value="random"${(impPw.mode || 'random') === 'random' ? raw(' checked') : ''}><span>${UI.icon('key')} عشوائية لكل مستخدم</span></label><label><input type="radio" name="pwmode" value="military"${impPw.mode === 'military' ? raw(' checked') : ''}><span>${UI.icon('shield')} الرقم العسكري</span></label><label><input type="radio" name="pwmode" value="shared"${impPw.mode === 'shared' ? raw(' checked') : ''}><span>${UI.icon('users')} موحّدة للجميع</span></label></div><div id="sharedPwRow" class="mt"${impPw.mode === 'shared' ? '' : raw(' hidden')}><input name="sharedpw" dir="ltr" class="input" placeholder="كلمة المرور الموحّدة (6 أحرف على الأقل)" value="${impPw.val || ''}" style="max-width:280px"></div>${pwForce() ? html`<small class="hint">في كل الحالات يُطلب من المستخدم تعيين كلمة مرور خاصة عند أول دخول.</small>` : ''}</div>${UI.field({ name: 'update', type: 'switch', text: 'تحديث بيانات المستخدمين الموجودين' }, 1)}<div class="seg" style="margin-inline-start:auto">${[['all', 'الكل'], ['new', 'الجديد'], ['update', 'التحديث'], ['error', 'الأخطاء']].map(([k, l]) => html`<label><input type="radio" name="impfilter" value="${k}"${filter === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
-      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الموضع في الهيكل</th><th>المبنى</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td>${where(r)}</td><td class="small">${r.location || html`<span class="faint">غير محدد</span>`}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
+      <div class="table-wrap imp-table"><table class="table"><thead><tr><th>السطر</th><th>الاسم</th><th>الرقم العسكري</th><th>الدور</th><th>الموضع في الهيكل</th><th>الحالة</th></tr></thead><tbody>${shown.slice(0, 400).map((r) => html`<tr class="${r.status === 'error' ? 'err' : ''}"><td class="t-num">${r.line}</td><td>${r.name || html`<span class="faint">—</span>`}</td><td><span class="ltr">${r.militaryNo || '—'}</span></td><td>${r.role ? UI.chip(ROLE_INFO[r.role].tone, ROLES[r.role]) : html`<span class="faint">${r.roleRaw}</span>`}</td><td>${where(r)}</td><td>${UI.chip(label[r.status][0], label[r.status][1])}${r.issues.length ? html`<div class="t-sub" style="color:rgb(var(--red-ink))">${r.issues.join('، ')}</div>` : r.note ? html`<div class="t-sub">${r.note}</div>` : ''}</td></tr>`)}</tbody></table></div>${shown.length > 400 ? html`<p class="hint mt">يُعرض أول 400 صف من ${fmtNum(shown.length)}.</p>` : ''}
       <div class="imp-progress" hidden><div class="progress"><i style="width:0%"></i></div><span>جارٍ الاستيراد...</span></div>
       <div class="row imp-actions"><button type="button" class="btn btn-ghost" data-imp="again">${UI.icon('upload')} اختيار ملف آخر</button><button type="button" class="btn btn-primary btn-lg" data-imp="run"${c.new + c.update ? '' : raw(' disabled')}>${UI.icon('check')} استيراد ${arCount(c.new + c.update, AR.user)}</button></div>`;
   };
@@ -3692,8 +3692,8 @@ Pages.bulkUsers = async (ids, action) => {
   const count = arCount(list.length, AR.user), names = html`<p class="muted" style="margin-bottom:12px;line-height:1.8">${list.slice(0, 5).map((u) => u.name).join('، ')}${list.length > 5 ? ` و${fmtNum(list.length - 5)} آخرين` : ''}</p>`;
   if (action === 'password') { const res = await Pages.bulkPassword(ids); if (res) await Pages.bulkPasswordDone(res); return !!res; }
   if (action === 'export') {
-    const head = ['الاسم', 'اسم المستخدم', 'الرقم العسكري', 'الرتبة', 'الدور', 'الإدارة والقسم', 'المبنى', 'المكتب', 'الهاتف', 'الحالة', 'آخر دخول'], units = Data.list('deptUnits');
-    downloadBlob(XL.write([{ name: 'الحسابات', widths: [28, 16, 14, 14, 14, 34, 18, 18, 14, 10, 18], rows: [head, ...list.map((u) => [u.name, u.username, u.militaryNo || '', Data.nameOf('ranks', u.rankId, ''), ROLES[u.role] || u.role, orgLabel(u.departmentId, u.unitId, units) || '', Data.nameOf('locations', u.locationId, ''), u.office || '', u.phone || '', u.active ? 'مفعّل' : 'موقوف', u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'لم يدخل'])] }]), `حسابات-${dateInput(now())}.xlsx`);
+    const head = ['الاسم', 'اسم المستخدم', 'الرقم العسكري', 'الرتبة', 'الدور', 'الإدارة والقسم', 'الهاتف', 'الحالة', 'آخر دخول'], units = Data.list('deptUnits');
+    downloadBlob(XL.write([{ name: 'الحسابات', widths: [28, 16, 14, 14, 14, 40, 14, 10, 18], rows: [head, ...list.map((u) => [u.name, u.username, u.militaryNo || '', Data.nameOf('ranks', u.rankId, ''), ROLES[u.role] || u.role, orgLabel(u.departmentId, u.unitId, units) || '', u.phone || '', u.active ? 'مفعّل' : 'موقوف', u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'لم يدخل'])] }]), `حسابات-${dateInput(now())}.xlsx`);
     return false;
   }
   if (action === 'place') return UI.modal({
@@ -3746,7 +3746,7 @@ Pages.bulkUsers = async (ids, action) => {
   });
 };
 
-/* ── الترحيب عند أول دخول: كلمة مرور خاصة واختيار المبنى ── */
+/* ── الترحيب عند أول دخول: كلمة مرور خاصة ── */
 Pages.welcome = async (ctx) => {
   const u = Auth.user, needPw = needsPwChange(u), info = ROLE_INFO[u.role] || ROLE_INFO.department, locs = Data.list('locations');
   if (!needPw) return Router.go(u.role === 'monitor' ? '/monitor' : '/dashboard');
@@ -3756,8 +3756,6 @@ Pages.welcome = async (ctx) => {
     ${needPw ? html`<div class="w-sec"><input type="text" name="username" autocomplete="username" value="${u.username || ''}" hidden tabindex="-1" aria-hidden="true"><h3>1. اختر كلمة مرور خاصة بك</h3><div class="field"><label for="wn">كلمة المرور الجديدة</label><div class="input-icon">${UI.icon('lock')}<input id="wn" name="next" type="password" autocomplete="new-password"></div><div class="strength" id="wStr"><i></i><i></i><i></i><i></i></div><small class="hint" style="color:#8FA3BD">8 أحرف على الأقل تتضمن حروفاً وأرقاماً</small></div><div class="field"><label for="wc">تأكيد كلمة المرور</label><div class="input-icon">${UI.icon('lock')}<input id="wc" name="confirm" type="password" autocomplete="new-password"></div></div></div>` : ''}
     <div class="w-sec" hidden><h3>${needPw ? '2. ' : ''}أين تعمل؟</h3>
       <div class="field"><label for="wd">الإدارة التي تعمل بها<em>*</em></label><select id="wd" name="departmentId"><option value="">اختر إدارتك...</option>${Data.list('departments').map((d) => html`<option value="${d.id}"${u.departmentId === d.id ? raw(' selected') : ''}>${d.name}</option>`)}</select><small class="hint">اختر من القائمة الكاملة، ويضيف المشرف أي إدارة جديدة من الإعدادات.</small></div>
-      ${u.role === 'supervisor' ? '' : html`<div class="field"><label>المبنى الذي تعمل فيه<em>*</em></label><div class="bld-pick">${locs.map((l) => html`<label><input type="radio" name="locationId" value="${l.id}"${u.locationId === l.id ? raw(' checked') : ''}><span>${UI.icon('building')}${l.name}</span></label>`)}</div></div>`}
-      <div class="field"><label for="wo">المكتب</label><input id="wo" name="office" value="${u.office || ''}" placeholder="مثال: مكتب 214 - الطابق الثاني"></div>
       <div class="field"><label for="wp">رقم الهاتف</label><input id="wp" name="phone" type="tel" dir="ltr" value="${u.phone || ''}"></div>
     </div>
     <p class="form-error" id="wErr" role="alert" hidden></p>
@@ -3775,13 +3773,13 @@ Pages.welcome = async (ctx) => {
       UI.busy(btn, true); await new Promise((r) => setTimeout(r, 40));
       if (needPw) { await Data.users.setPassword(u.id, v.next, false); rememberPw(u, v.next); }
       const rec = await DB.get('users', u.id);
-      Object.assign(rec, { locationId: v.locationId || rec.locationId || '', departmentId: v.departmentId || rec.departmentId || '', office: String(v.office || '').trim(), phone: String(v.phone || '').trim(), mustChangePassword: 0, updatedAt: now() });
+      Object.assign(rec, { departmentId: v.departmentId || rec.departmentId || '', phone: String(v.phone || '').trim(), mustChangePassword: 0, updatedAt: now() });
       await DB.put('users', rec); await Data.refresh('users'); Auth.user = rec;
       await Data.log('update', 'user', rec.id, 'إكمال بيانات الحساب عند أول دخول');
       UI.confetti(); Router.go('/dashboard');
     } catch (ex) { err.textContent = ex instanceof AppError ? ex.message : 'تعذر الحفظ، حاول مرة أخرى'; err.hidden = false; UI.busy(btn, false); }
   });
-  const first = $('#wn', ctx.view) || $('#wo', ctx.view); if (first) first.focus();
+  const first = $('#wn', ctx.view) || $('#wp', ctx.view); if (first) first.focus();
 };
 
 /* ── نماذج الفئات الذكية، التخصصات والإسناد التلقائي، حزم الصلاحيات ── */
@@ -5800,14 +5798,10 @@ const CAT_DESC = {
 Forms.descHint = (catId) => CAT_DESC[catId] || CAT_DESC.other;
 Forms.baseFields = (catId, values = {}) => {
   const show = Forms.baseShow(catId), u = Auth.user || {};
-  const locOpts = Data.list('locations').map((l) => ({ value: l.name, label: l.name }));
   const deps = Data.list('departments').map((d) => ({ value: d.id, label: d.name }));
   return html`<div class="form-grid">
-    ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', options: deps, placeholder: false }, values.departmentId || u.departmentId || '')}
+    ${Forms.orgPlace(values.departmentId || u.departmentId || '', deps)}
     <input type="hidden" name="unitId" value="${values.unitId != null ? values.unitId : (values.departmentId || u.departmentId || '') === u.departmentId ? u.unitId || '' : ''}"><input type="hidden" name="unitPath" value="${values.unitPath || ''}">
-    <div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
-    ${UI.field({ name: 'locationId', label: 'المبنى', type: 'select', options: UI.opts('locations') }, values.locationId || u.locationId || '')}
-    ${UI.combo({ name: 'location', label: 'المكتب', value: values.location || u.office || '', placeholder: 'مثال: مكتب 214 - الطابق الثاني', options: locOpts, hint: 'اكتب المكتب أو اختر من القائمة' })}
     ${UI.field({ name: 'contact', label: 'رقم التواصل', inputmode: 'tel' }, values.contact || u.phone || '')}
     ${show.includes('deviceName') ? UI.field({ name: 'deviceName', label: 'اسم الجهاز على الشبكة', placeholder: 'مثال: NZWSQP00WS001', hint: 'يساعد الفني على الاتصال بجهازك عن بُعد' }, values.deviceName || '') : ''}
   </div>`;
@@ -6931,7 +6925,7 @@ Pages.maintDeviceCard = async (q) => {
       <div class="md-acts">${act ? html`<a class="btn btn-primary" href="#/maintenance/${act.id}">${UI.icon('tools')} أمر الصيانة الحالي</a>` : Data.maint.canWork() && a.status !== 'retired' ? html`<button type="button" class="btn btn-primary" data-mdin="${a.id}">${UI.icon('tools')} استلام للصيانة</button>` : ''}<button type="button" class="btn btn-ghost" data-asset="${a.id}">${UI.icon('info')} بطاقة الوحدة</button></div></div>
     <div class="md-grid mt">
       <dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial}</dd>${a.tag ? html`<dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag}</dd>` : ''}${a.host ? html`<dt>اسم الجهاز في الشبكة</dt><dd class="ltr" style="text-align:start">${a.host}</dd>` : ''}<dt>الصنف</dt><dd>${IC.label(it.categoryId) || '—'}</dd>${a.addedAt ? html`<dt>سُجّل في</dt><dd>${fmtDate(a.addedAt)}</dd>` : ''}${a.note ? html`<dt>ملاحظة</dt><dd>${a.note}</dd>` : ''}</dl>
-      <dl class="kv"><dt>${UI.icon('building')} الإدارة والموقع</dt><dd>${place || (a.status === 'in_store' ? `المخزن: ${Data.nameOf('warehouses', a.warehouseId)}` : '—')}</dd><dt>${UI.icon('user')} الحائز</dt><dd>${hu ? html`<span class="row nowrap" style="gap:6px">${UI.avatar(hu, 'av-sm')}${hu.name}</span>` : a.holder || '—'}</dd>${hu && hu.phone ? html`<dt>${UI.icon('phone')} هاتفه</dt><dd class="ltr" style="text-align:start">${hu.phone}</dd>` : ''}${hu && (hu.locationId || hu.office) ? html`<dt>${UI.icon('pin')} مكتبه</dt><dd>${[Data.nameOf('locations', hu.locationId, ''), hu.office].filter(Boolean).join(' — ')}</dd>` : ''}${loan ? html`<dt>${UI.icon('clipboard')} إعارة</dt><dd>${loan.borrower || a.holder || '—'}${loan.dueAt ? ` حتى ${fmtDate(loan.dueAt)}` : ''}</dd>` : ''}</dl>
+      <dl class="kv"><dt>${UI.icon('building')} الإدارة والقسم</dt><dd>${place || (a.status === 'in_store' ? `المخزن: ${Data.nameOf('warehouses', a.warehouseId)}` : '—')}</dd><dt>${UI.icon('user')} الحائز</dt><dd>${hu ? html`<span class="row nowrap" style="gap:6px">${UI.avatar(hu, 'av-sm')}${hu.name}</span>` : a.holder || '—'}</dd>${hu && hu.phone ? html`<dt>${UI.icon('phone')} هاتفه</dt><dd class="ltr" style="text-align:start">${hu.phone}</dd>` : ''}${hu && hu.unitId ? html`<dt>${UI.icon('layers')} موضعه</dt><dd>${orgLabel(hu.departmentId, hu.unitId, Data.list('deptUnits'))}</dd>` : ''}${loan ? html`<dt>${UI.icon('clipboard')} إعارة</dt><dd>${loan.borrower || a.holder || '—'}${loan.dueAt ? ` حتى ${fmtDate(loan.dueAt)}` : ''}</dd>` : ''}</dl>
     </div>
     ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl></div>` : ''}
     ${Pages.maintAdds(hist)}
@@ -7349,7 +7343,6 @@ Pages.workModal = async (id = '', preset = {}) => {
       <div class="form-grid mt">
         ${UI.field({ name: 'at', label: 'تاريخ العمل', type: 'date' }, dateInput(rec.at || now()))}
         ${UI.combo({ name: 'departmentId', label: 'الإدارة أو الجهة المستفيدة', value: rec.departmentId ? Data.nameOf('departments', rec.departmentId, '') : '', options: Data.list('departments').map((d) => ({ value: d.name, label: d.name })), placeholder: 'اختر من القائمة أو اكتب الجهة' })}
-        ${UI.combo({ name: 'locationId', label: 'المبنى أو الموقع', value: rec.locationId ? Data.nameOf('locations', rec.locationId, '') : '', options: Data.list('locations').map((l) => ({ value: l.name, label: l.name })), placeholder: 'اختر أو اكتب (مثال: خارج الأكاديمية)' })}
         ${UI.field({ name: 'place', label: 'المكتب أو القاعة' }, rec.place)}
         ${UI.field({ name: 'hours', label: 'عدد الساعات', type: 'number', min: 0, step: '0.5' }, rec.hours || '')}
         ${UI.field({ name: 'people', label: 'عدد المستفيدين', type: 'number', min: 0 }, rec.people || '')}
@@ -8378,7 +8371,7 @@ Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' })
   if (kind === 'dept') {
     const rec = id ? Data.c.departments.get(id) : {};
     return UI.modal({ title: id ? `تعديل الإدارة: ${rec.name}` : 'إدارة جديدة', icon: 'building', size: 'lg',
-      body: html`${UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT' }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), hint: 'يُعبّأ تلقائياً في البلاغات والحسابات لمن يتبع هذه الإدارة' }, { name: 'room', label: 'المكتب / الطابق (اختياري)', placeholder: 'مثال: الطابق الأول' }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}${orgHeadField(rec.headId || '', (u) => !!id && u.departmentId === id, canOrg() ? '' : 'رئيس الإدارة يعيّنه من يملك تعديل الهيكل')}${look(rec, 'building', 'brass')}`,
+      body: html`${UI.fields([{ name: 'name', label: 'اسم الإدارة', required: true, wide: true }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT' }, { name: 'head', label: 'مدير الإدارة', placeholder: 'الرتبة والاسم' }, { name: 'phone', label: 'هاتف الإدارة', dir: 'ltr' }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}${orgHeadField(rec.headId || '', (u) => !!id && u.departmentId === id, canOrg() ? '' : 'رئيس الإدارة يعيّنه من يملك تعديل الهيكل')}${look(rec, 'building', 'brass')}`,
       onMount: UI.bindHeadSearch,
       actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => { const r = await Data.org.saveDept({ ...rec, ...UI.formValues(form), id: id || undefined }); UI.toast('حُفظت الإدارة'); return r; } }] });
   }
@@ -8392,7 +8385,7 @@ Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' })
       <div class="field"><label>نوع الفرع</label><div class="choice-pick">${ORG_TYPE_ORDER.map((k) => html`<label><input type="radio" name="type" value="${k}"${(rec.type || 'section') === k ? raw(' checked') : ''}><span>${UI.icon(UNIT_TYPES[k].icon)}${UNIT_TYPES[k].label}</span></label>`)}</div></div>
       ${UI.fields([{ name: 'name', label: 'الاسم', wide: true, placeholder: 'مثال: قسم الشبكات' }], rec)}
       ${id ? '' : html`<div class="org-more" data-more></div><button type="button" class="btn btn-ghost btn-sm" style="margin:8px 0 6px" data-morename>${UI.icon('plus')} اسم آخر بالإعدادات نفسها</button>`}
-      ${UI.fields([{ name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true, disabled: top }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }, { name: 'locationId', label: 'المبنى / الموقع', type: 'select', options: UI.opts('locations'), placeholder: '— نفس مبنى الإدارة —' }, { name: 'room', label: 'المكتب / الغرفة (اختياري)', placeholder: 'مثال: مكتب 214 - الطابق الثاني' }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}
+      ${UI.fields([{ name: 'parentId', label: 'يتبع', type: 'select', placeholder: '— الإدارة مباشرة —', options: parents.map(({ u, depth }) => ({ value: u.id, label: `${'  '.repeat(depth)}${depth ? '↳ ' : ''}${u.name}` })), wide: true, disabled: top }, { name: 'code', label: 'الرمز (اختياري)', dir: 'ltr', placeholder: 'مثال: IT-NET' }, { name: 'head', label: 'رئيس الفرع' }, { name: 'phone', label: 'الهاتف', dir: 'ltr' }, { name: 'aliases', label: 'أسماء بديلة (اختياري)', wide: true, placeholder: 'مثال: الموارد، شؤون الموظفين', hint: 'تُطابَق بها الحسابات عند الاستيراد إن كُتب الاسم بصيغة أخرى. افصل بينها بفاصلة' }], { ...rec, aliases: (rec.aliases || []).join('، ') })}
       ${orgHeadField(rec.headId || '', here, top ? 'رئيس هذا الفرع يعيّنه من يرأس ما فوقه أو من يملك تعديل الهيكل' : '')}
       ${look(rec, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).icon, (UNIT_TYPES[rec.type] || UNIT_TYPES.section).tone)}`,
     onMount: (form) => {
@@ -10594,7 +10587,7 @@ Pages.monitor = async (ctx) => {
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
-      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.office || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
+      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.unitPath || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
       ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', catId: '', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
@@ -11110,7 +11103,7 @@ Pages.catEditor = async (ctx) => {
 /* نافذة اختيار صورة (تُعيد المرجع دون حفظ) */
 Pages.imgPickModal = (value, name = '') => UI.modal({ title: name ? `صورة الفئة: ${name}` : 'اختر صورة', icon: 'photo', size: 'lg', body: html`${UI.imgPicker('image', value)}`, onMount: (form) => UI.bindImgPicker(form),
   actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'اختيار', kind: 'primary', icon: 'check', submit: true, handler: (form) => { const v = UI.formValues(form).image; if (!ImgLib.valid(v)) throw new AppError('اختر صورة'); return v; } }] });
-/* ══ إضافة عدة حسابات دفعة واحدة: بيانات مشتركة (الدور، الإدارة، القسم، المبنى، المكتب) + بيانات شخصية لكل فرد ══ */
+/* ══ إضافة عدة حسابات دفعة واحدة: بيانات مشتركة (الدور، الإدارة، وموضعه في الهيكل) + بيانات شخصية لكل فرد ══ */
 Pages.bulkAddUsers = async () => {
   const sup = Auth.user.role === 'supervisor', ranks = Data.list('ranks');
   const roles = Object.entries(ROLE_INFO).filter(([k]) => k !== 'monitor' && (sup || !['supervisor', 'support_manager'].includes(k)));
@@ -11124,8 +11117,6 @@ Pages.bulkAddUsers = async () => {
         ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', options: Data.list('departments').map((x) => ({ value: x.id, label: x.name })), placeholder: 'اختر الإدارة...' }, '')}
         <input type="hidden" name="unitId" value=""><input type="hidden" name="unitPath" value="">
         <div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
-        ${UI.field({ name: 'locationId', label: 'المبنى', type: 'select', options: UI.opts('locations') }, '')}
-        ${UI.field({ name: 'office', label: 'المكتب', placeholder: 'مثال: مكتب 214' }, '')}
       </div></div>
       <div class="u-sec"><h3>${UI.icon('users')} الأشخاص <small class="faint" data-bpcount></small></h3>
         <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><label class="row" style="gap:6px">عدد الأشخاص <input type="number" min="1" max="200" value="7" data-bpn style="width:80px"></label><button type="button" class="btn btn-soft btn-sm" data-bpmake>${UI.icon('grid')} تجهيز الخانات</button><button type="button" class="btn btn-ghost btn-sm" data-bpadd>${UI.icon('plus')} شخص</button><button type="button" class="btn btn-ghost btn-sm" data-bppaste>${UI.icon('clipboard')} لصق من Excel</button></div>
@@ -11183,12 +11174,12 @@ Pages.bulkAddUsers = async () => {
       for (let i = 0; i < people.length; i++) {
         const p = people[i], pw = v.pwMode === 'military' ? p.militaryNo : v.pwMode === 'same' ? v.samePw : Crypto.tempPassword();
         await new Promise((res) => setTimeout(res, 0));
-        batch.push({ id: uid('u'), username: p.username, name: p.name, role: v.role, departmentId: v.departmentId, unitId: v.unitId || '', locationId: v.locationId || '', office: String(v.office || '').trim(), rankId: p.rankId, militaryNo: p.militaryNo, phone: p.phone, email: '', active: 1, mustChangePassword: pwForce() && Number(v.mustChange) ? 1 : 0, pass: Crypto.makePassword(pw), extraPerms: [], deniedPerms: [], categories: [], createdAt: t, updatedAt: t, lastLoginAt: 0 });
+        batch.push({ id: uid('u'), username: p.username, name: p.name, role: v.role, departmentId: v.departmentId, unitId: v.unitId || '', rankId: p.rankId, militaryNo: p.militaryNo, phone: p.phone, email: '', active: 1, mustChangePassword: pwForce() && Number(v.mustChange) ? 1 : 0, pass: Crypto.makePassword(pw), extraPerms: [], deniedPerms: [], categories: [], createdAt: t, updatedAt: t, lastLoginAt: 0 });
         creds.push({ name: p.name, rank: Data.nameOf('ranks', p.rankId, ''), militaryNo: p.militaryNo, username: p.username, pw });
       }
       await DB.bulkPut('users', batch); await Data.refresh('users');
       await Data.log('create', 'user', '', `إضافة ${batch.length} حسابات دفعة واحدة في ${Data.nameOf('departments', v.departmentId, '')}${v.unitPath ? ` ← ${v.unitPath}` : ''}`); Bus.emit('users');
-      return { creds, role: ROLES[v.role], dep: [Data.nameOf('departments', v.departmentId, ''), v.unitPath].filter(Boolean).join(' ← '), where: [Data.nameOf('locations', v.locationId, ''), v.office].filter(Boolean).join(' — '), mustChange: Number(v.mustChange) };
+      return { creds, role: ROLES[v.role], dep: [Data.nameOf('departments', v.departmentId, ''), v.unitPath].filter(Boolean).join(' ← '), where: '', mustChange: Number(v.mustChange) };
     } }]
   });
   if (result) await Pages.bulkCredsModal(result);
@@ -11254,7 +11245,7 @@ Pages.eFormHTML = async (t, { ef = null, blank = false, defs = null } = {}) => {
     <div class="ef-meta"><span>رقم الطلب: <b class="ltr">${blank ? '..........' : t.number}</b></span><span>التاريخ: <b>${blank ? '..........' : fmtDate(t.createdAt)}</b></span><span>الفئة: <b>${c.name || ''}</b></span></div>
     <section><h3>بيانات مقدم الطلب</h3><table class="ef-grid">${who(req)}
       <tr><th>الإدارة / القسم</th><td colspan="3">${v([Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← '))}</td><th>الهاتف</th><td class="ltr">${v(t.contact || req.phone)}</td></tr>
-      <tr><th>الموقع</th><td colspan="3">${v([Data.nameOf('locations', t.locationId, ''), t.location].filter(Boolean).join(' — '))}</td><th>التوقيع</th><td>${blank ? raw(dots) : html`<small>قُدِّم إلكترونياً ${fmtDateTime(t.createdAt)}</small>`}</td></tr></table></section>
+      <tr><th>الموضع</th><td colspan="3">${v([Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← ') || t.location || '')}</td><th>التوقيع</th><td>${blank ? raw(dots) : html`<small>قُدِّم إلكترونياً ${fmtDateTime(t.createdAt)}</small>`}</td></tr></table></section>
     <section><h3>تفاصيل الطلب</h3>${blank ? '' : html`<p class="ef-subject"><b>الموضوع:</b> ${t.title}</p>`}
       <table class="ef-grid">${fields.filter((f) => !f.rows).map((f) => html`<tr><th style="width:30%">${f.label}</th><td>${v(f.value)}</td></tr>`)}</table>
       ${fields.filter((f) => f.rows).map((f) => html`<h4>${f.label}</h4>${table(f.cols || [], f.rows)}`)}
@@ -13195,7 +13186,7 @@ const WIPE_GROUPS = [
   ['mtrack', 'قسم الإرسال إلى الصيانة وملاحظاته', 'tools', ['mtrack']],
   ['vault', 'الملاحظات ومجموعاتها', 'key', ['vault', 'noteGroups', 'noteReads']],
   ['activity', 'سجل النشاط', 'clock', ['activity']],
-  ['org', 'الهيكل التنظيمي: الإدارات والأقسام والمكاتب والمواقع والمباني', 'layers', ['departments', 'deptUnits', 'locations'], 1],
+  ['org', 'الهيكل التنظيمي: الإدارات والأقسام والوحدات والمكاتب', 'layers', ['departments', 'deptUnits', 'locations'], 1],
   ['catalog', 'تصنيفات الأصناف والمخازن وكتالوج الطابعات وأيقونات الماركات', 'box', ['itemCategories', 'warehouses', 'printers', 'brandIcons'], 1],
   ['kb', 'قاعدة المعرفة والردود الجاهزة', 'book', ['kb', 'replies', 'templates'], 1],
   ['forms', 'النماذج والاستمارات المرفوعة', 'file', ['forms'], 1]
@@ -13558,7 +13549,7 @@ Pages.printVoucher = (v) => {
   const kind = VOUCHER_KIND[v.type] || VOUCHER_KIND.issue, u = v.holderId ? Data.c.users.get(v.holderId) : null, loan = v.type === 'loan';
   const holderNo = (u && u.militaryNo) || v.holderNo || v.militaryNo || '';
   const tech = VD.person(v.userId), hp = { ...VD.person(v.holderId), name: v.holder || (u ? u.name : ''), no: holderNo };
-  const dept = Data.nameOf('departments', v.departmentId, '—'), place = v.unitLabel || (u ? u.office || '' : '');
+  const dept = Data.nameOf('departments', v.departmentId, '—'), place = v.unitLabel || (u && u.unitId ? orgLabel(u.departmentId, u.unitId, Data.list('deptUnits')).split(' / ').slice(1).join(' / ') : '');
   const facts = { issue: [['الإدارة المستفيدة', dept], ['القسم والمكتب', place], ['المرجع', v.ref]],
     loan: [['الإدارة', dept], ['القسم والمكتب', place], ['موعد الإرجاع', v.dueAt ? fmtDate(v.dueAt) : 'عهدة دائمة'], ['المرجع', v.ref]],
     transfer: [['من', v.fromLabel], ['إلى', v.toLabel || dept], ['المنفّذ (الفني)', who(v.userId)], ['السبب', v.reason]],
@@ -14577,7 +14568,7 @@ const FF = {
       case 'militaryNo': return u.militaryNo ? String(u.militaryNo) : '';
       case 'rank': return Data.nameOf('ranks', u.rankId, '');
       case 'department': return Data.nameOf('departments', u.departmentId, '');
-      case 'office': return u.office || '';
+      case 'office': return u.unitId ? orgLabel(u.departmentId, u.unitId, Data.list('deptUnits')).split(' / ').slice(1).join(' / ') : '';
       case 'phone': return u.phone ? String(u.phone) : '';
       case 'username': return u.username || '';
       case 'date': return fmtDate(now());
@@ -15765,7 +15756,7 @@ const CC_ALIAS = { system: 'info', general: 'info', lookups: 'orglists', templat
 const CC_KEYS = {
   info: 'اسم الجهة اسم النظام هاتف الدعم الترويسة الهوية', favicon: 'ايقونة التبويب رمز المتصفح', sounds: 'صوت نغمة تنبيه اشعار شاشة العرض', nav: 'القائمة اخفاء اظهار الصفحات',
   users: 'حساب حسابات موظف فني اضافة استيراد تعطيل تعديل جماعي', perms: 'صلاحية صلاحيات منح سحب دور مصفوفة الادوار وصول', passwords: 'كلمة المرور اعادة تعيين', security: 'الجلسة مدة الجلسة كلمة المرور المؤقتة اول دخول الصور الشخصية',
-  org: 'ادارة اقسام شعبة مكتب هيكل رئيس القسم', orglists: 'موقع مواقع مبنى مباني رتبة رتب',
+  org: 'ادارة اقسام شعبة مكتب هيكل رئيس القسم', orglists: 'رتبة رتب',
   tickets: 'فئة فئات حقول مستندات بلاغ', handling: 'اسناد تلقائي توزيع تناوب الاقل انشغالا تصعيد تاخر الاغلاق التلقائي', sla: 'اتفاقية مستوى الخدمة موعد استجابة حل اولوية', replies: 'رد ردود جاهزة قوالب حلول', ratings: 'تقييم رضا نجوم', surveys: 'استبيان اختبار',
   forms: 'نموذج نماذج استمارة تعبئة فورية توقيع تحميل', vouchers: 'سند سندات صرف اعارة نقل استبدال قالب ترويسة طباعة', vault: 'ملاحظات ادارية اشتراكات تراخيص بريد تنبيه انتهاء',
   invlists: 'مخزن مخازن امين تصنيف تصنيفات اصناف', printers: 'طابعة طابعات حبر احبار ماركة موديل', extmaint: 'صيانة خارجية وكيل ضمان جهات', locks: 'قفل اقفال عهدة حذف الاجهزة',
@@ -15967,7 +15958,7 @@ Pages.custodyExplorer = async (ctx, T) => {
     } else {
       const kids = T.kids(depId, unit.id), direct = T.uItems.get(unit.id) || new Map(), all = T.itemsOf(unit.id);
       const rows = [...all.entries()].map(([id, q]) => ({ id, q, here: direct.get(id) || 0, below: q - (direct.get(id) || 0) })).sort((a, b) => b.q - a.q);
-      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${unit.locationId ? html`<span>${UI.icon('building')} ${Data.nameOf('locations', unit.locationId, '')}${unit.room ? ` — ${unit.room}` : ''}</span>` : ''}${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${depId}|${unit.id}">${UI.icon('plus')} إضافة وتعديل الأجهزة هنا</button>` : ''}</div>
+      body = html`<div class="ct-sum"><span>${UI.icon('layers')} الإجمالي مع الفروع <b>${fmtNum(T.total(unit.id))}</b></span><span>${UI.icon('pin')} في ${ORG_TYPE_LABEL[unit.type] || 'القسم'} مباشرة <b>${fmtNum(T.uQty.get(unit.id) || 0)}</b></span>${canAdd ? html`<button type="button" class="btn btn-sm btn-primary" data-ctadd="${depId}|${unit.id}">${UI.icon('plus')} إضافة وتعديل الأجهزة هنا</button>` : ''}</div>
         ${kids.length ? html`<h3 class="ct-h">${UI.icon('layers')} الفروع التابعة (${fmtNum(kids.length)})</h3><div class="ct-cards">${kids.map((u) => card(`u:${u.id}`, u.name, ORG_TYPE_LABEL[u.type] || 'قسم', T.total(u.id), T.itemsOf(u.id).size, T.kids(depId, u.id).length, (UNIT_TYPES[u.type] || {}).icon || 'layers', (UNIT_TYPES[u.type] || {}).tone || 'sky'))}</div>` : ''}
         ${UI.panel({ cls: 'mt', title: `أجهزة ${unit.name}`, icon: 'box', flush: true, body: itemTable(rows, [['الإجمالي', 'q'], ['هنا مباشرة', 'here'], ['في الفروع', 'below']]) })}`;
     }
@@ -17630,12 +17621,12 @@ const Snd = {
 /* التبويب في الخلفية: سحب كل 30 ثانية ليصل الإشعار وصوته (التبويب الظاهر يسحب كل 5 إلى 15 ثانية كما هو). شاشة العرض تسحب دائماً */
 Sync.bgDue = function () { if (!Snd.pref().on && !(Auth.user && Auth.user.role === 'monitor')) return false; const t = Date.now(); if (t - (this._bgAt || 0) < 30000) return false; this._bgAt = t; return true; };
 
-/* ── شاشة العرض: نطاقها (الفئات والمواقع المحددة في حسابها) ── */
+/* ── شاشة العرض: نطاقها (الفئات والإدارات المحددة في حسابها) ── */
 const MonScope = {
   cfg() { const u = Auth.user; return u && u.role === 'monitor' ? (u.monitor || {}) : {}; },
-  ticket(t) { const c = MonScope.cfg(), cats = c.categories || [], locs = c.locations || []; return (!cats.length || cats.includes(t.categoryId)) && (!locs.length || locs.includes(t.locationId)); },
-  chat(ch) { const locs = MonScope.cfg().locations || []; if (!locs.length) return true; const u = Data.c.users.get(ch.userId); return !u || locs.includes(u.locationId); },
-  label() { const c = MonScope.cfg(), cats = (c.categories || []).map((id) => Data.nameOf('categories', id, '')).filter(Boolean), locs = (c.locations || []).map((id) => Data.nameOf('locations', id, '')).filter(Boolean); return [cats.join('، '), locs.join('، ')].filter(Boolean).join(' · '); }
+  ticket(t) { const c = MonScope.cfg(), cats = c.categories || [], deps = c.departments || []; return (!cats.length || cats.includes(t.categoryId)) && (!deps.length || deps.includes(t.departmentId)); },
+  chat(ch) { const deps = MonScope.cfg().departments || []; if (!deps.length) return true; const u = Data.c.users.get(ch.userId); return !u || deps.includes(ch.departmentId || u.departmentId); },
+  label() { const c = MonScope.cfg(), cats = (c.categories || []).map((id) => Data.nameOf('categories', id, '')).filter(Boolean), locs = (c.departments || []).map((id) => Data.nameOf('departments', id, '')).filter(Boolean); return [cats.join('، '), locs.join('، ')].filter(Boolean).join(' · '); }
 };
 
 /* ── شاشة العرض: الأحداث الصوتية ── */
@@ -18262,12 +18253,12 @@ Pages.mtEdit = async (id = '', preset = {}) => {
       </section>
       <section class="mt-fsec"><h3>${UI.icon('building')} صاحب الجهاز</h3>
         <div class="form-grid mt-g4">
-          ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', placeholder: '— غير محددة —', options: UI.opts('departments') }, v.departmentId)}
+          ${Forms.orgPlace(v.departmentId || '', UI.opts('departments'), { label: 'موضع الجهاز في الهيكل', empty: '— غير محددة —' })}
           <input type="hidden" name="unitId" value="${v.unitId || ''}">
           ${UI.field({ name: 'holder', label: 'صاحب العهدة / المستخدم', placeholder: 'الاسم' }, v.holder)}
           ${UI.field({ name: 'phone', label: 'هاتف التواصل', dir: 'ltr', placeholder: 'اختياري' }, v.phone)}
           ${UI.field({ name: 'ticketRef', label: 'رقم البلاغ المرتبط', dir: 'ltr', placeholder: 'اختياري' }, v.ticketRef)}
-          <input type="hidden" name="unitPath" value="${v.unitPath || ''}"><div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
+          <input type="hidden" name="unitPath" value="${v.unitPath || ''}">
         </div>
       </section>
       <section class="mt-fsec"><h3>${UI.icon('tools')} الصيانة</h3>
@@ -18745,6 +18736,8 @@ const NavNames = {
   Shell.navAll = function () {
     const groups = na0(), m = NavNames.map();
     const ops = groups.find((g) => g.group === 'العمليات');
+    const inv = groups.find((g) => g.group === 'المخازن والعهد');
+    if (inv && !inv.items.some((i) => i.path === '/inventory/models')) { const at = inv.items.findIndex((i) => i.path === '/inventory/items'); inv.items.splice(at >= 0 ? at + 1 : inv.items.length, 0, { path: '/inventory/models', label: 'نماذج الأجهزة', icon: 'layers', perm: 'inventory.read' }); }
     if (ops && MT.on() && !ops.items.some((i) => i.path === '/send-maint')) { const at = ops.items.findIndex((i) => i.path === '/maintenance'); ops.items.splice(at >= 0 ? at + 1 : ops.items.length, 0, { path: '/send-maint', label: MT.name(), icon: 'tools', perm: 'mtrack.read|mtrack.manage', badge: 'mtrack' }); }
     return groups.map((g) => {
       NavNames.origGroups.add(g.group);
@@ -18826,6 +18819,52 @@ const NavNames = {
   /* المسار سُجّل بالدالة الأصلية: يُوجَّه إلى الجديدة */
   const rt = Router.routes.find((r) => r.re.test('/nav-visibility')); if (rt) rt.render = Pages.navVisibility;
 }
+
+/* ══════════ الموضع في الهيكل: الإدارة ← القسم ← الوحدة ← المكتب ══════════
+   كان اختيار القسم في البلاغ سطراً تحت الإدارة لا يظهر إلا بعد اختيارها، وبجانبه «المبنى» و«المكتب» نصاً حراً يقترح المكاتب وحدها،
+   فلا يجد المستخدم وحدته. الآن كتلة واحدة: الإدارة أول خطوة، ثم ما يتفرع منها مستوى بعد مستوى حتى تنتهي الفروع،
+   مع بحث مباشر باسم أي إدارة أو قسم أو وحدة أو مكتب يضبط السلسلة كاملة. لا مبنى ولا موقع: الهيكل وحده */
+Forms.orgPlace = (dep, deps, { label = 'موضعك في الهيكل التنظيمي', empty = '' } = {}) => html`<section class="field wide org-place">
+  <div class="op-head">${UI.icon('layers')}<b>${label}</b><small>اختر الإدارة ثم ما يتفرع منها: القسم ← الوحدة ← المكتب، حتى تنتهي الفروع. أو ابحث مباشرة.</small></div>
+  <div class="op-search">${UI.icon('search')}<input type="search" data-orgsearch placeholder="ابحث باسم الإدارة أو القسم أو الوحدة أو المكتب…" autocomplete="off" aria-label="بحث في الهيكل"><div class="op-res" data-orgsres hidden></div></div>
+  <div class="op-steps"><div class="oc-step op-dep">${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', options: deps, placeholder: empty || false }, dep)}</div><div class="op-chain org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div></div>
+</section>`;
+/* البحث في الهيكل: نتيجة واحدة تضبط الإدارة وكل مستويات السلسلة حتى الفرع المختار */
+UI.orgSearch = (form) => {
+  const inp = form.querySelector('[data-orgsearch]'), res = form.querySelector('[data-orgsres]'), ds = form.querySelector('[name="departmentId"]');
+  if (!inp || !res || !ds || inp.dataset.bound) return; inp.dataset.bound = '1';
+  let hits = [], act = 0;
+  const show = () => { res.innerHTML = hits.length ? hits.map((h, i) => `<button type="button" class="op-hit${i === act ? ' on' : ''}" data-ospick="${i}"><span class="op-hi">${String(UI.icon(h.icon || 'layers'))}</span><span class="op-ht"><b>${esc(h.name)}</b><small>${esc(h.type)} · ${esc(h.path)}</small></span></button>`).join('') : '<p class="op-none">لا يوجد فرع بهذا الاسم</p>'; res.hidden = false; };
+  const pick = async (h) => {
+    if (!h) return;
+    ds.value = h.dep; ds.dispatchEvent(new Event('change', { bubbles: true }));
+    if (h.unit) {
+      const by = new Map((await DB.getAll('deptUnits')).map((u) => [u.id, u])), chain = []; let u = by.get(h.unit), g = 0;
+      while (u && g++ < 20 && u.departmentId === h.dep) { chain.unshift(u.id); u = by.get(u.parentId); }
+      chain.forEach((id, i) => { const s = form.querySelector(`[data-oclevel="${i}"]`); if (s && [...s.options].some((o) => o.value === id)) { s.value = id; s.dispatchEvent(new Event('change', { bubbles: true })); } });
+    }
+    inp.value = ''; res.hidden = true; UI.toast(`الموضع: ${h.path}`, 'info', 2200);
+  };
+  inp.addEventListener('input', debounce(async () => {
+    const q = normalizeAr(inp.value); if (q.length < 2) { res.hidden = true; return; }
+    const units = await DB.getAll('deptUnits'); hits = []; act = 0;
+    Data.list('departments').forEach((d) => {
+      if (normalizeAr(`${d.name} ${(d.aliases || []).join(' ')}`).includes(q)) hits.push({ dep: d.id, unit: '', name: d.name, type: 'إدارة', path: d.name, icon: d.icon || 'building' });
+      orgUnitsFlat(units, d.id).forEach(({ u, path }) => { if (normalizeAr(`${u.name} ${u.code || ''} ${(u.aliases || []).join(' ')}`).includes(q)) { const T = UNIT_TYPES[u.type] || UNIT_TYPES.section; hits.push({ dep: d.id, unit: u.id, name: u.name, type: T.label, path: `${d.name} ← ${path.replace(/ \/ /g, ' ← ')}`, icon: u.icon || T.icon }); } });
+    });
+    hits = hits.slice(0, 14); show();
+  }, 160));
+  inp.addEventListener('keydown', (e) => {
+    if (res.hidden || !hits.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); act = clamp(act + (e.key === 'ArrowDown' ? 1 : -1), 0, hits.length - 1); show(); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); pick(hits[act]); }
+    else if (e.key === 'Escape') { e.stopPropagation(); res.hidden = true; }
+  });
+  res.addEventListener('mousedown', (e) => e.preventDefault());
+  res.addEventListener('click', (e) => { const b = e.target.closest('[data-ospick]'); if (b) pick(hits[Number(b.dataset.ospick)]); });
+  inp.addEventListener('blur', () => setTimeout(() => { res.hidden = true; }, 150));
+};
+{ const boc0 = UI.bindOrgChain; UI.bindOrgChain = async (form, o = {}) => { const r = await boc0(form, o); UI.orgSearch(form); return r; }; }
 
 /* ══════════ الملاحظات: المدة بالأيام، الظهور المجدول، التكرار بأيام الأسبوع، وطرق التنبيه ══════════
    - المدة: ساعة… شهر، أو «عدد أيام أحدده»، أو حتى تاريخ، مع «تظهر ابتداءً من» لملاحظة مجدولة
@@ -18949,6 +18988,366 @@ const NoteAlerts = {
   Bus.on('vault', kick);
   setInterval(() => { if (Auth.user) kick(); }, 2 * MIN);
 }
+
+/* ══════════ نماذج الأجهزة: مكتبة جاهزة لكل نوع، والإضافة دفعة واحدة إلى المخزن أو الإدارات والأقسام والمكاتب ══════════
+   النموذج هو الصنف نفسه (الاسم، الماركة، الموديل، المواصفات)، فيعمل مع الصرف والإعارة والعهد والتقارير دون نسخة ثانية.
+   - تُعبّأ المواصفات مرة واحدة يدوياً فيصبح النموذج جاهزاً، وعند الإضافة يكفي اسمه، ويُعدَّل إن أردت
+   - إضافة عدة أجهزة من أنواع مختلفة في خطوة واحدة: للمخزن، أو لإدارة أو قسم أو وحدة أو مكتب، ولكل سطر مكتبه إن اختلف
+   - «الحزم»: مجموعة نماذج تُضاف معاً (مثل محطة عمل موظف: حاسب وشاشة ولوحة مفاتيح وماوس)
+   - نماذج مقترحة شائعة لكل نوع تُضاف بنقرة لتعبئة مواصفاتها لاحقاً */
+const MDL = {
+  canEdit: () => !!Auth.user && canUser(Auth.user, 'inventory.manage'),
+  canStore: () => !!Auth.user && (canUser(Auth.user, 'inventory.move') || canUser(Auth.user, 'inventory.manage')),
+  canDept: () => !!Auth.user && canUser(Auth.user, 'custody.direct'),
+  types: () => IC.kids('').filter((c) => c && c.id).sort((a, b) => (a.order || 0) - (b.order || 0) || AR_COLL.compare(a.name, b.name)),
+  typeOf: (it) => ((IC.chain(it.categoryId)[0] || {}).id) || it.categoryId || 'ic_other',
+  sub: (i) => [i.brand, i.model].filter(Boolean).join(' '),
+  specs: (i, n = 99) => Object.entries(i.specs || {}).filter(([, v]) => String(v == null ? '' : v).trim()).slice(0, n).map(([k, v]) => [specLabel(i.categoryId, k), String(v)]),
+  async all() { return (await DB.getAll('items')).filter((i) => !i.archived).sort((a, b) => AR_COLL.compare(a.name || '', b.name || '')); },
+  async counts() {
+    const st = new Map(), dp = new Map();
+    await DB.each('stock', {}, (s) => { if (s.qty > 0) st.set(s.itemId, (st.get(s.itemId) || 0) + s.qty); });
+    await DB.each('deptStock', {}, (d) => { if (d.qty > 0) dp.set(d.itemId, (dp.get(d.itemId) || 0) + d.qty); });
+    return { st, dp };
+  },
+  kits: () => (((Data.c.invKits || {}).list) || []).filter((k) => k && k.name && (k.rows || []).length),
+  async saveKits(list) {
+    if (!MDL.canEdit()) throw new AppError('إدارة الحزم لمن يملك صلاحية إدارة الأصناف');
+    const v = { list: list.map((k) => ({ id: k.id || uid('kit'), name: String(k.name || '').trim().slice(0, 60), icon: k.icon || 'box', rows: (k.rows || []).filter((r) => r.itemId && Number(r.qty) > 0).map((r) => ({ itemId: r.itemId, qty: clamp(Math.floor(Number(r.qty)), 1, 999) })) })).filter((k) => k.name && k.rows.length) };
+    await DB.put('meta', { key: 'invkits', value: v }); Data.c.invKits = v;
+    await Data.log('update', 'inventory', 'invkits', 'تحديث حزم الأجهزة'); Bus.emit('inventory', {});
+  },
+  /* حفظ نموذج: الاسم يُقترح من النوع والماركة والموديل، والمواصفات المعروفة للنوع وأي مواصفات إضافية تكتبها */
+  async save(rec, id = '') {
+    if (!MDL.canEdit()) throw new AppError('إضافة النماذج وتعديلها لمن يملك صلاحية إدارة الأصناف');
+    const cur = id ? await DB.get('items', id) : null;
+    const name = String(rec.name || '').trim() || [Data.nameOf('itemCategories', rec.categoryId, ''), rec.brand, rec.model].filter(Boolean).join(' ').trim();
+    if (name.length < 2) throw new AppError('اكتب اسم النموذج أو الماركة والموديل');
+    const dup = (await DB.getAll('items')).find((x) => x.id !== id && !x.archived && normalizeAr(x.name) === normalizeAr(name));
+    if (dup) throw new AppError(`يوجد نموذج بالاسم نفسه: ${dup.name}`);
+    const saved = await Data.inv.saveItem({ ...(cur || {}), id: id || undefined, name, sku: cur ? cur.sku : '', categoryId: rec.categoryId || 'ic_other', unit: rec.unit || (cur && cur.unit) || 'قطعة', minQty: rec.minQty != null ? rec.minQty : (cur && cur.minQty) || 0, brand: rec.brand || '', model: rec.model || '', serial: (cur && cur.serial) || '', notes: rec.notes || '' });
+    const it = await DB.get('items', saved.id);
+    it.specs = rec.specs || {}; it.serialized = rec.serialized ? 1 : 0; it.model0 = 1; it.updatedAt = now();
+    it.search = Data.inv.searchOf(it) + ' ' + normalizeAr(Object.values(it.specs).join(' '));
+    await DB.put('items', it); Bus.emit('inventory', {});
+    return it;
+  }
+};
+/* الحزم تُحمَّل مع الإعدادات */
+{ const xl1 = XCFG.load.bind(XCFG); XCFG.load = async function () { await xl1(); try { const r = await DB.get('meta', 'invkits'); Data.c.invKits = (r && r.value) || {}; } catch (_) { Data.c.invKits = {}; } }; }
+
+/* ── محرر النموذج ── */
+Pages.modelEdit = async (id = '', preset = {}) => {
+  if (!MDL.canEdit()) { UI.toast('إضافة النماذج وتعديلها لمن يملك صلاحية إدارة الأصناف', 'warn'); return null; }
+  const it = id ? await DB.get('items', id) : null; if (id && !it) throw new AppError('النموذج غير موجود');
+  const v0 = it || { categoryId: preset.categoryId || (MDL.types()[0] || {}).id || 'ic_other', brand: preset.brand || '', model: preset.model || '', name: preset.name || '', specs: { ...(preset.specs || {}) }, unit: preset.unit || '', notes: preset.notes || '', serialized: preset.serialized };
+  let cat = v0.categoryId || 'ic_other';
+  const cats = Data.list('itemCategories').map((c) => ({ value: c.id, label: IC.label(c.id) || c.name })).sort((a, b) => AR_COLL.compare(a.label, b.label));
+  const known = () => specsOf(cat).map((f) => f.k);
+  const extra = Object.entries(v0.specs || {}).filter(([k]) => !known().includes(k));
+  const specsHtml = (vals) => { const defs = specsOf(cat); return defs.length ? html`<div class="form-grid mdl-specs">${defs.map((f) => { const v = String((vals || {})[f.k] || ''); return f.multi ? html`<div class="field wide"><label>${f.l}</label><div class="chip-pick">${(f.o || []).map((o) => html`<label><input type="checkbox" data-spm="${f.k}" value="${o}"${v.split('، ').includes(o) ? raw(' checked') : ''}><span>${o}</span></label>`)}</div></div>` : html`<div class="field"><label>${f.l}</label><input data-sp="${f.k}" value="${v}" list="${f.o ? `dl_${f.k}` : ''}" placeholder="${f.o ? 'اختر أو اكتب' : ''}" autocomplete="off">${f.o ? html`<datalist id="dl_${f.k}">${f.o.map((o) => html`<option value="${o}">`)}</datalist>` : ''}</div>`; })}</div>` : html`<p class="hint">لا توجد مواصفات محددة لهذا النوع؛ أضف ما تريد في «مواصفات أخرى».</p>`; };
+  const exRow = (k = '', v = '') => html`<div class="mdl-ex" data-exrow><input class="input" data-exk value="${k}" placeholder="المواصفة (مثال: الضمان)"><input class="input" data-exv value="${v}" placeholder="القيمة (مثال: 3 سنوات)"><button type="button" class="icon-btn" data-exx title="حذف">${UI.icon('x')}</button></div>`;
+  return UI.modal({
+    title: id ? `تعديل النموذج: ${it.name}` : 'نموذج جهاز جديد', icon: 'layers', size: 'lg',
+    body: html`<div class="mdl-ed">
+      <div class="mdl-types">${MDL.types().map((c) => html`<label class="mdl-type"><input type="radio" name="tcat" value="${c.id}"${IC.chain(cat)[0] && IC.chain(cat)[0].id === c.id ? raw(' checked') : ''}><span>${UI.illu(c.illustration || 'box', 'mini')}<b>${c.name}</b></span></label>`)}</div>
+      <div class="form-grid mt">
+        ${UI.field({ name: 'categoryId', label: 'النوع / المجلد', type: 'select', options: cats, placeholder: false }, cat)}
+        ${UI.field({ name: 'brand', label: 'الماركة', placeholder: 'مثال: Dell' }, v0.brand)}
+        ${UI.field({ name: 'model', label: 'الموديل', placeholder: 'مثال: OptiPlex 7090' }, v0.model)}
+        <div class="field"><label>اسم النموذج كما يظهر<em>*</em></label><input name="name" value="${v0.name || ''}" data-auto="${v0.name ? '' : '1'}" placeholder="يُقترح من النوع والماركة والموديل"></div>
+        ${UI.field({ name: 'unit', label: 'وحدة القياس', placeholder: 'جهاز، قطعة، علبة…' }, v0.unit || (isSerialItem({ categoryId: cat }) ? 'جهاز' : 'قطعة'))}
+        ${UI.field({ name: 'minQty', label: 'حد التنبيه في المخزن', type: 'number', min: 0 }, (it && it.minQty) || 0)}
+        <div class="field wide">${UI.field({ name: 'serialized', type: 'switch', text: 'يُتابع كل جهاز برقمه التسلسلي' }, v0.serialized != null ? (v0.serialized ? 1 : 0) : isSerialItem({ categoryId: cat }) ? 1 : 0)}</div>
+      </div>
+      <section class="u-sec mt"><h3>${UI.icon('tag')} المواصفات <small class="faint">— تُكتب مرة واحدة وتظهر مع كل جهاز من هذا النموذج</small></h3><div data-specs>${specsHtml(v0.specs)}</div>
+        <h4 class="mt">مواصفات أخرى</h4><div data-exbox>${extra.map(([k, v]) => exRow(k, v))}</div><button type="button" class="btn btn-ghost btn-sm" data-exadd>${UI.icon('plus')} مواصفة أخرى</button></section>
+      ${UI.field({ name: 'notes', label: 'ملاحظات', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: الملحقات المعتادة، رقم عقد التوريد…' }, v0.notes)}
+    </div>`,
+    onMount: (form) => {
+      const nm = form.querySelector('[name="name"]'), cs = form.querySelector('[name="categoryId"]');
+      const suggest = () => { if (nm.dataset.auto !== '1') return; nm.value = [Data.nameOf('itemCategories', cat, ''), form.querySelector('[name="brand"]').value.trim(), form.querySelector('[name="model"]').value.trim()].filter((x, i) => x && (i || form.querySelector('[name="brand"]').value.trim() || form.querySelector('[name="model"]').value.trim())).join(' '); };
+      const readSpecs = () => { const o = {}; $$('[data-sp]', form).forEach((i) => { if (i.value.trim()) o[i.dataset.sp] = i.value.trim(); }); const m = {}; $$('[data-spm]', form).forEach((c) => { if (c.checked) (m[c.dataset.spm] = m[c.dataset.spm] || []).push(c.value); }); Object.entries(m).forEach(([k, vals]) => { o[k] = vals.join('، '); }); return o; };
+      const setCat = (c) => { const keep = readSpecs(); cat = c; cs.value = c; form.querySelector('[data-specs]').innerHTML = String(specsHtml(keep)); suggest(); };
+      nm.addEventListener('input', () => { nm.dataset.auto = nm.value.trim() ? '' : '1'; });
+      UI.on(form, 'input', '[name="brand"], [name="model"]', suggest);
+      cs.addEventListener('change', () => setCat(cs.value));
+      UI.on(form, 'change', '[name="tcat"]', (e, el) => setCat(el.value));
+      UI.on(form, 'click', '[data-exadd]', () => { form.querySelector('[data-exbox]').insertAdjacentHTML('beforeend', String(exRow())); const ins = $$('[data-exk]', form); ins[ins.length - 1].focus(); });
+      UI.on(form, 'click', '[data-exx]', (e, b) => b.closest('[data-exrow]').remove());
+      form._specs = () => { const o = readSpecs(); $$('[data-exrow]', form).forEach((r) => { const k = $('[data-exk]', r).value.trim(), v = $('[data-exv]', r).value.trim(); if (k && v) o[k] = v; }); return o; };
+      suggest();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(id ? [{ label: 'نسخة معدّلة', kind: 'soft', icon: 'copy', handler: async (f) => { const v = UI.formValues(f); setTimeout(() => Pages.modelEdit('', { ...v, name: `${v.name} (نسخة)`, specs: f._specs(), serialized: Number(v.serialized) }), 60); return null; } }] : []),
+      { label: id ? 'حفظ النموذج' : 'إضافة النموذج', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); const out = await MDL.save({ ...v, serialized: Number(v.serialized), minQty: Number(v.minQty) || 0, specs: f._specs() }, id); UI.toast(id ? `حُفظ النموذج ${out.name}` : `أُضيف النموذج ${out.name}`); return out; } }]
+  });
+};
+
+/* ── نماذج مقترحة: الشائعة لكل نوع، تُضاف بنقرة وتُكمَل مواصفاتها لاحقاً ── */
+const MDL_SUGGEST = [
+  ['ic_laptop', 'حاسب مكتبي Dell OptiPlex 7090', 'Dell', 'OptiPlex 7090'], ['ic_laptop', 'حاسب مكتبي HP ProDesk 400 G7', 'HP', 'ProDesk 400 G7'], ['ic_laptop', 'حاسب مكتبي Lenovo ThinkCentre M70q', 'Lenovo', 'ThinkCentre M70q'],
+  ['ic_laptop', 'حاسب محمول Dell Latitude 5420', 'Dell', 'Latitude 5420'], ['ic_laptop', 'حاسب محمول HP EliteBook 840 G8', 'HP', 'EliteBook 840 G8'], ['ic_laptop', 'حاسب محمول Lenovo ThinkPad T14', 'Lenovo', 'ThinkPad T14'],
+  ['ic_monitor', 'شاشة Dell P2422H', 'Dell', 'P2422H', { size: '24 بوصة' }], ['ic_monitor', 'شاشة HP P24 G4', 'HP', 'P24 G4', { size: '24 بوصة' }], ['ic_monitor', 'شاشة Samsung S24R350', 'Samsung', 'S24R350', { size: '24 بوصة' }], ['ic_monitor', 'شاشة Dell P2722H', 'Dell', 'P2722H', { size: '27 بوصة' }],
+  ['ic_printer', 'طابعة HP LaserJet Pro M404dn', 'HP', 'LaserJet Pro M404dn', { ptype: 'ليزر أبيض وأسود' }], ['ic_printer', 'طابعة HP LaserJet Pro MFP M428fdw', 'HP', 'LaserJet Pro MFP M428fdw', { ptype: 'متعددة الوظائف' }], ['ic_printer', 'طابعة HP Color LaserJet Pro M454dn', 'HP', 'Color LaserJet Pro M454dn', { ptype: 'ليزر ملون' }], ['ic_printer', 'طابعة Canon i-SENSYS MF445dw', 'Canon', 'i-SENSYS MF445dw', { ptype: 'متعددة الوظائف' }], ['ic_printer', 'طابعة Epson L3250', 'Epson', 'L3250', { ptype: 'نفث حبر' }],
+  ['ic_scanner', 'ماسح Canon imageFORMULA DR-C230', 'Canon', 'imageFORMULA DR-C230', { stype: 'تلقيم تلقائي' }], ['ic_scanner', 'ماسح Epson WorkForce DS-530', 'Epson', 'WorkForce DS-530', { stype: 'تلقيم تلقائي' }], ['ic_scanner', 'ماسح Fujitsu fi-7160', 'Fujitsu', 'fi-7160', { stype: 'تلقيم تلقائي' }],
+  ['ic_projector', 'جهاز عرض Epson EB-X51', 'Epson', 'EB-X51'], ['ic_projector', 'جهاز عرض BenQ MW560', 'BenQ', 'MW560'],
+  ['ic_network', 'محول شبكة Cisco Catalyst 2960-X 24 منفذ', 'Cisco', 'Catalyst 2960-X', { ports: '24' }], ['ic_network', 'محول شبكة HPE Aruba 2530 24G', 'HPE Aruba', '2530 24G', { ports: '24' }], ['ic_network', 'محول شبكة TP-Link TL-SG1024D', 'TP-Link', 'TL-SG1024D', { ports: '24', speed: '1Gbps' }], ['ic_network', 'نقطة وصول لاسلكية Ubiquiti UniFi U6 Lite', 'Ubiquiti', 'UniFi U6 Lite'],
+  ['ic_power', 'مزود طاقة APC Back-UPS 1500VA', 'APC', 'Back-UPS 1500VA', { va: '1500VA' }], ['ic_power', 'مزود طاقة APC Smart-UPS 1000VA', 'APC', 'Smart-UPS 1000VA', { va: '1000VA' }],
+  ['ic_cable', 'لوحة مفاتيح Logitech K120', 'Logitech', 'K120'], ['ic_cable', 'ماوس Logitech B100', 'Logitech', 'B100'], ['ic_cable', 'طقم لوحة مفاتيح وماوس لاسلكي Logitech MK270', 'Logitech', 'MK270'], ['ic_cable', 'سماعة رأس Logitech H390', 'Logitech', 'H390'], ['ic_cable', 'كابل HDMI 1.8 م', '', 'HDMI 1.8 م', { ctype: 'HDMI' }], ['ic_cable', 'كابل شبكة Cat6 3 م', '', 'Cat6 3 م', { ctype: 'شبكة Cat6', len: '3 م' }],
+  ['ic_storage', 'فلاش SanDisk Ultra 64GB', 'SanDisk', 'Ultra 64GB', { stype: 'فلاش USB', cap: '64GB' }], ['ic_storage', 'قرص خارجي WD Elements 2TB', 'WD', 'Elements 2TB', { stype: 'قرص خارجي', cap: '2TB' }],
+  ['ic_camera', 'كاميرا ويب Logitech C920', 'Logitech', 'C920'], ['ic_audio', 'مكبر صوت Logitech Z120', 'Logitech', 'Z120']
+];
+Pages.modelSuggest = async () => {
+  if (!MDL.canEdit()) return null;
+  const have = new Set((await MDL.all()).map((i) => normalizeAr(i.name)));
+  const list = MDL_SUGGEST.filter(([c]) => Data.c.itemCategories.has(c)), groups = [...new Set(list.map((x) => x[0]))];
+  return UI.modal({
+    title: 'نماذج مقترحة', icon: 'sparkle', size: 'lg',
+    body: html`<p class="hint">أجهزة شائعة لكل نوع. حدد ما يوجد لديكم فيُضاف نموذجاً، ثم أكمل مواصفاته (المعالج، الذاكرة…) من «تعديل».</p>
+      ${groups.map((g) => html`<h4 class="mt">${UI.illu((Data.c.itemCategories.get(g) || {}).illustration || 'box', 'mini')} ${Data.nameOf('itemCategories', g, '')}</h4><div class="mdl-sug">${list.filter((x) => x[0] === g).map(([, name, , , sp], i) => { const ex = have.has(normalizeAr(name)); return html`<label class="xm-chip${ex ? ' dis' : ''}"><input type="checkbox" data-sug="${MDL_SUGGEST.findIndex((y) => y[1] === name)}"${ex ? raw(' disabled') : ''}><span>${name}${sp ? html` <small class="faint">${Object.values(sp).join('، ')}</small>` : ''}${ex ? ' ✓ موجود' : ''}</span></label>`; })}</div>`)}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تحديد الكل', kind: 'ghost', handler: (f) => { $$('[data-sug]:not(:disabled)', f).forEach((c) => { c.checked = true; }); return false; } }, { label: 'إضافة المحدد', kind: 'primary', icon: 'plus', submit: true, handler: async (f) => {
+      const picks = $$('[data-sug]:checked', f).map((c) => MDL_SUGGEST[Number(c.dataset.sug)]); if (!picks.length) throw new AppError('حدد نموذجاً واحداً على الأقل');
+      let n = 0; for (const [c, name, brand, model, sp] of picks) { if (have.has(normalizeAr(name))) continue; await MDL.save({ categoryId: c, name, brand, model, specs: { ...(sp || {}) }, serialized: isSerialItem({ categoryId: c }) ? 1 : 0, unit: isSerialItem({ categoryId: c }) ? 'جهاز' : 'قطعة' }); n++; }
+      UI.toast(`أُضيف ${fmtNum(n)} نموذج`); return n;
+    } }]
+  });
+};
+
+/* ── الحزم: مجموعة نماذج تُضاف معاً ── */
+Pages.kitsModal = async () => {
+  const models = await MDL.all(); let kits = JSON.parse(JSON.stringify(MDL.kits()));
+  const opts = (sel) => models.map((m) => html`<option value="${m.id}"${m.id === sel ? raw(' selected') : ''}>${m.name}</option>`);
+  const kitHtml = (k, i) => html`<div class="kit-ed" data-kit="${i}"><div class="row" style="gap:8px;flex-wrap:nowrap"><input class="input" data-kn="${i}" value="${k.name}" placeholder="اسم الحزمة (مثال: محطة عمل موظف)"><button type="button" class="icon-btn danger" data-kdel="${i}" title="حذف الحزمة">${UI.icon('trash')}</button></div>
+    <div class="kit-rows">${(k.rows || []).map((r, j) => html`<div class="kit-row"><select data-kr="${i}|${j}"><option value="">— اختر نموذجاً —</option>${opts(r.itemId)}</select><input type="number" class="input" min="1" data-kq="${i}|${j}" value="${r.qty || 1}"><button type="button" class="icon-btn" data-krx="${i}|${j}">${UI.icon('x')}</button></div>`)}</div>
+    <button type="button" class="btn btn-ghost btn-xs" data-kra="${i}">${UI.icon('plus')} نموذج في الحزمة</button></div>`;
+  const read = (f) => { kits.forEach((k, i) => { const n = f.querySelector(`[data-kn="${i}"]`); if (n) k.name = n.value; (k.rows || []).forEach((r, j) => { const s = f.querySelector(`[data-kr="${i}|${j}"]`), q = f.querySelector(`[data-kq="${i}|${j}"]`); if (s) r.itemId = s.value; if (q) r.qty = Number(q.value) || 1; }); }); };
+  const body = () => html`${kits.length ? kits.map(kitHtml) : html`<p class="hint">لا توجد حزم بعد. الحزمة تختصر إضافة عدة أجهزة معاً: «محطة عمل موظف» = حاسب + شاشة + لوحة مفاتيح + ماوس.</p>`}`;
+  return UI.modal({
+    title: 'حزم الأجهزة', icon: 'box', size: 'lg', body: html`<div data-kbody>${body()}</div>`,
+    onMount: (f) => {
+      const redraw = () => { f.querySelector('[data-kbody]').innerHTML = String(body()); };
+      f.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return; read(f);
+        if (b.dataset.kdel) { kits.splice(Number(b.dataset.kdel), 1); redraw(); }
+        else if (b.dataset.kra) { const k = kits[Number(b.dataset.kra)]; (k.rows = k.rows || []).push({ itemId: '', qty: 1 }); redraw(); }
+        else if (b.dataset.krx) { const [i, j] = b.dataset.krx.split('|').map(Number); kits[i].rows.splice(j, 1); redraw(); }
+      });
+      f._add = () => { read(f); kits.push({ id: uid('kit'), name: '', icon: 'box', rows: [{ itemId: '', qty: 1 }, { itemId: '', qty: 1 }] }); redraw(); const ins = $$('[data-kn]', f); ins[ins.length - 1].focus(); };
+      f._read = () => read(f);
+    },
+    actions: [{ label: 'إغلاق', kind: 'ghost' }, { label: 'حزمة جديدة', kind: 'soft', icon: 'plus', handler: (f) => { f._add(); return false; } }, { label: 'حفظ الحزم', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { f._read(); await MDL.saveKits(kits); UI.toast('حُفظت الحزم'); return true; } }]
+  });
+};
+
+/* ── الإضافة دفعة واحدة: عدة أجهزة من أنواع مختلفة إلى المخزن أو إلى الإدارات والأقسام والمكاتب ── */
+Pages.bulkAddModal = async (preset = {}) => {
+  const canS = MDL.canStore(), canD = MDL.canDept();
+  if (!canS && !canD) { UI.toast('الإضافة للمخزن تحتاج صلاحية حركات المخزون، وللإدارات صلاحية الإضافة المباشرة للعهد', 'warn', 6000); return null; }
+  let models = await MDL.all(), mode = preset.mode === 'dept' && canD ? 'dept' : preset.mode === 'store' && canS ? 'store' : canS ? 'store' : 'dept', ftype = '', fq = '';
+  const byName = new Map(), index = () => { byName.clear(); models.forEach((m) => { byName.set(normalizeAr(m.name), m); if (m.sku) byName.set(normalizeAr(m.sku), m); }); };
+  index();
+  const find = (v) => byName.get(normalizeAr(String(v || '').trim())) || null;
+  const types = MDL.types(), deps = UI.opts('departments');
+  const tile = (m) => html`<button type="button" class="ba-tile" data-bapick="${m.id}" title="${MDL.specs(m, 6).map(([k, v]) => `${k}: ${v}`).join(' · ') || m.name}">${UI.illu(itemIllu(m), 'mini')}<span><b>${m.name}</b><small>${MDL.sub(m) || Data.nameOf('itemCategories', m.categoryId, '')}</small></span><i>${UI.icon('plus')}</i></button>`;
+  const palette = () => { const qn = normalizeAr(fq); const list = models.filter((m) => (!ftype || MDL.typeOf(m) === ftype) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn))); return list.length ? html`${list.slice(0, 120).map(tile)}` : html`<p class="hint" style="padding:8px">لا نماذج${qn ? ' مطابقة' : ' في هذا النوع'}. اكتب اسم الجهاز في سطر جديد ليُضاف نموذجاً.</p>`; };
+  const typeOpts = () => types.map((c) => html`<option value="${c.id}">${c.name}</option>`);
+  const row = (r = {}) => html`<div class="ba-row" data-barow>
+    <span class="ba-ic" data-baic>${r.m ? UI.illu(itemIllu(r.m), 'mini') : UI.icon('box')}</span>
+    <div class="ba-nm"><input class="input" data-ban list="baModels" placeholder="اسم الجهاز أو النموذج" value="${r.m ? r.m.name : r.name || ''}" autocomplete="off"><small class="ba-meta" data-bameta></small><div class="ba-new" hidden>${UI.icon('sparkle')} نموذج جديد من نوع <select data-bat>${typeOpts()}</select></div></div>
+    <input class="input ba-q" type="number" min="1" max="9999" data-baq value="${r.qty || 1}" title="الكمية" aria-label="الكمية">
+    <input class="input ltr ba-s" data-bas placeholder="الأرقام التسلسلية (اختياري)" value="${r.sn || ''}" aria-label="الأرقام التسلسلية">
+    <select class="ba-u" data-bau aria-label="المكتب" ${mode === 'dept' ? '' : raw('hidden')}><option value="">— نفس الموضع —</option></select>
+    <input class="input ba-note" data-banote placeholder="ملاحظة" value="${r.note || ''}">
+    <span class="ba-acts"><button type="button" class="icon-btn" data-baedit title="تعديل النموذج (يسري على النموذج)">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-bavar title="نسخة معدّلة لهذا السطر فقط">${UI.icon('copy')}</button><button type="button" class="icon-btn danger" data-bax title="حذف السطر">${UI.icon('x')}</button></span></div>`;
+  const destHtml = () => html`<div class="seg ba-mode" role="radiogroup" aria-label="إلى أين">${canS ? html`<label><input type="radio" name="bamode" value="store"${mode === 'store' ? raw(' checked') : ''}><span>${UI.icon('warehouse')} إلى المخزن</span></label>` : ''}${canD ? html`<label><input type="radio" name="bamode" value="dept"${mode === 'dept' ? raw(' checked') : ''}><span>${UI.icon('building')} إلى إدارة / قسم / وحدة / مكتب</span></label>` : ''}</div>
+    <div class="form-grid mt" data-bastore${mode === 'store' ? '' : raw(' hidden')}>${UI.field({ name: 'warehouseId', label: 'المخزن', type: 'select', options: UI.opts('warehouses'), placeholder: false }, preset.warehouseId || (Data.list('warehouses')[0] || {}).id || '')}${UI.field({ name: 'ref', label: 'المرجع (أمر التوريد / الفاتورة)', placeholder: 'اختياري' })}${UI.field({ name: 'party', label: 'المورّد', placeholder: 'اختياري' })}</div>
+    <div class="form-grid mt" data-badept${mode === 'dept' ? '' : raw(' hidden')}>${Forms.orgPlace(preset.departmentId || '', deps, { label: 'الموضع في الهيكل', empty: '— اختر الإدارة —' })}<input type="hidden" name="unitId" value="${preset.unitId || ''}"><input type="hidden" name="unitPath" value="">${UI.field({ name: 'holderId', label: 'المستلم (اختياري)', type: 'select', options: [], placeholder: '— بلا مستلم محدد —' })}<div class="field wide" data-balock></div></div>`;
+  return UI.modal({
+    title: 'إضافة أجهزة دفعة واحدة', icon: 'plus', size: 'full',
+    body: html`<div class="ba">
+      <aside class="ba-side">
+        <div class="ba-sh">${UI.icon('layers')} النماذج <small class="faint">— اضغط نموذجاً ليُضاف سطراً</small></div>
+        <div class="search-box">${UI.icon('search')}<input type="search" class="input" data-bafq placeholder="ابحث عن نموذج: الاسم، الماركة، المواصفة"></div>
+        <div class="ba-types"><button type="button" class="vt-tag on" data-baft="">الكل <b>${fmtNum(models.length)}</b></button>${types.map((c) => { const n = models.filter((m) => MDL.typeOf(m) === c.id).length; return n ? html`<button type="button" class="vt-tag" data-baft="${c.id}">${c.name} <b>${fmtNum(n)}</b></button>` : ''; })}</div>
+        <div class="ba-pal" data-bapal>${palette()}</div>
+        ${MDL.kits().length ? html`<div class="ba-kits"><div class="ba-sh">${UI.icon('box')} الحزم</div>${MDL.kits().map((k) => html`<button type="button" class="ba-kit" data-bakit="${k.id}">${UI.icon('plus')} ${k.name} <small class="faint">${fmtNum(k.rows.reduce((s, r) => s + r.qty, 0))} قطعة</small></button>`)}</div>` : ''}
+        ${MDL.canEdit() ? html`<button type="button" class="btn btn-ghost btn-sm mt" data-banew>${UI.icon('plus')} نموذج جديد بمواصفاته</button>` : ''}
+      </aside>
+      <section class="ba-main">
+        <div class="ba-dest" data-badest>${destHtml()}</div>
+        <datalist id="baModels">${models.map((m) => html`<option value="${m.name}">${MDL.sub(m)}</option>`)}</datalist>
+        <div class="ba-head"><span></span><span>الجهاز / النموذج</span><span>الكمية</span><span>الأرقام التسلسلية</span><span data-bauh${mode === 'dept' ? '' : raw(' hidden')}>المكتب (إن اختلف)</span><span>ملاحظة</span><span></span></div>
+        <div class="ba-rows" data-barows>${(preset.rows || []).length ? preset.rows.map((r) => row({ ...r, m: r.itemId ? models.find((m) => m.id === r.itemId) : null })) : row()}</div>
+        <div class="row mt" style="gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn btn-soft btn-sm" data-baadd>${UI.icon('plus')} سطر جديد</button><span class="faint small">${UI.icon('info')} اكتب اسم أي جهاز غير موجود فيُضاف نموذجاً جديداً، أو الصق جدولاً من Excel (الاسم، الكمية، الأرقام التسلسلية، ملاحظة). Enter ينتقل للسطر التالي.</span></div>
+        <div class="ba-sum" data-basum></div>
+      </section></div>`,
+    onMount: (form) => {
+      const rows = form.querySelector('[data-barows]'), pal = form.querySelector('[data-bapal]'), sum = form.querySelector('[data-basum]');
+      const units = { list: [] };
+      const unitOpts = async () => {
+        const d = (form.querySelector('[name="departmentId"]') || {}).value || '';
+        units.list = d ? orgUnitsFlat(await DB.getAll('deptUnits'), d) : [];
+        $$('[data-bau]', form).forEach((s) => { const cur = s.value; s.innerHTML = `<option value="">— نفس الموضع —</option>${units.list.map(({ u, path }) => `<option value="${esc(u.id)}">${esc(path)}</option>`).join('')}`; s.value = cur; });
+      };
+      const people = () => { const hs = form.querySelector('[name="holderId"]'), d = (form.querySelector('[name="departmentId"]') || {}).value || ''; if (!hs) return; const cur = hs.value; hs.innerHTML = `<option value="">— بلا مستلم محدد —</option>${Data.list('users').filter((u) => u.active && u.departmentId === d && !isSysAccount(u)).map((u) => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join('')}`; hs.value = cur; };
+      const lockInfo = async () => { const box = form.querySelector('[data-balock]'); if (!box || mode !== 'dept') return; const ok = await Custody.allowed(); box.innerHTML = ok ? '' : String(html`<div class="banner tone-amber">${UI.icon('lock')}<div class="grow"><b>الإضافة المباشرة لعهدة الإدارات مغلقة</b><div class="small">يفتحها المشرف لفترة محددة، ثم تُحفظ الإضافة.</div></div>${Custody.canToggle() ? html`<button type="button" class="btn btn-sm btn-soft" data-baopen>${UI.icon('key')} فتحها الآن</button>` : ''}</div>`); };
+      const mark = (r) => {
+        const v = $('[data-ban]', r).value.trim(), m = v ? find(v) : null, meta = $('[data-bameta]', r), nw = $('.ba-new', r), ic = $('[data-baic]', r), s = $('[data-bas]', r);
+        nw.hidden = !v || !!m; r.dataset.item = m ? m.id : '';
+        ic.innerHTML = String(m ? UI.illu(itemIllu(m), 'mini') : UI.icon(v ? 'sparkle' : 'box'));
+        meta.textContent = m ? [MDL.sub(m), ...MDL.specs(m, 3).map(([k, x]) => `${k}: ${x}`)].filter(Boolean).join(' · ') : '';
+        s.placeholder = m && isSerialItem(m) ? 'الأرقام التسلسلية (اختياري، يُتابع كل جهاز برقمه)' : 'الأرقام التسلسلية (اختياري)';
+      };
+      const total = () => {
+        let n = 0, q = 0, nw = 0; const per = new Map();
+        $$('[data-barow]', rows).forEach((r) => { const v = $('[data-ban]', r).value.trim(); if (!v) return; const k = Math.max(Number($('[data-baq]', r).value) || 0, snSplit($('[data-bas]', r).value).length); n++; q += k; if (!r.dataset.item) nw++; const t = r.dataset.item ? Data.nameOf('itemCategories', MDL.typeOf(models.find((m) => m.id === r.dataset.item) || {}), '') : 'نماذج جديدة'; per.set(t, (per.get(t) || 0) + k); });
+        sum.innerHTML = n ? String(html`${UI.icon('check')}<b>${fmtNum(n)} سطر · ${fmtNum(q)} قطعة</b>${[...per].map(([t, k]) => html`<span class="chip tone-sky">${t}: ${fmtNum(k)}</span>`)}${nw ? html`<span class="chip tone-amber">${fmtNum(nw)} نموذج جديد يُنشأ عند الحفظ</span>` : ''}`) : String(html`<span class="faint">لم تُضف أجهزة بعد: اضغط نموذجاً من القائمة الجانبية أو اكتب في السطر.</span>`);
+      };
+      const addRow = (data = {}, focus = true) => {
+        const empty = $$('[data-barow]', rows).find((r) => !$('[data-ban]', r).value.trim());
+        if (empty && data.m) { $('[data-ban]', empty).value = data.m.name; $('[data-baq]', empty).value = data.qty || 1; mark(empty); total(); return empty; }
+        rows.insertAdjacentHTML('beforeend', String(row(data))); const r = rows.lastElementChild; if (mode === 'dept') unitOpts(); mark(r); total();
+        if (focus && !data.m) $('[data-ban]', r).focus();
+        return r;
+      };
+      const pickModel = (m, qty = 1) => {
+        const same = $$('[data-barow]', rows).find((r) => r.dataset.item === m.id && !$('[data-bas]', r).value.trim() && !$('[data-bau]', r).value);
+        if (same) { const q = $('[data-baq]', same); q.value = (Number(q.value) || 0) + qty; same.classList.remove('ba-flash'); void same.offsetWidth; same.classList.add('ba-flash'); total(); return; }
+        const r = addRow({ m, qty }, false); r.classList.add('ba-flash');
+      };
+      const setMode = (m) => {
+        mode = m;
+        form.querySelector('[data-bastore]').hidden = m !== 'store'; form.querySelector('[data-badept]').hidden = m !== 'dept';
+        form.querySelector('[data-bauh]').hidden = m !== 'dept'; $$('[data-bau]', form).forEach((s) => { s.hidden = m !== 'dept'; });
+        if (m === 'dept') { unitOpts(); people(); lockInfo(); }
+      };
+      $$('[data-barow]', rows).forEach(mark); total();
+      UI.bindOrgChain(form, { value: preset.unitId || '' }).then(() => { const ds = form.querySelector('[name="departmentId"]'); if (ds) ds.addEventListener('change', () => { unitOpts(); people(); }); if (mode === 'dept') { unitOpts(); people(); lockInfo(); } });
+      UI.on(form, 'change', '[name="bamode"]', (e, el) => setMode(el.value));
+      UI.on(form, 'click', '[data-baopen]', async () => { if (await Pages.custodyOpenModal()) lockInfo(); });
+      form.querySelector('[data-bafq]').addEventListener('input', debounce((e) => { fq = e.target.value.trim(); pal.innerHTML = String(palette()); }, 150));
+      UI.on(form, 'click', '[data-baft]', (e, b) => { ftype = b.dataset.baft; $$('[data-baft]', form).forEach((x) => x.classList.toggle('on', x === b)); pal.innerHTML = String(palette()); });
+      UI.on(form, 'click', '[data-bapick]', (e, b) => { const m = models.find((x) => x.id === b.dataset.bapick); if (m) pickModel(m); });
+      UI.on(form, 'click', '[data-bakit]', (e, b) => { const k = MDL.kits().find((x) => x.id === b.dataset.bakit); if (!k) return; let n = 0; k.rows.forEach((r) => { const m = models.find((x) => x.id === r.itemId); if (m) { pickModel(m, r.qty); n++; } }); UI.toast(`أُضيفت حزمة «${k.name}» (${fmtNum(n)} نموذج)`, 'ok', 2500); });
+      const reloadModels = async () => { models = await MDL.all(); index(); form.querySelector('#baModels').innerHTML = models.map((m) => `<option value="${esc(m.name)}">${esc(MDL.sub(m))}</option>`).join(''); pal.innerHTML = String(palette()); };
+      UI.on(form, 'click', '[data-banew]', async () => { const m = await Pages.modelEdit(''); if (m && m.id) { await reloadModels(); pickModel(models.find((x) => x.id === m.id) || m); } });
+      UI.on(form, 'click', '[data-baadd]', () => addRow());
+      UI.on(form, 'click', '[data-bax]', (e, b) => { const r = b.closest('[data-barow]'); if ($$('[data-barow]', rows).length > 1) r.remove(); else { $$('input', r).forEach((x) => { x.value = x.matches('[data-baq]') ? 1 : ''; }); mark(r); } total(); });
+      UI.on(form, 'click', '[data-baedit]', async (e, b) => {
+        const r = b.closest('[data-barow]'), id = r.dataset.item;
+        if (!id) { const t = $('[data-bat]', r).value, nm = $('[data-ban]', r).value.trim(); const m = await Pages.modelEdit('', { categoryId: t, name: nm }); if (m && m.id) { await reloadModels(); $('[data-ban]', r).value = m.name; mark(r); total(); } return; }
+        const m = await Pages.modelEdit(id); if (m && m.id) { await reloadModels(); $('[data-ban]', r).value = m.name; mark(r); total(); }
+      });
+      UI.on(form, 'click', '[data-bavar]', async (e, b) => {
+        const r = b.closest('[data-barow]'), src = models.find((x) => x.id === r.dataset.item);
+        if (!src) { UI.toast('اختر نموذجاً موجوداً أولاً لعمل نسخة معدّلة منه', 'warn'); return; }
+        const m = await Pages.modelEdit('', { categoryId: src.categoryId, brand: src.brand, model: src.model, name: `${src.name} (معدّل)`, specs: { ...(src.specs || {}) }, unit: src.unit, serialized: isSerialItem(src) ? 1 : 0, notes: src.notes });
+        if (m && m.id) { await reloadModels(); $('[data-ban]', r).value = m.name; mark(r); total(); UI.toast('هذا السطر يستخدم النسخة المعدّلة؛ النموذج الأصلي كما هو', 'info', 3500); }
+      });
+      form.addEventListener('input', (e) => {
+        const r = e.target.closest('[data-barow]'); if (!r) return;
+        if (e.target.matches('[data-ban]')) mark(r);
+        if (e.target.matches('[data-bas]')) { const k = snSplit(e.target.value).length, q = $('[data-baq]', r); if (k > (Number(q.value) || 0)) q.value = k; }
+        total();
+      });
+      form.addEventListener('keydown', (e) => { if (e.key !== 'Enter' || !e.target.closest('[data-barow]') || e.target.matches('select')) return; e.preventDefault(); const r = e.target.closest('[data-barow]'); const nx = r.nextElementSibling || addRow({}, false); $('[data-ban]', nx).focus(); });
+      form.addEventListener('paste', (e) => {
+        const inp = e.target.closest && e.target.closest('[data-ban]'); if (!inp) return;
+        const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; if (!/[\t\n]/.test(txt.trim())) return;
+        e.preventDefault();
+        const data = txt.replace(/\r/g, '').split('\n').map((l) => l.split('\t')).filter((c) => (c[0] || '').trim()).map(([name, qty, sn, note]) => ({ name: String(name || '').trim(), qty: Math.max(1, parseInt(String(qty || '').replace(/[^\d]/g, ''), 10) || 1), sn: String(sn || '').trim(), note: String(note || '').trim() }));
+        let r = inp.closest('[data-barow]');
+        data.forEach((d, i) => { if (i > 0) r = r.nextElementSibling || addRow({}, false); $('[data-ban]', r).value = d.name; $('[data-baq]', r).value = Math.max(d.qty, snSplit(d.sn).length); $('[data-bas]', r).value = d.sn; $('[data-banote]', r).value = d.note; mark(r); });
+        total(); UI.toast(`لُصق ${fmtNum(data.length)} سطر`);
+      });
+      form._mode = () => mode;
+      setMode(mode);
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ وطباعة كشف', kind: 'soft', icon: 'print', handler: (f) => Pages.bulkAddSave(f, true) }, { label: 'حفظ الكل', kind: 'primary', icon: 'check', submit: true, handler: (f) => Pages.bulkAddSave(f, false) }]
+  });
+};
+Pages.bulkAddSave = async (form, print) => {
+  const mode = form._mode(), v = UI.formValues(form), N = Data.assets.norm;
+  const lines = $$('[data-barow]', form).map((r) => ({ name: $('[data-ban]', r).value.trim(), itemId: r.dataset.item || '', type: ($('[data-bat]', r) || {}).value || 'ic_other', qty: Math.floor(Number($('[data-baq]', r).value) || 0), sns: snSplit($('[data-bas]', r).value), unitId: mode === 'dept' ? $('[data-bau]', r).value || '' : '', note: $('[data-banote]', r).value.trim() })).filter((l) => l.name);
+  if (!lines.length) throw new AppError('أضف جهازاً واحداً على الأقل');
+  lines.forEach((l) => { l.qty = Math.max(l.qty, l.sns.length); if (!(l.qty > 0)) throw new AppError(`أدخل كمية صحيحة للجهاز «${l.name}»`); });
+  const all = lines.flatMap((l) => l.sns).map(N), twice = all.find((s, i) => all.indexOf(s) !== i); if (twice) throw new AppError(`الرقم التسلسلي ${twice} مكرر في القائمة`);
+  const pairs = lines.flatMap((l) => l.sns.map((s) => ({ serial: s, tag: '' }))); if (pairs.length) await Data.assets.check(pairs);
+  let depId = '', unId = '', whId = '';
+  if (mode === 'store') { whId = v.warehouseId; if (!Data.c.warehouses.get(whId)) throw new AppError('اختر المخزن'); }
+  else { depId = v.departmentId; unId = v.unitId || ''; if (!depId) throw new AppError('اختر الإدارة'); if (!(await Custody.allowed())) throw new AppError('الإضافة المباشرة لعهدة الإدارات مغلقة؛ اطلب فتحها ثم أعد الحفظ'); }
+  const made = []; let units = 0;
+  for (const l of lines) {
+    let it = l.itemId ? await DB.get('items', l.itemId) : null;
+    if (!it) { const ex = (await DB.getAll('items')).find((x) => !x.archived && normalizeAr(x.name) === normalizeAr(l.name)); it = ex || (await Data.inv.saveItem({ name: l.name, categoryId: l.type, unit: isSerialItem({ categoryId: l.type }) ? 'جهاز' : 'قطعة' })); if (!ex) made.push(it.name); }
+    if (mode === 'store') {
+      await Data.inv.move({ type: 'receive', itemId: it.id, warehouseId: whId, qty: l.qty, note: l.note || 'إضافة دفعة واحدة', ref: v.ref || '', party: v.party || '' });
+      if (l.sns.length) await Data.assets.add({ itemId: it.id, warehouseId: whId, serials: l.sns.map((s) => ({ serial: s, tag: '' })), note: l.note });
+    } else {
+      await Data.dept.addDirect({ departmentId: depId, unitId: l.unitId || unId, itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note || 'إضافة دفعة واحدة', serials: l.sns.map((s) => ({ serial: s, tag: '' })) });
+    }
+    l.item = it; units += l.qty;
+  }
+  const units0 = mode === 'dept' ? await DB.getAll('deptUnits') : [];
+  const place = mode === 'store' ? Data.nameOf('warehouses', whId) : orgLabel(depId, unId, units0) || Data.nameOf('departments', depId);
+  await Data.log('move', 'inventory', '', `إضافة دفعة واحدة: ${fmtNum(lines.length)} نموذج (${fmtNum(units)} قطعة) إلى ${place}`);
+  Bus.emit('inventory', {});
+  UI.toast(`أُضيف ${fmtNum(units)} قطعة من ${fmtNum(lines.length)} نموذج إلى ${place}${made.length ? ` — ونُشئ ${fmtNum(made.length)} نموذج جديد` : ''}`, 'ok', 6500);
+  if (print) {
+    const holder = v.holderId ? Data.userName(v.holderId) : '';
+    UI.print(html`<h2 style="text-align:center">كشف إضافة أجهزة — ${mode === 'store' ? 'استلام في المخزن' : 'عهدة مباشرة'}</h2>
+      <table><tr><th>إلى</th><td>${place}</td><th>التاريخ</th><td>${fmtDateTime(now())}</td></tr>${mode === 'store' ? html`<tr><th>المرجع</th><td>${v.ref || '—'}</td><th>المورّد</th><td>${v.party || '—'}</td></tr>` : html`<tr><th>المستلم</th><td colspan="3">${holder || '—'}</td></tr>`}</table>
+      <table><tr><th style="width:36px">م</th><th>الجهاز</th><th>النوع</th><th style="width:60px">الكمية</th><th>الأرقام التسلسلية</th>${mode === 'dept' ? html`<th>المكتب</th>` : ''}<th>ملاحظة</th></tr>${lines.map((l, i) => html`<tr><td>${i + 1}</td><td>${l.item.name}</td><td>${Data.nameOf('itemCategories', MDL.typeOf(l.item), '')}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${l.sns.join('، ')}</td>${mode === 'dept' ? html`<td>${l.unitId ? orgLabel(depId, l.unitId, units0).split(' / ').slice(1).join(' / ') : '—'}</td>` : ''}<td>${l.note}</td></tr>`)}<tr><th colspan="3">الإجمالي</th><th>${fmtNum(units)}</th><td colspan="${mode === 'dept' ? 3 : 2}"></td></tr></table>
+      ${UI.signBlock([{ title: 'المُسلِّم', userId: mode === 'store' ? '' : Auth.user.id, name: mode === 'store' ? v.party || '' : '' }, { title: 'المستلم', ...(mode === 'store' ? { userId: Auth.user.id } : { name: holder }) }])}`, 'كشف إضافة أجهزة');
+  }
+  return { lines: lines.length, units };
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-bulkadd]'); if (!b) return;
+  e.preventDefault();
+  const [mode, departmentId, unitId] = String(b.dataset.bulkadd).split('|');
+  const itemId = b.dataset.item || '';
+  Pages.bulkAddModal({ mode, departmentId: departmentId || '', unitId: unitId || '', rows: itemId ? [{ itemId, qty: 1 }] : [] }).catch(UI.error);
+});
+/* زر الإضافة دفعة واحدة في صفحات عهدة الإدارات (حين تكون الإضافة المباشرة مفتوحة) */
+{
+  const cb1 = Pages.custodyBar;
+  Pages.custodyBar = async (departmentId = '') => {
+    const a = await cb1(departmentId);
+    if (!MDL.canDept() || !(await Custody.allowed())) return a;
+    return html`${a}<div class="live-bar custody-bar tone-violet">${UI.icon('layers')}<div class="grow"><b>إضافة أجهزة من النماذج</b><span>عدة أجهزة وشاشات وطابعات وملحقات من أنواع مختلفة في خطوة واحدة، ولكل جهاز مكتبه</span></div><button class="btn btn-primary btn-sm" data-bulkadd="dept|${departmentId}">${UI.icon('plus')} إضافة دفعة واحدة</button></div>`;
+  };
+}
+
+/* ── صفحة نماذج الأجهزة ── */
+Pages.models = async (ctx) => {
+  const st = { q: '', type: ctx.query.type || '' };
+  const draw = async () => {
+    const [all, cnt] = await Promise.all([MDL.all(), MDL.counts()]); if (!ctx.alive()) return;
+    const qn = normalizeAr(st.q), types = MDL.types();
+    const rows = all.filter((m) => (!st.type || MDL.typeOf(m) === st.type) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn)));
+    const card = (m) => { const sp = MDL.specs(m, 5), s = cnt.st.get(m.id) || 0, d = cnt.dp.get(m.id) || 0; return html`<article class="mdl-card">
+      <header>${UI.illu(itemIllu(m), 'mini')}<div class="grow" style="min-width:0"><b>${m.name}</b><small>${[MDL.sub(m), Data.nameOf('itemCategories', m.categoryId, '')].filter(Boolean).join(' · ')}</small></div>${isSerialItem(m) ? html`<span class="chip tone-slate" title="يُتابع برقمه التسلسلي">${UI.icon('hash')}</span>` : ''}</header>
+      ${sp.length ? html`<dl class="mdl-sp">${sp.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>` : html`<p class="mdl-empty">${UI.icon('info')} لم تُعبّأ مواصفاته بعد${MDL.canEdit() ? ' — اضغط تعديل' : ''}</p>`}
+      <div class="mdl-cnt"><span title="في المخازن">${UI.icon('warehouse')} ${fmtNum(s)}</span><span title="في عهدة الإدارات">${UI.icon('building')} ${fmtNum(d)}</span><a class="mdl-more" href="#/inventory/items/${m.id}">${UI.icon('external')} الصنف</a></div>
+      <footer>${MDL.canStore() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="store" data-item="${m.id}">${UI.icon('warehouse')} للمخزن</button>` : ''}${MDL.canDept() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="dept" data-item="${m.id}">${UI.icon('building')} لإدارة / مكتب</button>` : ''}<span class="grow"></span>${MDL.canEdit() ? html`<button type="button" class="icon-btn" data-mdupe="${m.id}" title="نسخة معدّلة">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-medit="${m.id}" title="تعديل النموذج">${UI.icon('edit')}</button>` : ''}</footer></article>`; };
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'نماذج الأجهزة', sub: 'نموذج لكل جهاز بمواصفاته يُكتب مرة واحدة، ثم يُضاف إلى المخزن أو إلى الإدارات والأقسام والمكاتب باسمه فقط — عدة أنواع في خطوة واحدة', illu: 'laptop',
+      actions: html`${MDL.canEdit() ? html`<button class="btn btn-ghost" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button><button class="btn btn-ghost" data-act="kits">${UI.icon('box')} الحزم <b class="tab-n">${fmtNum(MDL.kits().length)}</b></button>` : ''}${MDL.canStore() || MDL.canDept() ? html`<button class="btn btn-soft" data-bulkadd="${MDL.canStore() ? 'store' : 'dept'}">${UI.icon('layers')} إضافة أجهزة دفعة واحدة</button>` : ''}${MDL.canEdit() ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}` })}
+      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="mdq" type="search" placeholder="ابحث بالاسم أو الماركة أو الموديل أو أي مواصفة" value="${st.q}"></div></div>
+        <div class="tabs mdl-tabs"><button type="button" class="tab${st.type ? '' : ' active'}" data-mtype="">${UI.icon('grid')} الكل <b class="tab-n">${fmtNum(all.length)}</b></button>${types.map((c) => { const n = all.filter((m) => MDL.typeOf(m) === c.id).length; return html`<button type="button" class="tab${st.type === c.id ? ' active' : ''}" data-mtype="${c.id}">${c.name} <b class="tab-n">${fmtNum(n)}</b></button>`; })}</div>
+        <div class="panel-body">${rows.length ? html`<div class="mdl-grid">${rows.map(card)}</div>` : UI.empty({ illu: 'laptop', title: all.length ? 'لا نماذج هنا' : 'لا توجد نماذج بعد', text: MDL.canEdit() ? 'أضف نموذجاً لكل جهاز تستخدمونه (حاسب، شاشة، طابعة، ملحقات…) بمواصفاته، أو ابدأ من «نماذج مقترحة».' : 'يضيف النماذج من يملك صلاحية إدارة الأصناف.', action: MDL.canEdit() && !all.length ? html`<button class="btn btn-primary" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button>` : '' })}</div></section>`);
+    const qi = $('#mdq', ctx.view); qi.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const i = $('#mdq', ctx.view); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); }, 250));
+  };
+  UI.on(ctx.view, 'click', '[data-mtype]', (e, b) => { st.type = b.dataset.mtype; draw(); });
+  UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.modelEdit('', st.type ? { categoryId: st.type } : {})) draw(); });
+  UI.on(ctx.view, 'click', '[data-act="sug"]', async () => { if (await Pages.modelSuggest()) draw(); });
+  UI.on(ctx.view, 'click', '[data-act="kits"]', async () => { if (await Pages.kitsModal()) draw(); });
+  UI.on(ctx.view, 'click', '[data-medit]', async (e, b) => { if (await Pages.modelEdit(b.dataset.medit)) draw(); });
+  UI.on(ctx.view, 'click', '[data-mdupe]', async (e, b) => { const s = await DB.get('items', b.dataset.mdupe); if (!s) return; if (await Pages.modelEdit('', { categoryId: s.categoryId, brand: s.brand, model: s.model, name: `${s.name} (نسخة)`, specs: { ...(s.specs || {}) }, unit: s.unit, serialized: isSerialItem(s) ? 1 : 0, notes: s.notes })) draw(); });
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 400)));
+  await draw();
+};
+Router.add('/inventory/models', 'inventory.read', Pages.models, 'نماذج الأجهزة');
 
 boot();
 })();
