@@ -1,0 +1,5 @@
+# config.php و config.local.php يحويان كلمة مرور قاعدة البيانات: لا يُفتحان من المتصفح
+<FilesMatch "^config(\.local)?\.php$">
+  Require all denied
+</FilesMatch>
+Options -Indexes
