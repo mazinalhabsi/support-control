@@ -1708,13 +1708,14 @@ UI.palette = () => {
     const q = input.value.trim(), my = ++token, nq = normalizeAr(q);
     let res = base().filter((i) => !q || normalizeAr(i.label).includes(nq));
     if (q.length >= 2) {
-      const [tk, it, kb] = await Promise.all([
+      const [tk, it, kb, mts] = await Promise.all([
         Auth.can('tickets.view') ? Data.tickets.list({ q, limit: 6, requesterId: Auth.can('tickets.all') ? undefined : Auth.user.id }) : { rows: [] },
         Auth.can('inventory.read') ? Data.inv.items({ q, limit: 5 }) : { rows: [] },
-        Auth.can('kb.read') ? Data.kb.search(q) : []
+        Auth.can('kb.read') ? Data.kb.search(q) : [],
+        typeof MT !== 'undefined' && MT.on() && MT.canRead() ? MT.list().then((rows) => rows.filter((r) => MT.text(r).includes(nq)).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6)).catch(() => []) : []
       ]);
       if (my !== token) return;
-      res = [...tk.rows.map((t) => ({ group: 'البلاغات', icon: 'ticket', label: `${t.number} — ${t.title}`, sub: STATUS[t.status].label, run: () => Router.go(`/tickets/${t.id}`) })), ...it.rows.map((x) => ({ group: 'الأصناف', icon: 'box', label: `${x.name} (${x.sku})`, sub: `الرصيد ${fmtNum(x.onHand)}`, run: () => Router.go(`/inventory/items/${x.id}`) })), ...kb.slice(0, 4).map((a) => ({ group: 'قاعدة المعرفة', icon: 'book', label: a.title, run: () => Router.go(`/kb?open=${a.id}`) })), ...res];
+      res = [...tk.rows.map((t) => ({ group: 'البلاغات', icon: 'ticket', label: `${t.number} — ${t.title}`, sub: STATUS[t.status].label, run: () => Router.go(`/tickets/${t.id}`) })), ...it.rows.map((x) => ({ group: 'الأصناف', icon: 'box', label: `${x.name} (${x.sku})`, sub: `الرصيد ${fmtNum(x.onHand)}`, run: () => Router.go(`/inventory/items/${x.id}`) })), ...kb.slice(0, 4).map((a) => ({ group: 'قاعدة المعرفة', icon: 'book', label: a.title, run: () => Router.go(`/kb?open=${a.id}`) })), ...mts.map((r) => ({ group: MT.name(), icon: 'tools', label: `${r.number} — ${r.device.name}`, sub: MT.stage(r.status).label, run: () => Router.go(`/send-maint?m=${r.id}`) })), ...res];
     }
     items = res.slice(0, 40); active = 0; render();
   }, 140);
@@ -2356,7 +2357,7 @@ Pages.newTicket = async (ctx) => {
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-main">
       ${UI.panel({ title: 'راجع بلاغك قبل الإرسال', icon: 'eye', body: html`<div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">${c.name}</div><b style="font-size:18px">${st.title}</b></div>${UI.priority(pr)}</div>
         ${st.description ? html`<p class="bubble mt">${st.description}</p>` : ''}
-        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} الإدارة</dt><dd>${Data.nameOf('departments', st.departmentId)}${st.unitPath ? html`<div class="t-sub">${st.unitPath}</div>` : ''}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
+        <dl class="kv mt">${(Forms.extra(st.cat, st.x || {}) || { fields: [] }).fields.map((f) => html`<dt>${UI.icon('tag')} ${f.label}</dt><dd>${f.value}</dd>`)}<dt>${UI.icon('building')} الإدارة</dt><dd>${Data.nameOf('departments', st.departmentId)}${st.unitPath ? html`<div class="t-sub">${st.unitPath}</div>` : ''}</dd><dt>${UI.icon('pin')} الموقع</dt><dd>${[Data.nameOf('locations', st.locationId, ''), st.location].filter(Boolean).join(' — ') || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${st.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${[st.deviceName, st.printerBrand, st.printerModel].filter(Boolean).join(' — ') || '—'}</dd>${st.cat === 'card' && (st.persons || []).length ? html`<dt>${UI.icon('users')} أشخاص إضافيون</dt><dd>${st.persons.map((p) => [p.rank, p.name, p.militaryNo ? `(${p.militaryNo})` : ''].filter(Boolean).join(' ')).join('، ')}</dd>` : ''}${st.cat === 'path_code' && (st.codes || []).length ? html`<dt>${UI.icon('key')} الأشخاص المطلوب إصدار رمز لهم (${fmtNum(st.codes.length)})</dt><dd><ol class="codes-ol">${st.codes.map((p) => html`<li>${p.name || '—'}${p.militaryNo ? html` <span class="ltr faint">${p.militaryNo}</span>` : ''}</li>`)}</ol></dd>` : ''}<dt>${UI.icon('clip')} المرفقات</dt><dd>${files.length ? files.map((f) => f.name).join('، ') : 'لا يوجد'}</dd><dt>${UI.icon('clock')} الموعد المستهدف</dt><dd>${fmtDuration(Data.c.settings.sla[pr].resolve * MIN)}</dd></dl>` })}
       ${UI.panel({ title: 'جاهز للإرسال', icon: 'send', body: html`<div class="center stack" style="gap:12px;align-items:center">${UI.illu('bell', 'head-illu')}<p class="muted">سيصل البلاغ إلى فريق الدعم الفني فور الإرسال، وستتلقى إشعاراً عند كل تحديث.</p><button class="btn btn-primary btn-lg btn-block" data-act="submit">${UI.icon('send')} إرسال البلاغ</button><button class="btn btn-ghost btn-block" data-act="back2">${UI.icon('edit')} تعديل التفاصيل</button></div>` })}
     </div>`);
   };
@@ -2389,8 +2390,9 @@ Pages.newTicket = async (ctx) => {
     UI.busy(btn, true);
     try {
       const extra = Forms.extra(st.cat, st.x || {}) || {};
-      if ((st.persons || []).length) extra.persons = st.persons;
-      if ((st.codes || []).length) extra.codes = st.codes;
+      /* كل قائمة لفئتها فقط: من كتب أشخاصاً ثم عاد وغيّر الفئة لا تُرفق قائمته ببلاغ من فئة أخرى */
+      if (st.cat === 'card' && (st.persons || []).length) extra.persons = st.persons;
+      if (st.cat === 'path_code' && (st.codes || []).length) extra.codes = st.codes;
       const t = await Data.tickets.create({ ...st, categoryId: st.cat, extra }, files);
       view.innerHTML = String(html`${head}<section class="panel"><div class="success"><div class="burst"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg></div><h2 style="font-size:24px">تم إرسال بلاغك بنجاح</h2><p class="muted">احتفظ برقم البلاغ للمتابعة، وسيصلك إشعار عند استلامه.</p><span class="stamp">${t.number}</span>${Ratings.submitWidget(t)}<div class="row" style="justify-content:center;margin-top:10px"><a class="btn btn-primary" href="#/tickets/${t.id}">${UI.icon('eye')} متابعة البلاغ</a>${eformOn(t.categoryId) ? html`<button type="button" class="btn btn-soft" data-eformview="${t.id}">${UI.icon('paper')} عرض الاستمارة وطباعتها</button>` : ''}<a class="btn" href="#/tickets/new">${UI.icon('plus')} بلاغ آخر</a><a class="btn btn-ghost" href="#/dashboard">${UI.icon('grid')} الرئيسية</a></div></div></section>`);
       const r = $('.burst', view).getBoundingClientRect(); UI.confetti(r.left + r.width / 2, r.top + r.height / 2);
@@ -13190,6 +13192,7 @@ const WIPE_GROUPS = [
   ['surveys', 'الاستبيانات وإجاباتها', 'poll', ['surveys', 'surveyResponses', 'surveyMarks']],
   ['announcements', 'الإعلانات والتعاميم', 'bell', ['announcements']],
   ['extmaint', 'الصيانة الخارجية', 'external', ['extmaint']],
+  ['mtrack', 'قسم الإرسال إلى الصيانة وملاحظاته', 'tools', ['mtrack']],
   ['vault', 'الملاحظات ومجموعاتها', 'key', ['vault', 'noteGroups', 'noteReads']],
   ['activity', 'سجل النشاط', 'clock', ['activity']],
   ['org', 'الهيكل التنظيمي: الإدارات والأقسام والمكاتب والمواقع والمباني', 'layers', ['departments', 'deptUnits', 'locations'], 1],
@@ -14102,15 +14105,21 @@ const VAULT = {
       /* «مشتركة» من استدعاء قديم تعني من يصل إلى الملاحظات (كما كانت في الواجهة السابقة) */
       Object.assign(out, { visibility: ['private', 'all', 'custom'].includes(rec.visibility) ? rec.visibility : rec.visibility === 'shared' ? 'all' : 'custom', audience: { users: clean(a.users), roles: clean(a.roles).filter((r) => NOTE_ROLES.includes(r)), groups: clean(a.groups) }, until: Math.max(0, Number(rec.until) || 0) });
       delete out.legacy;
+      if ('alert' in rec) out.alert = { bell: rec.alert && rec.alert.bell ? 1 : 0, section: rec.alert && rec.alert.section ? 1 : 0, popup: rec.alert && rec.alert.popup ? 1 : 0 };
+      if ('days' in rec) { out.days = [...new Set((rec.days || []).map(Number).filter((d) => d >= 0 && d <= 6))].sort(); if (out.days.length) { out.alertTime = /^\d{1,2}:\d{2}$/.test(rec.alertTime || '') ? rec.alertTime : '07:30'; out.onlyDays = rec.onlyDays ? 1 : 0; } else { delete out.alertTime; out.onlyDays = 0; } }
+      if ('showFrom' in rec) out.showFrom = Math.max(0, Number(rec.showFrom) || 0);
       if (out.visibility === 'custom' && !out.audience.users.length && !out.audience.roles.length && !out.audience.groups.length) throw new AppError('اختر من يرى الملاحظة، أو اجعلها لك وحدك');
     }
     if (!out.title) { const f = T.fields.find(([k]) => out.f[k]); out.title = f ? String(out.f[f[0]]) : out.items.length ? out.items[0].t : ''; }
     if (!out.title) throw new AppError('اكتب عنواناً للملاحظة');
-    const ping = out.important && out.visibility !== 'private' && (notify || !cur || !cur.important);
-    if (ping) out.importantAt = t;
+    /* التنبيه عند الإضافة أو التعديل: حسب الطرق التي اختارها الكاتب (والملاحظة القديمة «المهمة» بلا طرق: إشعار وتنبيه في القسم كما كانت).
+       المجدولة لا يُنبَّه بها الآن: يُنبَّه كل حساب بنفسه حين يحل موعد ظهورها */
+    const al = VAULT.alertOf(out), was = cur ? VAULT.alertOf(cur) : {}, any = al.bell || al.section || al.popup, wasAny = was.bell || was.section || was.popup;
+    const ping = !!any && out.visibility !== 'private' && !((Number(out.showFrom) || 0) > t) && (notify || !cur || !wasAny);
+    if (ping) { out.importantAt = t; out.alertAt = t; }
     await DB.put('vault', out);
     await Data.log(cur ? 'update' : 'create', 'settings', out.id, `${cur ? 'تعديل' : 'إضافة'} ملاحظة: ${out.title}`);
-    if (ping) out.notified = await VAULT.notify(out, !cur || !cur.important);
+    if (ping) out.notified = al.bell ? await VAULT.notify(out, !cur || !wasAny) : VAULT.reach(out).filter((u) => u.id !== me.id).length;
     Bus.emit('vault', {});
     return out;
   },
@@ -14118,7 +14127,7 @@ const VAULT = {
   async notify(n, fresh) {
     const me = Auth.user, to = VAULT.reach(n).filter((u) => u.id !== me.id); if (!to.length) return 0;
     const t = now(), txt = String(n.body || '').replace(/\s+/g, ' ').slice(0, 90);
-    await DB.bulkPut('notifications', to.map((u) => ({ id: uid('nt'), userId: u.id, at: t, read: 0, title: `${fresh ? 'ملاحظة مهمة' : 'تحديث على ملاحظة مهمة'} من ${me.name}: ${n.title}`, body: txt, link: `/vault?n=${n.id}`, kind: 'warn' })));
+    await DB.bulkPut('notifications', to.map((u) => ({ id: uid('nt'), userId: u.id, at: t, read: 0, title: `${fresh ? (n.important ? 'ملاحظة مهمة' : 'ملاحظة جديدة') : (n.important ? 'تحديث على ملاحظة مهمة' : 'تحديث على ملاحظة')} من ${me.name}: ${n.title}`, body: txt, link: `/vault?n=${n.id}`, kind: 'warn' })));
     Bus.emit('notifications');
     return to.length;
   },
@@ -14312,7 +14321,7 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
     if (kind === 'secret') return html`<div class="field"><label>${label}</label><div class="vt-secret-in"><input type="password" name="f_${k}" dir="ltr" value="${v}" autocomplete="new-password"><button type="button" class="icon-btn" data-peek title="إظهار">${UI.icon('eye')}</button>${k === 'password' ? html`<button type="button" class="icon-btn" data-gen title="توليد كلمة مرور قوية">${UI.icon('sparkle')}</button>` : ''}</div></div>`;
     return html`<div class="field"><label>${label}</label><input name="f_${k}" value="${v}"${kind === 'ltr' || kind === 'url' ? raw(' dir="ltr"') : ''}${kind === 'url' ? raw(' placeholder="https://"') : ''}></div>`;
   })}${VT_TYPES[t].tasks ? html`<div class="field"><label>التكرار</label><select name="repeat"><option value="">لا تتكرر</option><option value="daily"${rec.repeat === 'daily' ? raw(' selected') : ''}>تتجدد كل يوم</option><option value="weekly"${rec.repeat === 'weekly' ? raw(' selected') : ''}>تتجدد كل أسبوع (من الأحد)</option></select></div>` : ''}${VT_TYPES[t].tasks ? html`<div class="field wide"><label>المهام (كل سطر مهمة)</label><textarea name="items" rows="6" placeholder="مثال:&#10;فحص النسخ الاحتياطي&#10;متابعة طابعة الاستقبال&#10;تحديث مضاد الفيروسات">${(rec.items || []).map((x) => x.t).join('\n')}</textarea></div>` : ''}`;
-  const keepDur = rec.until > 0 && VAULT.live(rec);
+  const keepDur = rec.until > 0 && VAULT.live(rec), wdays = VAULT.daysOf(rec), al0 = id ? VAULT.alertOf(rec) : { bell: preset.important ? 1 : 0, section: preset.important ? 1 : 0, popup: 0 };
   const visHtml = () => html`<div class="seg nt-vis" role="radiogroup" aria-label="من يرى الملاحظة">${[['private', 'lock', 'لي وحدي'], ['custom', 'users', 'أشخاص ومجموعات'], ['all', 'eye', 'كل من يصل إلى الملاحظات']].map(([k, ic, l]) => html`<label><input type="radio" name="vis" value="${k}"${vis === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`;
   return UI.modal({
     title: id ? `تعديل: ${rec.title}` : 'ملاحظة جديدة', icon: 'key', size: 'lg',
@@ -14327,12 +14336,22 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
         ${author ? html`${visHtml()}<p class="hint nt-vhint" data-vhint></p>${!id && last && last.visibility === 'custom' && ((last.audience || {}).users || []).length + ((last.audience || {}).roles || []).length + ((last.audience || {}).groups || []).length ? html`<button type="button" class="btn btn-ghost btn-sm" data-vlast>${UI.icon('refresh')} مثل آخر ملاحظة</button>` : ''}<div class="np" data-np${vis === 'custom' ? '' : raw(' hidden')}></div>` : html`<p class="nt-ro">${UI.icon(VAULT.audText(rec)[0])} ${VAULT.audText(rec)[1]}<span class="faint small"> — يحددها كاتب الملاحظة</span></p>`}
       </section>
       <section class="nt-share mt">
-        <h4>${UI.icon('clock')} المدة والتنبيه</h4>
+        <h4>${UI.icon('clock')} المدة والظهور</h4>
         <div class="form-grid">
-          ${author ? html`<div class="field"><label>مدة الملاحظة</label><select name="dur">${keepDur ? html`<option value="keep" selected>كما هي (${noteLeft(rec.until)})</option>` : ''}${NOTE_DUR.map(([k, l]) => html`<option value="${k}"${!keepDur && k === (preset.dur || '0') ? raw(' selected') : ''}>${l}</option>`)}</select></div><div class="field" data-durat hidden><label>تختفي في</label><input type="datetime-local" name="durAt" dir="ltr" value="${rec.until > 0 ? dtInput(rec.until) : ''}"></div>` : html`<p class="nt-ro">${UI.icon('clock')} ${rec.until > 0 ? noteLeft(rec.until) : 'دائمة'}</p>`}
-          <div class="wide nt-sw">${UI.field({ name: 'important', type: 'switch', text: 'ملاحظة مهمة: تُبرز لمن يراها ويصلهم إشعار بها' }, rec.important ? 1 : 0)}${id && rec.important ? UI.field({ name: 'renotify', type: 'switch', text: 'إرسال إشعار جديد بهذا التعديل' }, 0) : ''}</div>
+          ${author ? html`<div class="field"><label>مدة الملاحظة</label><select name="dur">${keepDur ? html`<option value="keep" selected>كما هي (${noteLeft(rec.until)})</option>` : ''}${NOTE_DUR2.map(([k, l]) => html`<option value="${k}"${!keepDur && k === (preset.dur || '0') ? raw(' selected') : ''}>${l}</option>`)}</select></div><div class="field" data-durat hidden><label>تختفي في</label><input type="datetime-local" name="durAt" dir="ltr" value="${rec.until > 0 ? dtInput(rec.until) : ''}"></div><div class="field" data-durn hidden><label>عدد الأيام</label><input type="number" name="durN" min="1" max="365" value="2" dir="ltr"><small class="hint">تختفي في نهاية آخر يوم منها</small></div>
+            <div class="field"><label>تظهر ابتداءً من <small class="faint">(اختياري)</small></label><input type="datetime-local" name="showFrom" dir="ltr" lang="en-GB" value="${Number(rec.showFrom) > now() ? dtInput(rec.showFrom) : ''}"><small class="hint">اتركه فارغاً لتظهر الآن. المجدولة لا يراها غيرك قبل موعدها</small></div>` : html`<p class="nt-ro">${UI.icon('clock')} ${rec.until > 0 ? noteLeft(rec.until) : 'دائمة'}${Number(rec.showFrom) > now() ? ` · تظهر ${fmtDateTime(rec.showFrom)}` : ''}</p>`}
         </div>
-        <p class="hint">المؤقتة تختفي عن الجميع بانتهاء مدتها وتُحذف من الخادم. اترك «مهمة» مطفأً لملاحظة بلا إشعار.</p>
+      </section>
+      <section class="nt-share mt">
+        <h4>${UI.icon('repeat')} التكرار في أيام من الأسبوع</h4>
+        ${author ? html`<div class="nt-days" role="group" aria-label="أيام التكرار">${NOTE_WD.map((d, k) => html`<label class="nt-day"><input type="checkbox" name="wd_${k}"${wdays.includes(k) ? raw(' checked') : ''}><span>${d}</span></label>`)}<button type="button" class="btn btn-ghost btn-xs" data-wdset="0,1,2,3,4">أيام العمل</button><button type="button" class="btn btn-ghost btn-xs" data-wdset="">مسح</button></div>
+          <div class="form-grid mt" data-wdopts${wdays.length ? '' : raw(' hidden')}><div class="field"><label>وقت التنبيه في تلك الأيام</label><input type="time" name="alertTime" dir="ltr" lang="en-GB" value="${rec.alertTime || '07:30'}"></div><div class="field nt-sw">${UI.field({ name: 'onlyDays', type: 'switch', text: 'تظهر في هذه الأيام فقط وتختفي في غيرها' }, rec.onlyDays ? 1 : 0)}</div></div>
+          <p class="hint">في كل يوم تختاره تظهر الملاحظة في أعلى القائمة بعلامة «اليوم»، ويُنبَّه بها من يراها (وأنت أيضاً) بطرق التنبيه أدناه في الوقت المحدد.</p>` : html`<p class="nt-ro">${UI.icon('repeat')} ${wdays.length ? `تتكرر: ${wdays.map((k) => NOTE_WD[k]).join('، ')} — ${rec.alertTime || '07:30'}` : 'لا تتكرر'}</p>`}
+      </section>
+      <section class="nt-share mt">
+        <h4>${UI.icon('bell')} التنبيه والإشعارات</h4>
+        ${author ? html`<div class="nt-alerts">${NOTE_ALERTS.map(([k, ic, l, h]) => html`<label class="nt-al"><input type="checkbox" name="al_${k}"${al0[k] ? raw(' checked') : ''}><span><i>${UI.icon(ic)}</i><b>${l}</b><small>${h}</small></span></label>`)}</div><p class="hint" data-alhint>اترك الخيارات كلها مطفأة لملاحظة بلا أي تنبيه. يمكن اختيار أكثر من طريقة.</p>` : html`<p class="nt-ro">${UI.icon('bell')} ${NOTE_ALERTS.filter(([k]) => al0[k]).map(([, , l]) => l).join('، ') || 'بلا تنبيه'}</p>`}
+        <div class="nt-sw mt">${UI.field({ name: 'important', type: 'switch', text: 'ملاحظة مهمة: تُبرز بلون مميز لمن يراها' }, rec.important ? 1 : 0)}${id && (rec.important || VAULT.alerting(rec)) ? UI.field({ name: 'renotify', type: 'switch', text: 'تنبيه من يراها من جديد بهذا التعديل' }, 0) : ''}</div>
       </section>
       <section class="nt-share mt">
         <h4>${UI.icon('external')} ربط الملاحظة</h4>
@@ -14354,7 +14373,13 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
       say(pk ? pk.count() : 0);
       UI.on(form, 'change', '[name="vis"]', (e, el) => { vis = el.value; if (box) box.hidden = vis !== 'custom'; say(pk ? pk.count() : 0); });
       UI.on(form, 'click', '[data-vlast]', () => { const a = (last && last.audience) || {}; sel.users = new Set(a.users || []); sel.roles = new Set(a.roles || []); sel.groups = new Set((a.groups || []).filter((g) => VAULT.group(g))); vis = 'custom'; const r = form.querySelector('[name="vis"][value="custom"]'); if (r) r.checked = true; if (box) box.hidden = false; if (pk) pk.render(); say(pk ? pk.count() : 0); });
-      UI.on(form, 'change', '[name="dur"]', (e, el) => { const at = form.querySelector('[data-durat]'); if (at) at.hidden = el.value !== 'at'; });
+      UI.on(form, 'change', '[name="dur"]', (e, el) => { const at = form.querySelector('[data-durat]'), dn = form.querySelector('[data-durn]'); if (at) at.hidden = el.value !== 'at'; if (dn) dn.hidden = el.value !== 'nd'; });
+      const wdSync = () => { const o = form.querySelector('[data-wdopts]'); if (o) o.hidden = !$$('[name^="wd_"]', form).some((c) => c.checked); };
+      UI.on(form, 'change', '[name^="wd_"]', wdSync);
+      UI.on(form, 'click', '[data-wdset]', (e, b) => { const on = String(b.dataset.wdset).split(',').filter(Boolean).map(Number); $$('[name^="wd_"]', form).forEach((c) => { c.checked = on.includes(Number(c.name.slice(3))); }); wdSync(); });
+      UI.on(form, 'change', '[name="important"]', (e, el) => { if (!el.checked) return; const ch = $$('[name^="al_"]', form); if (ch.length && !ch.some((c) => c.checked)) ch.forEach((c) => { if (c.name !== 'al_popup') c.checked = true; }); });
+      const alHint = () => { const h = form.querySelector('[data-alhint]'); if (h) h.textContent = vis === 'private' ? 'ملاحظة لك وحدك: التنبيه يخصك أنت في أيام التكرار وموعد الظهور فقط.' : 'اترك الخيارات كلها مطفأة لملاحظة بلا أي تنبيه. يمكن اختيار أكثر من طريقة.'; };
+      UI.on(form, 'change', '[name="vis"]', alHint); alHint();
       UI.on(form, 'change', '[name="lkind"]', (e, el) => { $$('[data-lk]', form).forEach((x) => { x.hidden = x.dataset.lk !== el.value; }); });
       UI.on(form, 'change', '[name="type"]', (e, el) => {
         const keep = {}; $$('[name^="f_"]', form).forEach((x) => { keep[x.name.slice(2)] = x.type === 'date' ? (x.value ? fromDateInput(x.value, true) : '') : x.type === 'datetime-local' ? (x.value ? new Date(x.value).getTime() : '') : x.value; });
@@ -14377,7 +14402,8 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
         }
         let until = rec.until || 0;
         if (author) {
-          if (v.dur !== 'keep') { until = noteUntil(v.dur, v.durAt ? new Date(v.durAt).getTime() : 0); if (until < 0) throw new AppError('اختر تاريخاً ووقتاً قادمين لانتهاء الملاحظة'); }
+          if (v.dur !== 'keep') { until = noteSpan(v.dur, v.durAt ? new Date(v.durAt).getTime() : 0, Number(v.durN) || 1, v.showFrom ? new Date(v.showFrom).getTime() : 0); if (until < 0) throw new AppError('اختر تاريخاً ووقتاً قادمين لانتهاء الملاحظة'); }
+          if (v.showFrom && until > 0 && until <= new Date(v.showFrom).getTime()) throw new AppError('موعد اختفاء الملاحظة قبل موعد ظهورها');
           if (vis === 'custom' && !sel.users.size && !sel.roles.size && !sel.groups.size) throw new AppError('اختر من يرى الملاحظة، أو اختر «لي وحدي»');
         }
         const audience = { users: [...sel.users], roles: [...sel.roles], groups: [...sel.groups] };
@@ -14391,7 +14417,7 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
           link = { kind: 'ticket', id: tk.id, label: `بلاغ #${tk.number}` };
         }
         else if (v.lkind === 'dept') { if (!v.ldept) throw new AppError('اختر الإدارة'); link = { kind: 'dept', id: v.ldept, label: Data.nameOf('departments', v.ldept, '') }; }
-        const out = await VAULT.save({ ...rec, link, repeat: v.repeat, type: v.type, title: v.title, f, body: v.body, items, tags: String(v.tags || '').split(/[,،]/), visibility: vis, audience, until, tone: v.tone, pinned: v.pinned, archived: v.archived, important: v.important }, { notify: !!Number(v.renotify) });
+        const out = await VAULT.save({ ...rec, link, repeat: v.repeat, type: v.type, title: v.title, f, body: v.body, items, tags: String(v.tags || '').split(/[,،]/), visibility: vis, audience, until, tone: v.tone, pinned: v.pinned, archived: v.archived, important: v.important, ...(author ? { alert: { bell: Number(v.al_bell) || 0, section: Number(v.al_section) || 0, popup: Number(v.al_popup) || 0 }, days: [0, 1, 2, 3, 4, 5, 6].filter((k) => Number(v[`wd_${k}`])), alertTime: v.alertTime || '07:30', onlyDays: Number(v.onlyDays) || 0, showFrom: v.showFrom ? new Date(v.showFrom).getTime() : 0 } : {}) }, { notify: !!Number(v.renotify) });
         if (author && !id) lsSet(`sq_vlast:${me.id}`, { visibility: vis, audience });
         UI.toast(out.notified ? `حُفظت الملاحظة وأُشعر ${fmtNum(out.notified)} حساب` : 'حُفظت الملاحظة');
         return out;
@@ -14401,14 +14427,14 @@ Pages.vaultModal = async (id = '', type = 'general', preset = {}) => {
 Pages.vault = async (ctx) => {
   const st = { q: '', view: ctx.query.f === 'due' ? 'due' : ctx.query.v || 'all', type: '', tag: '', focus: ctx.query.n || '', link: String(ctx.query.link || '') };
   const reveal = new Set(), me = () => Auth.user.id;
-  const VIEWS = [['all', 'كل الملاحظات', 'grid'], ['important', 'مهمة', 'alert'], ['tasks', 'المهام', 'check'], ['temp', 'مؤقتة', 'clock'], ['shared', 'مشتركة معي', 'users'], ['mine', 'كتبتها', 'edit'], ['private', 'لي وحدي', 'lock'], ['due', 'تنتهي قريباً', 'refresh'], ['archive', 'الأرشيف', 'archive']];
+  const VIEWS = [['all', 'كل الملاحظات', 'grid'], ['important', 'مهمة', 'alert'], ['tasks', 'المهام', 'check'], ['temp', 'مؤقتة', 'clock'], ['shared', 'مشتركة معي', 'users'], ['mine', 'كتبتها', 'edit'], ['private', 'لي وحدي', 'lock'], ['recur', 'متكررة', 'repeat'], ['sched', 'مجدولة', 'calendar'], ['due', 'تنتهي قريباً', 'refresh'], ['archive', 'الأرشيف', 'archive']];
   const inView = (n, v) => {
     if (v === 'archive') return !!n.archived;
     if (n.archived) return false;
     switch (v) {
       case 'important': return !!n.important; case 'tasks': return !!(VT_TYPES[n.type] || {}).tasks; case 'temp': return n.until > 0;
       case 'shared': return n.createdBy !== me(); case 'mine': return n.createdBy === me(); case 'private': return n.visibility === 'private';
-      case 'due': return ['soon', 'expired'].includes(VAULT.state(n)); default: return true;
+      case 'due': return ['soon', 'expired'].includes(VAULT.state(n)); case 'recur': return VAULT.daysOf(n).length > 0; case 'sched': return (Number(n.showFrom) || 0) > now(); default: return true;
     }
   };
   const canEdit = (n) => VAULT.canManage() && (n.createdBy === me() || n.visibility !== 'private');
@@ -14426,12 +14452,12 @@ Pages.vault = async (ctx) => {
       return html`<div class="vt-row"><span class="vt-k">${label}</span><span class="vt-v">${val}</span>${!['date', 'cycle', 'datetime'].includes(kind) ? html`<button type="button" class="icon-btn" data-copy="${key}" title="نسخ">${UI.icon('copy')}</button>` : ''}</div>`;
     });
     const items = n.items || [], done = items.filter((i) => VAULT.itemDone(n, i)).length, author = n.createdBy === me();
-    const rs = author && n.important && n.visibility !== 'private' ? VAULT.readStatus(n) : null;
-    return html`<article class="vt-card tone-${n.tone || T.tone}${n.pinned ? ' pinned' : ''}${n.archived ? ' archived' : ''}${n.important ? ' important' : ''}${fresh ? ' fresh' : ''}${st.focus === n.id ? ' focus' : ''}" data-nid="${n.id}">
+    const rs = author && (n.important || VAULT.alerting(n)) && n.visibility !== 'private' ? VAULT.readStatus(n) : null, wd = VAULT.daysOf(n), sched = (Number(n.showFrom) || 0) > now(), today = VAULT.today(n);
+    return html`<article class="vt-card tone-${n.tone || T.tone}${n.pinned ? ' pinned' : ''}${n.archived ? ' archived' : ''}${n.important ? ' important' : ''}${fresh ? ' fresh' : ''}${today ? ' today' : ''}${sched ? ' sched' : ''}${st.focus === n.id ? ' focus' : ''}" data-nid="${n.id}">
       <header><span class="vt-ic">${UI.icon(T.icon)}</span><div class="grow" style="min-width:0"><b>${n.title}</b><small>${T.label} · <span class="nt-aud" title="${VAULT.reach(n).map((u) => u.name).join('، ')}">${UI.icon(aic)} ${atxt}</span></small></div>
         ${n.pinned ? html`<span class="vt-pin" title="مثبتة">${UI.icon('pin')}</span>` : ''}
         ${VAULT.canManage() && (n.createdBy === me() || Auth.user.role === 'supervisor') ? html`<button type="button" class="icon-btn" data-pin="${n.id}" title="${n.pinned ? 'إلغاء التثبيت' : 'تثبيت للجميع'}">${UI.icon('pin')}</button>` : ''}${canEdit(n) ? html`<button type="button" class="icon-btn" data-vedit="${n.id}" title="تعديل">${UI.icon('edit')}</button>` : ''}</header>
-      ${n.important || n.until > 0 || n.repeat || n.link || n.handedTo ? html`<div class="nt-flags">${n.important ? html`<span class="nt-flag imp">${UI.icon('alert')} مهمة${fresh ? ' · جديدة' : ''}</span>` : ''}${n.until > 0 ? html`<span class="nt-flag tmp" title="${fmtDateTime(n.until)}">${UI.icon('clock')} ${noteLeft(n.until)}</span>` : ''}${n.repeat ? html`<span class="nt-flag rep">${UI.icon('refresh')} ${n.repeat === 'daily' ? 'تتجدد كل يوم' : 'تتجدد كل أسبوع'}</span>` : ''}${n.link ? html`<a class="nt-flag lnk" href="${n.link.kind === 'ticket' ? `#/tickets/${n.link.id}` : `#/org/people?d=${n.link.id}`}">${UI.icon(n.link.kind === 'ticket' ? 'ticket' : 'building')} ${n.link.label || (n.link.kind === 'ticket' ? 'بلاغ' : 'إدارة')}</a>` : ''}${n.handedTo ? html`<span class="nt-flag hand">${UI.icon('swap')} سُلّمت إلى ${Data.userName(n.handedTo)}</span>` : ''}${rs ? html`<button type="button" class="nt-flag rd${rs.unread.length ? '' : ' all'}" data-vreads="${n.id}" title="من اطّلع ومن لم يطّلع">${UI.icon('eye')} اطّلع ${fmtNum(rs.read.length)} من ${fmtNum(rs.read.length + rs.unread.length)}</button>` : ''}${fresh ? html`<button type="button" class="btn btn-soft btn-sm" data-vseen="${n.id}">${UI.icon('check')} اطّلعت</button>` : ''}</div>` : ''}
+      ${n.important || n.until > 0 || n.repeat || n.link || n.handedTo || fresh || wd.length || sched || rs ? html`<div class="nt-flags">${n.important ? html`<span class="nt-flag imp">${UI.icon('alert')} مهمة${fresh ? ' · جديدة' : ''}</span>` : fresh ? html`<span class="nt-flag imp">${UI.icon('bell')} جديدة</span>` : ''}${today ? html`<span class="nt-flag today">${UI.icon('calendar')} اليوم</span>` : ''}${wd.length ? html`<span class="nt-flag rep" title="وقت التنبيه ${n.alertTime || '07:30'}${n.onlyDays ? ' — تظهر في أيامها فقط' : ''}">${UI.icon('repeat')} ${wd.length === 7 ? 'كل يوم' : wd.map((k) => NOTE_WD[k]).join('، ')}</span>` : ''}${sched ? html`<span class="nt-flag sched">${UI.icon('calendar')} تظهر ${fmtDateTime(n.showFrom)}</span>` : ''}${author && VAULT.alerting(n) ? html`<span class="nt-flag al" title="طرق التنبيه">${NOTE_ALERTS.filter(([k]) => VAULT.alertOf(n)[k]).map(([, ic]) => UI.icon(ic))}</span>` : ''}${n.until > 0 ? html`<span class="nt-flag tmp" title="${fmtDateTime(n.until)}">${UI.icon('clock')} ${noteLeft(n.until)}</span>` : ''}${n.repeat ? html`<span class="nt-flag rep">${UI.icon('refresh')} ${n.repeat === 'daily' ? 'تتجدد كل يوم' : 'تتجدد كل أسبوع'}</span>` : ''}${n.link ? html`<a class="nt-flag lnk" href="${n.link.kind === 'ticket' ? `#/tickets/${n.link.id}` : `#/org/people?d=${n.link.id}`}">${UI.icon(n.link.kind === 'ticket' ? 'ticket' : 'building')} ${n.link.label || (n.link.kind === 'ticket' ? 'بلاغ' : 'إدارة')}</a>` : ''}${n.handedTo ? html`<span class="nt-flag hand">${UI.icon('swap')} سُلّمت إلى ${Data.userName(n.handedTo)}</span>` : ''}${rs ? html`<button type="button" class="nt-flag rd${rs.unread.length ? '' : ' all'}" data-vreads="${n.id}" title="من اطّلع ومن لم يطّلع">${UI.icon('eye')} اطّلع ${fmtNum(rs.read.length)} من ${fmtNum(rs.read.length + rs.unread.length)}</button>` : ''}${fresh ? html`<button type="button" class="btn btn-soft btn-sm" data-vseen="${n.id}">${UI.icon('check')} اطّلعت</button>` : ''}</div>` : ''}
       ${s ? html`<div class="vt-exp ${s}">${UI.icon(s === 'expired' ? 'alert' : 'clock')} ${s === 'expired' ? `انتهى منذ ${fmtNum(-days)} يوم` : s === 'soon' ? (days ? `ينتهي بعد ${fmtNum(days)} يوم` : 'ينتهي اليوم') : `ساري حتى ${fmtDate(x)}`}</div>` : ''}
       ${rows.length ? html`<div class="vt-rows">${rows}</div>` : ''}
       ${items.length ? html`<div class="nt-tasks"><div class="nt-prog"><i style="width:${Math.round((done / items.length) * 100)}%"></i></div><span class="faint small">أُنجز ${fmtNum(done)} من ${fmtNum(items.length)}</span>${items.map((i) => html`<label class="nt-task${VAULT.itemDone(n, i) ? ' done' : ''}"><input type="checkbox" data-vtask="${n.id}:${i.id}"${VAULT.itemDone(n, i) ? raw(' checked') : ''}${VAULT.canManage() ? '' : raw(' disabled')}><span class="grow">${i.t}</span>${VAULT.itemDone(n, i) && i.by ? html`<small class="faint">${Data.userName(i.by)}</small>` : ''}</label>`)}${VAULT.canManage() && !n.archived && done < items.length ? html`<button type="button" class="btn btn-ghost btn-sm nt-hand" data-vhand="${n.id}">${UI.icon('swap')} تسليم المناوبة (${fmtNum(items.length - done)} لم تُنجز)</button>` : ''}</div>` : ''}
@@ -14446,14 +14472,14 @@ Pages.vault = async (ctx) => {
     const [lk, lid] = st.link.split(':');
     const rows = all.filter((n) => inView(n, st.view) && (!st.type || n.type === st.type) && (!st.tag || (n.tags || []).includes(st.tag)) && (!st.link || (n.link && n.link.kind === lk && n.link.id === lid))
       && (!qn || normalizeAr([n.title, n.body, (n.tags || []).join(' '), ...(n.items || []).map((i) => i.t), ...Object.entries(n.f || {}).filter(([k]) => !['password', 'key'].includes(k)).map(([, v]) => v)].join(' ')).includes(qn)))
-      .sort((a, b) => VAULT.isNew(b) - VAULT.isNew(a) || b.pinned - a.pinned || (b.important || 0) - (a.important || 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
+      .sort((a, b) => VAULT.isNew(b) - VAULT.isNew(a) || VAULT.today(b) - VAULT.today(a) || b.pinned - a.pinned || (b.important || 0) - (a.important || 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
     const due = live.filter((n) => ['soon', 'expired'].includes(VAULT.state(n))), fresh = live.filter((n) => VAULT.isNew(n));
     const tags = [...new Set(live.flatMap((n) => n.tags || []))].sort((a, b) => AR_COLL.compare(a, b));
     const cnt = (v) => all.filter((n) => inView(n, v)).length;
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'الملاحظات', sub: 'ملاحظات العمل والمهام اليومية والحسابات والاشتراكات. كل ملاحظة يراها من يختاره كاتبها: هو وحده، أو أشخاص ومجموعات، أو كل من يصل إلى الملاحظات', illu: 'key', actions: html`${canUser(Auth.user, 'users.manage') ? html`<a class="btn btn-ghost" href="#/settings?s=perms&p=vault.read">${UI.icon('key')} من يصل إليها</a>` : ''}${manage ? html`<button class="btn btn-ghost" data-act="groups">${UI.icon('users')} المجموعات <b class="tab-n">${fmtNum(VAULT._g.length)}</b></button><button class="btn btn-primary" data-act="new">${UI.icon('plus')} ملاحظة جديدة</button>` : ''}` })}
       ${st.link ? html`<div class="banner tone-sky nt-banner">${UI.icon('external')}<div class="grow"><b>الملاحظات المرتبطة بـ${lk === 'ticket' ? 'البلاغ' : `«${Data.nameOf('departments', lid, 'الإدارة')}»`}</b></div>${manage ? html`<button type="button" class="btn btn-sm btn-soft" data-lnew>${UI.icon('plus')} ملاحظة مرتبطة</button>` : ''}<button type="button" class="btn btn-sm btn-ghost" data-lclear>${UI.icon('x')} كل الملاحظات</button></div>` : ''}
-      ${fresh.length ? html`<div class="banner tone-red nt-banner">${UI.icon('alert')}<div class="grow"><b>${fmtNum(fresh.length)} ملاحظة مهمة لم تطّلع عليها</b><div class="small">${fresh.slice(0, 4).map((n) => `${n.title} (${Data.userName(n.createdBy)})`).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-view="important">عرضها</button></div>` : ''}
+      ${fresh.length ? Pages.noteInbox(fresh) : ''}
       ${due.length ? html`<div class="banner tone-amber mt">${UI.icon('clock')}<div class="grow"><b>${fmtNum(due.length)} اشتراك أو ترخيص انتهى أو يقترب انتهاؤه خلال ${fmtNum(VAULT.remindDays())} يوماً</b><div class="small">${due.slice(0, 5).map((n) => n.title).join('، ')}</div></div><button type="button" class="btn btn-sm btn-soft" data-view="due">عرضها</button></div>` : ''}
       <div class="nt-layout mt">
         <aside class="panel nt-side">
@@ -14480,6 +14506,8 @@ Pages.vault = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-qnew]', async (e, el) => { if (await Pages.vaultModal('', el.dataset.qnew, { ...(el.dataset.qdur ? { dur: el.dataset.qdur } : {}), ...(el.dataset.qimp ? { important: 1 } : {}), ...(el.dataset.qnew === 'task' ? { title: `مهام ${fmtDate(now())}` } : {}) })) draw(); });
   UI.on(ctx.view, 'click', '[data-vedit]', async (e, el) => { if (await Pages.vaultModal(el.dataset.vedit)) draw(); });
   UI.on(ctx.view, 'click', '[data-vseen]', (e, el) => { VAULT.markSeen([el.dataset.vseen]); setTimeout(() => { if (ctx.alive()) draw(); }, 150); });
+  UI.on(ctx.view, 'click', '[data-vseenall]', async () => { const ids = (await VAULT.unseen()).map((n) => n.id); VAULT.markSeen(ids); UI.toast(`اطّلعت على ${arCount(ids.length, AR_NOTE)}`, 'ok', 2200); setTimeout(() => { if (ctx.alive()) draw(); }, 150); });
+  UI.on(ctx.view, 'click', '[data-vopen]', (e, el) => { st.focus = el.dataset.vopen; st.view = 'all'; st.type = ''; st.tag = ''; st.q = ''; draw(); });
   UI.on(ctx.view, 'click', '[data-lclear]', () => { st.link = ''; try { history.replaceState(history.state, '', '#/vault'); } catch (_) { /* تجاهل */ } draw(); });
   UI.on(ctx.view, 'click', '[data-lnew]', async () => { const [k, id] = st.link.split(':'); let label = k === 'dept' ? Data.nameOf('departments', id, '') : ''; if (k === 'ticket') { const tk = await DB.get('tickets', id); label = tk ? `بلاغ #${tk.number}` : 'بلاغ'; } if (await Pages.vaultModal('', 'general', { link: { kind: k, id, label } })) draw(); });
   /* من اطّلع على الملاحظة المهمة ومن لم يطّلع، وتذكير من لم يطّلع */
@@ -16627,7 +16655,7 @@ Data.wipeTrial = async (groups, userIds = []) => {
   const put = Sync.on ? Sync.raw.put : (s, v) => DB.put(s, v), del = Sync.on ? Sync.raw.del : (s, k) => DB.del(s, k);
   for (const s of stores) await DB.clear(s);
   for (const id of ids) { const u = await DB.get('users', id); if (u && u.id !== Auth.user.id && u.role !== 'supervisor' && u.role !== 'monitor' && !u.system) await del('users', u.id); }
-  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'], extmaint: ['extmaint'] };
+  const seqs = { tickets: ['ticket'], inventory: ['item', 'loan', 'voucher'], extmaint: ['extmaint'], mtrack: ['mtrack'] };
   for (const g of groups) for (const n of seqs[g] || []) await put('meta', { key: `seq:${n}`, value: 0 });
   await Data.log('delete', 'system', '', `تنظيف البيانات: ${groups.map((g) => (WIPE_GROUPS.find((x) => x[0] === g) || [])[1]).join('، ')}${ids.length ? `، و${fmtNum(ids.length)} حساب` : ''}`);
   return res;
@@ -17812,5 +17840,1115 @@ Pages.ccSounds = (ctx) => {
   const add = ['sounds', 'الأصوات والتنبيهات', 'sound', 'settings', 'نغمات الإشعارات لكل المستخدمين، وتنبيهات شاشات العرض الصوتية', '', (c) => Pages.ccSounds(c)];
   const i = sys.findIndex((x) => x[0] === 'favicon'); sys.splice(i >= 0 ? i + 1 : sys.length, 0, add); CC_ALL.push(add);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   إصدار 2026.11 — أشخاص «نظام مسار» بخانة لكل شخص، النوافذ الكبيرة بملء الشاشة، قسم متابعة الإرسال إلى الصيانة،
+   تسمية أقسام القائمة وإعادة تسميتها، والملاحظات المجدولة بأيام الأسبوع وطرق التنبيه
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* أيقونات إضافية: الرسم الأساسي يُبنى مرة واحدة عند التعريف، فتُضاف هذه في رسم مستقل تشير إليه <use> بالمعرّف نفسه */
+{
+  const EXTRA_ICONS = {
+    flag: '<path d="M5.5 21V3.8"/><path d="M5.5 4.5h12l-2.4 4.2 2.4 4.3h-12"/>',
+    palette: '<path d="M12 3.2a8.8 8.8 0 1 0 0 17.6c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2s-.5-.7-.5-1.2c0-.9.8-1.7 1.7-1.7h2.1a4.7 4.7 0 0 0 4.7-4.7c0-4-4-7.1-9.3-7.1z"/><circle cx="7.6" cy="11.2" r="1.1"/><circle cx="10.4" cy="7.4" r="1.1"/><circle cx="14.8" cy="7.6" r="1.1"/>',
+    repeat: '<path d="M16.8 2.8l3 3-3 3"/><path d="M4.2 11.2v-.8a4.6 4.6 0 0 1 4.6-4.6h11"/><path d="M7.2 21.2l-3-3 3-3"/><path d="M19.8 12.8v.8a4.6 4.6 0 0 1-4.6 4.6h-11"/>',
+    columns: '<rect x="3" y="4" width="5" height="16" rx="1.4"/><rect x="9.5" y="4" width="5" height="11" rx="1.4"/><rect x="16" y="4" width="5" height="13.5" rx="1.4"/>',
+    sticky: '<path d="M4.5 4.5h15v9.6l-5.4 5.4H4.5z"/><path d="M14 19.4V14h5.4"/><path d="M8 9h8M8 12.4h4.2"/>',
+    rename: '<path d="M4 20h3.8L18.6 9.2l-3.8-3.8L4 16.2z"/><path d="M13.2 7l3.8 3.8"/><path d="M13.6 20H20"/>'
+  };
+  document.body.insertAdjacentHTML('beforeend', `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">${Object.entries(EXTRA_ICONS).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24" data-ic="1">${v}</symbol>`).join('')}</svg>`);
+}
+const AR_PERSON = ['شخص واحد', 'شخصان', 'أشخاص', 'شخصاً', 'شخص'];
+const AR_DEVICE = ['جهاز واحد', 'جهازان', 'أجهزة', 'جهازاً', 'جهاز'];
+const AR_NOTE = ['ملاحظة واحدة', 'ملاحظتان', 'ملاحظات', 'ملاحظة', 'ملاحظة'];
+
+/* ── «نظام مسار»: الأشخاص المطلوب إصدار رمز لهم ──
+   كان يُكتب العدد ثم «تجهيز الخانات». الآن خانة لكل شخص: زر «+» بعد أي شخص أو «إضافة شخص» في الأسفل، وEnter يفتح خانة جديدة،
+   ويُملأ الاسم من الرقم العسكري إن كان مسجلاً، ويُنبَّه على الرقم المكرر وعلى الخانة الناقصة قبل الإرسال */
+const CODES_MAX = 40;
+Forms.codeRow = (p = {}, i = 0, n = 0) => html`<div class="person-row code-row" data-code="${i}">
+  <span class="code-n" aria-hidden="true">${fmtNum(n || i + 1)}</span>
+  <input name="cn_${i}" value="${p.name || ''}" placeholder="الاسم الكامل" autocomplete="off" aria-label="الاسم الكامل">
+  <input name="cm_${i}" value="${p.militaryNo || ''}" placeholder="الرقم العسكري" dir="ltr" autocomplete="off" aria-label="الرقم العسكري">
+  <button type="button" class="icon-btn code-ins" data-cins title="إضافة شخص بعد هذا" aria-label="إضافة شخص بعد هذا">${UI.icon('plus')}</button>
+  <button type="button" class="icon-btn" data-cdel title="حذف هذا الشخص" aria-label="حذف">${UI.icon('trash')}</button></div>`;
+Forms.codeBlock = (list = []) => {
+  const rows = list.length ? list : [{}], filled = list.filter((p) => p && (p.name || p.militaryNo)).length;
+  return html`<div class="persons-box codes-box" data-codes>
+  <div class="codes-head"><b class="small">${UI.icon('users')} الأشخاص المطلوب إصدار رمز لهم</b><span class="chip tone-sky" data-ccount>${filled ? arCount(filled, AR_PERSON) : 'لم يُضف أحد بعد'}</span><span class="grow"></span><button type="button" class="btn btn-soft btn-sm" data-cadd>${UI.icon('plus')} إضافة شخص</button></div>
+  <div class="persons-list">${rows.map((p, i) => Forms.codeRow(p, i, i + 1))}</div>
+  <button type="button" class="codes-more" data-cadd>${UI.icon('plus')} إضافة شخص آخر</button>
+  <small class="hint">لكل شخص خانة: اضغط «+» لإضافة خانة جديدة في كل مرة (أو Enter في خانة الرقم العسكري). يُملأ الاسم تلقائياً إن كان الرقم العسكري مسجلاً في النظام.</small></div>`;
+};
+const Codes = {
+  box: (el) => el && el.closest('[data-codes]'),
+  rows: (box) => $$('[data-code]', box),
+  nextIdx: (box) => Math.max(-1, ...Codes.rows(box).map((r) => Number(r.dataset.code) || 0)) + 1,
+  refresh(box) {
+    if (!box) return;
+    const rows = Codes.rows(box), filled = Forms.readCodes(box).length, c = box.querySelector('[data-ccount]');
+    rows.forEach((r, k) => { const n = r.querySelector('.code-n'); if (n) n.textContent = fmtNum(k + 1); });
+    if (c) c.textContent = filled ? arCount(filled, AR_PERSON) : 'لم يُضف أحد بعد';
+    $$('[data-cadd],[data-cins]', box).forEach((b) => { b.disabled = rows.length >= CODES_MAX; });
+    /* خانة بدأ تعبئتها تصبح مطلوبة بشقيها، والرقم العسكري المكرر يُميَّز */
+    const seen = new Map();
+    rows.forEach((r) => {
+      const i = r.dataset.code, nm = r.querySelector(`[name="cn_${i}"]`), mn = r.querySelector(`[name="cm_${i}"]`); if (!nm || !mn) return;
+      const any = !!(nm.value.trim() || mn.value.trim());
+      [nm, mn].forEach((x) => { if (any) x.setAttribute('data-req', ''); else { x.removeAttribute('data-req'); x.classList.remove('field-miss'); } });
+      mn.classList.remove('sn-dup'); mn.removeAttribute('title');
+      const k = milKey(mn.value);
+      if (k) { if (seen.has(k)) { [mn, seen.get(k)].forEach((x) => { x.classList.add('sn-dup'); x.title = 'الرقم العسكري مكرر في القائمة'; }); } else seen.set(k, mn); }
+    });
+  },
+  add(box, after) {
+    if (Codes.rows(box).length >= CODES_MAX) { UI.toast(`الحد الأقصى ${fmtNum(CODES_MAX)} شخصاً في الطلب الواحد`, 'warn'); return; }
+    const i = Codes.nextIdx(box), h = String(Forms.codeRow({}, i));
+    if (after) after.insertAdjacentHTML('afterend', h); else box.querySelector('.persons-list').insertAdjacentHTML('beforeend', h);
+    const row = box.querySelector(`[data-code="${i}"]`); row.classList.add('code-new'); UI.hydrate(row);
+    Codes.refresh(box);
+    const inp = row.querySelector('input'); if (inp) inp.focus();
+  },
+  del(row) {
+    const box = Codes.box(row); if (!box) return;
+    if (Codes.rows(box).length <= 1) row.querySelectorAll('input').forEach((x) => { x.value = ''; });
+    else { const next = row.nextElementSibling || row.previousElementSibling; row.remove(); const f = next && next.querySelector('input'); if (f) f.focus(); }
+    Codes.refresh(box);
+  },
+  fill(inp) {
+    const i = String(inp.name).slice(3), box = Codes.box(inp), nm = box && box.querySelector(`[name="cn_${i}"]`), k = milKey(inp.value);
+    if (!k || !nm || nm.value.trim()) return;
+    const u = Data.list('users').find((x) => x.militaryNo && milKey(x.militaryNo) === k);
+    if (u) { nm.value = u.name; nm.classList.add('code-filled'); setTimeout(() => nm.classList.remove('code-filled'), 1600); }
+  }
+};
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('[data-cadd],[data-cins],[data-cdel]'); if (!a) return;
+  const box = Codes.box(a); if (!box) return;
+  e.preventDefault();
+  if (a.hasAttribute('data-cdel')) Codes.del(a.closest('[data-code]'));
+  else Codes.add(box, a.hasAttribute('data-cins') ? a.closest('[data-code]') : null);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.isComposing || !e.target.matches || !e.target.matches('[data-codes] input')) return;
+  e.preventDefault();
+  const row = e.target.closest('[data-code]'), box = Codes.box(row);
+  if (/^cn_/.test(e.target.name)) { const m = row.querySelector('[name^="cm_"]'); if (m) m.focus(); return; }
+  Codes.fill(e.target);
+  const next = row.nextElementSibling;
+  if (next && next.matches('[data-code]')) { const f = next.querySelector('input'); if (f) f.focus(); } else Codes.add(box, row);
+});
+document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('[data-codes] input')) { const box = Codes.box(e.target); clearTimeout(Codes._t); Codes._t = setTimeout(() => Codes.refresh(box), 180); } });
+document.addEventListener('change', (e) => { if (e.target.matches && e.target.matches('[data-codes] input[name^="cm_"]')) { Codes.fill(e.target); Codes.refresh(Codes.box(e.target)); } });
+/* الرقم العسكري المكرر يوقف المراجعة قبل الإرسال (يُفحص قبل معالج الصفحة) */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-act="review"]'); if (!b) return;
+  const box = $('[data-codes]'); if (!box) return;
+  Codes.refresh(box);
+  const dup = box.querySelector('input.sn-dup'); if (!dup) return;
+  e.preventDefault(); e.stopPropagation();
+  UI.toast('يوجد رقم عسكري مكرر في قائمة الأشخاص المطلوب إصدار رمز لهم. صحّحه أو احذف الشخص المكرر.', 'warn', 6500);
+  dup.scrollIntoView({ behavior: 'smooth', block: 'center' }); dup.focus();
+}, true);
+/* في صفحة البلاغ: القائمة كاملة مع النسخ والطباعة (كانت تُحفظ مع البلاغ ولا تظهر للفني إطلاقاً) */
+const ticketCodes = (t) => (((t && t.extra) || {}).codes || []).filter((p) => p && (p.name || p.militaryNo));
+Pages.codesPanel = (t) => {
+  const list = ticketCodes(t); if (!list.length) return '';
+  return UI.panel({ title: 'الأشخاص المطلوب إصدار رمز لهم', icon: 'key', sub: arCount(list.length, AR_PERSON),
+    tools: html`<button type="button" class="btn btn-ghost btn-sm" data-codescopy="${t.id}" title="نسخ القائمة كاملة">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-codesprint="${t.id}">${UI.icon('print')} طباعة</button>`,
+    body: html`<div class="codes-view">${list.map((p, i) => html`<div class="codes-vrow"><span class="code-n">${fmtNum(i + 1)}</span><b class="grow">${p.name || '—'}</b><span class="ltr codes-mil">${p.militaryNo || '—'}</span>${p.militaryNo ? html`<button type="button" class="icon-btn" data-codecopy="${p.militaryNo}" title="نسخ الرقم العسكري">${UI.icon('copy')}</button>` : ''}</div>`)}</div>` });
+};
+{ const cp0 = Pages.cardPanel; Pages.cardPanel = (t) => html`${cp0(t)}${Pages.codesPanel(t)}`; }
+document.addEventListener('click', async (e) => {
+  const one = e.target.closest && e.target.closest('[data-codecopy]');
+  if (one) { e.preventDefault(); UI.toast((await copyText(one.dataset.codecopy)) ? 'نُسخ الرقم العسكري' : 'تعذر النسخ', 'info', 2200); return; }
+  const all = e.target.closest && e.target.closest('[data-codescopy],[data-codesprint]'); if (!all) return;
+  e.preventDefault();
+  const t = await DB.get('tickets', all.dataset.codescopy || all.dataset.codesprint); if (!t) return;
+  const list = ticketCodes(t);
+  if (all.dataset.codescopy) { const txt = list.map((p, i) => `${i + 1}. ${p.name || ''}${p.militaryNo ? ` — ${p.militaryNo}` : ''}`).join('\n'); UI.toast((await copyText(txt)) ? `نُسخت القائمة (${arCount(list.length, AR_PERSON)})` : 'تعذر النسخ', 'info'); return; }
+  UI.print(html`<h2 style="text-align:center">طلب إصدار رمز «نظام مسار» — ${t.number}</h2>
+    <table><tr><th>رقم الطلب</th><td>${t.number}</td><th>التاريخ</th><td>${fmtDate(t.createdAt)}</td></tr><tr><th>مقدم الطلب</th><td>${Data.userName(t.requesterId)}</td><th>الإدارة</th><td>${Data.nameOf('departments', t.departmentId, '—')}</td></tr></table>
+    <table><tr><th style="width:40px">م</th><th>الاسم</th><th>الرقم العسكري</th><th style="width:120px">الرمز الصادر</th><th style="width:110px">التوقيع</th></tr>${list.map((p, i) => html`<tr><td>${i + 1}</td><td>${p.name || ''}</td><td class="ltr">${p.militaryNo || ''}</td><td></td><td></td></tr>`)}</table>
+    ${UI.signBlock([{ title: 'مقدم الطلب', userId: t.requesterId }, { title: 'فني قسم تقنية المعلومات', userId: t.assigneeId }])}`, `رموز مسار ${t.number}`);
+});
+
+/* ── النوافذ الكبيرة: زر «تكبير» إلى ملء الشاشة في كل نافذة واسعة، ونافذة الإرسال إلى الصيانة الخارجية تُفتح كاملة
+   بتخطيط عريض (الجهة في عمود جانبي ثابت، وبيانات الجهاز في أعمدة) فتظهر الخانات كلها دون تمرير طويل ── */
+{
+  const m1 = UI.modal;
+  UI.modal = (o) => m1({ ...o, onMount: (form, finish) => {
+    const dlg = form.closest('dialog'), head = form.querySelector('.modal-head'), x = head && head.querySelector('[data-x]');
+    const xmSend = !!form.querySelector('.xm-send'), big = xmSend || /\b(lg|xl|full)\b/.test(o.size || '');
+    if (dlg && big && x && !head.querySelector('[data-mmax]')) {
+      x.insertAdjacentHTML('beforebegin', String(html`<button type="button" class="icon-btn m-max" data-mmax>${UI.icon('expand')}</button>`));
+      const b = head.querySelector('[data-mmax]');
+      const set = (on) => { dlg.classList.toggle('full', on); b.innerHTML = String(UI.icon(on ? 'shrink' : 'expand')); b.title = on ? 'تصغير النافذة' : 'تكبير النافذة إلى ملء الشاشة'; b.setAttribute('aria-label', b.title); b.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+      b.onclick = () => set(!dlg.classList.contains('full'));
+      if (xmSend) dlg.classList.add('xm-full');
+      set(xmSend || /\bfull\b/.test(o.size || ''));
+    }
+    if (o.onMount) return o.onMount(form, finish);
+  } });
+}
+
+/* ══════════ قسم «إرسال إلى الصيانة»: متابعة كل جهاز يُرسل إلى الصيانة (داخلية أو خارجية) بتفاصيله وملاحظاته ══════════
+   - اسم القسم يحدده المشرف ويعيد تسميته متى شاء (من رأس الصفحة، أو من القائمة الجانبية، أو من الإعدادات)
+   - الوصول بصلاحيتين يمنحهما المشرف وحده: «عرض» و«إدارة»، ولا تُمنحان لأي دور افتراضياً
+   - العرض شبكة بطاقات أو قائمة جدول أو لوحة مراحل بالسحب والإفلات، وعلى كل بطاقة من الخارج: علامات بأيقونات وألوان
+     (للإكمال، في الصيانة، عاجل…) ولون مميز للبطاقة وملاحظة ظاهرة، دون فتح السجل
+   - سجل ملاحظات لكل جهاز بأنواعها، وسجل زمني لكل تغيير، وتقرير مطبوع أو Excel بكل التفاصيل لأي فترة أو تحديد */
+DB.SCHEMA.mtrack = { key: 'id', idx: { status: 'status', sentAt: 'sentAt', number: { path: 'number' } } };
+SYNC_SCOPED.push('mtrack');
+STORE_EVENTS.mtrack = ['mtrack'];
+const MT_STAGES = {
+  pending: { label: 'بانتظار الإرسال', tone: 'slate', icon: 'clock' },
+  sent: { label: 'أُرسل للصيانة', tone: 'sky', icon: 'upload' },
+  in_maint: { label: 'في الصيانة', tone: 'violet', icon: 'tools' },
+  parts: { label: 'بانتظار قطع غيار', tone: 'pink', icon: 'box' },
+  incomplete: { label: 'للإكمال', tone: 'amber', icon: 'alert' },
+  ready: { label: 'جاهز للاستلام', tone: 'teal', icon: 'check' },
+  returned: { label: 'أُعيد لصاحبه', tone: 'green', icon: 'user' },
+  closed: { label: 'مغلق', tone: 'slate', icon: 'archive' }
+};
+const MT_OPEN = ['pending', 'sent', 'in_maint', 'parts', 'incomplete', 'ready'];
+const MT_STEP_OF = { pending: 0, sent: 1, in_maint: 2, parts: 2, incomplete: 2, ready: 3, returned: 4, closed: 4 };
+const MT_STEPS = [['pending', 'التسجيل', 'file'], ['sent', 'الإرسال', 'upload'], ['work', 'في الصيانة', 'tools'], ['ready', 'جاهز', 'check'], ['returned', 'التسليم', 'user']];
+const MT_DEST = { internal: 'ورشة القسم (داخلية)', external: 'شركة صيانة خارجية', agent: 'الوكيل أو مركز الضمان', dept: 'جهة حكومية أو إدارة أخرى', other: 'أخرى' };
+const MT_NOTE_KINDS = { note: ['ملاحظة', 'sticky', 'slate'], complete: ['للإكمال', 'alert', 'amber'], maint: ['في الصيانة', 'tools', 'violet'], follow: ['متابعة', 'phone', 'sky'], other: ['أخرى', 'paper', 'pink'] };
+const MT_RESULTS = { repaired: ['تم الإصلاح ويعمل', 'green', 'check'], replaced: ['استُبدل بجهاز آخر', 'teal', 'swap'], partial: ['أُصلح جزئياً', 'amber', 'alert'], unrepairable: ['تعذر الإصلاح', 'red', 'x'], as_is: ['أُعيد دون إصلاح', 'slate', 'undo'] };
+const MT_DEFAULT_LABELS = [
+  { id: 'l_complete', name: 'للإكمال', tone: 'amber', icon: 'alert' },
+  { id: 'l_inmaint', name: 'في الصيانة', tone: 'violet', icon: 'tools' },
+  { id: 'l_urgent', name: 'عاجل', tone: 'red', icon: 'flag' },
+  { id: 'l_parts', name: 'بانتظار قطع', tone: 'pink', icon: 'box' },
+  { id: 'l_follow', name: 'يحتاج متابعة', tone: 'sky', icon: 'phone' },
+  { id: 'l_done', name: 'جاهز', tone: 'green', icon: 'check' },
+  { id: 'l_other', name: 'ملاحظات أخرى', tone: 'slate', icon: 'sticky' }
+];
+const MT_ICONS = ['flag', 'alert', 'tools', 'box', 'phone', 'check', 'sticky', 'star', 'clock', 'key', 'shield', 'user', 'users', 'building', 'monitor', 'display', 'printer', 'network', 'drive', 'keyboard', 'scan', 'tag', 'pin', 'bell', 'refresh', 'eye', 'lock', 'sparkle', 'target', 'calendar', 'external', 'x'];
+const MT_SORTS = { new: 'الأحدث', old: 'الأقدم', due: 'الأقرب موعداً', long: 'الأطول مدة', prio: 'الأولوية' };
+const MT_KIND_ICON = { desktop: 'monitor', laptop: 'monitor', printer: 'printer', scanner: 'scan', monitor: 'display', network: 'network', projector: 'display', ups: 'drive', phone: 'phone', camera: 'eye', other: 'box' };
+const MT = {
+  cfg: () => Data.c.mtCfg || {},
+  name: () => String(MT.cfg().name || '').trim() || 'إرسال إلى الصيانة',
+  on: () => !MT.cfg().off,
+  labels: () => (Array.isArray(MT.cfg().labels) ? MT.cfg().labels : MT_DEFAULT_LABELS).filter((l) => l && l.id && l.name),
+  label: (id) => MT.labels().find((l) => l.id === id),
+  overdueDays: () => clamp(Number(MT.cfg().overdueDays) || 7, 1, 365),
+  dests: () => (MT.cfg().dests || []).filter((d) => d && d.name),
+  canRead: () => !!Auth.user && (canUser(Auth.user, 'mtrack.read') || canUser(Auth.user, 'mtrack.manage')),
+  canManage: () => !!Auth.user && canUser(Auth.user, 'mtrack.manage'),
+  canConfig: () => !!Auth.user && (canUser(Auth.user, 'mtrack.manage') || canUser(Auth.user, 'settings')),
+  list: () => DB.getAll('mtrack'),
+  late: (r) => MT_OPEN.includes(r.status) && !!r.expectedAt && r.expectedAt < startOfDay(now()),
+  lateDays: (r) => Math.max(0, Math.round((startOfDay(now()) - startOfDay(r.expectedAt)) / DAY)),
+  days: (r) => Math.max(0, Math.round(((r.returnedAt || (MT_OPEN.includes(r.status) ? now() : r.updatedAt)) - (r.sentAt || r.createdAt)) / DAY)),
+  kindIcon: (r) => r.icon || MT_KIND_ICON[(r.device || {}).kind] || 'tools',
+  owner: (r) => [Data.nameOf('departments', r.departmentId, ''), r.unitPath, r.holder].filter(Boolean).join(' — ') || '—',
+  destText: (r) => { const d = r.dest || {}; return [d.name, d.type && MT_DEST[d.type] && !d.name ? MT_DEST[d.type] : ''].filter(Boolean).join('') || '—'; },
+  stage: (s) => MT_STAGES[s] || MT_STAGES.pending,
+  text: (r) => normalizeAr([r.number, (r.device || {}).name, (r.device || {}).brand, (r.device || {}).model, (r.device || {}).serial, (r.device || {}).tag, (r.device || {}).host, r.holder, Data.nameOf('departments', r.departmentId, ''), r.unitPath, (r.dest || {}).name, (r.dest || {}).ref, r.ticketRef, r.fault, r.cardNote, ...(r.labels || []).map((id) => (MT.label(id) || {}).name), ...(r.notes || []).map((n) => n.text)].join(' ')),
+  async nextNumber() {
+    try { if (Sync.on) await Sync.reserve('mtrack'); } catch (_) { /* يكمل محلياً */ }
+    const rec = (await DB.get('meta', 'seq:mtrack')) || { value: 0 }, seq = Number(rec.value || 0) + 1;
+    await DB.put('meta', { key: 'seq:mtrack', value: seq });
+    return `MNT-${new Date().getFullYear()}-${pad(seq, 5)}`;
+  },
+  async saveCfg(patch, what = '') {
+    if (!MT.canConfig()) throw new AppError('لا تملك صلاحية إعداد هذا القسم');
+    const before = MT.name(), v = { ...MT.cfg(), ...patch };
+    await DB.put('meta', { key: 'mtcfg', value: v }); Data.c.mtCfg = v;
+    await Data.log('update', 'settings', 'mtcfg', what || `إعدادات قسم «${MT.name()}»`);
+    Bus.emit('mtrack', { cfg: 1 });
+    if (before !== MT.name() || 'off' in patch) Shell.remountSoon();
+  },
+  async rememberDest(d) {
+    const name = String((d || {}).name || '').trim(); if (!name || !MT.canManage()) return;
+    const list = MT.dests(), i = list.findIndex((x) => normalizeAr(x.name) === normalizeAr(name));
+    const rec = { name, type: d.type || (i >= 0 ? list[i].type : 'external'), contact: d.contact || (i >= 0 ? list[i].contact : ''), phone: d.phone || (i >= 0 ? list[i].phone : '') };
+    if (i >= 0 && JSON.stringify(list[i]) === JSON.stringify(rec)) return;
+    const next = i >= 0 ? list.map((x, k) => (k === i ? rec : x)) : [...list, rec].slice(-60);
+    const v = { ...MT.cfg(), dests: next }; await DB.put('meta', { key: 'mtcfg', value: v }); Data.c.mtCfg = v;
+  },
+  clean(v) {
+    const s = (x, n = 300) => String(x == null ? '' : x).trim().slice(0, n);
+    const dev = v.device || {}, dest = v.dest || {};
+    return {
+      device: { name: s(dev.name, 120), kind: s(dev.kind, 20), brand: s(dev.brand, 60), model: s(dev.model, 80), serial: s(dev.serial, 80), tag: s(dev.tag, 60), host: s(dev.host, 60) },
+      assetId: s(v.assetId, 80), itemId: s(v.itemId, 80),
+      departmentId: s(v.departmentId, 80), unitId: s(v.unitId, 80), unitPath: s(v.unitPath, 200), holder: s(v.holder, 120), holderId: s(v.holderId, 80), phone: s(v.phone, 30), location: s(v.location, 120),
+      ticketRef: s(v.ticketRef, 40), dest: { type: MT_DEST[dest.type] ? dest.type : 'internal', name: s(dest.name, 120), contact: s(dest.contact, 120), phone: s(dest.phone, 30), ref: s(dest.ref, 60) },
+      priority: PRIORITY[v.priority] ? v.priority : 'medium', fault: s(v.fault, 2000), condition: s(v.condition, 300), accessories: (v.accessories || []).map((x) => s(x, 60)).filter(Boolean).slice(0, 20),
+      sentAt: Number(v.sentAt) || 0, expectedAt: Number(v.expectedAt) || 0,
+      labels: [...new Set((v.labels || []).map(String))].filter((id) => MT.label(id)).slice(0, 12), tone: TONES.includes(v.tone) ? v.tone : '', icon: MT_ICONS.includes(v.icon) ? v.icon : '', cardNote: s(v.cardNote, 160)
+    };
+  },
+  async save(v, { id = '' } = {}) {
+    if (!MT.canManage()) throw new AppError('لا تملك صلاحية التسجيل في هذا القسم');
+    const c = MT.clean(v);
+    if (!c.device.name) throw new AppError('اكتب اسم الجهاز أو نوعه');
+    if (!c.fault) throw new AppError('اكتب وصف العطل أو سبب الإرسال');
+    const t = now(), me = Auth.user.id, cur = id ? await DB.get('mtrack', id) : null;
+    if (id && !cur) throw new AppError('السجل غير موجود');
+    if (c.assetId) {
+      const dup = (await MT.list()).find((x) => x.id !== id && x.assetId === c.assetId && MT_OPEN.includes(x.status));
+      if (dup) throw new AppError(`هذا الجهاز مسجل في سجل مفتوح بالفعل (${dup.number})`);
+    }
+    if (!cur) {
+      const status = MT_STAGES[v.status] && MT_OPEN.includes(v.status) ? v.status : 'sent';
+      const rec = { id: uid('mt'), number: await MT.nextNumber(), status, createdAt: t, createdBy: me, updatedAt: t, updatedBy: me, ...c, sentAt: status === 'pending' ? 0 : c.sentAt || t, notes: [], log: [{ at: t, by: me, status, text: `سُجّل الجهاز${c.dest.name ? ` — الجهة: ${c.dest.name}` : ''}` }] };
+      const first = String(v.firstNote || '').trim(); if (first) rec.notes.push({ id: uid('mn'), at: t, by: me, kind: 'note', text: first.slice(0, 2000) });
+      await DB.put('mtrack', rec);
+      await MT.rememberDest(c.dest);
+      await Data.log('create', 'inventory', rec.id, `${MT.name()}: تسجيل ${c.device.name} (${rec.number})`);
+      const to = Data.list('users').filter((u) => u.active && u.id !== me && canUser(u, 'mtrack.manage')).map((u) => u.id);
+      if (to.length) await Data.notify(to, { title: `${MT.name()}: ${c.device.name}`, body: `${rec.number}${c.dest.name ? ` — ${c.dest.name}` : ''}`, link: `/send-maint?m=${rec.id}`, kind: 'inventory', key: `mt-new:${rec.id}` });
+      if (c.holderId && c.holderId !== me) await Data.notify([c.holderId], { title: `جهازك سُجّل في ${MT.name()}`, body: `${c.device.name} — ${rec.number}`, link: '/dashboard', kind: 'inventory', key: `mt-own:${rec.id}` });
+      Bus.emit('mtrack', {});
+      return rec;
+    }
+    const changed = [];
+    if (cur.device.name !== c.device.name) changed.push('الجهاز');
+    if ((cur.dest || {}).name !== c.dest.name) changed.push('الجهة');
+    if (cur.expectedAt !== c.expectedAt) changed.push('الموعد المتوقع');
+    if (cur.fault !== c.fault) changed.push('العطل');
+    const out = { ...cur, ...c, sentAt: c.sentAt || cur.sentAt, updatedAt: t, updatedBy: me, log: [...(cur.log || []), { at: t, by: me, status: '', text: `تعديل البيانات${changed.length ? `: ${changed.join('، ')}` : ''}` }] };
+    await DB.put('mtrack', out); await MT.rememberDest(c.dest);
+    await Data.log('update', 'inventory', id, `${MT.name()}: تعديل ${out.number}`);
+    Bus.emit('mtrack', {});
+    return out;
+  },
+  async update(id, fn, logText = '', status = '') {
+    const r = await DB.get('mtrack', id); if (!r) throw new AppError('السجل غير موجود');
+    await fn(r);
+    r.updatedAt = now(); r.updatedBy = Auth.user.id;
+    if (status) r.status = status;
+    if (logText || status) (r.log = r.log || []).push({ at: now(), by: Auth.user.id, status: status || '', text: logText || '' });
+    if (r.log && r.log.length > 300) r.log = r.log.slice(-300);
+    await DB.put('mtrack', r); Bus.emit('mtrack', {});
+    return r;
+  },
+  async setStatus(id, status, note = '') {
+    if (!MT.canManage()) throw new AppError('لا تملك صلاحية تحديث الحالة');
+    if (!MT_STAGES[status]) throw new AppError('حالة غير معروفة');
+    const r = await MT.update(id, (x) => { if (status === 'sent' && !x.sentAt) x.sentAt = now(); if (status === 'ready') x.readyAt = now(); if (status === 'closed' && !x.closedAt) x.closedAt = now(); if (MT_OPEN.includes(status) && !MT_OPEN.includes(x.status)) { x.closedAt = 0; x.returnedAt = 0; x.returnedTo = ''; x.result = ''; } }, `${MT_STAGES[status].label}${note ? `: ${note}` : ''}`, status);
+    if (status === 'ready' && r.holderId) await Data.notify([r.holderId], { title: `جهازك جاهز للاستلام — ${MT.name()}`, body: `${r.device.name} — ${r.number}`, link: '/dashboard', kind: 'inventory', key: `mt-ready:${r.id}:${r.updatedAt}` });
+    return r;
+  },
+  async addNote(id, kind, text) {
+    if (!MT.canManage()) throw new AppError('لا تملك صلاحية إضافة الملاحظات');
+    const tx = String(text || '').trim(); if (!tx) throw new AppError('اكتب الملاحظة');
+    const k = MT_NOTE_KINDS[kind] ? kind : 'note';
+    return MT.update(id, (x) => { (x.notes = x.notes || []).push({ id: uid('mn'), at: now(), by: Auth.user.id, kind: k, text: tx.slice(0, 2000) }); if (x.notes.length > 400) x.notes = x.notes.slice(-400); }, '');
+  },
+  async delNote(id, nid) {
+    if (!MT.canManage()) throw new AppError('لا تملك الصلاحية');
+    return MT.update(id, (x) => { const n = (x.notes || []).find((y) => y.id === nid); if (n && n.by !== Auth.user.id && Auth.user.role !== 'supervisor') throw new AppError('يحذف الملاحظة كاتبها أو المشرف'); x.notes = (x.notes || []).filter((y) => y.id !== nid); }, 'حذف ملاحظة');
+  },
+  /* علامات البطاقة من الخارج: العلامات واللون والأيقونة والملاحظة الظاهرة */
+  async quick(id, p) {
+    if (!MT.canManage()) throw new AppError('لا تملك صلاحية تعديل العلامات');
+    return MT.update(id, (x) => {
+      if ('labels' in p) x.labels = [...new Set((p.labels || []).map(String))].filter((l) => MT.label(l)).slice(0, 12);
+      if ('tone' in p) x.tone = TONES.includes(p.tone) ? p.tone : '';
+      if ('icon' in p) x.icon = MT_ICONS.includes(p.icon) ? p.icon : '';
+      if ('cardNote' in p) x.cardNote = String(p.cardNote || '').trim().slice(0, 160);
+    }, 'تحديث العلامات والملاحظة الظاهرة');
+  },
+  async ret(id, v) {
+    if (!MT.canManage()) throw new AppError('لا تملك صلاحية التسليم');
+    if (!MT_RESULTS[v.result]) throw new AppError('حدد نتيجة الصيانة');
+    const to = String(v.to || '').trim();
+    return MT.update(id, (x) => { x.result = v.result; x.workDone = String(v.workDone || '').trim().slice(0, 2000); x.parts = String(v.parts || '').trim().slice(0, 500); x.returnedTo = to; x.returnedAt = Number(v.at) || now(); x.returnedBy = Auth.user.id; if (v.newSerial) x.newSerial = String(v.newSerial).trim().slice(0, 80); },
+      `${MT_RESULTS[v.result][0]} — سُلّم${to ? ` إلى ${to}` : ''}${v.note ? ` — ${String(v.note).trim()}` : ''}`, 'returned');
+  },
+  async remove(id) {
+    if (!MT.canManage()) throw new AppError('لا تملك الصلاحية');
+    const r = await DB.get('mtrack', id); if (!r) return;
+    await DB.del('mtrack', id); await Data.log('delete', 'inventory', id, `${MT.name()}: حذف السجل ${r.number}`); Bus.emit('mtrack', {});
+  },
+  /* تذكير يومي بالأجهزة المتأخرة عن موعدها، لمن يدير القسم */
+  async lateJob() {
+    if (!MT.on() || !MT.canRead()) return;
+    if (!(await Jobs.claim('job:mt-late', 20 * HOUR))) return;
+    const late = (await MT.list()).filter(MT.late); if (!late.length) return;
+    const to = Data.list('users').filter((u) => u.active && canUser(u, 'mtrack.manage')).map((u) => u.id);
+    if (to.length) await Data.notify([...new Set([...to, Auth.user.id])], { title: `${arCount(late.length, AR_DEVICE)} متأخرة عن موعدها في ${MT.name()}`, body: late.slice(0, 4).map((r) => `${r.device.name} (${r.number})`).join('، '), link: '/send-maint?tab=late', kind: 'inventory', key: `mt-late:${dateInput(now())}` });
+  }
+};
+/* الإعدادات: تُحمَّل مع بقية الإعدادات، ويعاد رسم القائمة إن تغيّر اسم القسم أو أُوقف من جهاز آخر */
+{
+  const xl0 = XCFG.load.bind(XCFG);
+  XCFG.load = async function () {
+    await xl0();
+    const get = async (k) => { try { const r = await DB.get('meta', k); return (r && r.value) || {}; } catch (_) { return {}; } };
+    Data.c.mtCfg = await get('mtcfg'); Data.c.navNames = await get('navnames');
+    NavNames.applyTitles();
+  };
+  const r1 = Data.refresh.bind(Data);
+  Data.refresh = async function (which) {
+    const key = () => JSON.stringify([MT.name(), MT.on(), Data.c.navNames || {}]);
+    const before = key(); await r1(which);
+    if ((!which || which === 'settings') && before !== key() && Shell.mounted && Auth.user) Shell.remountSoon();
+  };
+}
+setTimeout(() => { MT.lateJob().catch(() => {}); }, 40000);
+setInterval(() => { MT.lateJob().catch(() => {}); }, 3 * HOUR);
+/* المزامنة الكاملة للقسم: عند الدخول، وحين يمنح المشرف الوصول (السحب العادي لا يعيد ما فات قبل المنح)،
+   وحين يُسحب الوصول تُمسح نسخة الجهاز (الخادم يحجبها أصلاً ويرسلها حذفاً) */
+MT.resync = async () => {
+  if (!Auth.user || !Sync.on || !Sync.raw || !MT.canRead()) return 0;
+  try { await Sync.flush(); } catch (_) { return 0; }
+  const res = await Sync.call('mt_sync', { timeout: 30000 }); if (!res || !Array.isArray(res.docs)) return 0;
+  const want = new Map(res.docs.map((d) => [d.id, d])), have = await DB.getAll('mtrack'), had = new Map(have.map((r) => [r.id, r]));
+  let n = 0;
+  for (const r of have) if (!want.has(r.id)) { try { await Sync.raw.del('mtrack', Sync.localKey('mtrack', r.id)); n++; } catch (_) { /* تجاهل */ } }
+  const puts = [...want.values()].filter((d) => !had.has(d.id) || (had.get(d.id)._rev || 0) < d.rev).map((d) => ({ ...d.data, _rev: d.rev }));
+  if (puts.length) { await Sync.putRows('mtrack', puts); n += puts.length; }
+  if (n) Bus.emit('mtrack', {});
+  return n;
+};
+MT.cleanLocal = async () => {
+  if (!Auth.user || !Sync.on || !Sync.raw || MT.canRead() || canUser(Auth.user, 'settings') || canUser(Auth.user, 'backup.manage')) return 0;
+  const rows = await DB.getAll('mtrack').catch(() => []);
+  for (const r of rows) { try { await Sync.raw.del('mtrack', Sync.localKey('mtrack', r.id)); } catch (_) { /* تجاهل */ } }
+  return rows.length;
+};
+{
+  let had = false;
+  const run = debounce(() => { if (!Auth.user) return; (MT.canRead() ? MT.resync() : MT.cleanLocal()).catch(() => {}); }, 1500);
+  Bus.on('session', () => { had = MT.canRead(); setTimeout(run, 7000); });
+  Bus.on('users', () => { const now0 = !!Auth.user && MT.canRead(); if (now0 !== had) { run(); if (Shell.mounted) Shell.remountSoon(); } had = now0; });
+}
+
+/* ── الصلاحيتان: يمنحهما المشرف وحده من صفحة المستخدمين أو مركز الصلاحيات ── */
+{
+  const g = PERM_GROUPS.find((x) => x.title === 'الصيانة') || PERM_GROUPS[PERM_GROUPS.length - 1];
+  [['mtrack.read', 'عرض قسم الإرسال إلى الصيانة', 'متابعة الأجهزة المرسلة للصيانة بتفاصيلها وملاحظاتها، وطباعة التقارير'],
+    ['mtrack.manage', 'إدارة قسم الإرسال إلى الصيانة', 'تسجيل الأجهزة وتحديث حالتها وعلاماتها وملاحظاتها، وإعداد القسم وتسميته']].forEach((it) => {
+    if (!g.items.some((x) => x[0] === it[0])) g.items.push(it);
+    PERM_KEYS.add(it[0]); PERM_LABEL[it[0]] = it[1];
+  });
+}
+
+/* ── نموذج التسجيل والتعديل ── */
+Pages.mtEdit = async (id = '', preset = {}) => {
+  if (!MT.canManage()) { UI.toast('لا تملك صلاحية التسجيل في هذا القسم', 'warn'); return null; }
+  const r = id ? await DB.get('mtrack', id) : null; if (id && !r) throw new AppError('السجل غير موجود');
+  const v = r || { device: { name: '', kind: '', ...(preset.device || {}) }, dest: { type: preset.destType || 'internal', name: '' }, priority: 'medium', labels: [], accessories: [], status: 'sent', expectedAt: now() + MT.overdueDays() * DAY, ...preset };
+  const dev = v.device || {}, dest = v.dest || {}, invOK = Auth.can('inventory.read') || Auth.can('extmaint.manage') || Auth.can('maint.work');
+  const kinds = Object.entries(XM_TYPES).map(([k, t]) => ({ value: k, label: t.l }));
+  const accs = [...new Set([...((XM_TYPES[dev.kind] || {}).acc || XM_ACCESSORIES), ...(v.accessories || [])])];
+  const sel = new Set(v.labels || []);
+  const labelsHtml = () => html`${MT.labels().map((l) => html`<label class="mt-lpick tone-${l.tone}"><input type="checkbox" data-ml="${l.id}"${sel.has(l.id) ? raw(' checked') : ''}><span>${UI.icon(l.icon || 'tag')}${l.name}</span></label>`)}`;
+  return UI.modal({
+    title: r ? `تعديل ${r.number}` : `تسجيل جهاز في «${MT.name()}»`, icon: r ? 'edit' : 'tools', size: 'xl',
+    body: html`<div class="mt-form">
+      <section class="mt-fsec"><h3>${UI.icon('monitor')} الجهاز</h3>
+        ${invOK && !r ? html`<div class="xm-find"><div class="search-box">${UI.icon('search')}<input class="input" data-mtq placeholder="ابحث في المخزن والعهد: الرقم التسلسلي، رقم الأصل، اسم الجهاز على الشبكة، أو اسم الصنف — أو اكتب البيانات يدوياً" autocomplete="off"></div><div class="xm-res" data-mtres hidden></div></div>` : ''}
+        <input type="hidden" name="assetId" value="${v.assetId || ''}"><input type="hidden" name="itemId" value="${v.itemId || ''}">
+        <div class="form-grid mt-g4">
+          ${UI.field({ name: 'd_name', label: 'الجهاز', required: true, placeholder: 'مثال: حاسب محمول، طابعة ليزر' }, dev.name)}
+          ${UI.field({ name: 'd_kind', label: 'النوع', type: 'select', placeholder: '—', options: kinds }, dev.kind)}
+          ${UI.field({ name: 'd_model', label: 'الماركة والموديل', placeholder: 'مثال: HP LaserJet M404' }, [dev.brand, dev.model].filter(Boolean).join(' '))}
+          ${UI.field({ name: 'd_serial', label: 'الرقم التسلسلي', dir: 'ltr' }, dev.serial)}
+          ${UI.field({ name: 'd_tag', label: 'رقم الأصل', dir: 'ltr' }, dev.tag)}
+          ${UI.field({ name: 'd_host', label: 'اسم الجهاز على الشبكة', dir: 'ltr' }, dev.host)}
+          ${UI.field({ name: 'condition', label: 'الحالة الظاهرية', placeholder: 'مثال: خدش في الغطاء' }, v.condition)}
+          ${UI.field({ name: 'priority', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([value, p]) => ({ value, label: p.label })) }, v.priority || 'medium')}
+        </div>
+        <div class="field mt"><label>الملحقات المرسلة معه</label><div class="xm-chips" data-mtacc>${accs.map((a) => html`<label class="xm-chip"><input type="checkbox" data-acc="${a}"${(v.accessories || []).includes(a) ? raw(' checked') : ''}><span>${a}</span></label>`)}<input class="input xm-accother" data-accother placeholder="ملحق آخر…"></div></div>
+      </section>
+      <section class="mt-fsec"><h3>${UI.icon('building')} صاحب الجهاز</h3>
+        <div class="form-grid mt-g4">
+          ${UI.field({ name: 'departmentId', label: 'الإدارة', type: 'select', placeholder: '— غير محددة —', options: UI.opts('departments') }, v.departmentId)}
+          <input type="hidden" name="unitId" value="${v.unitId || ''}">
+          ${UI.field({ name: 'holder', label: 'صاحب العهدة / المستخدم', placeholder: 'الاسم' }, v.holder)}
+          ${UI.field({ name: 'phone', label: 'هاتف التواصل', dir: 'ltr', placeholder: 'اختياري' }, v.phone)}
+          ${UI.field({ name: 'ticketRef', label: 'رقم البلاغ المرتبط', dir: 'ltr', placeholder: 'اختياري' }, v.ticketRef)}
+          <input type="hidden" name="unitPath" value="${v.unitPath || ''}"><div class="field wide org-chain-wrap" data-orgchain-wrap hidden><div class="org-chain" data-orgchain></div></div>
+        </div>
+      </section>
+      <section class="mt-fsec"><h3>${UI.icon('tools')} الصيانة</h3>
+        <div class="seg mt-dseg" role="radiogroup" aria-label="جهة الصيانة">${Object.entries(MT_DEST).map(([k, l]) => html`<label><input type="radio" name="dtype" value="${k}"${(dest.type || 'internal') === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>
+        <div class="form-grid mt-g4 mt">
+          <div class="field"><label>اسم الجهة / الفني</label><input name="dname" list="mtDests" value="${dest.name || ''}" placeholder="مثال: ورشة القسم، الوكيل المعتمد" autocomplete="off"><datalist id="mtDests">${[...MT.dests(), ...XM.vendors()].map((x) => html`<option value="${x.name}">`)}</datalist></div>
+          ${UI.field({ name: 'dcontact', label: 'المسؤول لدى الجهة' }, dest.contact)}
+          ${UI.field({ name: 'dphone', label: 'هاتف الجهة', dir: 'ltr' }, dest.phone)}
+          ${UI.field({ name: 'dref', label: 'رقم أمر العمل / الإيصال', dir: 'ltr' }, dest.ref)}
+          ${r ? '' : UI.field({ name: 'status', label: 'المرحلة الآن', type: 'select', placeholder: false, options: MT_OPEN.map((k) => ({ value: k, label: MT_STAGES[k].label })) }, v.status || 'sent')}
+          ${UI.field({ name: 'sentAt', label: 'تاريخ الإرسال', type: 'date' }, dateInput(v.sentAt || now()))}
+          ${UI.field({ name: 'expectedAt', label: 'الموعد المتوقع للإرجاع', type: 'date' }, v.expectedAt ? dateInput(v.expectedAt) : '')}
+          ${UI.field({ name: 'fault', label: 'وصف العطل / سبب الإرسال', type: 'textarea', rows: 2, wide: true, required: true, placeholder: 'ما المشكلة؟ متى تظهر؟ ماذا جُرّب قبل الإرسال؟' }, v.fault)}
+          ${r ? '' : UI.field({ name: 'firstNote', label: 'ملاحظة أولى (اختياري)', type: 'textarea', rows: 2, wide: true, placeholder: 'تُضاف إلى سجل ملاحظات الجهاز' })}
+        </div>
+      </section>
+      <section class="mt-fsec"><h3>${UI.icon('flag')} العلامات الظاهرة على البطاقة</h3>
+        <div class="mt-lpicks" data-mtl>${labelsHtml()}</div>
+        <div class="form-grid mt-g4 mt">
+          <div class="field"><label>لون البطاقة</label><div class="vt-tones mt-tones"><label title="بلا لون"><input type="radio" name="tone" value=""${!v.tone ? raw(' checked') : ''}><i class="mt-none"></i></label>${TONES.map((t) => html`<label><input type="radio" name="tone" value="${t}"${v.tone === t ? raw(' checked') : ''}><i class="tone-${t}"></i></label>`)}</div></div>
+          ${UI.field({ name: 'cardNote', label: 'ملاحظة ظاهرة على البطاقة', maxlength: 160, placeholder: 'مثال: ينقصه الشاحن — يُكمل لاحقاً', wide: true }, v.cardNote)}
+        </div>
+      </section></div>`,
+    onMount: (form) => {
+      UI.bindOrgChain(form, { value: v.unitId || '' });
+      const set = (n, val) => { const el = form.querySelector(`[name="${n}"]`); if (el && val != null) el.value = val; };
+      const din = form.querySelector('[name="dname"]');
+      if (din) din.addEventListener('change', () => { const d = [...MT.dests(), ...XM.vendors()].find((x) => normalizeAr(x.name) === normalizeAr(din.value)); if (!d) return; if (!form.querySelector('[name="dcontact"]').value) set('dcontact', d.contact || ''); if (!form.querySelector('[name="dphone"]').value) set('dphone', d.phone || ''); if (d.type && MT_DEST[d.type]) { const rr = form.querySelector(`[name="dtype"][value="${d.type}"]`); if (rr) rr.checked = true; } });
+      const q = form.querySelector('[data-mtq]'), res = form.querySelector('[data-mtres]');
+      if (q) {
+        const search = debounce(async () => {
+          const s = q.value.trim(); if (s.length < 2) { res.hidden = true; res.innerHTML = ''; return; }
+          const rr = await XM.search(s);
+          res.innerHTML = String(rr.assets.length || rr.items.length ? html`${rr.assets.map(({ a, it, where }) => html`<button type="button" class="xm-hit" data-mpick="a|${a.id}">${UI.illu(XM_TYPES[XM.typeOf(it)].il, 'mini')}<div class="grow"><b class="ltr">${a.serial}</b> <span>${it ? it.name : ''}</span><small>${where}</small></div></button>`)}${rr.items.map((it) => html`<button type="button" class="xm-hit" data-mpick="i|${it.id}">${UI.illu(XM_TYPES[XM.typeOf(it)].il, 'mini')}<div class="grow"><b>${it.name}</b><small>${[it.brand, it.model].filter(Boolean).join(' ')}</small></div></button>`)}` : html`<p class="hint" style="padding:8px">لا نتائج. اكتب بيانات الجهاز يدوياً.</p>`);
+          res.hidden = false;
+        }, 220);
+        q.addEventListener('input', search);
+        q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const f = res.querySelector('[data-mpick]'); if (f) f.click(); } });
+        UI.on(form, 'click', '[data-mpick]', async (e, b) => {
+          const [k, pid] = b.dataset.mpick.split('|');
+          const a = k === 'a' ? await DB.get('assets', pid) : null, it = await DB.get('items', a ? a.itemId : pid);
+          set('assetId', a ? a.id : ''); set('itemId', it ? it.id : '');
+          set('d_name', it ? it.name : 'جهاز'); set('d_model', it ? [it.brand, it.model].filter(Boolean).join(' ') : ''); set('d_kind', it ? XM.typeOf(it) : '');
+          if (a) { set('d_serial', a.serial || ''); set('d_tag', a.tag || ''); set('d_host', a.host || ''); if (a.holder) set('holder', a.holder); if (a.departmentId) { set('departmentId', a.departmentId); form.querySelector('[name="departmentId"]').dispatchEvent(new Event('change', { bubbles: true })); } }
+          res.hidden = true; q.value = ''; UI.toast(`اختير: ${it ? it.name : 'جهاز'}${a ? ` (${a.serial})` : ''}`, 'info', 2500);
+        });
+      }
+      UI.on(form, 'change', '[data-ml]', (e, el) => { if (el.checked) sel.add(el.dataset.ml); else sel.delete(el.dataset.ml); });
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(r ? [] : [{ label: 'حفظ وتسجيل جهاز آخر', kind: 'soft', icon: 'plus', handler: (f) => Pages.mtSubmit(f, '', sel, true) }]), { label: r ? 'حفظ التعديلات' : 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => Pages.mtSubmit(f, id, sel, false) }]
+  });
+};
+Pages.mtSubmit = async (form, id, sel, again) => {
+  const v = UI.formValues(form), model = String(v.d_model || '').trim();
+  const accEl = form.querySelector('[data-mtacc]'), other = String(((form.querySelector('[data-accother]') || {}).value) || '').trim();
+  const accessories = [...$$('[data-acc]', accEl).filter((c) => c.checked).map((c) => c.dataset.acc), ...(other ? [other] : [])];
+  const unitPath = v.unitId && v.departmentId ? String(v.unitPath || '').replace(/ ← /g, ' / ') : '';
+  const rec = {
+    device: { name: v.d_name, kind: v.d_kind, brand: '', model, serial: v.d_serial, tag: v.d_tag, host: v.d_host }, assetId: v.assetId, itemId: v.itemId,
+    departmentId: v.departmentId, unitId: v.unitId, unitPath, holder: v.holder, phone: v.phone, ticketRef: v.ticketRef,
+    dest: { type: v.dtype, name: v.dname, contact: v.dcontact, phone: v.dphone, ref: v.dref },
+    priority: v.priority, fault: v.fault, condition: v.condition, accessories, status: v.status,
+    sentAt: v.sentAt ? fromDateInput(v.sentAt) + (startOfDay() === fromDateInput(v.sentAt) ? now() - startOfDay() : 12 * HOUR) : 0, expectedAt: v.expectedAt ? fromDateInput(v.expectedAt, true) : 0,
+    labels: [...sel], tone: v.tone, cardNote: v.cardNote, firstNote: v.firstNote
+  };
+  if (id) { const cur = await DB.get('mtrack', id); if (cur) { rec.icon = cur.icon; rec.holderId = cur.holderId; } }
+  const out = await MT.save(rec, { id });
+  UI.toast(id ? 'حُفظت التعديلات' : `سُجّل ${out.device.name} برقم ${out.number}`); UI.sound('success');
+  if (again) { setTimeout(() => Pages.mtEdit('', { dest: out.dest, departmentId: out.departmentId, expectedAt: out.expectedAt, status: out.status }), 80); }
+  return out;
+};
+
+/* ── علامات البطاقة: العلامات، اللون، الأيقونة، والملاحظة الظاهرة ── */
+Pages.mtQuick = async (id) => {
+  const r = await DB.get('mtrack', id); if (!r) return null;
+  const sel = new Set(r.labels || []);
+  return UI.modal({
+    title: `علامات ${r.device.name} — ${r.number}`, icon: 'flag', size: 'sm',
+    body: html`<p class="hint">تظهر على البطاقة من الخارج في الشبكة والقائمة واللوحة.</p>
+      <div class="field"><label>العلامات</label><div class="mt-lpicks">${MT.labels().map((l) => html`<label class="mt-lpick tone-${l.tone}"><input type="checkbox" data-ml="${l.id}"${sel.has(l.id) ? raw(' checked') : ''}><span>${UI.icon(l.icon || 'tag')}${l.name}</span></label>`)}</div></div>
+      <div class="field mt"><label>لون البطاقة</label><div class="vt-tones mt-tones"><label title="بلا لون"><input type="radio" name="tone" value=""${!r.tone ? raw(' checked') : ''}><i class="mt-none"></i></label>${TONES.map((t) => html`<label><input type="radio" name="tone" value="${t}"${r.tone === t ? raw(' checked') : ''}><i class="tone-${t}"></i></label>`)}</div></div>
+      <div class="field mt"><label>أيقونة البطاقة</label><div class="mt-icons"><label title="حسب نوع الجهاز"><input type="radio" name="icon" value=""${!r.icon ? raw(' checked') : ''}><span>${UI.icon(MT_KIND_ICON[r.device.kind] || 'tools')}</span></label>${MT_ICONS.map((k) => html`<label title="${k}"><input type="radio" name="icon" value="${k}"${r.icon === k ? raw(' checked') : ''}><span>${UI.icon(k)}</span></label>`)}</div></div>
+      ${UI.field({ name: 'cardNote', label: 'ملاحظة ظاهرة على البطاقة', maxlength: 160, wide: true, placeholder: 'مثال: بانتظار موافقة الإدارة على الاستبدال' }, r.cardNote)}`,
+    onMount: (form) => UI.on(form, 'change', '[data-ml]', (e, el) => { if (el.checked) sel.add(el.dataset.ml); else sel.delete(el.dataset.ml); }),
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); await MT.quick(id, { labels: [...sel], tone: v.tone, icon: v.icon, cardNote: v.cardNote }); UI.toast('حُفظت العلامات'); return true; } }]
+  });
+};
+Pages.mtStatusModal = (r) => UI.modal({
+  title: `تحديث مرحلة ${r.device.name}`, icon: 'refresh', size: 'sm',
+  body: html`<div class="xm-pick">${[...MT_OPEN, 'closed'].map((k) => html`<label><input type="radio" name="status" value="${k}"${k === r.status ? raw(' checked') : ''}><span class="tone-${MT_STAGES[k].tone}">${UI.icon(MT_STAGES[k].icon)} ${MT_STAGES[k].label}</span></label>`)}</div>${UI.field({ name: 'text', label: 'ملاحظة (تُضاف إلى السجل الزمني)', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: تم فحص الجهاز، اللوحة الأم تالفة' })}`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); if (!v.status) throw new AppError('اختر المرحلة'); await MT.setStatus(r.id, v.status, String(v.text || '').trim()); return true; } }]
+});
+Pages.mtReturnModal = (r) => UI.modal({
+  title: `تسليم ${r.device.name} لصاحبه`, icon: 'user', size: 'lg',
+  body: html`<div class="xm-pick res">${Object.entries(MT_RESULTS).map(([k, [l, tone, ic]]) => html`<label><input type="radio" name="result" value="${k}"${k === (r.result || 'repaired') ? raw(' checked') : ''}><span class="tone-${tone}">${UI.icon(ic)} ${l}</span></label>`)}</div>
+    <div class="form-grid mt">
+      ${UI.field({ name: 'workDone', label: 'ما تم في الصيانة', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: استبدال القرص الصلب وتثبيت النظام' }, r.workDone)}
+      ${UI.field({ name: 'parts', label: 'القطع المستبدلة', placeholder: 'اختياري' }, r.parts)}
+      ${UI.field({ name: 'newSerial', label: 'الرقم التسلسلي البديل (عند الاستبدال)', dir: 'ltr' }, r.newSerial)}
+      ${UI.field({ name: 'to', label: 'سُلّم إلى', placeholder: 'اسم المستلم' }, r.holder)}
+      ${UI.field({ name: 'at', label: 'تاريخ التسليم', type: 'date' }, dateInput(now()))}
+      ${UI.field({ name: 'note', label: 'ملاحظة', wide: true, placeholder: 'اختياري' })}
+    </div>`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تأكيد التسليم', kind: 'ok', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); const out = await MT.ret(r.id, { ...v, at: v.at ? fromDateInput(v.at) + (now() - startOfDay()) : now() }); if (await UI.confirm('طباعة سند التسليم الآن؟', { title: 'سند التسليم', ok: 'طباعة', icon: 'print' })) Pages.mtPrintOne(out); return true; } }]
+});
+Pages.mtNoteModal = (r, kind = 'note') => UI.modal({
+  title: `ملاحظة على ${r.device.name}`, icon: 'sticky', size: 'sm',
+  body: html`<div class="seg mt-nseg" role="radiogroup" aria-label="نوع الملاحظة">${Object.entries(MT_NOTE_KINDS).map(([k, [l, ic]]) => html`<label><input type="radio" name="kind" value="${k}"${k === kind ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>${UI.field({ name: 'text', label: 'الملاحظة', type: 'textarea', rows: 3, wide: true, required: true })}`,
+  actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'إضافة', kind: 'primary', icon: 'plus', submit: true, handler: async (f) => { const v = UI.formValues(f); await MT.addNote(r.id, v.kind, v.text); UI.toast('أُضيفت الملاحظة'); return true; } }]
+});
+
+/* ── تفاصيل السجل: المراحل، البيانات، الملاحظات بأنواعها، السجل الزمني، الإجراءات ── */
+Pages.mtNotesHtml = (r, manage) => {
+  const list = (r.notes || []).slice().reverse();
+  return list.length ? html`<div class="mt-notes">${list.map((n) => { const [l, ic, tone] = MT_NOTE_KINDS[n.kind] || MT_NOTE_KINDS.note; return html`<div class="mt-note tone-${tone}"><span class="mt-nic">${UI.icon(ic)}</span><div class="grow"><div class="mt-nh"><b>${l}</b><span class="faint small">${Data.userName(n.by)} · ${fmtDateTime(n.at)}</span>${manage && (n.by === Auth.user.id || Auth.user.role === 'supervisor') ? html`<button type="button" class="icon-btn mt-ndel" data-mndel="${n.id}" title="حذف الملاحظة">${UI.icon('trash')}</button>` : ''}</div><p>${n.text}</p></div></div>`; })}</div>` : html`<p class="hint">لا ملاحظات بعد.</p>`;
+};
+Pages.mtDetail = async (id) => {
+  let r = await DB.get('mtrack', id); if (!r) { UI.toast('السجل غير موجود أو حُذف', 'warn'); return; }
+  const manage = MT.canManage();
+  const body = () => {
+    const S = MT.stage(r.status), late = MT.late(r), si = MT_STEP_OF[r.status] || 0, kv = (k, val, cls = '') => (val ? html`<dt>${k}</dt><dd class="${cls}">${val}</dd>` : '');
+    const labels = (r.labels || []).map(MT.label).filter(Boolean);
+    return html`<div class="xm-detail mt-detail">
+      <div class="xm-head tone-${S.tone}"><span class="xm-badge">${UI.icon(S.icon)} ${S.label}</span>${late ? UI.chip('red', `متأخر ${fmtNum(MT.lateDays(r))} يوم`, 'alert') : ''}${r.result ? UI.chip(MT_RESULTS[r.result][1], MT_RESULTS[r.result][0], MT_RESULTS[r.result][2]) : ''}${UI.priority(r.priority || 'medium')}<span class="grow"></span><span class="faint small">${fmtNum(MT.days(r))} يوم ${r.returnedAt ? 'في الصيانة' : 'منذ الإرسال'}</span></div>
+      ${labels.length || r.cardNote ? html`<div class="mt-labels mt">${labels.map((l) => html`<span class="mt-lb tone-${l.tone}">${UI.icon(l.icon || 'tag')}${l.name}</span>`)}${r.cardNote ? html`<span class="mt-pin inline">${UI.icon('sticky')}<span>${r.cardNote}</span></span>` : ''}</div>` : ''}
+      <ol class="xm-steps">${MT_STEPS.map(([k, l, ic], i) => html`<li class="${i < si || r.status === 'returned' ? 'done' : i === si ? 'now' : ''}${r.status === 'closed' && i === 4 ? ' x' : ''}"><i>${UI.icon(i < si ? 'check' : ic)}</i><span>${i === 4 && r.status === 'closed' ? 'إغلاق' : l}</span></li>`)}</ol>
+      <div class="xm-cols">
+        <div><h4>${UI.icon(MT.kindIcon(r))} الجهاز وصاحبه</h4><dl class="kv">${kv('الجهاز', r.device.name)}${kv('النوع', (XM_TYPES[r.device.kind] || {}).l)}${kv('الماركة والموديل', [r.device.brand, r.device.model].filter(Boolean).join(' '))}${kv('الرقم التسلسلي', r.device.serial, 'ltr')}${kv('الرقم البديل', r.newSerial, 'ltr')}${kv('رقم الأصل', r.device.tag, 'ltr')}${kv('اسم الجهاز على الشبكة', r.device.host, 'ltr')}${kv('الإدارة', [Data.nameOf('departments', r.departmentId, ''), r.unitPath].filter(Boolean).join(' / '))}${kv('صاحب العهدة', r.holder)}${kv('الهاتف', r.phone, 'ltr')}${kv('الحالة الظاهرية', r.condition)}${kv('الملحقات', (r.accessories || []).join('، '))}${kv('البلاغ', r.ticketRef, 'ltr')}</dl></div>
+        <div><h4>${UI.icon('tools')} الصيانة</h4><dl class="kv">${kv('الجهة', MT.destText(r))}${kv('نوعها', MT_DEST[(r.dest || {}).type])}${kv('المسؤول', (r.dest || {}).contact)}${kv('هاتف الجهة', (r.dest || {}).phone, 'ltr')}${kv('أمر العمل', (r.dest || {}).ref, 'ltr')}${kv('سُجّل', `${fmtDateTime(r.createdAt)} — ${Data.userName(r.createdBy)}`)}${kv('أُرسل', r.sentAt ? fmtDate(r.sentAt) : '')}${kv('الموعد المتوقع', r.expectedAt ? fmtDate(r.expectedAt) : '')}${kv('سُلّم', r.returnedAt ? `${fmtDateTime(r.returnedAt)}${r.returnedTo ? ` إلى ${r.returnedTo}` : ''}` : '')}${kv('القطع المستبدلة', r.parts)}</dl></div>
+      </div>
+      <div class="xm-fault"><b>${UI.icon('alert')} العطل / سبب الإرسال</b><p>${r.fault}</p>${r.workDone ? html`<b>${UI.icon('check')} ما تم في الصيانة</b><p>${r.workDone}</p>` : ''}</div>
+      <div class="mt-nhead mt"><h4>${UI.icon('message')} الملاحظات (${fmtNum((r.notes || []).length)})</h4></div>
+      ${manage ? html`<div class="mt-nadd"><div class="seg sm mt-nseg" role="radiogroup" aria-label="نوع الملاحظة">${Object.entries(MT_NOTE_KINDS).map(([k, [l, ic]], i) => html`<label><input type="radio" name="nkind" value="${k}"${i === 0 ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div><div class="mt-nrow"><textarea name="ntext" rows="2" placeholder="اكتب ملاحظة: ما يجب إكماله، ما قالته الجهة، ما بقي…"></textarea><button type="button" class="btn btn-primary" data-mnadd>${UI.icon('plus')} إضافة</button></div></div>` : ''}
+      <div data-mnotes>${Pages.mtNotesHtml(r, manage)}</div>
+      <details class="mt-tl mt"><summary>${UI.icon('clock')} السجل الزمني (${fmtNum((r.log || []).length)})</summary><div class="timeline">${(r.log || []).slice().reverse().map((e) => { const s = MT_STAGES[e.status]; return html`<div class="tl"><span class="tl-icon tone-${s ? s.tone : 'slate'}">${UI.icon(s ? s.icon : 'edit')}</span><div><b>${e.text}</b><div class="t-sub">${fmtDateTime(e.at)} — ${Data.userName(e.by)}</div></div></div>`; })}</div></details>
+      <div class="xm-acts">${manage && MT_OPEN.includes(r.status) ? html`<button type="button" class="btn btn-soft btn-sm" data-ma="status">${UI.icon('refresh')} تحديث المرحلة</button><button type="button" class="btn btn-ok btn-sm" data-ma="return">${UI.icon('user')} تسليم لصاحبه</button>` : ''}${manage && !MT_OPEN.includes(r.status) ? html`<button type="button" class="btn btn-soft btn-sm" data-ma="reopen">${UI.icon('undo')} إعادة فتح</button>` : ''}${manage ? html`<button type="button" class="btn btn-ghost btn-sm" data-ma="quick">${UI.icon('flag')} العلامات واللون</button><button type="button" class="btn btn-ghost btn-sm" data-ma="edit">${UI.icon('edit')} تعديل</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-ma="print">${UI.icon('print')} طباعة السجل</button>${manage ? html`<button type="button" class="btn btn-ghost btn-sm" data-ma="del" title="حذف السجل">${UI.icon('trash')}</button>` : ''}</div>
+    </div>`;
+  };
+  return UI.modal({
+    title: `${r.device.name} — ${r.number}`, icon: MT.kindIcon(r), size: 'lg', body: html`<div data-mtbody>${body()}</div>`,
+    onMount: (form, finish) => {
+      const box = form.querySelector('[data-mtbody]');
+      const redraw = async () => { r = await DB.get('mtrack', id); if (!r) { finish(true); return; } box.innerHTML = String(body()); UI.hydrate(box); };
+      UI.on(form, 'click', '[data-mnadd]', async (e, b) => {
+        const ta = form.querySelector('[name="ntext"]'), kind = (form.querySelector('[name="nkind"]:checked') || {}).value || 'note';
+        UI.busy(b, true);
+        try { await MT.addNote(id, kind, ta.value); await redraw(); UI.toast('أُضيفت الملاحظة', 'ok', 2200); const t2 = form.querySelector('[name="ntext"]'); if (t2) t2.focus(); } catch (err) { UI.error(err); } finally { UI.busy(b, false); }
+      });
+      form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('[name="ntext"]')) { e.preventDefault(); const b = form.querySelector('[data-mnadd]'); if (b) b.click(); } });
+      UI.on(form, 'click', '[data-mndel]', async (e, b) => { if (!(await UI.confirm('حذف هذه الملاحظة؟', { danger: true, ok: 'حذف' }))) return; try { await MT.delNote(id, b.dataset.mndel); await redraw(); } catch (err) { UI.error(err); } });
+      UI.on(form, 'click', '[data-ma]', async (e, el) => {
+        const a = el.dataset.ma;
+        try {
+          if (a === 'print') return Pages.mtPrintOne(r);
+          if (a === 'del') { if (await UI.confirm(`حذف السجل ${r.number} نهائياً مع ملاحظاته؟`, { danger: true, ok: 'حذف' })) { await MT.remove(id); UI.toast('حُذف السجل'); finish(true); } return; }
+          let ok = false;
+          if (a === 'status') ok = await Pages.mtStatusModal(r);
+          else if (a === 'return') ok = await Pages.mtReturnModal(r);
+          else if (a === 'reopen') { await MT.setStatus(id, 'in_maint', 'إعادة فتح السجل'); ok = true; }
+          else if (a === 'quick') ok = await Pages.mtQuick(id);
+          else if (a === 'edit') ok = await Pages.mtEdit(id);
+          if (ok) await redraw();
+        } catch (err) { UI.error(err); }
+      });
+    },
+    actions: [{ label: 'إغلاق', kind: 'ghost' }]
+  });
+};
+
+/* ── الطباعة: سجل واحد بكل تفاصيله، أو تقرير لعدة سجلات ── */
+Pages.mtRecordHtml = (r, { notes = true, log = true } = {}) => {
+  const S = MT.stage(r.status), labels = (r.labels || []).map(MT.label).filter(Boolean);
+  const row = (k, v) => (v ? html`<tr><th>${k}</th><td>${v}</td></tr>` : '');
+  return html`<div class="mt-rec">
+    <h3>${r.device.name} <span class="ltr">— ${r.number}</span></h3>
+    <p class="mt-rmeta"><b>${S.label}</b>${labels.length ? ` · العلامات: ${labels.map((l) => l.name).join('، ')}` : ''}${r.cardNote ? ` · ${r.cardNote}` : ''}${MT.late(r) ? ` · متأخر ${fmtNum(MT.lateDays(r))} يوم` : ''}</p>
+    <table class="mt-rt"><tbody>
+      ${row('الماركة والموديل', [r.device.brand, r.device.model].filter(Boolean).join(' '))}${row('الرقم التسلسلي', r.device.serial)}${row('رقم الأصل', r.device.tag)}${row('اسم الجهاز على الشبكة', r.device.host)}
+      ${row('الإدارة', [Data.nameOf('departments', r.departmentId, ''), r.unitPath].filter(Boolean).join(' / '))}${row('صاحب العهدة', [r.holder, r.phone].filter(Boolean).join(' — '))}${row('البلاغ المرتبط', r.ticketRef)}
+      ${row('جهة الصيانة', [MT.destText(r), MT_DEST[(r.dest || {}).type]].filter(Boolean).join(' — '))}${row('المسؤول وهاتفه', [(r.dest || {}).contact, (r.dest || {}).phone].filter(Boolean).join(' — '))}${row('أمر العمل', (r.dest || {}).ref)}
+      ${row('تاريخ الإرسال', r.sentAt ? fmtDate(r.sentAt) : '')}${row('الموعد المتوقع', r.expectedAt ? fmtDate(r.expectedAt) : '')}${row('المدة', `${fmtNum(MT.days(r))} يوم`)}${row('الأولوية', (PRIORITY[r.priority] || PRIORITY.medium).label)}
+      ${row('العطل / سبب الإرسال', r.fault)}${row('الحالة الظاهرية', r.condition)}${row('الملحقات', (r.accessories || []).join('، '))}
+      ${row('نتيجة الصيانة', r.result ? MT_RESULTS[r.result][0] : '')}${row('ما تم في الصيانة', r.workDone)}${row('القطع المستبدلة', r.parts)}${row('الرقم البديل', r.newSerial)}${row('التسليم', r.returnedAt ? `${fmtDateTime(r.returnedAt)}${r.returnedTo ? ` إلى ${r.returnedTo}` : ''}` : '')}
+    </tbody></table>
+    ${notes && (r.notes || []).length ? html`<h4>الملاحظات (${fmtNum(r.notes.length)})</h4><table class="mt-rt"><thead><tr><th style="width:120px">التاريخ</th><th style="width:80px">النوع</th><th style="width:130px">الكاتب</th><th>الملاحظة</th></tr></thead><tbody>${r.notes.map((n) => html`<tr><td>${fmtDateTime(n.at)}</td><td>${(MT_NOTE_KINDS[n.kind] || MT_NOTE_KINDS.note)[0]}</td><td>${Data.userName(n.by)}</td><td>${n.text}</td></tr>`)}</tbody></table>` : ''}
+    ${log && (r.log || []).length ? html`<h4>السجل الزمني</h4><table class="mt-rt"><tbody>${r.log.map((e) => html`<tr><td style="width:120px">${fmtDateTime(e.at)}</td><td style="width:130px">${Data.userName(e.by)}</td><td>${e.text}</td></tr>`)}</tbody></table>` : ''}
+  </div>`;
+};
+Pages.mtPrintOne = (r) => UI.print(html`<div class="mt-report">${Pages.mtRecordHtml(r)}${UI.signBlock([{ title: 'المُسلِّم', name: r.status === 'returned' ? Data.userName(r.returnedBy) : r.holder }, { title: 'المستلم', name: r.status === 'returned' ? r.returnedTo : (r.dest || {}).contact }])}</div>`, `${MT.name()} — ${r.number}`);
+Pages.mtReport = async (preset = {}) => {
+  const all = await MT.list();
+  return UI.modal({
+    title: `تقرير «${MT.name()}»`, icon: 'chart', size: 'lg',
+    body: html`<div class="form-grid">
+      ${UI.field({ name: 'scope', label: 'السجلات', type: 'select', placeholder: false, options: [...(preset.ids && preset.ids.length ? [{ value: 'sel', label: `المحددة (${fmtNum(preset.ids.length)})` }] : []), ...(preset.view && preset.view.length ? [{ value: 'view', label: `المعروضة الآن (${fmtNum(preset.view.length)})` }] : []), { value: 'open', label: 'النشطة فقط' }, { value: 'late', label: 'المتأخرة فقط' }, { value: 'done', label: 'المنتهية (المسلّمة والمغلقة)' }, { value: 'all', label: `كل السجلات (${fmtNum(all.length)})` }] })}
+      ${UI.field({ name: 'group', label: 'التجميع في الجدول', type: 'select', placeholder: false, options: [{ value: '', label: 'بلا تجميع' }, { value: 'status', label: 'حسب المرحلة' }, { value: 'dept', label: 'حسب الإدارة' }, { value: 'dest', label: 'حسب جهة الصيانة' }] })}
+      ${UI.field({ name: 'from', label: 'من تاريخ (الإرسال)', type: 'date' })}${UI.field({ name: 'to', label: 'إلى تاريخ', type: 'date' })}
+      <div class="field wide"><label>المحتوى</label><div class="xm-chips"><label class="xm-chip"><input type="checkbox" name="details" checked><span>صفحة تفاصيل لكل جهاز</span></label><label class="xm-chip"><input type="checkbox" name="notes" checked><span>الملاحظات</span></label><label class="xm-chip"><input type="checkbox" name="log"><span>السجل الزمني</span></label></div></div>
+    </div><p class="hint">الطباعة تعطي ملخصاً وجدولاً ثم تفاصيل كل جهاز. وملف Excel فيه ثلاث أوراق: السجلات، والملاحظات، والسجل الزمني.</p>`,
+    actions: [{ label: 'إغلاق', kind: 'ghost' }, { label: 'تصدير Excel', kind: 'soft', icon: 'download', handler: async (f) => { const { rows, meta } = await Pages.mtReportRows(UI.formValues(f), preset, all); if (!rows.length) throw new AppError('لا توجد سجلات في هذا النطاق'); Pages.mtExcel(rows, meta); return false; } }, { label: 'طباعة التقرير', kind: 'primary', icon: 'print', submit: true, handler: async (f) => { const v = UI.formValues(f), { rows, meta } = await Pages.mtReportRows(v, preset, all); if (!rows.length) throw new AppError('لا توجد سجلات في هذا النطاق'); Pages.mtPrintReport(rows, { ...meta, details: !!v.details, notes: !!v.notes, log: !!v.log, group: v.group }); return true; } }]
+  });
+};
+Pages.mtReportRows = async (v, preset, all) => {
+  const ids = new Set(v.scope === 'sel' ? preset.ids : v.scope === 'view' ? preset.view : []);
+  const from = v.from ? fromDateInput(v.from) : 0, to = v.to ? fromDateInput(v.to, true) : 0;
+  const rows = all.filter((r) => (v.scope === 'sel' || v.scope === 'view' ? ids.has(r.id) : v.scope === 'open' ? MT_OPEN.includes(r.status) : v.scope === 'late' ? MT.late(r) : v.scope === 'done' ? !MT_OPEN.includes(r.status) : true)
+    && (!from || (r.sentAt || r.createdAt) >= from) && (!to || (r.sentAt || r.createdAt) <= to)).sort((a, b) => (b.sentAt || b.createdAt) - (a.sentAt || a.createdAt));
+  const scopeLabel = { sel: 'السجلات المحددة', view: 'السجلات المعروضة', open: 'النشطة', late: 'المتأخرة', done: 'المنتهية', all: 'كل السجلات' }[v.scope] || '';
+  return { rows, meta: { scope: scopeLabel, from, to } };
+};
+Pages.mtPrintReport = (rows, o) => {
+  const cnt = (f) => rows.filter(f).length, avg = (() => { const d = rows.filter((r) => r.returnedAt && r.sentAt); return d.length ? Math.round(d.reduce((s, r) => s + (r.returnedAt - r.sentAt), 0) / d.length / DAY) : 0; })();
+  const keyOf = { status: (r) => MT.stage(r.status).label, dept: (r) => Data.nameOf('departments', r.departmentId, 'بلا إدارة'), dest: (r) => MT.destText(r) }[o.group];
+  const groups = keyOf ? [...rows.reduce((m, r) => { const k = keyOf(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); return m; }, new Map())] : [['', rows]];
+  const table = (list) => html`<table class="mt-rt"><thead><tr><th>م</th><th>الرقم</th><th>الجهاز</th><th>الرقم التسلسلي</th><th>الإدارة / صاحب العهدة</th><th>الجهة</th><th>المرحلة</th><th>العلامات</th><th>أُرسل</th><th>الموعد</th><th>المدة</th></tr></thead><tbody>${list.map((r, i) => html`<tr><td>${i + 1}</td><td class="ltr">${r.number}</td><td>${r.device.name}${r.device.model ? html`<br><small>${r.device.model}</small>` : ''}</td><td class="ltr">${r.device.serial || ''}</td><td>${MT.owner(r)}</td><td>${MT.destText(r)}</td><td>${MT.stage(r.status).label}${MT.late(r) ? ' (متأخر)' : ''}</td><td>${(r.labels || []).map((id) => (MT.label(id) || {}).name).filter(Boolean).join('، ')}</td><td>${r.sentAt ? fmtDate(r.sentAt) : '—'}</td><td>${r.expectedAt ? fmtDate(r.expectedAt) : '—'}</td><td>${fmtNum(MT.days(r))}</td></tr>`)}</tbody></table>`;
+  UI.print(html`<div class="mt-report"><h2 style="text-align:center">تقرير «${MT.name()}»</h2>
+    <p style="text-align:center">${o.scope}${o.from || o.to ? ` — الفترة ${o.from ? fmtDate(o.from) : '…'} إلى ${o.to ? fmtDate(o.to) : '…'}` : ''} — ${arCount(rows.length, AR_DEVICE)}</p>
+    <table class="mt-sum"><tr><th>الإجمالي</th><th>نشطة</th><th>متأخرة</th><th>جاهزة للاستلام</th><th>للإكمال</th><th>سُلّمت</th><th>متوسط مدة الصيانة</th></tr><tr><td>${fmtNum(rows.length)}</td><td>${fmtNum(cnt((r) => MT_OPEN.includes(r.status)))}</td><td>${fmtNum(cnt(MT.late))}</td><td>${fmtNum(cnt((r) => r.status === 'ready'))}</td><td>${fmtNum(cnt((r) => r.status === 'incomplete' || (r.labels || []).includes('l_complete')))}</td><td>${fmtNum(cnt((r) => r.status === 'returned'))}</td><td>${avg ? `${fmtNum(avg)} يوم` : '—'}</td></tr></table>
+    ${groups.map(([k, list]) => html`${k ? html`<h3>${k} (${fmtNum(list.length)})</h3>` : ''}${table(list)}`)}
+    ${o.details ? rows.map((r) => html`<div style="page-break-before:always"></div>${Pages.mtRecordHtml(r, { notes: o.notes, log: o.log })}`) : ''}</div>`, `تقرير ${MT.name()}`);
+};
+Pages.mtExcel = (rows, meta) => {
+  const head = ['الرقم', 'المرحلة', 'متأخر', 'الجهاز', 'النوع', 'الماركة والموديل', 'الرقم التسلسلي', 'رقم الأصل', 'اسم الجهاز على الشبكة', 'الإدارة', 'القسم', 'صاحب العهدة', 'الهاتف', 'البلاغ', 'نوع الجهة', 'الجهة', 'المسؤول', 'هاتف الجهة', 'أمر العمل', 'الأولوية', 'العطل', 'الملحقات', 'العلامات', 'الملاحظة الظاهرة', 'تاريخ التسجيل', 'تاريخ الإرسال', 'الموعد المتوقع', 'المدة (يوم)', 'النتيجة', 'ما تم', 'القطع', 'تاريخ التسليم', 'سُلّم إلى', 'عدد الملاحظات', 'آخر ملاحظة'];
+  const body = rows.map((r) => { const last = (r.notes || []).slice(-1)[0]; return [r.number, MT.stage(r.status).label, MT.late(r) ? 'نعم' : '', r.device.name, (XM_TYPES[r.device.kind] || {}).l || '', [r.device.brand, r.device.model].filter(Boolean).join(' '), r.device.serial || '', r.device.tag || '', r.device.host || '', Data.nameOf('departments', r.departmentId, ''), r.unitPath || '', r.holder || '', r.phone || '', r.ticketRef || '', MT_DEST[(r.dest || {}).type] || '', (r.dest || {}).name || '', (r.dest || {}).contact || '', (r.dest || {}).phone || '', (r.dest || {}).ref || '', (PRIORITY[r.priority] || PRIORITY.medium).label, r.fault || '', (r.accessories || []).join('، '), (r.labels || []).map((id) => (MT.label(id) || {}).name).filter(Boolean).join('، '), r.cardNote || '', fmtDateTime(r.createdAt), r.sentAt ? fmtDate(r.sentAt) : '', r.expectedAt ? fmtDate(r.expectedAt) : '', MT.days(r), r.result ? MT_RESULTS[r.result][0] : '', r.workDone || '', r.parts || '', r.returnedAt ? fmtDateTime(r.returnedAt) : '', r.returnedTo || '', (r.notes || []).length, last ? last.text : '']; });
+  const notes = rows.flatMap((r) => (r.notes || []).map((n) => [r.number, r.device.name, fmtDateTime(n.at), (MT_NOTE_KINDS[n.kind] || MT_NOTE_KINDS.note)[0], Data.userName(n.by), n.text]));
+  const log = rows.flatMap((r) => (r.log || []).map((e) => [r.number, r.device.name, fmtDateTime(e.at), e.status ? MT.stage(e.status).label : '', Data.userName(e.by), e.text]));
+  downloadBlob(XL.write([
+    { name: 'السجلات', widths: head.map((h, i) => ([3, 20, 29, 34].includes(i) ? 34 : 16)), rows: [head, ...body] },
+    { name: 'الملاحظات', widths: [18, 26, 18, 12, 22, 70], rows: [['الرقم', 'الجهاز', 'التاريخ', 'النوع', 'الكاتب', 'الملاحظة'], ...notes] },
+    { name: 'السجل الزمني', widths: [18, 26, 18, 16, 22, 60], rows: [['الرقم', 'الجهاز', 'التاريخ', 'المرحلة', 'بواسطة', 'الحدث'], ...log] }
+  ]), `${MT.name()}-${meta.scope || 'تقرير'}-${dateInput(now())}.xlsx`);
+};
+
+/* ── إعدادات القسم: الاسم، التشغيل، المدة المعتادة، والعلامات (اسم ولون وأيقونة لكل علامة) ── */
+Pages.mtSettingsBody = (labels) => html`<div class="form-grid">
+    ${UI.field({ name: 'name', label: 'اسم القسم كما يظهر في القائمة والتقارير', wide: true, placeholder: 'إرسال إلى الصيانة' }, MT.cfg().name || '')}
+    ${UI.field({ name: 'days', label: 'المدة المعتادة للإرجاع (يوم)', type: 'number', min: 1, max: 365, hint: 'تُقترح موعداً متوقعاً، ويُنبَّه عند تجاوزه' }, MT.overdueDays())}
+    ${UI.field({ name: 'on', type: 'switch', text: 'إظهار القسم في القائمة لمن يملك صلاحيته' }, MT.on() ? 1 : 0)}
+  </div>
+  <h4 class="mt">${UI.icon('flag')} العلامات الظاهرة على البطاقات</h4>
+  <div class="mt-lab-ed" data-labs>${labels.map((l, i) => html`<div class="mt-lab-row" data-li="${i}">
+    <details class="mt-ipick"><summary class="mt-lb tone-${l.tone}" title="الأيقونة">${UI.icon(l.icon || 'tag')}</summary><div class="mt-icons">${MT_ICONS.map((k) => html`<button type="button" data-lic="${i}|${k}" class="${l.icon === k ? 'on' : ''}">${UI.icon(k)}</button>`)}</div></details>
+    <input class="input" data-lname="${i}" value="${l.name}" maxlength="40" placeholder="اسم العلامة">
+    <div class="vt-tones mt-tones">${TONES.map((t) => html`<label><input type="radio" name="lt_${i}" value="${t}" data-ltone="${i}"${l.tone === t ? raw(' checked') : ''}><i class="tone-${t}"></i></label>`)}</div>
+    <button type="button" class="icon-btn" data-lmove="${i}|-1" title="تقديم"${i ? '' : raw(' disabled')}>${UI.icon('chevron-right')}</button><button type="button" class="icon-btn" data-ldel="${i}" title="حذف">${UI.icon('trash')}</button></div>`)}</div>
+  <div class="row mt" style="gap:8px"><button type="button" class="btn btn-soft btn-sm" data-ladd>${UI.icon('plus')} علامة جديدة</button><button type="button" class="btn btn-ghost btn-sm" data-lreset>${UI.icon('refresh')} العلامات الافتراضية</button></div>`;
+Pages.mtSettingsBind = (root, getLabels, setLabels, redraw) => {
+  const read = () => { const L = getLabels(); $$('[data-lname]', root).forEach((i) => { const k = Number(i.dataset.lname); if (L[k]) L[k].name = i.value.trim(); }); $$('[data-ltone]:checked', root).forEach((i) => { const k = Number(i.dataset.ltone); if (L[k]) L[k].tone = i.value; }); };
+  root.addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b || !root.contains(b)) return;
+    if (b.dataset.lic) { read(); const [i, k] = b.dataset.lic.split('|'); getLabels()[Number(i)].icon = k; redraw(); return; }
+    if (b.hasAttribute('data-ladd')) { read(); getLabels().push({ id: uid('ml'), name: '', tone: 'sky', icon: 'tag' }); redraw(); const ins = $$('[data-lname]', root); if (ins.length) ins[ins.length - 1].focus(); return; }
+    if (b.dataset.ldel) { read(); const L = getLabels(), l = L[Number(b.dataset.ldel)]; if (l && l.name && !(await UI.confirm(`حذف العلامة «${l.name}»؟ تُزال من البطاقات التي تحملها.`, { danger: true, ok: 'حذف' }))) return; L.splice(Number(b.dataset.ldel), 1); redraw(); return; }
+    if (b.dataset.lmove) { read(); const [i, d] = b.dataset.lmove.split('|').map(Number), L = getLabels(), j = i + d; if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; redraw(); return; }
+    if (b.hasAttribute('data-lreset')) { if (await UI.confirm('إعادة العلامات الافتراضية؟ تُحذف العلامات التي أضفتها.', { ok: 'إعادة' })) { setLabels(JSON.parse(JSON.stringify(MT_DEFAULT_LABELS))); redraw(); } }
+  });
+  return () => { read(); return getLabels().filter((l) => String(l.name || '').trim()).map((l) => ({ id: l.id, name: l.name.trim().slice(0, 40), tone: TONES.includes(l.tone) ? l.tone : 'sky', icon: MT_ICONS.includes(l.icon) ? l.icon : 'tag' })); };
+};
+Pages.mtSettingsModal = () => {
+  let labels = JSON.parse(JSON.stringify(MT.labels()));
+  let collect = null;
+  return UI.modal({
+    title: `إعدادات «${MT.name()}»`, icon: 'sliders', size: 'lg', body: html`<div data-mts>${Pages.mtSettingsBody(labels)}</div>`,
+    onMount: (form) => { const box = form.querySelector('[data-mts]'); const redraw = () => { const keep = { name: form.querySelector('[name="name"]').value, days: form.querySelector('[name="days"]').value, on: form.querySelector('[name="on"]').checked }; box.innerHTML = String(Pages.mtSettingsBody(labels)); form.querySelector('[name="name"]').value = keep.name; form.querySelector('[name="days"]').value = keep.days; form.querySelector('[name="on"]').checked = keep.on; }; collect = Pages.mtSettingsBind(box, () => labels, (x) => { labels = x; }, redraw); },
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); const L = collect(); if (!L.length) throw new AppError('أبقِ علامة واحدة على الأقل'); await MT.saveCfg({ name: v.name.trim(), overdueDays: clamp(Number(v.days) || 7, 1, 365), off: Number(v.on) ? 0 : 1, labels: L }); UI.toast('حُفظت الإعدادات'); return true; } }]
+  });
+};
+Pages.ccMtrack = (ctx) => {
+  let labels = JSON.parse(JSON.stringify(MT.labels()));
+  const draw = () => {
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: `إعدادات «${MT.name()}»`, sub: 'اسم القسم وتشغيله، والمدة المعتادة للإرجاع، والعلامات التي تظهر على بطاقات الأجهزة. الوصول إلى القسم بصلاحيتين يمنحهما المشرف من «الصلاحيات».', illu: 'tools', actions: html`${canUser(Auth.user, 'users.manage') ? html`<a class="btn btn-ghost" href="#/settings?s=perms&p=mtrack.read">${UI.icon('key')} من يصل إليه</a>` : ''}<a class="btn btn-ghost" href="#/send-maint">${UI.icon('external')} فتح القسم</a>` })}
+      <section class="panel"><div class="panel-body" data-mts>${Pages.mtSettingsBody(labels)}</div></section>
+      <div class="row mt"><button type="button" class="btn btn-primary" data-act="mtsave">${UI.icon('check')} حفظ الإعدادات</button></div>`);
+    const box = ctx.view.querySelector('[data-mts]');
+    const redraw = () => { const keep = { name: box.querySelector('[name="name"]').value, days: box.querySelector('[name="days"]').value, on: box.querySelector('[name="on"]').checked }; box.innerHTML = String(Pages.mtSettingsBody(labels)); box.querySelector('[name="name"]').value = keep.name; box.querySelector('[name="days"]').value = keep.days; box.querySelector('[name="on"]').checked = keep.on; };
+    const collect = Pages.mtSettingsBind(box, () => labels, (x) => { labels = x; }, redraw);
+    ctx.view.querySelector('[data-act="mtsave"]').onclick = async (e) => { const b = e.currentTarget; UI.busy(b, true); try { const L = collect(); if (!L.length) throw new AppError('أبقِ علامة واحدة على الأقل'); await MT.saveCfg({ name: box.querySelector('[name="name"]').value.trim(), overdueDays: clamp(Number(box.querySelector('[name="days"]').value) || 7, 1, 365), off: box.querySelector('[name="on"]').checked ? 0 : 1, labels: L }); labels = JSON.parse(JSON.stringify(MT.labels())); UI.toast('حُفظت الإعدادات'); draw(); } catch (ex) { UI.error(ex); } finally { UI.busy(b, false); } };
+  };
+  draw();
+};
+{
+  const grp = (CC_GROUPS.find((g) => g[0] === 'المخازن والعهد') || CC_GROUPS[0])[2];
+  const add = ['mtrack', 'قسم الإرسال إلى الصيانة', 'tools', 'mtrack.manage|settings', 'اسم القسم، وتشغيله، والمدة المعتادة، والعلامات وألوانها وأيقوناتها', '', (c) => Pages.ccMtrack(c)];
+  const i = grp.findIndex((x) => x[0] === 'extmaint'); grp.splice(i >= 0 ? i + 1 : grp.length, 0, add); CC_ALL.push(add);
+  CC_KEYS.mtrack = 'صيانة ارسال اجهزة علامات للاكمال في الصيانة لون تقرير';
+}
+
+/* ── الصفحة الرئيسية للقسم ── */
+Pages.mtrack = async (ctx) => {
+  const VIEWS = [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'list'], ['board', 'لوحة المراحل', 'columns']];
+  const st = { q: '', tab: ctx.query.tab || 'open', label: '', dept: '', dest: '', sort: lsGet('sq_mtsort', 'new'), view: lsGet('sq_mtview', 'grid'), sel: new Set() };
+  if (!VIEWS.some(([k]) => k === st.view)) st.view = 'grid';
+  const manage = MT.canManage();
+  const TABS = [['open', 'النشطة', 'pulse'], ['pending', MT_STAGES.pending.label, 'clock'], ['sent', MT_STAGES.sent.label, 'upload'], ['in_maint', MT_STAGES.in_maint.label, 'tools'], ['parts', MT_STAGES.parts.label, 'box'], ['incomplete', MT_STAGES.incomplete.label, 'alert'], ['ready', MT_STAGES.ready.label, 'check'], ['late', 'متأخرة', 'clock'], ['done', 'المنتهية', 'archive'], ['all', 'الكل', 'layers']];
+  const inTab = (r, t) => (t === 'open' ? MT_OPEN.includes(r.status) : t === 'late' ? MT.late(r) : t === 'done' ? !MT_OPEN.includes(r.status) : t === 'all' ? true : r.status === t);
+  const PR = { urgent: 4, high: 3, medium: 2, low: 1 };
+  const sorter = { new: (a, b) => (b.sentAt || b.createdAt) - (a.sentAt || a.createdAt), old: (a, b) => (a.sentAt || a.createdAt) - (b.sentAt || b.createdAt), due: (a, b) => (a.expectedAt || 9e15) - (b.expectedAt || 9e15), long: (a, b) => MT.days(b) - MT.days(a), prio: (a, b) => (PR[b.priority] || 2) - (PR[a.priority] || 2) || (b.sentAt || 0) - (a.sentAt || 0) };
+  const labelsOf = (r) => (r.labels || []).map(MT.label).filter(Boolean);
+  const chips = (r) => html`${labelsOf(r).map((l) => html`<span class="mt-lb tone-${l.tone}">${UI.icon(l.icon || 'tag')}${l.name}</span>`)}`;
+  const card = (r, compact = false) => {
+    const S = MT.stage(r.status), late = MT.late(r), last = (r.notes || []).slice(-1)[0], lk = last ? MT_NOTE_KINDS[last.kind] || MT_NOTE_KINDS.note : null;
+    return html`<article class="mt-card${r.tone ? ` mt-tone tone-${r.tone}` : ''}${late ? ' is-late' : ''}${compact ? ' compact' : ''}${st.sel.has(r.id) ? ' is-sel' : ''}" data-mid="${r.id}" tabindex="0"${manage && compact ? raw(' draggable="true"') : ''}>
+      <header class="mt-ch">${manage && !compact ? html`<input type="checkbox" class="mt-sel" data-msel="${r.id}"${st.sel.has(r.id) ? raw(' checked') : ''} aria-label="تحديد">` : ''}<span class="mt-num ltr">${r.number}</span>${compact ? '' : UI.chip(S.tone, S.label, S.icon)}${late ? UI.chip('red', `متأخر ${fmtNum(MT.lateDays(r))} ي`, 'clock') : ''}<span class="mt-sp"></span>${manage ? html`<button type="button" class="icon-btn mt-qbtn" data-mq="${r.id}" title="العلامات واللون والملاحظة الظاهرة" aria-label="العلامات">${UI.icon('flag')}</button>` : ''}</header>
+      <div class="mt-dev"><span class="mt-dic tone-${r.tone || S.tone}">${UI.icon(MT.kindIcon(r))}</span><div class="mt-dt"><b>${r.device.name}</b><small>${[[r.device.brand, r.device.model].filter(Boolean).join(' '), r.device.serial ? `S/N ${r.device.serial}` : ''].filter(Boolean).join(' · ') || '—'}</small></div>${r.priority === 'urgent' || r.priority === 'high' ? UI.priority(r.priority) : ''}</div>
+      ${labelsOf(r).length ? html`<div class="mt-labels">${chips(r)}</div>` : ''}
+      ${r.cardNote ? html`<div class="mt-pin">${UI.icon('sticky')}<span>${r.cardNote}</span></div>` : ''}
+      ${compact ? '' : html`<dl class="mt-kv"><dt title="صاحب الجهاز">${UI.icon('building')}</dt><dd>${MT.owner(r)}</dd><dt title="جهة الصيانة">${UI.icon('tools')}</dt><dd>${MT.destText(r)}</dd><dt title="التاريخ">${UI.icon('calendar')}</dt><dd>${r.sentAt ? fmtDate(r.sentAt) : 'لم يُرسل بعد'} · ${fmtNum(MT.days(r))} يوم${r.expectedAt && MT_OPEN.includes(r.status) ? ` · الموعد ${fmtDate(r.expectedAt)}` : ''}</dd></dl>`}
+      <footer class="mt-cf">${last ? html`<span class="mt-ln tone-${lk[2]}" title="${last.text}">${UI.icon(lk[1])}<span>${last.text}</span></span>` : html`<span class="faint small">لا ملاحظات</span>`}<span class="mt-sp"></span>${(r.notes || []).length ? html`<b class="mt-nc" title="عدد الملاحظات">${UI.icon('message')}${fmtNum(r.notes.length)}</b>` : ''}${manage && !compact ? html`<button type="button" class="btn btn-ghost btn-xs" data-mnote="${r.id}">${UI.icon('plus')} ملاحظة</button>` : ''}</footer>
+    </article>`;
+  };
+  const listView = (rows) => html`<div class="table-wrap"><table class="table mt-table"><thead><tr>${manage ? html`<th style="width:34px"><input type="checkbox" data-mselall aria-label="تحديد الكل"${rows.length && rows.every((r) => st.sel.has(r.id)) ? raw(' checked') : ''}></th>` : ''}<th>الرقم</th><th>الجهاز</th><th>صاحب الجهاز</th><th>الجهة</th><th>المرحلة</th><th>العلامات</th><th>أُرسل</th><th>الموعد</th><th>المدة</th><th>آخر ملاحظة</th>${manage ? html`<th></th>` : ''}</tr></thead><tbody>
+    ${rows.map((r) => { const S = MT.stage(r.status), last = (r.notes || []).slice(-1)[0], late = MT.late(r); return html`<tr class="mt-row${r.tone ? ` mt-tone tone-${r.tone}` : ''}${st.sel.has(r.id) ? ' is-sel' : ''}" data-mid="${r.id}">
+      ${manage ? html`<td><input type="checkbox" class="mt-sel" data-msel="${r.id}"${st.sel.has(r.id) ? raw(' checked') : ''} aria-label="تحديد"></td>` : ''}<td class="ltr nowrap"><i class="mt-dot tone-${r.tone || S.tone}"></i>${r.number}</td>
+      <td class="mt-c-dev"><b>${r.device.name}</b><div class="t-sub">${[[r.device.brand, r.device.model].filter(Boolean).join(' '), r.device.serial].filter(Boolean).join(' · ')}</div>${r.cardNote ? html`<div class="mt-pin inline sm">${UI.icon('sticky')}<span>${r.cardNote}</span></div>` : ''}</td>
+      <td class="mt-c-own">${MT.owner(r)}</td><td class="mt-c-dest">${MT.destText(r)}</td><td class="mt-c-st">${UI.chip(S.tone, S.label, S.icon)}${late ? html` ${UI.chip('red', 'متأخر', 'clock')}` : ''}</td><td class="mt-c-lab"><div class="mt-labels">${chips(r)}</div></td>
+      <td class="nowrap">${r.sentAt ? fmtDate(r.sentAt) : '—'}</td><td class="nowrap">${r.expectedAt ? fmtDate(r.expectedAt) : '—'}</td><td>${fmtNum(MT.days(r))}</td><td class="mt-lastc">${last ? html`<span title="${last.text}">${last.text}</span>` : html`<span class="faint">—</span>`}</td>
+      ${manage ? html`<td class="nowrap"><button type="button" class="icon-btn" data-mnote="${r.id}" title="إضافة ملاحظة">${UI.icon('sticky')}</button><button type="button" class="icon-btn" data-mq="${r.id}" title="العلامات واللون">${UI.icon('flag')}</button></td>` : ''}</tr>`; })}</tbody></table></div>`;
+  const boardView = (rows) => { const cols = [...MT_OPEN, 'returned']; return html`<div class="mt-board">${cols.map((k) => { const S = MT_STAGES[k], list = rows.filter((r) => r.status === k); return html`<section class="mt-col tone-${S.tone}" data-mcol="${k}"><header>${UI.icon(S.icon)}<b>${S.label}</b><span class="mt-colc">${fmtNum(list.length)}</span></header><div class="mt-colb">${list.length ? list.map((r) => card(r, true)) : html`<p class="mt-empty">${manage ? 'اسحب بطاقة إلى هنا' : 'لا شيء'}</p>`}</div></section>`; })}</div>`; };
+  const draw = async () => {
+    const all = await MT.list(); if (!ctx.alive()) return;
+    const qn = normalizeAr(st.q);
+    const base = all.filter((r) => (!st.label || (r.labels || []).includes(st.label)) && (!st.dept || r.departmentId === st.dept) && (!st.dest || (r.dest || {}).type === st.dest) && (!qn || MT.text(r).includes(qn)));
+    const rows = base.filter((r) => (st.view === 'board' ? MT_OPEN.includes(r.status) || (r.status === 'returned' && (r.returnedAt || 0) > now() - 14 * DAY) : inTab(r, st.tab))).sort(sorter[st.sort] || sorter.new);
+    st.shown = rows.map((r) => r.id);
+    [...st.sel].forEach((id) => { if (!all.some((r) => r.id === id)) st.sel.delete(id); });
+    const kpi = { open: all.filter((r) => MT_OPEN.includes(r.status)).length, late: all.filter(MT.late).length, ready: all.filter((r) => r.status === 'ready').length, inc: all.filter((r) => MT_OPEN.includes(r.status) && (r.status === 'incomplete' || (r.labels || []).includes('l_complete'))).length, month: all.filter((r) => r.status === 'returned' && (r.returnedAt || 0) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()).length };
+    const doneD = all.filter((r) => r.returnedAt && r.sentAt), avg = doneD.length ? Math.round(doneD.reduce((s, r) => s + (r.returnedAt - r.sentAt), 0) / doneD.length / DAY) : 0;
+    const cnt = (t) => base.filter((r) => inTab(r, t)).length;
+    const depts = [...new Set(all.map((r) => r.departmentId).filter(Boolean))].map((id) => ({ id, name: Data.nameOf('departments', id, '') })).filter((d) => d.name).sort((a, b) => AR_COLL.compare(a.name, b.name));
+    ctx.view.innerHTML = String(html`
+      ${UI.pageHead({ title: MT.name(), sub: 'كل جهاز يُرسل إلى الصيانة بتفاصيله وملاحظاته: تابع مرحلته، وضع عليه علامة أو لوناً أو ملاحظة ظاهرة، واطبع تقريراً بكل التفاصيل', illu: 'tools', actions: html`<button class="btn btn-ghost" data-act="report">${UI.icon('print')} تقرير</button>${MT.canConfig() ? html`<button class="btn btn-ghost" data-act="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} تسجيل جهاز</button>` : ''}` })}
+      ${!MT.on() ? html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">القسم موقوف: لا يظهر في القائمة. يمكن تشغيله من الإعدادات.</div></div>` : ''}
+      <div class="mt-kpis">${[['open', 'نشطة', 'pulse', 'sky', kpi.open], ['late', 'متأخرة عن موعدها', 'clock', 'red', kpi.late], ['ready', 'جاهزة للاستلام', 'check', 'teal', kpi.ready], ['incomplete', 'للإكمال', 'alert', 'amber', kpi.inc], ['done', 'سُلّمت هذا الشهر', 'user', 'green', kpi.month]].map(([k, l, ic, tone, n]) => html`<button type="button" class="mt-kpi tone-${tone}${st.tab === k && st.view !== 'board' ? ' on' : ''}" data-mtab="${k}"><span class="mt-kic">${UI.icon(ic)}</span><b>${fmtNum(n)}</b><small>${l}</small></button>`)}<div class="mt-kpi tone-violet static"><span class="mt-kic">${UI.icon('chart')}</span><b>${avg ? `${fmtNum(avg)} يوم` : '—'}</b><small>متوسط مدة الصيانة</small></div></div>
+      <section class="panel mt-panel">
+        <div class="toolbar mt-tools"><div class="search-box">${UI.icon('search')}<input id="mtq" type="search" placeholder="ابحث: الرقم، الجهاز، الرقم التسلسلي، صاحب الجهاز، الإدارة، الجهة، الملاحظات" value="${st.q}"></div>
+          <select data-mf="dept" aria-label="الإدارة"><option value="">كل الإدارات</option>${depts.map((d) => html`<option value="${d.id}"${st.dept === d.id ? raw(' selected') : ''}>${d.name}</option>`)}</select>
+          <select data-mf="dest" aria-label="جهة الصيانة"><option value="">كل الجهات</option>${Object.entries(MT_DEST).map(([k, l]) => html`<option value="${k}"${st.dest === k ? raw(' selected') : ''}>${l}</option>`)}</select>
+          <select data-mf="sort" aria-label="الترتيب">${Object.entries(MT_SORTS).map(([k, l]) => html`<option value="${k}"${st.sort === k ? raw(' selected') : ''}>${l}</option>`)}</select>
+          <div class="seg sm" role="radiogroup" aria-label="طريقة العرض">${VIEWS.map(([k, l, ic]) => html`<label title="${l}"><input type="radio" name="mtview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
+        ${st.view === 'board' ? '' : html`<div class="tabs mt-tabs">${TABS.filter(([k]) => ['open', 'all', 'done'].includes(k) || cnt(k)).map(([k, l, ic]) => html`<button type="button" class="tab${st.tab === k ? ' active' : ''}" data-mtab="${k}">${UI.icon(ic)} ${l} <b class="tab-n">${fmtNum(cnt(k))}</b></button>`)}</div>`}
+        <div class="mt-lbar">${MT.labels().map((l) => { const n = base.filter((r) => (r.labels || []).includes(l.id) && (st.view === 'board' || inTab(r, st.tab))).length; return html`<button type="button" class="mt-lb tone-${l.tone}${st.label === l.id ? ' on' : ''}" data-mlab="${l.id}">${UI.icon(l.icon || 'tag')}${l.name}${n ? html`<b>${fmtNum(n)}</b>` : ''}</button>`; })}${st.label || st.dept || st.dest || st.q ? html`<button type="button" class="btn btn-ghost btn-xs" data-act="clear">${UI.icon('x')} مسح التصفية</button>` : ''}</div>
+        ${manage && st.sel.size ? html`<div class="mt-bulk">${UI.icon('check')}<b>${fmtNum(st.sel.size)} محدد</b><select data-mbulk="status"><option value="">تغيير المرحلة…</option>${[...MT_OPEN, 'closed'].map((k) => html`<option value="${k}">${MT_STAGES[k].label}</option>`)}</select><select data-mbulk="label"><option value="">إضافة علامة…</option>${MT.labels().map((l) => html`<option value="${l.id}">${l.name}</option>`)}<option value="-">إزالة كل العلامات</option></select><button type="button" class="btn btn-soft btn-sm" data-act="selreport">${UI.icon('print')} تقرير المحدد</button><button type="button" class="btn btn-ghost btn-sm" data-act="selnone">${UI.icon('x')} إلغاء التحديد</button></div>` : ''}
+        <div class="panel-body">${rows.length ? (st.view === 'list' ? listView(rows) : st.view === 'board' ? boardView(rows) : html`<div class="mt-grid">${rows.map((r) => card(r))}</div>`)
+          : UI.empty({ illu: 'tools', title: all.length ? 'لا توجد أجهزة تطابق التصفية' : 'لا توجد أجهزة مسجلة بعد', text: all.length ? 'غيّر التبويب أو امسح التصفية.' : manage ? 'سجّل أول جهاز يُرسل إلى الصيانة لتتابع مرحلته وملاحظاته هنا.' : 'ستظهر هنا الأجهزة المرسلة إلى الصيانة.', action: manage && !all.length ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} تسجيل جهاز</button>` : '' })}</div>
+      </section>`);
+    UI.hydrate(ctx.view);
+    const qi = $('#mtq', ctx.view); if (qi) qi.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const i = $('#mtq', ctx.view); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); }, 250));
+  };
+  ctx.view.addEventListener('click', async (e) => {
+    const t = e.target;
+    const btn = t.closest('button,[data-mid],input,select,a'); if (!btn || !ctx.view.contains(btn)) return;
+    try {
+      if (btn.matches('[data-act="new"]')) { if (await Pages.mtEdit()) draw(); return; }
+      if (btn.matches('[data-act="report"]')) { await Pages.mtReport({ view: st.shown || [] }); return; }
+      if (btn.matches('[data-act="selreport"]')) { await Pages.mtReport({ ids: [...st.sel] }); return; }
+      if (btn.matches('[data-act="selnone"]')) { st.sel.clear(); draw(); return; }
+      if (btn.matches('[data-act="cfg"]')) { if (await Pages.mtSettingsModal()) draw(); return; }
+      if (btn.matches('[data-act="clear"]')) { Object.assign(st, { label: '', dept: '', dest: '', q: '' }); draw(); return; }
+      if (btn.matches('[data-mtab]')) { st.tab = btn.dataset.mtab; if (st.view === 'board') { st.view = 'grid'; lsSet('sq_mtview', 'grid'); } draw(); return; }
+      if (btn.matches('[data-mlab]')) { st.label = st.label === btn.dataset.mlab ? '' : btn.dataset.mlab; draw(); return; }
+      if (btn.matches('[data-mq]')) { e.stopPropagation(); if (await Pages.mtQuick(btn.dataset.mq)) draw(); return; }
+      if (btn.matches('[data-mnote]')) { e.stopPropagation(); const r = await DB.get('mtrack', btn.dataset.mnote); if (r && (await Pages.mtNoteModal(r))) draw(); return; }
+      if (btn.matches('[data-msel]')) { e.stopPropagation(); if (btn.checked) st.sel.add(btn.dataset.msel); else st.sel.delete(btn.dataset.msel); draw(); return; }
+      if (btn.matches('[data-mselall]')) { (st.shown || []).forEach((id) => (btn.checked ? st.sel.add(id) : st.sel.delete(id))); draw(); return; }
+      if (btn.matches('input,select,a')) return;
+      const m = btn.closest('[data-mid]'); if (m && !t.closest('button')) { await Pages.mtDetail(m.dataset.mid); draw(); }
+    } catch (err) { UI.error(err); }
+  });
+  ctx.view.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches && e.target.matches('.mt-card[data-mid]')) { e.preventDefault(); Pages.mtDetail(e.target.dataset.mid).then(draw); } });
+  ctx.view.addEventListener('change', async (e) => {
+    const t = e.target;
+    if (t.matches('[name="mtview"]')) { st.view = t.value; lsSet('sq_mtview', st.view); draw(); return; }
+    if (t.matches('[data-mf]')) { st[t.dataset.mf] = t.value; if (t.dataset.mf === 'sort') lsSet('sq_mtsort', t.value); draw(); return; }
+    if (t.matches('[data-mbulk]')) {
+      const val = t.value; if (!val) return; const ids = [...st.sel];
+      try {
+        if (t.dataset.mbulk === 'status') { for (const id of ids) await MT.setStatus(id, val, 'تحديث جماعي'); UI.toast(`حُدّثت مرحلة ${arCount(ids.length, AR_DEVICE)}`); }
+        else { for (const id of ids) { const r = await DB.get('mtrack', id); if (r) await MT.quick(id, { labels: val === '-' ? [] : [...new Set([...(r.labels || []), val])] }); } UI.toast('حُدّثت العلامات'); }
+      } catch (err) { UI.error(err); }
+      draw();
+    }
+  });
+  /* لوحة المراحل: السحب والإفلات يغيّر المرحلة، والإفلات على «أُعيد لصاحبه» يفتح نافذة التسليم */
+  let dragId = '';
+  ctx.view.addEventListener('dragstart', (e) => { const c = e.target.closest && e.target.closest('.mt-card[draggable="true"]'); if (!c) return; dragId = c.dataset.mid; c.classList.add('dragging'); try { e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed = 'move'; } catch (_) { /* تجاهل */ } });
+  ctx.view.addEventListener('dragend', () => { dragId = ''; $$('.mt-card.dragging, .mt-col.drop-ok', ctx.view).forEach((x) => x.classList.remove('dragging', 'drop-ok')); });
+  ctx.view.addEventListener('dragover', (e) => { const col = e.target.closest && e.target.closest('[data-mcol]'); if (!col || !dragId) return; e.preventDefault(); $$('.mt-col.drop-ok', ctx.view).forEach((x) => x !== col && x.classList.remove('drop-ok')); col.classList.add('drop-ok'); });
+  ctx.view.addEventListener('drop', async (e) => {
+    const col = e.target.closest && e.target.closest('[data-mcol]'); if (!col || !dragId) return; e.preventDefault();
+    const id = dragId, to = col.dataset.mcol; dragId = ''; col.classList.remove('drop-ok');
+    const r = await DB.get('mtrack', id); if (!r || r.status === to) return;
+    try { if (to === 'returned') { if (await Pages.mtReturnModal(r)) UI.toast('سُلّم الجهاز'); } else { await MT.setStatus(id, to); UI.toast(`${r.device.name}: ${MT_STAGES[to].label}`, 'ok', 2200); } } catch (err) { UI.error(err); }
+    draw();
+  });
+  ctx.onCleanup(Bus.on('mtrack', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 300)));
+  await draw();
+  if (ctx.query.m) setTimeout(() => { if (ctx.alive()) Pages.mtDetail(ctx.query.m).then(() => { if (ctx.alive()) draw(); }); }, 120);
+};
+Router.add('/send-maint', 'mtrack.read|mtrack.manage', Pages.mtrack, 'إرسال إلى الصيانة');
+
+/* في صفحة البلاغ: ما أُرسل للصيانة من هذا البلاغ، وزر إرسال جهازه مباشرة */
+{
+  const cp1 = Pages.cardPanel;
+  Pages.cardPanel = (t) => {
+    if (!MT.on() || !MT.canRead() || !t || !Auth.can('tickets.work')) return cp1(t);
+    setTimeout(async () => {
+      const box = document.querySelector(`[data-tkmt="${CSS.escape(t.id)}"]`); if (!box) return;
+      const list = (await MT.list()).filter((r) => r.ticketRef && (r.ticketRef === t.number || r.ticketRef === t.id));
+      if (!box.isConnected) return;
+      if (!list.length && !MT.canManage()) { box.remove(); return; }
+      box.innerHTML = String(UI.panel({ title: MT.name(), icon: 'tools', tools: MT.canManage() ? html`<button type="button" class="btn btn-ghost btn-sm" data-mtfrom="${t.id}">${UI.icon('plus')} إرسال جهاز</button>` : '',
+        body: list.length ? html`<div class="list">${list.map((r) => { const S = MT.stage(r.status); return html`<a class="list-row" href="#/send-maint?m=${r.id}"><span class="mt-dot tone-${r.tone || S.tone}"></span><div class="grow"><b>${r.device.name}</b><div class="t-sub ltr">${r.number}</div></div>${UI.chip(S.tone, S.label, S.icon)}</a>`; })}</div>` : html`<p class="hint">لم يُرسل جهاز من هذا البلاغ إلى الصيانة.</p>` }));
+    }, 60);
+    return html`${cp1(t)}<div data-tkmt="${t.id}"></div>`;
+  };
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest && e.target.closest('[data-mtfrom]'); if (!b) return;
+    e.preventDefault();
+    const t = await DB.get('tickets', b.dataset.mtfrom); if (!t) return;
+    const req = Data.c.users.get(t.requesterId) || {};
+    try { const out = await Pages.mtEdit('', { ticketRef: t.number, departmentId: t.departmentId || req.departmentId || '', unitId: t.unitId || '', holder: req.name || '', holderId: t.requesterId || '', phone: t.contact || '', device: { name: t.deviceName || '', kind: '' }, fault: [t.title, t.description].filter(Boolean).join(' — ').slice(0, 1500) }); if (out) Router.resolve(); } catch (err) { UI.error(err); }
+  });
+}
+/* ══════════ تسمية أقسام القائمة وإعادة تسميتها ══════════
+   يسمّي المشرف (ومن يملك «إظهار وإخفاء أقسام القائمة») أي قسم أو مجموعة في القائمة باسم يختاره، من ثلاثة أماكن:
+   القلم بجانب القسم في القائمة الجانبية، والقلم بجانب عنوان الصفحة نفسها، وصفحة «إظهار أقسام القائمة» في الإعدادات.
+   الأقسام التي لها اسم في إعداداتها الخاصة (الصيانة الخارجية، الإرسال إلى الصيانة) يُحفظ اسمها هناك فيظهر في السندات والتقارير أيضاً */
+const NavNames = {
+  map: () => { const m = Data.c.navNames || {}; return { paths: m.paths || {}, groups: m.groups || {} }; },
+  canEdit: () => !!Auth.user && (Auth.user.role === 'supervisor' || canUser(Auth.user, 'nav.manage')),
+  special: {
+    '/ext-maint': { get: () => XM.name(), set: (v) => XM.saveCfg({ name: v || 'الصيانة الخارجية' }), def: 'الصيانة الخارجية' },
+    '/send-maint': { get: () => MT.name(), set: (v) => MT.saveCfg({ name: v }, 'تسمية القسم'), def: 'إرسال إلى الصيانة' }
+  },
+  orig: new Map(), origGroups: new Set(),
+  label(path) { const sp = NavNames.special[path]; if (sp) return sp.get(); return NavNames.map().paths[path] || NavNames.orig.get(path) || ''; },
+  defLabel(path) { const sp = NavNames.special[path]; return sp ? sp.def : NavNames.orig.get(path) || ''; },
+  groupLabel: (g) => NavNames.map().groups[g] || g,
+  async save(map, what) {
+    if (!NavNames.canEdit()) throw new AppError('تسمية الأقسام للمشرف أو لمن يملك إظهار أقسام القائمة');
+    const clean = { paths: {}, groups: {} };
+    Object.entries(map.paths || {}).forEach(([k, v]) => { v = String(v || '').trim().slice(0, 60); if (v && v !== NavNames.orig.get(k) && !NavNames.special[k]) clean.paths[k] = v; });
+    Object.entries(map.groups || {}).forEach(([k, v]) => { v = String(v || '').trim().slice(0, 40); if (v && v !== k) clean.groups[k] = v; });
+    await DB.put('meta', { key: 'navnames', value: clean }); Data.c.navNames = clean;
+    await Data.log('update', 'settings', 'navnames', what || 'تسمية أقسام القائمة');
+    NavNames.applyTitles(); Nav.paths = null; Shell.remountSoon();
+  },
+  async setPath(path, name) {
+    const sp = NavNames.special[path], v = String(name || '').trim();
+    if (sp) { await sp.set(v === sp.def ? '' : v); NavNames.applyTitles(); Shell.remountSoon(); return; }
+    const m = NavNames.map(); await NavNames.save({ paths: { ...m.paths, [path]: v }, groups: m.groups }, `تسمية القسم «${NavNames.orig.get(path) || path}» باسم «${v || 'الأصلي'}»`);
+  },
+  async setGroup(g, name) { const m = NavNames.map(); await NavNames.save({ paths: m.paths, groups: { ...m.groups, [g]: String(name || '').trim() } }, `تسمية مجموعة «${g}»`); },
+  /* عنوان التبويب في المتصفح يتبع الاسم الجديد */
+  applyTitles() {
+    try { Shell.navAll(); } catch (_) { return; }
+    Router.routes.forEach((r) => { if (r._t0 == null) r._t0 = r.title; });
+    NavNames.orig.forEach((o, path) => { const r = Router.routes.find((x) => x.re.test(path)); if (r && r._t0 === o) r.title = NavNames.label(path) || r._t0; });
+  },
+  async renameModal(path, isGroup = false) {
+    if (!NavNames.canEdit()) return;
+    const cur = isGroup ? NavNames.groupLabel(path) : NavNames.label(path), def = isGroup ? path : NavNames.defLabel(path);
+    const v = await UI.modal({
+      title: isGroup ? 'تسمية مجموعة في القائمة' : 'تسمية القسم', icon: 'rename', size: 'sm',
+      body: html`${UI.field({ name: 'name', label: isGroup ? 'اسم المجموعة' : 'اسم القسم كما يظهر في القائمة وعنوان الصفحة', required: true, wide: true, maxlength: isGroup ? 40 : 60 }, cur)}<p class="hint">الاسم الأصلي: <b>${def}</b>. يظهر الاسم الجديد لكل المستخدمين على كل الأجهزة.</p>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(cur !== def ? [{ label: 'الاسم الأصلي', kind: 'ghost', icon: 'undo', handler: () => ({ name: def }) }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const n = UI.formValues(f).name.trim(); if (!n) throw new AppError('اكتب الاسم'); return { name: n }; } }]
+    });
+    if (!v) return;
+    try { if (isGroup) await NavNames.setGroup(path, v.name === def ? '' : v.name); else await NavNames.setPath(path, v.name === def ? '' : v.name); UI.toast(`حُفظ الاسم: ${v.name}`); } catch (e) { UI.error(e); }
+  }
+};
+/* القائمة: قسم «الإرسال إلى الصيانة» بعد «صيانة الأجهزة»، والأسماء التي اختارها المشرف */
+{
+  const na0 = Shell.navAll.bind(Shell);
+  Shell.navAll = function () {
+    const groups = na0(), m = NavNames.map();
+    const ops = groups.find((g) => g.group === 'العمليات');
+    if (ops && MT.on() && !ops.items.some((i) => i.path === '/send-maint')) { const at = ops.items.findIndex((i) => i.path === '/maintenance'); ops.items.splice(at >= 0 ? at + 1 : ops.items.length, 0, { path: '/send-maint', label: MT.name(), icon: 'tools', perm: 'mtrack.read|mtrack.manage', badge: 'mtrack' }); }
+    return groups.map((g) => {
+      NavNames.origGroups.add(g.group);
+      return { ...g, origGroup: g.group, group: m.groups[g.group] || g.group, items: g.items.map((i) => {
+        if (!NavNames.orig.has(i.path)) NavNames.orig.set(i.path, NavNames.special[i.path] ? NavNames.special[i.path].def : i.label);
+        const sp = NavNames.special[i.path], lbl = sp ? sp.get() : m.paths[i.path];
+        return lbl ? { ...i, label: lbl, labelFor: null } : i;
+      }) };
+    });
+  };
+  /* أقلام التسمية في القائمة الجانبية (تظهر عند المرور للمشرف) */
+  const mt0 = Shell.mount.bind(Shell);
+  Shell.mount = function () {
+    mt0();
+    if (!NavNames.canEdit()) return;
+    const groups = Shell.nav(), els = $$('.sidebar .nav-group');
+    els.forEach((el, gi) => {
+      const g = groups[gi], t = el.querySelector('.nav-title'); if (!g || !t) return;
+      t.insertAdjacentHTML('beforeend', String(html`<span class="nav-ren" role="button" tabindex="0" data-navgren="${g.origGroup || g.group}" title="تسمية المجموعة" aria-label="تسمية المجموعة">${UI.icon('rename')}</span>`));
+    });
+    $$('.sidebar .nav-link').forEach((a) => a.insertAdjacentHTML('beforeend', String(html`<span class="nav-ren" role="button" tabindex="0" data-navren="${a.dataset.path}" title="تسمية القسم" aria-label="تسمية القسم">${UI.icon('rename')}</span>`)));
+  };
+  const open = (e) => {
+    const b = e.target.closest && e.target.closest('[data-navren],[data-navgren]'); if (!b) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault(); e.stopPropagation();
+    if (b.dataset.navgren) NavNames.renameModal(b.dataset.navgren, true); else NavNames.renameModal(b.dataset.navren);
+  };
+  document.addEventListener('click', open, true);
+  document.addEventListener('keydown', open, true);
+  /* عنوان الصفحة يتبع الاسم الجديد، وبجانبه قلم التسمية */
+  const ph2 = UI.pageHead;
+  UI.pageHead = (o) => {
+    try {
+      const path = decodeURIComponent((location.hash.slice(1) || '/').split('?')[0]);
+      if (NavNames.orig.has(path) && typeof o.title === 'string') {
+        const def = NavNames.orig.get(path), now0 = NavNames.label(path);
+        if (o.title === def || o.title === now0 || NavNames.special[path]) {
+          const t = now0 || o.title;
+          return ph2({ ...o, title: NavNames.canEdit() ? html`${t}<button type="button" class="ph-ren" data-navren="${path}" title="تسمية القسم" aria-label="تسمية القسم">${UI.icon('rename')}</button>` : t });
+        }
+      }
+    } catch (_) { /* العنوان كما هو */ }
+    return ph2(o);
+  };
+  /* شارة القسم في القائمة: المتأخرة عن موعدها */
+  const rb0 = Shell.refreshBadges.bind(Shell);
+  Shell.refreshBadges = async function () {
+    await rb0();
+    try { const b = $('[data-badge="mtrack"]'); if (b && MT.canRead()) { const n = (await MT.list()).filter(MT.late).length; b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); b.title = n ? `${n} متأخرة عن موعدها` : ''; } } catch (_) { /* تجاهل */ }
+  };
+  Bus.on('mtrack', debounce(() => { if (Shell.mounted) Shell.refreshBadges(); }, 600));
+}
+/* صفحة «إظهار أقسام القائمة»: أسماء الأقسام والمجموعات في المكان نفسه */
+{
+  const nv0 = Pages.navVisibility;
+  Pages.navVisibility = async (ctx) => {
+    await nv0(ctx);
+    if (!NavNames.canEdit()) return;
+    const groups = Shell.navAll();
+    ctx.view.insertAdjacentHTML('beforeend', String(html`<section class="panel mt nn-panel"><div class="panel-head"><h2>${UI.icon('rename')}أسماء الأقسام في القائمة</h2><p>اكتب اسماً جديداً لأي قسم أو مجموعة، أو اتركه فارغاً ليبقى الاسم الأصلي. يمكن أيضاً التسمية من القلم بجانب القسم في القائمة الجانبية أو بجانب عنوان الصفحة.</p></div><div class="panel-body">
+      <div class="nn-grid">${groups.map((g) => html`<div class="nn-group"><div class="nn-row nn-g"><span class="nn-o">${UI.icon('layers')} ${g.origGroup}</span><input class="input" data-nng="${g.origGroup}" value="${g.group !== g.origGroup ? g.group : ''}" placeholder="${g.origGroup}" maxlength="40"></div>
+        ${g.items.filter((i) => !NAV_LOCKED.has(i.path) || i.path === '/dashboard').map((i) => html`<div class="nn-row"><span class="nn-o">${UI.icon(i.icon)} ${NavNames.defLabel(i.path)}</span><input class="input" data-nnp="${i.path}" value="${NavNames.label(i.path) !== NavNames.defLabel(i.path) ? NavNames.label(i.path) : ''}" placeholder="${NavNames.defLabel(i.path)}" maxlength="60"></div>`)}</div>`)}</div>
+      <div class="row mt" style="gap:8px"><button type="button" class="btn btn-primary" data-act="nnsave">${UI.icon('check')} حفظ الأسماء</button><button type="button" class="btn btn-ghost" data-act="nnreset">${UI.icon('undo')} كل الأسماء الأصلية</button></div></div></section>`));
+    const collect = () => { const paths = {}, grp = {}; $$('[data-nnp]', ctx.view).forEach((i) => { paths[i.dataset.nnp] = i.value.trim(); }); $$('[data-nng]', ctx.view).forEach((i) => { grp[i.dataset.nng] = i.value.trim(); }); return { paths, groups: grp }; };
+    UI.on(ctx.view, 'click', '[data-act="nnsave"]', async (e, b) => {
+      UI.busy(b, true);
+      try {
+        const v = collect();
+        for (const [p, sp] of Object.entries(NavNames.special)) if (p in v.paths && (v.paths[p] || sp.def) !== sp.get()) await sp.set(v.paths[p]);
+        await NavNames.save(v); UI.toast('حُفظت أسماء الأقسام');
+      } catch (ex) { UI.error(ex); } finally { UI.busy(b, false); }
+    });
+    UI.on(ctx.view, 'click', '[data-act="nnreset"]', async () => {
+      if (!(await UI.confirm('إعادة كل الأقسام والمجموعات إلى أسمائها الأصلية؟', { ok: 'إعادة' }))) return;
+      try { for (const sp of Object.values(NavNames.special)) if (sp.get() !== sp.def) await sp.set(''); await NavNames.save({ paths: {}, groups: {} }); UI.toast('أُعيدت الأسماء الأصلية'); } catch (ex) { UI.error(ex); }
+    });
+  };
+  /* المسار سُجّل بالدالة الأصلية: يُوجَّه إلى الجديدة */
+  const rt = Router.routes.find((r) => r.re.test('/nav-visibility')); if (rt) rt.render = Pages.navVisibility;
+}
+
+/* ══════════ الملاحظات: المدة بالأيام، الظهور المجدول، التكرار بأيام الأسبوع، وطرق التنبيه ══════════
+   - المدة: ساعة… شهر، أو «عدد أيام أحدده»، أو حتى تاريخ، مع «تظهر ابتداءً من» لملاحظة مجدولة
+   - التكرار: أيام محددة من كل أسبوع بوقت تنبيه، وخيار أن تظهر في أيامها فقط
+   - التنبيه: إشعار في الجرس، وتنبيه مستقل لكل ملاحظة في قسم الملاحظات (مع شارة القائمة)، ونافذة عند فتح النظام — أو بلا تنبيه
+   الخادم يقرر من يرى الملاحظة؛ الجدولة وأيام الظهور عرضٌ فقط، وكل حساب يُنبَّه على جهازه حين يحل الموعد */
+const NOTE_WD = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const NOTE_DUR2 = [...NOTE_DUR.filter(([k]) => k !== 'at'), ['nd', 'عدد أيام أحدده'], ...NOTE_DUR.filter(([k]) => k === 'at')];
+const NOTE_ALERTS = [['bell', 'bell', 'إشعار في الجرس', 'يصل كل من يرى الملاحظة إشعار في قائمة الإشعارات'], ['section', 'sticky', 'تنبيه في قسم الملاحظات', 'تنبيه مستقل لهذه الملاحظة أعلى قسم الملاحظات، وشارة في القائمة، حتى يطّلع عليها'], ['popup', 'alert', 'نافذة عند فتح النظام', 'تظهر لمن يراها في نافذة حين يفتح النظام، حتى يضغط «اطّلعت»']];
+/* نهاية الملاحظة: المدد الثابتة تُحسب من موعد ظهورها إن كانت مجدولة */
+const noteSpan = (k, at, n, from) => {
+  const base = Math.max(now(), Number(from) || 0), shift = base - now();
+  if (k === 'nd') { const d = new Date(base); d.setDate(d.getDate() + clamp(Math.round(n) || 1, 1, 365) - 1); d.setHours(23, 59, 0, 0); return d.getTime(); }
+  if (k === 'eod') { const d = new Date(base); d.setHours(23, 59, 0, 0); return d.getTime() > now() ? d.getTime() : now() + HOUR; }
+  const u = noteUntil(k, at); return u > 0 && k !== 'at' ? u + shift : u;
+};
+Object.assign(VAULT, {
+  /* طرق التنبيه: المحفوظة مع الملاحظة، والقديمة «المهمة» بلا طرق: إشعار وتنبيه في القسم كما كانت */
+  alertOf(n) { const a = n && n.alert; if (a && typeof a === 'object') return { bell: a.bell ? 1 : 0, section: a.section ? 1 : 0, popup: a.popup ? 1 : 0 }; return n && n.important ? { bell: 1, section: 1, popup: 0 } : { bell: 0, section: 0, popup: 0 }; },
+  alerting(n) { const a = VAULT.alertOf(n); return !!(a.bell || a.section || a.popup); },
+  daysOf: (n) => (n && Array.isArray(n.days) ? [...new Set(n.days.map(Number).filter((d) => d >= 0 && d <= 6))] : []),
+  timeOf(n) { const m = /^(\d{1,2}):(\d{2})$/.exec(String((n && n.alertTime) || '')); return m ? [clamp(Number(m[1]), 0, 23), clamp(Number(m[2]), 0, 59)] : [7, 30]; },
+  today: (n) => VAULT.daysOf(n).includes(new Date().getDay()),
+  /* آخر موعد تنبيه حلّ: للمتكررة آخر يوم من أيامها حلّ وقته (بعد كتابتها)، وللمجدولة موعد ظهورها */
+  occ(n, t = now()) {
+    const days = VAULT.daysOf(n);
+    if (days.length) {
+      const [h, m] = VAULT.timeOf(n);
+      for (let k = 0; k < 8; k++) { const d = new Date(t); d.setDate(d.getDate() - k); d.setHours(h, m, 0, 0); const x = d.getTime(); if (days.includes(d.getDay()) && x <= t && x >= (n.createdAt || 0)) return x; }
+      return 0;
+    }
+    const f = Number(n.showFrom) || 0; return f && f <= t && f >= (n.createdAt || 0) ? f : 0;
+  },
+  alertAt: (n) => Math.max(Number(n.alertAt || n.importantAt || 0), VAULT.occ(n)),
+  /* ما يظهر لهذا الحساب الآن: المجدولة قبل موعدها، و«في أيامها فقط» في غير أيامها، لا تظهر إلا لكاتبها */
+  shown(n, u = Auth.user) {
+    if (!u || !n) return false; if (n.createdBy === u.id) return true;
+    if ((Number(n.showFrom) || 0) > now()) return false;
+    if (n.onlyDays && VAULT.daysOf(n).length && !VAULT.today(n)) return false;
+    return true;
+  },
+  seenAt(n) { return Math.max(lsGet(VAULT.seenKey(), {})[n.id] || 0, VAULT.readAt(n, (Auth.user || {}).id)); },
+  /* جديدة عليّ: لها تنبيه في القسم أو نافذة، ولم أطّلع عليها بعد آخر تنبيه. وكاتبها يُنبَّه بمواعيد التكرار والظهور فقط */
+  isNew(n) {
+    const u = Auth.user; if (!u || !n || n.archived) return false;
+    const a = VAULT.alertOf(n); if (!a.section && !a.popup) return false;
+    const at = n.createdBy === u.id ? VAULT.occ(n) : VAULT.alertAt(n);
+    return at > 0 && VAULT.seenAt(n) < at;
+  },
+  readStatus(n) { const t = VAULT.alertAt(n) || n.updatedAt || 0, to = VAULT.reach(n).filter((u) => u.id !== n.createdBy); return { read: to.filter((u) => VAULT.readAt(n, u.id) >= t), unread: to.filter((u) => VAULT.readAt(n, u.id) < t) }; },
+  /* «اطّلعت»: على الجهاز فوراً، وتأكيد اطلاع يراه كاتب الملاحظة لكل ملاحظة لها تنبيه */
+  markSeen(ids) {
+    const s = lsGet(VAULT.seenKey(), {}), me = Auth.user ? Auth.user.id : '', t = now(); ids.forEach((id) => { s[id] = t; }); lsSet(VAULT.seenKey(), s);
+    Promise.all(ids.map(async (id) => { const n = await DB.get('vault', id); if (!n || !me || n.createdBy === me || !(n.important || VAULT.alerting(n))) return; const r = { id: `${id}:${me}`, noteId: id, userId: me, at: t, updatedAt: t }; await DB.put('noteReads', r); if (!VAULT._reads.has(id)) VAULT._reads.set(id, new Map()); VAULT._reads.get(id).set(me, t); })).catch(() => {}).then(() => Bus.emit('vault-seen', {}));
+  },
+  why(n) {
+    if (VAULT.daysOf(n).length && VAULT.occ(n) && VAULT.occ(n) >= VAULT.seenAt(n)) return `تذكير ${NOTE_WD[new Date(VAULT.occ(n)).getDay()]}`;
+    if ((Number(n.showFrom) || 0) && VAULT.occ(n)) return 'حلّ موعد ظهورها';
+    return n.important ? 'ملاحظة مهمة' : 'ملاحظة جديدة';
+  }
+});
+{ const l0 = VAULT.list.bind(VAULT); VAULT.list = async () => (await l0()).filter((n) => VAULT.shown(n)); }
+/* صندوق التنبيهات أعلى قسم الملاحظات: تنبيه مستقل لكل ملاحظة */
+Pages.noteInbox = (fresh) => html`<section class="panel nt-inbox mt"><div class="nt-ibh">${UI.icon('bell')}<b>تنبيهات الملاحظات</b><span class="chip tone-red">${arCount(fresh.length, AR_NOTE)}</span><span class="grow"></span>${fresh.length > 1 ? html`<button type="button" class="btn btn-sm btn-soft" data-vseenall>${UI.icon('check')} اطّلعت على الكل</button>` : ''}</div>
+  <div class="nt-ibl">${fresh.slice(0, 20).map((n) => { const T = VT_TYPES[n.type] || VT_TYPES.general; return html`<div class="nt-ib tone-${n.tone || T.tone}"><span class="vt-ic">${UI.icon(T.icon)}</span><div class="grow" style="min-width:0"><b>${n.title}</b><small>${VAULT.why(n)} · ${n.createdBy === Auth.user.id ? 'كتبتها' : Data.userName(n.createdBy)} · ${timeAgo(VAULT.alertAt(n) || n.updatedAt)}</small>${n.body ? html`<p>${String(n.body).replace(/\s+/g, ' ').slice(0, 160)}</p>` : ''}</div><div class="nt-iba"><button type="button" class="btn btn-ghost btn-sm" data-vopen="${n.id}">${UI.icon('eye')} عرض</button><button type="button" class="btn btn-soft btn-sm" data-vseen="${n.id}">${UI.icon('check')} اطّلعت</button></div></div>`; })}${fresh.length > 20 ? html`<p class="hint">و${fmtNum(fresh.length - 20)} غيرها</p>` : ''}</div></section>`;
+
+/* ── التنبيه في مواعيده: إشعار الجرس في أيام التكرار وموعد الظهور (لكل حساب على جهازه، بمعرّف ثابت فلا يتكرر)،
+   ونافذة عند فتح النظام لما طُلب له ذلك ولم يُطّلع عليه ── */
+const NoteAlerts = {
+  busy: false,
+  dayKey: (t) => { const d = new Date(t); return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}`; },
+  async tick() {
+    const u = Auth.user; if (!u || this.busy || !VAULT.on() || !VAULT.canRead()) return;
+    this.busy = true;
+    try {
+      const t = now(), list = await VAULT.list();
+      for (const n of list) {
+        if (n.archived || !VAULT.alertOf(n).bell) continue;
+        const o = VAULT.occ(n, t); if (!o || t - o > 2 * DAY || VAULT.seenAt(n) >= o) continue;
+        const id = `nt:vr:${n.id}:${NoteAlerts.dayKey(o)}:${u.id}`;
+        if (await DB.get('notifications', id).catch(() => null)) continue;
+        const rec = VAULT.daysOf(n).length;
+        await DB.put('notifications', { id, userId: u.id, at: o, read: 0, title: `${rec ? `تذكير ${NOTE_WD[new Date(o).getDay()]}` : 'حلّ موعد ملاحظة'}: ${n.title}`, body: String(n.body || '').replace(/\s+/g, ' ').slice(0, 90), link: `/vault?n=${n.id}`, kind: 'warn' });
+        Bus.emit('notifications');
+      }
+    } catch (e) { console.warn('note alerts', e); } finally { this.busy = false; }
+  },
+  later: new Set(),
+  async popup(force = false) {
+    if (!Auth.user || !Shell.mounted || !VAULT.on() || !VAULT.canRead() || this.open) return;
+    if (!force && (Live.busy() || $('dialog[open]'))) { clearTimeout(this._pt); this._pt = setTimeout(() => this.popup(), 20000); return; }
+    const list = (await VAULT.unseen()).filter((n) => VAULT.alertOf(n).popup && !this.later.has(`${n.id}:${VAULT.alertAt(n)}`));
+    if (!list.length) return;
+    this.open = true; Snd.bell && Snd.bell(1);
+    const body = (rows) => html`<p class="muted small">${rows.length > 1 ? `لديك ${arCount(rows.length, AR_NOTE)} تنتظر اطلاعك` : 'لديك ملاحظة تنتظر اطلاعك'}</p><div class="nt-ibl pop">${rows.map((n) => { const T = VT_TYPES[n.type] || VT_TYPES.general; return html`<div class="nt-ib tone-${n.tone || T.tone}" data-pn="${n.id}"><span class="vt-ic">${UI.icon(T.icon)}</span><div class="grow" style="min-width:0"><b>${n.title}</b><small>${VAULT.why(n)} · ${n.createdBy === Auth.user.id ? 'كتبتها' : Data.userName(n.createdBy)}</small>${n.body ? html`<p>${String(n.body).slice(0, 400)}</p>` : ''}${(n.items || []).length ? html`<p class="faint small">${fmtNum(n.items.length)} مهمة</p>` : ''}</div><div class="nt-iba"><button type="button" class="btn btn-soft btn-sm" data-pseen="${n.id}">${UI.icon('check')} اطّلعت</button></div></div>`; })}</div>`;
+    let rows = list.slice();
+    try {
+      await UI.modal({
+        title: 'تنبيه: ملاحظات تنتظر اطلاعك', icon: 'bell', size: 'lg', body: html`<div data-pbody>${body(rows)}</div>`,
+        onMount: (form, finish) => UI.on(form, 'click', '[data-pseen]', (e, b) => { VAULT.markSeen([b.dataset.pseen]); rows = rows.filter((n) => n.id !== b.dataset.pseen); if (!rows.length) { finish(true); return; } form.querySelector('[data-pbody]').innerHTML = String(body(rows)); }),
+        actions: [{ label: 'لاحقاً', kind: 'ghost', handler: () => { rows.forEach((n) => this.later.add(`${n.id}:${VAULT.alertAt(n)}`)); return true; } }, { label: 'فتح الملاحظات', kind: 'soft', icon: 'key', handler: () => { rows.forEach((n) => this.later.add(`${n.id}:${VAULT.alertAt(n)}`)); Router.go(`/vault${rows.length === 1 ? `?n=${rows[0].id}` : ''}`); return true; } }, { label: rows.length > 1 ? 'اطّلعت على الكل' : 'اطّلعت', kind: 'primary', icon: 'check', submit: true, handler: () => { VAULT.markSeen(rows.map((n) => n.id)); return true; } }]
+      });
+    } finally { this.open = false; if (Shell.mounted) Shell.refreshBadges(); }
+  }
+};
+/* حدث «بدء الجلسة»: كانت عدة مهام تنتظره (مزامنة الملاحظات الكاملة، تذكير الاشتراكات، تأخر الصيانة الخارجية، الردود العامة)
+   ولا يطلقه أي جزء من النظام فلا تعمل أبداً. يُطلق الآن مرة لكل حساب حين تُفتح الواجهة بعد الدخول أو باستعادة جلسة قائمة */
+{
+  const sm1 = Shell.mount.bind(Shell);
+  /* مفتاح الجلسة: الحساب ورمز جلسته (يتغير مع كل دخول ولو بالحساب نفسه في التبويب نفسه) */
+  const key = () => { if (!Auth.user) return ''; let exp = ''; try { exp = (JSON.parse(sessionStorage.getItem('sq_session') || '{}') || {}).exp || ''; } catch (_) { /* تجاهل */ } return `${Auth.user.id}|${Sync.token || ''}|${exp}`; };
+  Shell.mount = function () {
+    sm1();
+    const k = key();
+    if (k && Shell._sess !== k) { Shell._sess = k; setTimeout(() => { if (Auth.user) Bus.local('session', { userId: Auth.user.id }); }, 0); }
+  };
+}
+{
+  const kick = debounce(() => { NoteAlerts.tick().then(() => NoteAlerts.popup()).catch(() => {}); }, 1200);
+  Bus.on('session', () => { NoteAlerts.later.clear(); setTimeout(kick, 9000); });
+  Bus.on('vault', kick);
+  setInterval(() => { if (Auth.user) kick(); }, 2 * MIN);
+}
+
 boot();
 })();

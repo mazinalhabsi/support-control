@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'backups', 'handles', 'extmaint', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -280,6 +280,8 @@ function pull_full(array $u): array {
   $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
   $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
   $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
+  /* قسم الإرسال إلى الصيانة: لمن منحه المشرف العرض أو الإدارة */
+  $grant(['mtrack.read', 'mtrack.manage'], ['mtrack']);
   /* صيانة الأجهزة: البحث بالرقم التسلسلي في كل الوحدات، وسجل الصيانة كله */
   $grant(['maint.work'], ['maintenance', 'assets']);
   $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups', 'noteReads']);
@@ -381,6 +383,14 @@ function staff_rows(array $rows, array $u): array {
     if ($r['store'] === 'activity' && !$acts) return (string) ($r['_d']['userId'] ?? '') === $me;
     return true;
   }));
+}
+/** قسم الإرسال إلى الصيانة: يصل من منحه المشرف العرض أو الإدارة فقط (الفنيون والإداريون يستلمون كل الجداول عادة).
+    ما لا يحق للحساب يُرسل له حذفاً، فيُمسح من جهازه إن كان عنده من قبل سحب الصلاحية */
+function mtrack_rows(array $rows, array $u): array {
+  /* من يستلم كل البيانات (المشرف، والإعدادات، والنسخ الاحتياطي) يستلمه أيضاً: النسخة الاحتياطية من الجهاز تشمل كل شيء */
+  if (pull_everything($u) || can_any($u, ['mtrack.read', 'mtrack.manage'])) return $rows;
+  foreach ($rows as $i => $r) if ($r['store'] === 'mtrack' && !(int) $r['deleted']) { $rows[$i]['deleted'] = 1; $rows[$i]['_d'] = null; }
+  return $rows;
 }
 /* ── الملاحظات: من يرى كل ملاحظة ──
    الخاصة لكاتبها وحده. «الجميع» لكل من يملك الاطلاع على الملاحظات. «المحددون» لمن اختارهم الكاتب بالاسم أو بالدور أو بمجموعة.
@@ -547,7 +557,7 @@ function server_empty(): bool { return !(bool) db()->query("SELECT 1 FROM docs W
 const SETUP_LOCAL_MSG = 'الخادم جديد ولم يُجهَّز بعد. افتح النظام أول مرة من جهاز الخادم نفسه (http://localhost/…)، أو اسمح بالتجهيز من أي جهاز بالإعداد allow_remote_setup في config.php';
 
 /** العدادات التي تحجزها الواجهة. غيرها لا يُنشأ (كان يمكن إنشاء عدادات بلا حد أو القفز بأرقام البلاغات) */
-const SEQ_NAMES = ['ticket', 'item', 'loan', 'voucher', 'extmaint'];
+const SEQ_NAMES = ['ticket', 'item', 'loan', 'voucher', 'extmaint', 'mtrack'];
 
 /** هل يحق لصاحب نطاق «بياناته فقط» تنزيل هذا الملف؟ ما رفعه بنفسه، أو مرفق بلاغ هو صاحبه */
 function file_visible(array $u, string $fid, array $row): bool {
@@ -870,6 +880,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'surveys': return can($user, 'surveys.manage') ? $new : null;
     case 'extmaint': return can($user, 'extmaint.manage') ? $new : null;
+    /* قسم الإرسال إلى الصيانة: الكتابة لمن يملك إدارته فقط، والعرض وحده لا يكتب شيئاً */
+    case 'mtrack': return can($user, 'mtrack.manage') ? $new : null;
     /* الملاحظات: الإضافة والتعديل لمن يملك «إضافة الملاحظات وتعديلها» ويرى الملاحظة. من يرى الملاحظة يعدّل محتواها (مثل إنجاز مهمة)،
        ومن يراها ومدتها وكاتبها لا يغيّرها إلا كاتبها. والحذف لكاتبها (وللمشرف) */
     case 'vault': {
@@ -878,7 +890,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
         $author = (string) ($old['createdBy'] ?? '') === $me;
         if (!$author && !note_visible($old, $user)) return null;
         if ($deleted) return $author ? $new : null;
-        if (!$author) return ($old['visibility'] ?? 'shared') === 'private' ? null : keep_fields($data, $old, ['visibility', 'audience', 'until', 'createdBy', 'createdAt', 'legacy']);
+        if (!$author) return ($old['visibility'] ?? 'shared') === 'private' ? null : keep_fields($data, $old, ['visibility', 'audience', 'until', 'createdBy', 'createdAt', 'legacy', 'alert', 'days', 'alertTime', 'onlyDays', 'showFrom']);
         return note_clean(keep_fields($data, $old, ['createdBy', 'createdAt']));
       }
       if ($deleted) return null;
@@ -948,6 +960,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
       if ($key === 'xmcfg') return can_any($user, ['settings', 'extmaint.manage']) ? $new : null;
+      if ($key === 'mtcfg') return can_any($user, ['settings', 'mtrack.manage']) ? $new : null;
+      if ($key === 'navnames') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
@@ -1357,6 +1371,17 @@ case 'notes_sync': {
   out(['docs' => $docs, 'head' => current_rev()]);
 }
 
+/* قسم الإرسال إلى الصيانة كاملاً لمن مُنح الوصول للتو: السحب العادي لا يعيد ما فات قبل المنح */
+case 'mt_sync': {
+  $user = session_user();
+  if (!can_any($user, ['mtrack.read', 'mtrack.manage'])) out(['docs' => [], 'head' => current_rev()]);
+  $docs = [];
+  foreach (db()->query("SELECT doc_id, rev, data FROM docs WHERE store = 'mtrack' AND deleted = 0")->fetchAll() as $r) {
+    $d = json_decode((string) $r['data'], true); if (is_array($d)) $docs[] = ['store' => 'mtrack', 'id' => $r['doc_id'], 'rev' => (int) $r['rev'], 'data' => $d];
+  }
+  out(['docs' => $docs, 'head' => current_rev()]);
+}
+
 case 'pull': {
   $user = session_user();
   $since = (int) ($_GET['since'] ?? (body()['since'] ?? 0));
@@ -1389,8 +1414,8 @@ case 'pull': {
   if (!$more) $max = max($max, $head);
   /* الملاحظات الخاصة لكاتبها وحده في النطاقين: كان الحساب الإداري (نطاق الموظف) الممنوح «الاطلاع» يستلم جدول الملاحظات كاملاً بلا تصفية،
      فتصل جهازَه ملاحظات غيره الخاصة */
-  if ($self) $rows = vault_rows(visible_rows($rows, $user, $full), $user);
-  else $rows = vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user);
+  if ($self) $rows = mtrack_rows(vault_rows(visible_rows($rows, $user, $full), $user), $user);
+  else $rows = mtrack_rows(vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
     if ($self && empty($full['tickets']) && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
@@ -1692,6 +1717,7 @@ case 'wipe': {
     'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
     'announcements' => ['announcements'],
     'extmaint' => ['extmaint'],
+    'mtrack' => ['mtrack'],
     'vault' => ['vault', 'noteGroups', 'noteReads'],
     'org' => ['departments', 'deptUnits', 'locations', 'orgLog'],
     'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
@@ -1699,7 +1725,7 @@ case 'wipe': {
     'forms' => ['forms'],
     'activity' => ['activity'],
   ];
-  $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher'], 'extmaint' => ['seq:extmaint']];
+  $seqOf = ['tickets' => ['seq:ticket'], 'inventory' => ['seq:item', 'seq:loan', 'seq:voucher'], 'extmaint' => ['seq:extmaint'], 'mtrack' => ['seq:mtrack']];
   $pick = array_values(array_intersect(array_keys($groups), array_map('strval', (array) ($b['groups'] ?? []))));
   $userIds = array_values(array_filter(array_map('strval', (array) ($b['userIds'] ?? []))));
   $users = !empty($b['users']) || $userIds;
