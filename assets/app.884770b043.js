@@ -19842,35 +19842,35 @@ Pages.ceDesign = (ctx) => {
 
 
 
+
+
 /* ══════════ محطات العمل: مكتب الموظف داخل المكتب، بأجهزته المرتبطة (حاسب وشاشة وملحقات وطابعة...) ══════════
    المحطة لا تنقل العهدة: تربط جزءاً من عهدة المكتب بموظف ومكان، فلا يتجاوز المربوط ما في المكتب فعلاً.
-   لكل محطة اسم اختياري، وموظف اختياري، وأيقونة ثلاثية الأبعاد ولون، وفحص اكتمال (حاسب، وشاشة ولوحة مفاتيح وماوس للحاسب المكتبي) */
+   لا يُشترط فيها جهاز معيّن: تضم ما هو موجود فقط. وما لم يُربط بمحطة يبقى «مشتركاً» للمكتب (طابعة أو ماسح للجميع) */
 DB.SCHEMA.workstations = { key: 'id', idx: { unitId: 'unitId', departmentId: 'departmentId' } };
 SYNC_SCOPED.push('workstations');
 STORE_EVENTS.workstations = ['inventory'];
-{ const g = WIPE_GROUPS.find((x) => x[0] === 'inventory'); if (g && Array.isArray(g[3]) && !g[3].includes('workstations')) g[3].push('workstations'); }
-const cmIllu = (it) => { if (!it) return 'box'; const k = WS_KINDS.find((x) => x.is(it)); if (k) return k.k === 'pc' && /محمول|laptop|notebook/i.test(`${it.name} ${it.model || ''}`) ? 'laptop' : k.il; return ((IC.chain(it.categoryId).reverse().find((c) => c.illustration && c.illustration !== 'box')) || {}).illustration || 'box'; };
+/* الاستخدام المؤقت من العهدة العامة للإدارة: أجهزة صُرفت للإدارة كلها، تُعار لفرع أو موظف ثم تعود */
+DB.SCHEMA.deptLends = { key: 'id', idx: { departmentId: 'departmentId', itemId: 'itemId' } };
+SYNC_SCOPED.push('deptLends');
+STORE_EVENTS.deptLends = ['inventory'];
+{ const g = WIPE_GROUPS.find((x) => x[0] === 'inventory'); if (g && Array.isArray(g[3])) ['workstations', 'deptLends'].forEach((s) => { if (!g[3].includes(s)) g[3].push(s); }); }
 const WS_KINDS = [
-  { k: 'pc', l: 'حاسب', il: 'computer', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_laptop') || /حاسب|كمبيوتر|laptop|desktop|optiplex|thinkpad|elitebook|prodesk|latitude/i.test(it.name) },
-  { k: 'monitor', l: 'شاشة', il: 'display', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_monitor') || /^شاشة|monitor/i.test(it.name) },
-  { k: 'keyboard', l: 'لوحة مفاتيح', il: 'keyboard', is: (it) => /لوحة مفاتيح|keyboard|طقم/i.test(it.name) },
-  { k: 'mouse', l: 'ماوس', il: 'mouse', is: (it) => /ماوس|mouse|طقم/i.test(it.name) },
-  { k: 'printer', l: 'طابعة', il: 'printer', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_printer') },
-  { k: 'scanner', l: 'ماسح', il: 'scanner', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_scanner') },
-  { k: 'ups', l: 'طاقة احتياطية', il: 'ups', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_power') },
-  { k: 'phone', l: 'هاتف', il: 'phone', is: (it) => /هاتف|phone/i.test(it.name) }
+  { k: 'pc', il: 'computer', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_laptop') || /حاسب|كمبيوتر|laptop|desktop|optiplex|thinkpad|elitebook|prodesk|latitude/i.test(it.name) },
+  { k: 'monitor', il: 'display', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_monitor') || /^شاشة|monitor/i.test(it.name) },
+  { k: 'keyboard', il: 'keyboard', is: (it) => /لوحة مفاتيح|keyboard|طقم/i.test(it.name) },
+  { k: 'mouse', il: 'mouse', is: (it) => /ماوس|mouse/i.test(it.name) },
+  { k: 'printer', il: 'printer', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_printer') },
+  { k: 'scanner', il: 'scanner', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_scanner') },
+  { k: 'ups', il: 'ups', is: (it) => IC.chain(it.categoryId).some((c) => c.id === 'ic_power') },
+  { k: 'phone', il: 'phone', is: (it) => /هاتف|phone/i.test(it.name) }
 ];
+const cmIllu = (it) => { if (!it) return 'box'; const k = WS_KINDS.find((x) => x.is(it)); if (k) return k.k === 'pc' && /محمول|laptop|notebook/i.test(`${it.name} ${it.model || ''}`) ? 'laptop' : k.il; return ((IC.chain(it.categoryId).reverse().find((c) => c.illustration && c.illustration !== 'box')) || {}).illustration || 'box'; };
 const WS = {
   canEdit: () => !!Auth.user && ['custody.direct', 'inventory.move', 'inventory.manage'].some((k) => canUser(Auth.user, k)),
   all: () => DB.getAll('workstations'),
   label: (w) => String(w.name || '').trim() || (w.holderId ? `محطة ${Data.userName(w.holderId)}` : 'محطة عمل'),
-  kindsOf(w, items) { const s = new Set(); (w.lines || []).forEach((l) => { const it = items.get(l.itemId); if (it && l.qty > 0) WS_KINDS.forEach((x) => { if (x.is(it)) s.add(x.k); }); }); return s; },
-  /* الاكتمال: حاسب، وإن كان مكتبياً فمعه شاشة ولوحة مفاتيح وماوس */
-  check(w, items) {
-    const s = WS.kindsOf(w, items), lap = (w.lines || []).some((l) => { const it = items.get(l.itemId); return it && /محمول|laptop|notebook|thinkpad|elitebook|latitude/i.test(`${it.name} ${it.model || ''}`); });
-    const missing = !s.has('pc') ? ['حاسب'] : lap ? [] : [['monitor', 'شاشة'], ['keyboard', 'لوحة مفاتيح'], ['mouse', 'ماوس']].filter(([k]) => !s.has(k)).map(([, l]) => l);
-    return { kinds: s, missing, ok: !missing.length, empty: !(w.lines || []).some((l) => l.qty > 0) };
-  },
+  count: (w) => (w.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0),
   /* ما لم يُربط بمحطة في فرع: رصيده فيه ناقص ما في محطاته */
   async free(unitId, skipId = '') {
     const [rows, list] = await Promise.all([Data.units.stockOf(unitId), DB.getAll('workstations', 'unitId', KR(unitId))]);
@@ -19898,7 +19898,63 @@ const WS = {
     const w = await DB.get('workstations', id); if (!w) return;
     await DB.del('workstations', id); await Data.log('delete', 'inventory', id, `حذف محطة العمل «${WS.label(w)}» (تبقى أجهزتها في عهدة المكتب)`); Bus.emit('inventory', {});
   },
-  async link(id, itemId, qty) { const w = await DB.get('workstations', id); if (!w) return; return WS.save({ ...w, lines: [...(w.lines || []), { itemId, qty }] }); }
+  async link(id, itemId, qty) { const w = await DB.get('workstations', id); if (!w) return; return WS.save({ ...w, lines: [...(w.lines || []), { itemId, qty }] }); },
+  async unlink(id, itemId) { const w = await DB.get('workstations', id); if (!w) return; return WS.save({ ...w, lines: (w.lines || []).filter((l) => l.itemId !== itemId) }); }
+};
+/* العهدة العامة للإدارة: ما لديها ناقص ما في فروعها وما خرج للاستخدام المؤقت */
+const DL = {
+  can: () => WS.canEdit(),
+  all: () => DB.getAll('deptLends'),
+  late: (l) => !l.returnedAt && !!l.dueAt && l.dueAt < now(),
+  async pool(depId) {
+    const [ds, us, ls] = await Promise.all([Data.dept.of(depId), DB.getAll('unitStock'), DL.all()]);
+    const m = new Map(ds.map((r) => [r.itemId, r.qty]));
+    us.filter((r) => r.departmentId === depId && r.qty > 0).forEach((r) => m.set(r.itemId, (m.get(r.itemId) || 0) - r.qty));
+    ls.filter((l) => l.departmentId === depId && !l.returnedAt).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty));
+    return m;
+  },
+  async create({ departmentId, unitId = '', holderId = '', itemId, qty, dueAt = 0, note = '' }) {
+    if (!DL.can()) throw new AppError('الاستخدام المؤقت لمن يملك صرف العهدة أو إضافتها');
+    const n = Math.floor(Number(qty) || 0); if (!(n > 0)) throw new AppError('أدخل كمية صحيحة');
+    if (!unitId && !holderId) throw new AppError('اختر الفرع أو الموظف الذي يستخدمها');
+    const it = await DB.get('items', itemId), av = (await DL.pool(departmentId)).get(itemId) || 0;
+    if (n > av) throw new AppError(`المتاح في العهدة العامة من «${it ? it.name : 'الصنف'}»: ${fmtNum(Math.max(0, av))}`);
+    const t = now(), rec = { id: uid('dl'), departmentId, unitId, holderId, itemId, qty: n, dueAt: Number(dueAt) || 0, note: String(note || '').trim().slice(0, 300), at: t, by: Auth.user.id, returnedAt: 0, returnedBy: '', updatedAt: t };
+    await DB.put('deptLends', rec);
+    const where = unitId ? orgLabel(departmentId, unitId, await DB.getAll('deptUnits')) : Data.userName(holderId);
+    await Data.log('move', 'inventory', itemId, `استخدام مؤقت: ${fmtNum(n)} × ${it ? it.name : ''} من العهدة العامة لـ${Data.nameOf('departments', departmentId)} إلى ${where}${rec.dueAt ? ` حتى ${fmtDate(rec.dueAt)}` : ''}`);
+    if (holderId && holderId !== Auth.user.id) await Data.notify([holderId], { title: 'استلمت أجهزة للاستخدام المؤقت', body: `${fmtNum(n)} × ${it ? it.name : ''}${rec.dueAt ? ` حتى ${fmtDate(rec.dueAt)}` : ''}`, link: '/inventory/distribute', kind: 'inventory' });
+    Bus.emit('inventory', {}); return rec;
+  },
+  async ret(id) {
+    if (!DL.can()) throw new AppError('الاستخدام المؤقت لمن يملك صرف العهدة أو إضافتها');
+    const l = await DB.get('deptLends', id); if (!l || l.returnedAt) return;
+    const t = now(); await DB.put('deptLends', { ...l, returnedAt: t, returnedBy: Auth.user.id, updatedAt: t });
+    const it = await DB.get('items', l.itemId); await Data.log('move', 'inventory', l.itemId, `إرجاع ${fmtNum(l.qty)} × ${it ? it.name : ''} إلى العهدة العامة لـ${Data.nameOf('departments', l.departmentId)}`);
+    Bus.emit('inventory', {});
+  }
+};
+/* نافذة الاستخدام المؤقت: الجهاز والعدد، وإلى أي فرع أو موظف، وحتى متى */
+Pages.dlLendModal = async (depId, itemId = '', preset = {}) => {
+  const [pool, units] = await Promise.all([DL.pool(depId), DB.getAll('deptUnits')]);
+  const avail = [...pool].filter(([, q]) => q > 0), items = new Map((await Promise.all(avail.map(([id]) => DB.get('items', id)))).filter(Boolean).map((i) => [i.id, i]));
+  if (!avail.length) { UI.toast('لا أجهزة في العهدة العامة لهذه الإدارة', 'warn'); return null; }
+  const people = Data.list('users').filter((u) => u.active !== 0 && !isSysAccount(u) && u.departmentId === depId).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
+  return UI.modal({
+    title: `استخدام مؤقت من عهدة ${Data.nameOf('departments', depId, '')} العامة`, icon: 'clock', size: 'lg',
+    body: html`<div class="form-grid">
+      <div class="field wide"><label>الجهاز</label><select name="itemId">${avail.filter(([id]) => items.get(id)).map(([id, q]) => html`<option value="${id}"${id === itemId ? raw(' selected') : ''}>${items.get(id).name} — المتاح ${fmtNum(q)}</option>`)}</select></div>
+      <div class="field"><label>العدد</label><input class="input" type="number" name="qty" min="1" value="${preset.qty || 1}"></div>
+      <div class="field"><label>حتى تاريخ <small class="faint">(اختياري)</small></label><input class="input" type="date" name="due" value="${preset.due || ''}"></div>
+      <div class="field"><label>إلى فرع</label><select name="unitId"><option value="">— بلا فرع —</option>${orgUnitsFlat(units, depId).map(({ u, path }) => html`<option value="${u.id}"${u.id === preset.unitId ? raw(' selected') : ''}>${path}</option>`)}</select></div>
+      <div class="field"><label>أو إلى موظف</label><select name="holderId"><option value="">— بلا موظف —</option>${people.map((u) => html`<option value="${u.id}">${u.name}</option>`)}</select></div>
+      ${UI.field({ name: 'note', label: 'الغرض', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: دورة تدريبية في قاعة 3' }, '')}</div>
+      <p class="hint">تبقى الأجهزة في عهدة الإدارة، ويظهر أين هي الآن حتى تُعاد إلى العهدة العامة.</p>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تسجيل الاستخدام', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = UI.formValues(form), r = await DL.create({ departmentId: depId, unitId: v.unitId, holderId: v.holderId, itemId: v.itemId, qty: v.qty, dueAt: v.due ? new Date(`${v.due}T23:59:00`).getTime() : 0, note: v.note });
+      UI.toast('سُجّل الاستخدام المؤقت'); return r;
+    } }]
+  });
 };
 /* نافذة محطة العمل: الاسم والموظف والمظهر والأجهزة المرتبطة من عهدة المكتب */
 Pages.wsEdit = async ({ id = '', unitId = '' } = {}) => {
@@ -19914,11 +19970,11 @@ Pages.wsEdit = async ({ id = '', unitId = '' } = {}) => {
         <div class="field"><label>اسم المحطة <small class="faint">(اختياري)</small></label><input class="input" name="name" value="${(w && w.name) || ''}" placeholder="مثال: مكتب أحمد، المحطة 3، ركن الاستقبال" autocomplete="off"></div>
         <div class="field"><label>الموظف <small class="faint">(اختياري)</small></label><select name="holderId"><option value="">— بلا موظف —</option>${people.map((u) => html`<option value="${u.id}"${w && w.holderId === u.id ? raw(' selected') : ''}>${u.name}${u.unitId === unit.id ? '' : ` — ${unitName(u.unitId, units) || Data.nameOf('departments', u.departmentId, '')}`}</option>`)}</select></div>
       </div>
-      <h4 class="mt">${UI.icon('box')} أجهزة المحطة <small class="faint">— من عهدة «${unit.name}» غير المربوطة بمحطة أخرى</small></h4>
-      ${list.length ? html`<div class="ws-lines">${list.map(({ it, max, cur }) => html`<label class="ws-line${cur ? ' on' : ''}">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')} · المتاح ${fmtNum(max)}</small></div><input class="input" type="number" min="0" max="${max}" value="${cur}" data-wsq="${it.id}" aria-label="الكمية في المحطة"></label>`)}</div>` : html`<p class="hint">لا توجد عهدة غير مربوطة في هذا المكتب. اسحب النماذج إلى المحطة في «توزيع العهدة» فتُضاف للمكتب وتُربط بها مباشرة.</p>`}
+      <h4 class="mt">${UI.icon('box')} أجهزة المحطة <small class="faint">— من عهدة «${unit.name}» غير المربوطة بمحطة أخرى. اترك ما لا يخصها، فيبقى مشتركاً للمكتب</small></h4>
+      ${list.length ? html`<div class="ws-lines">${list.map(({ it, max, cur }) => html`<label class="ws-line${cur ? ' on' : ''}">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')} · المتاح ${fmtNum(max)}</small></div><input class="input" type="number" min="0" max="${max}" value="${cur}" data-wsq="${it.id}" aria-label="العدد في المحطة"></label>`)}</div>` : html`<p class="hint">لا توجد عهدة غير مربوطة في هذا المكتب. اسحب النماذج إلى المحطة في «توزيع العهدة» فتُضاف للمكتب وتُربط بها مباشرة.</p>`}
       <details class="olk-box mt"${w ? '' : raw(' open')}><summary>${UI.icon('palette')}<b>أيقونة المحطة ولونها</b><span class="faint small">لتمييزها عن بقية المحطات في المكتب</span></summary><div class="olk-body">${orgLookPicker({ icon: (w && w.icon) || 'o3d:office', tone: (w && w.tone) || 'sky' })}</div></details>
       ${UI.field({ name: 'note', label: 'ملاحظة', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: يحتاج نقطة شبكة ثانية' }, (w && w.note) || '')}`,
-    actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(w ? [{ label: 'حذف المحطة', kind: 'danger', icon: 'trash', handler: async () => { if (!(await UI.confirm(`حذف «${WS.label(w)}»؟ تبقى أجهزتها في عهدة المكتب.`, { danger: true, ok: 'حذف' }))) return false; await WS.remove(w.id); UI.toast('حُذفت المحطة'); return 'deleted'; } }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+    actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(w ? [{ label: 'حذف المحطة', kind: 'danger', icon: 'trash', handler: async () => { if (!(await UI.confirm(`حذف «${WS.label(w)}»؟ تبقى أجهزتها في عهدة المكتب مشتركة.`, { danger: true, ok: 'حذف' }))) return false; await WS.remove(w.id); UI.toast('حُذفت المحطة'); return 'deleted'; } }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form), lines = $$('[data-wsq]', form).map((x) => ({ itemId: x.dataset.wsq, qty: Math.floor(Number(x.value) || 0) })).filter((l) => l.qty > 0);
       const r = await WS.save({ id: w ? w.id : '', unitId: unit.id, name: v.name, holderId: v.holderId, icon: v.icon, tone: v.tone, note: v.note, lines, order: w ? w.order : 0 });
       UI.toast(`حُفظت «${WS.label(r)}»`); return r;
@@ -19936,38 +19992,51 @@ WS.forPeople = async (unitId) => {
 
 /* ══════════ توزيع العهدة: الهيكل التنظيمي بعهدته، ونماذج الأجهزة تُسحب إلى أي إدارة أو قسم أو مكتب أو محطة أو مخزن ══════════
    الإفلات يضيف سطراً إلى «قائمة التوزيع» (يُعدَّل عدده ورقمه التسلسلي أو يُحذف)، ولا يُسجَّل شيء حتى «حفظ التوزيع».
-   الإضافة الجديدة للإدارات تخضع لقفل «الإضافة المباشرة» نفسه، والمخزن لصلاحية حركات المخزون، وتوزيع ما لدى الإدارة على فروعها لا يحتاج قفلاً.
+   الضغط على أي موضع يدخله: الإدارة ← عهدتها العامة، والمكتب ← هيكله (محطات العمل والأجهزة المشتركة)، والمحطة ← أجهزتها.
    على اللمس أو بلا فأرة: اضغط النموذج ثم اضغط الموضع */
 const CM = {
   pend: [],
   load() { try { const v = JSON.parse(sessionStorage.getItem('sq_cm_pend') || '[]'); CM.pend = Array.isArray(v) ? v.filter((l) => l && l.itemId && l.qty > 0) : []; } catch (_) { CM.pend = []; } },
   keep() { try { sessionStorage.setItem('sq_cm_pend', JSON.stringify(CM.pend)); } catch (_) { /* تجاهل */ } },
   get(k, d) { try { const v = localStorage.getItem(`sq_cm_${k}`); return v == null ? d : v; } catch (_) { return d; } },
-  set(k, v) { try { localStorage.setItem(`sq_cm_${k}`, typeof v === 'string' ? v : JSON.stringify(v)); } catch (_) { /* تجاهل */ } }
+  set(k, v) { try { localStorage.setItem(`sq_cm_${k}`, typeof v === 'string' ? v : JSON.stringify(v)); } catch (_) { /* تجاهل */ } },
+  json(k, d) { try { const v = JSON.parse(CM.get(k, '')); return v == null ? d : v; } catch (_) { return d; } }
 };
 Pages.custodyMap = async (ctx) => {
   CM.load();
-  const st = { dep: String(ctx.query.dep || CM.get('dep', '')), view: CM.get('view', 'chart'), dir: CM.get('dir', 'down'), armed: '', path: [], q: '', dock: CM.get('dock', 'side'), min: CM.get('min', '') === '1', pos: (() => { try { return JSON.parse(CM.get('pos', '{}')); } catch (_) { return {}; } })() };
-  let T = null, wsList = [], items = new Map(), counts = { st: new Map(), dp: new Map() }, canAdd = false, canStore = MDL.canStore(), cbar = '';
+  const st = { dep: String(ctx.query.dep || CM.get('dep', '')), at: String(ctx.query.at || ''), view: CM.get('view', 'chart'), dir: CM.get('dir', 'down'), uview: CM.get('uview', 'struct'), wview: CM.get('wview', 'grid'), gview: CM.get('gview', 'grid'), armed: '', q: '', open: new Set(CM.json('open', [])), dock: CM.get('dock', 'side'), min: CM.get('min', '') === '1', pos: CM.json('pos', {}), w: Number(CM.get('pw', 0)) || 0, h: Number(CM.get('ph', 0)) || 0 };
+  let T = null, wsList = [], lends = [], items = new Map(), counts = { st: new Map(), dp: new Map() }, canAdd = false, canStore = MDL.canStore(), cbar = '';
   const load = async () => {
-    [T, wsList, counts] = await Promise.all([Data.custodyTree(), WS.all(), MDL.counts()]);
+    [T, wsList, counts, lends] = await Promise.all([Data.custodyTree(), WS.all(), MDL.counts(), DL.all()]);
     items = new Map((await DB.getAll('items')).map((i) => [i.id, i])); canAdd = await Custody.allowed(); canStore = MDL.canStore(); cbar = await Pages.custodyBar('', { noCta: true });
     if (st.dep && !T.deps.some((d) => d.id === st.dep)) st.dep = '';
+    const [k, id] = st.at.split(':');
+    if (!st.dep || (k === 'u' && !(T.byId.get(id) && T.byId.get(id).departmentId === st.dep)) || (k === 'w' && !wsList.some((w) => w.id === id && w.departmentId === st.dep)) || (st.at && !['g', 'u', 'w'].includes(k))) st.at = '';
   };
   const UT = (u) => UNIT_TYPES[u.type] || UNIT_TYPES.section;
   const depOf = (id) => T.deps.find((d) => d.id === id);
   const unitOf = (id) => T.byId.get(id);
   const wsOf = (id) => wsList.find((w) => w.id === id);
-  /* ما لدى الإدارة ولم يوزَّع على فروعها */
-  const loose = (depId) => { const m = new Map(T.depItems.get(depId) || []); T.units.filter((u) => u.departmentId === depId).forEach((u) => (T.uItems.get(u.id) || new Map()).forEach((q, it) => m.set(it, (m.get(it) || 0) - q))); CM.pend.filter((l) => l.kind === 'assign' && l.depId === depId).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty)); return new Map([...m].filter(([, q]) => q > 0)); };
-  /* المتاح لسطر توزيع من عهدة الإدارة: ما لديها ناقص ما في فروعها وبقية أسطر التوزيع للصنف نفسه */
-  const availAssign = (l) => Math.max(0, ((T.depItems.get(l.depId) || new Map()).get(l.itemId) || 0) - T.units.filter((u) => u.departmentId === l.depId).reduce((s, u) => s + ((T.uItems.get(u.id) || new Map()).get(l.itemId) || 0), 0) - CM.pend.filter((x) => x !== l && x.kind === 'assign' && x.depId === l.depId && x.itemId === l.itemId).reduce((s, x) => s + x.qty, 0));
-  const placeOf = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : `${orgLabel(l.depId, l.unitId, T.units) || Data.nameOf('departments', l.depId, '')}${l.wsId && wsOf(l.wsId) ? ` ← ${WS.label(wsOf(l.wsId))}` : ''}`);
+  const live = () => lends.filter((l) => !l.returnedAt);
+  const lendsAt = (uId) => live().filter((l) => l.unitId === uId);
+  /* العهدة العامة: ما لدى الإدارة ناقص ما في فروعها وما خرج مؤقتاً وأسطر التوزيع المعلقة منها */
+  const pool = (depId, skip = null) => {
+    const m = new Map(T.depItems.get(depId) || []);
+    T.units.filter((u) => u.departmentId === depId).forEach((u) => (T.uItems.get(u.id) || new Map()).forEach((q, it) => m.set(it, (m.get(it) || 0) - q)));
+    live().filter((l) => l.departmentId === depId).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty));
+    CM.pend.filter((l) => l.kind === 'assign' && l.depId === depId && l !== skip).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty));
+    return new Map([...m].filter(([, q]) => q > 0));
+  };
+  const poolN = (depId) => [...pool(depId).values()].reduce((s, q) => s + q, 0);
+  /* أجهزة المكتب المشتركة: عهدته المباشرة ناقص ما رُبط بمحطاته */
+  const shared = (uId) => { const m = new Map(T.uItems.get(uId) || []); wsList.filter((w) => w.unitId === uId).forEach((w) => (w.lines || []).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty))); return new Map([...m].filter(([, q]) => q > 0)); };
+  const placeOf = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : `${orgLabel(l.depId, l.unitId, T.units) || `${Data.nameOf('departments', l.depId, '')} — العهدة العامة`}${l.wsId && wsOf(l.wsId) ? ` ← ${WS.label(wsOf(l.wsId))}` : ''}`);
   const pendAt = (key) => CM.pend.filter((l) => (key.startsWith('s:') ? l.kind === 'store' && l.whId === key.slice(2) : key.startsWith('w:') ? l.wsId === key.slice(2) : key.startsWith('u:') ? l.unitId === key.slice(2) && !l.wsId : l.depId === key.slice(2) && !l.unitId && l.kind !== 'store')).reduce((s, l) => s + l.qty, 0);
-  /* إضافة سطر من الإفلات: target = d:/u:/w:/s:، payload = i: نموذج، k: حزمة، a: من عهدة الإدارة غير الموزّعة */
+  const go = (at) => { st.at = at || ''; try { history.replaceState(null, '', `#/inventory/distribute?dep=${encodeURIComponent(st.dep)}${st.at ? `&at=${encodeURIComponent(st.at)}` : ''}`); } catch (_) { /* تجاهل */ } draw(false); const top = $('.cm-panel', ctx.view); if (top && top.getBoundingClientRect().top < 60) top.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  /* إضافة سطر من الإفلات: target = d:/u:/w:/s:، payload = i: نموذج، k: حزمة، a: من العهدة العامة للإدارة */
   const addPend = (target, payload, qty = 1) => {
     const [tk, tid] = target.split(':'), [pk, pid] = payload.split(':');
-    if (pk === 'k') { const kit = MDL.kits().find((x) => x.id === pid); if (!kit) return; let n = 0; kit.rows.forEach((r) => { if (addPend(target, `i:${r.itemId}`, r.qty * qty)) n++; }); if (n) UI.toast(`أُضيفت حزمة «${kit.name}» (${fmtNum(n)} نموذج) إلى قائمة التوزيع`, 'ok'); return n; }
+    if (pk === 'k') { const kit = MDL.kits().find((x) => x.id === pid); if (!kit) return 0; let n = 0; kit.rows.forEach((r) => { if (addPend(target, `i:${r.itemId}`, r.qty * qty)) n++; }); if (n) UI.toast(`أُضيفت حزمة «${kit.name}» (${fmtNum(n)} نموذج) إلى قائمة التوزيع`, 'ok'); return n; }
     const it = items.get(pid); if (!it) return 0;
     let line = null;
     if (tk === 's') { if (!canStore) { UI.toast('الاستلام في المخزن لمن يملك حركات المخزون', 'warn'); return 0; } if (pk === 'a') { UI.toast('عهدة الإدارة تعود للمخزن من «إرجاع إلى المخزن»', 'warn'); return 0; } line = { kind: 'store', whId: tid, depId: '', unitId: '', wsId: '' }; }
@@ -19975,135 +20044,210 @@ Pages.custodyMap = async (ctx) => {
       const w = tk === 'w' ? wsOf(tid) : null, u = tk === 'u' ? unitOf(tid) : w ? unitOf(w.unitId) : null, depId = tk === 'd' ? tid : u ? u.departmentId : '';
       if (!depId) return 0;
       if (pk === 'a') {
-        if (!u) { UI.toast('اسحب عهدة الإدارة إلى أحد فروعها أو محطاتها', 'warn'); return 0; }
+        if (!u) { UI.toast('هذه الأجهزة في العهدة العامة أصلاً؛ اسحبها إلى فرع أو محطة', 'warn'); return 0; }
         if (depId !== st.dep) { UI.toast('هذه العهدة لإدارة أخرى', 'warn'); return 0; }
-        const av = loose(depId).get(pid) || 0; if (av < qty) { UI.toast(`المتبقي غير الموزّع من «${it.name}»: ${fmtNum(av)}`, 'warn'); return 0; }
+        const av = pool(depId).get(pid) || 0; if (av < qty) { UI.toast(`المتبقي في العهدة العامة من «${it.name}»: ${fmtNum(av)}`, 'warn'); return 0; }
         line = { kind: 'assign', depId, unitId: u.id, wsId: w ? w.id : '', whId: '' };
       } else {
         if (!canAdd) { UI.toast(Custody.canToggle() ? 'الإضافة المباشرة لعهدة الإدارات مغلقة: افتحها من الشريط أعلى الصفحة' : 'الإضافة المباشرة لعهدة الإدارات مغلقة؛ اطلب من المشرف فتحها', 'warn', 6000); return 0; }
         line = { kind: 'add', depId, unitId: u ? u.id : '', wsId: w ? w.id : '', whId: '' };
       }
     }
-    const hit = CM.pend.find((l) => l.kind === line.kind && l.itemId === pid && l.depId === line.depId && l.unitId === line.unitId && l.wsId === line.wsId && l.whId === line.whId);
-    if (hit) hit.qty += qty; else CM.pend.push({ k: uid('cp'), ...line, itemId: pid, qty, sn: '' });
+    const hit = CM.pend.find((l) => l.kind === line.kind && l.itemId === pid && l.depId === line.depId && l.unitId === line.unitId && l.wsId === line.wsId && l.whId === line.whId && !l.temp);
+    if (hit) hit.qty += qty; else CM.pend.push({ k: uid('cp'), ...line, itemId: pid, qty, sn: '', temp: false, due: '' });
     CM.keep(); return 1;
   };
-  /* ── لوحة النماذج ── */
+  /* ── لوحة النماذج: شجرة قابلة للطي (الفئة ← الماركة ← السلسلة ← الموديل)، تُفتح فيها عدة ماركات معاً ── */
   const models = () => [...items.values()].filter((i) => !i.archived);
-  const types = () => MDL.types().map((c) => { const sub = IC.subtree(c.id); return { c, n: models().filter((i) => sub.has(i.categoryId)).length }; }).filter((x) => x.n);
-  const brandsOf = (typeId) => { const sub = IC.subtree(typeId), m = new Map(); models().filter((i) => sub.has(i.categoryId)).forEach((i) => { const b = String(i.brand || '').trim() || 'بدون ماركة'; if (!m.has(b)) m.set(b, []); m.get(b).push(i); }); return [...m].sort((a, b) => b[1].length - a[1].length); };
+  const seriesOf = (i) => { const w = String(i.model || '').trim().split(/\s+/)[0] || ''; return w && !/^[0-9]/.test(w) && w.length > 1 ? w : ''; };
+  const brandOf = (i) => String(i.brand || '').trim() || 'بدون ماركة';
+  /* التفرع داخل الماركة: المجلد الفرعي، أو نوع الجهاز من اسمه (حاسب مكتبي، حاسب محمول)، أو سلسلة الموديل (OptiPlex، Latitude).
+     يُستعمل أول بُعد فيه مجموعتان على الأقل وإحداها تضم موديلين فأكثر؛ وإلا تُعرض الموديلات مباشرة */
+  const kindOf = (i) => { const b = String(i.brand || '').trim(), n = String(i.name || ''); const at = b ? n.indexOf(b) : -1; return at > 1 ? n.slice(0, at).trim() : ''; };
+  const subGroups = (list) => { for (const f of [(i) => Data.nameOf('itemCategories', i.categoryId, ''), kindOf, seriesOf]) { const g = groupBy(list, f); if (g.length > 1 && g.some(([k, l]) => k && l.length > 1)) return g; } return null; };
+  const groupBy = (list, f) => { const m = new Map(); list.forEach((x) => { const k = f(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); return [...m].sort((a, b) => b[1].length - a[1].length || AR_COLL.compare(a[0], b[0])); };
+  const isOpen = (k) => !!st.q.trim() || st.open.has(k);
   const card = (it, extra = '', payload = `i:${it.id}`) => html`<div class="cm-model${st.armed === payload ? ' armed' : ''}" draggable="true" data-pdrag="${payload}" tabindex="0" role="button" title="اسحبه إلى الموضع، أو اضغطه ثم اضغط الموضع">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b>${it.name}</b><small>${extra || `${MDL.sub(it) ? `${MDL.sub(it)} · ` : ''}في المخزن ${fmtNum(counts.st.get(it.id) || 0)}`}</small></div>${UI.icon('menu')}</div>`;
+  const grp = (k, title, n, body, lead = '', cls = '') => { const o = isOpen(k); return html`<div class="cm-grp ${cls}${o ? ' open' : ''}"><button type="button" class="cm-gh" data-gtog="${k}" aria-expanded="${o ? 'true' : 'false'}">${UI.icon(o ? 'chevron-down' : 'chevron-left')}${lead}<b>${title}</b><small>${fmtNum(n)}</small></button>${o ? html`<div class="cm-gb">${body()}</div>` : ''}</div>`; };
+  const treeData = () => {
+    const qn = normalizeAr(st.q.trim()), match = (i) => !qn || normalizeAr(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`).includes(qn);
+    const ms = models().filter(match), types = MDL.types(), seen = new Set(), out = [];
+    types.forEach((c) => { const sub = IC.subtree(c.id), list = ms.filter((i) => sub.has(i.categoryId)); list.forEach((i) => seen.add(i.id)); if (list.length) out.push({ k: `t:${c.id}`, c, list }); });
+    const rest = ms.filter((i) => !seen.has(i.id)); if (rest.length) out.push({ k: 't:_', c: { name: 'أخرى', illustration: 'box' }, list: rest });
+    return out;
+  };
+  const allKeys = () => { const ks = ['k', 'a']; treeData().forEach(({ k, list }) => { ks.push(k); groupBy(list, brandOf).forEach(([b, l2]) => { ks.push(`${k}|${b}`); (subGroups(l2) || []).forEach(([s]) => { if (s) ks.push(`${k}|${b}|${s}`); }); }); }); return ks; };
   const palBody = () => {
-    const qn = normalizeAr(st.q.trim()), [lvl, a, b] = st.path;
-    const crumbs = html`<nav class="cm-crumbs"><button type="button" data-ppath="">${UI.icon('grid')} الفئات</button>${lvl === 't' ? html`<span>›</span><button type="button" data-ppath="t|${a}">${Data.nameOf('itemCategories', a, '')}</button>${b != null ? html`<span>›</span><b>${b}</b>` : ''}` : lvl === 'k' ? html`<span>›</span><b>الحزم</b>` : lvl === 'a' ? html`<span>›</span><b>عهدة الإدارة غير الموزّعة</b>` : ''}</nav>`;
-    let body;
-    if (qn) { const hits = models().filter((i) => normalizeAr(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`).includes(qn)).slice(0, 60); body = hits.length ? html`<div class="cm-models">${hits.map((i) => card(i))}</div>` : html`<p class="hint">لا نماذج بهذا الاسم. <a href="#/inventory/models">أضف نموذجاً</a></p>`; }
-    else if (!lvl) {
-      const lo = st.dep ? loose(st.dep) : new Map(), kits = MDL.kits();
-      body = html`<div class="cm-tiles">${types().map(({ c, n }) => html`<button type="button" class="cm-tile" data-ppath="t|${c.id}">${UI.illu(c.illustration || 'box', 'mini')}<b>${c.name}</b><small>${fmtNum(n)} نموذج</small></button>`)}${kits.length ? html`<button type="button" class="cm-tile" data-ppath="k">${UI.illu('box', 'mini')}<b>الحزم</b><small>${fmtNum(kits.length)} حزمة</small></button>` : ''}${lo.size ? html`<button type="button" class="cm-tile hot" data-ppath="a">${UI.illu('archive', 'mini')}<b>عهدة الإدارة غير الموزّعة</b><small>${fmtNum([...lo.values()].reduce((s, q) => s + q, 0))} قطعة لتوزيعها على فروعها</small></button>` : ''}</div>${models().length ? '' : html`<p class="hint">لا نماذج بعد. <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`}`;
-    } else if (lvl === 't' && b == null) { const br = brandsOf(a); body = br.length === 1 ? html`<div class="cm-models">${br[0][1].map((i) => card(i))}</div>` : html`<div class="cm-tiles">${br.map(([name, list]) => html`<button type="button" class="cm-tile brand" data-ppath="t|${a}|${name}">${Forms.optIco({ k: 'brand' }, name) || UI.icon('tag')}<b>${name}</b><small>${fmtNum(list.length)} موديل</small></button>`)}</div>`; }
-    else if (lvl === 't') { const br = brandsOf(a).find(([n]) => n === b); body = html`<div class="cm-models">${(br ? br[1] : []).map((i) => card(i))}</div>`; }
-    else if (lvl === 'k') body = html`<div class="cm-models">${MDL.kits().map((k) => html`<div class="cm-model kit${st.armed === `k:${k.id}` ? ' armed' : ''}" draggable="true" data-pdrag="k:${k.id}" tabindex="0" role="button">${UI.illu('box', 'mini')}<div class="grow"><b>${k.name}</b><small>${k.rows.map((r) => `${fmtNum(r.qty)}× ${(items.get(r.itemId) || {}).name || ''}`).join('، ')}</small></div>${UI.icon('menu')}</div>`)}</div>`;
-    else if (lvl === 'a') { const lo = st.dep ? loose(st.dep) : new Map(); body = lo.size ? html`<p class="hint" style="margin-top:0">اسحبها إلى فرع أو محطة داخل «${Data.nameOf('departments', st.dep, '')}» لتوزيعها، دون إضافة عهدة جديدة.</p><div class="cm-models">${[...lo].map(([id, q]) => (items.get(id) ? card(items.get(id), `غير موزّع: ${fmtNum(q)}`, `a:${id}`) : ''))}</div>` : html`<p class="hint">كل عهدة الإدارة موزّعة على فروعها.</p>`; }
-    return html`<div class="cm-palsearch search-box">${UI.icon('search')}<input type="search" data-pq value="${st.q}" placeholder="ابحث عن نموذج: Dell، طابعة، شاشة 24..."></div>${qn ? '' : crumbs}${body}`;
+    const qn = st.q.trim(), kits = MDL.kits(), po = st.dep ? pool(st.dep) : new Map(), data = treeData();
+    const brandBody = (k, list) => { const ser = subGroups(list); return ser ? html`${ser.map(([s, l3]) => (s && l3.length > 1 ? grp(`${k}|${s}`, s, l3.length, () => html`<div class="cm-models">${l3.map((i) => card(i))}</div>`, '', 'lvl3') : html`<div class="cm-models">${l3.map((i) => card(i))}</div>`))}` : html`<div class="cm-models">${list.map((i) => card(i))}</div>`; };
+    const parts = [];
+    if (!qn && kits.length) parts.push(grp('k', 'الحزم', kits.length, () => html`<div class="cm-models">${kits.map((kt) => html`<div class="cm-model kit${st.armed === `k:${kt.id}` ? ' armed' : ''}" draggable="true" data-pdrag="k:${kt.id}" tabindex="0" role="button">${UI.illu('box', 'mini')}<div class="grow"><b>${kt.name}</b><small>${kt.rows.map((r) => `${fmtNum(r.qty)}× ${(items.get(r.itemId) || {}).name || ''}`).join('، ')}</small></div>${UI.icon('menu')}</div>`)}</div>`, UI.illu('box', 'mini')));
+    if (po.size) { const list = [...po].filter(([id]) => items.get(id) && (!qn || normalizeAr(items.get(id).name).includes(normalizeAr(qn)))); if (list.length) parts.push(grp('a', `العهدة العامة لـ${Data.nameOf('departments', st.dep, '')}`, list.reduce((s, [, q]) => s + q, 0), () => html`<p class="hint" style="margin:0 0 6px">اسحبها إلى فرع أو محطة لتخصيصها، أو اتركها عامة.</p><div class="cm-models">${list.map(([id, q]) => card(items.get(id), `في العهدة العامة: ${fmtNum(q)}`, `a:${id}`))}</div>`, UI.illu('archive', 'mini'), 'hot')); }
+    data.forEach(({ k, c, list }) => parts.push(grp(k, c.name, list.length, () => { const brands = groupBy(list, brandOf); return brands.length === 1 && brands[0][0] === 'بدون ماركة' ? brandBody(`${k}|بدون ماركة`, list) : html`${brands.map(([b, l2]) => grp(`${k}|${b}`, b, l2.length, () => brandBody(`${k}|${b}`, l2), html`<span class="cm-blogo">${b === 'بدون ماركة' ? UI.icon('tag') : Forms.optIco({ k: 'brand' }, b) || UI.icon('tag')}</span>`, 'lvl2'))}`; }, UI.illu(c.illustration || 'box', 'mini'))));
+    return html`<div class="cm-paltools"><div class="cm-palsearch search-box grow">${UI.icon('search')}<input type="search" data-pq value="${st.q}" placeholder="ابحث: Dell، طابعة، شاشة 24..."></div><button type="button" class="icon-btn" data-gall="1" title="توسيع الكل">${UI.icon('expand')}</button><button type="button" class="icon-btn" data-gall="0" title="طي الكل">${UI.icon('shrink')}</button></div>
+      <div class="cm-tree2">${parts.length ? parts : html`<p class="hint">${qn ? 'لا نماذج بهذا الاسم.' : 'لا نماذج بعد.'} <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`}</div>`;
   };
-  /* ── الشجرة ── */
-  const wsChip = (w) => { const c = WS.check(w, items); return html`<span class="cm-ws tone-${w.tone || 'sky'}${c.ok ? ' ok' : ''}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" title="${WS.label(w)}${w.holderId ? ` — ${Data.userName(w.holderId)}` : ''} — ${c.empty ? 'بلا أجهزة' : c.ok ? 'مكتملة' : `ينقصها: ${c.missing.join('، ')}`}">${UI.icon(w.icon || 'o3d:office')}<b>${WS.label(w)}</b><i>${c.empty ? '٠' : c.ok ? '✓' : '!'}</i>${pendAt(`w:${w.id}`) ? html`<em>+${fmtNum(pendAt(`w:${w.id}`))}</em>` : ''}</span>`; };
-  const officeState = (u) => { const ws = wsList.filter((w) => w.unitId === u.id); if (!ws.length) return ''; const ok = ws.every((w) => WS.check(w, items).ok); return ok ? html`<span class="cm-done" title="كل محطات المكتب مكتملة">${UI.icon('check')} مكتمل</span>` : ''; };
-  const nodeBox = (u) => { const n = T.total(u.id), here = T.uQty.get(u.id) || 0, ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="oc-box cm-node tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="oc-ic">${UI.icon(u.icon || UT(u).icon)}</span><em>${UT(u).label}</em><b>${u.name}</b><span class="cm-n${n ? '' : ' zero'}" title="العهدة هنا ومع ما يتبعه">${UI.icon('box')} ${fmtNum(n)}${here && here !== n ? html` <small>(هنا ${fmtNum(here)})</small>` : ''}</span>${officeState(u)}${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}${p ? html`<span class="cm-pend" title="في قائمة التوزيع">+${fmtNum(p)}</span>` : ''}</div>`; };
+  /* ── مكونات العرض ── */
+  const wsChip = (w) => html`<span class="cm-ws tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" title="${WS.label(w)}${w.holderId ? ` — ${Data.userName(w.holderId)}` : ''}: ${fmtNum(WS.count(w))} جهاز">${UI.icon(w.icon || 'o3d:office')}<b>${WS.label(w)}</b><i>${fmtNum(WS.count(w))}</i>${pendAt(`w:${w.id}`) ? html`<em>+${fmtNum(pendAt(`w:${w.id}`))}</em>` : ''}</span>`;
+  const tmpBadge = (uId) => { const ls = lendsAt(uId); if (!ls.length) return ''; const n = ls.reduce((s, l) => s + l.qty, 0), late = ls.some(DL.late); return html`<span class="cm-tmp${late ? ' late' : ''}" title="${late ? 'استخدام مؤقت تجاوز موعد إرجاعه' : 'أجهزة مستخدمة مؤقتاً من العهدة العامة'}">${UI.icon('clock')} مؤقت ${fmtNum(n)}</span>`; };
+  const minis = (lines, n = 6) => { const ls = lines.filter(([, q]) => q > 0); return ls.length ? html`<span class="cm-minis">${ls.slice(0, n).map(([id, q]) => { const it = items.get(id); return it ? html`<i title="${it.name}${q > 1 ? ` ×${q}` : ''}">${UI.illu(cmIllu(it), 'mini')}${q > 1 ? html`<em>${fmtNum(q)}</em>` : ''}</i>` : ''; })}${ls.length > n ? html`<b>+${fmtNum(ls.length - n)}</b>` : ''}</span>` : ''; };
+  const wsLines = (w) => (w.lines || []).map((l) => [l.itemId, l.qty]);
+  const nodeBox = (u) => { const n = T.total(u.id), here = T.uQty.get(u.id) || 0, ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="oc-box cm-node tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="oc-ic">${UI.icon(u.icon || UT(u).icon)}</span><em>${UT(u).label}</em><b>${u.name}</b><span class="cm-n${n ? '' : ' zero'}" title="العهدة هنا ومع ما يتبعه">${UI.icon('box')} ${fmtNum(n)}${here && here !== n ? html` <small>(هنا ${fmtNum(here)})</small>` : ''}</span>${tmpBadge(u.id)}${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}${p ? html`<span class="cm-pend" title="في قائمة التوزيع">+${fmtNum(p)}</span>` : ''}</div>`; };
   const cnode = (u) => { const kids = T.kids(st.dep, u.id); return html`<li>${nodeBox(u)}${kids.length ? html`<ul>${kids.map(cnode)}</ul>` : ''}</li>`; };
-  const depBox = (d) => { const lo = loose(d.id), lq = [...lo.values()].reduce((s, q) => s + q, 0), p = pendAt(`d:${d.id}`); return html`<div class="oc-box oc-dep cm-node tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="d:${d.id}" tabindex="0"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة</em><b>${d.name}</b><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}${lq ? html` <small class="warn">(${fmtNum(lq)} غير موزّعة)</small>` : ''}</span>${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>`; };
-  const trow = (u, depth) => { const kids = T.kids(st.dep, u.id), n = T.total(u.id), ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="cm-row tone-${u.tone || UT(u).tone}" style="--d:${depth}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="cm-ric">${UI.icon(u.icon || UT(u).icon)}</span><div class="grow"><b>${u.name}</b><small>${UT(u).label}</small>${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}</div>${officeState(u)}<span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>${kids.map((k) => trow(k, depth + 1))}`; };
-  const chart = () => {
-    const d = depOf(st.dep); if (!d) return '';
-    const top = T.kids(d.id, '');
-    if (st.view === 'tree') return html`<div class="cm-tree"><div class="cm-row dep tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="d:${d.id}" tabindex="0"><span class="cm-ric">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}</b><small>إدارة</small></div><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span>${pendAt(`d:${d.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`d:${d.id}`))}</span>` : ''}</div>${top.map((u) => trow(u, 1))}</div>`;
-    return html`<div class="oc-wrap cm-wrap ${st.dir}"><div class="oc ${st.dir}"><ul><li>${depBox(d)}${top.length ? html`<ul>${top.map(cnode)}</ul>` : ''}</li></ul></div></div>${top.length ? '' : html`<p class="hint mt">لا فروع في هذه الإدارة بعد. ${OrgScope.covers(d.id) ? html`<button type="button" class="btn btn-ghost btn-sm" data-cmaddunit="${d.id}">${UI.icon('plus')} أضف أقسامها ومكاتبها</button>` : ''}</p>`}`;
+  const genBox = (d) => { const n = poolN(d.id), tl = live().filter((l) => l.departmentId === d.id), tn = tl.reduce((s, l) => s + l.qty, 0), p = pendAt(`d:${d.id}`); return html`<div class="oc-box cm-node cm-gen tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0" title="أجهزة الإدارة كلها، غير مخصصة لقسم أو مكتب"><span class="oc-ic">${UI.icon('o3d:warehouse')}</span><em>عهدة عامة</em><b>للإدارة كلها</b><span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${tn ? html`<span class="cm-tmp${tl.some(DL.late) ? ' late' : ''}">${UI.icon('clock')} ${fmtNum(tn)} مستخدمة مؤقتاً</span>` : ''}${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>`; };
+  const trow = (u, depth) => { const kids = T.kids(st.dep, u.id), n = T.total(u.id), ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="cm-row tone-${u.tone || UT(u).tone}" style="--d:${depth}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="cm-ric">${UI.icon(u.icon || UT(u).icon)}</span><div class="grow"><b>${u.name}</b><small>${UT(u).label}</small>${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}</div>${tmpBadge(u.id)}<span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>${kids.map((k) => trow(k, depth + 1))}`; };
+  const seg = (name, cur, opts) => html`<div class="seg sm">${opts.map(([v, l, ic]) => html`<label><input type="radio" name="${name}" value="${v}"${cur === v ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`;
+  const crumbs = () => {
+    const d = depOf(st.dep), [k, id] = st.at.split(':'), w = k === 'w' ? wsOf(id) : null, u = k === 'u' ? unitOf(id) : w ? unitOf(w.unitId) : null, parts = [st.at ? html`<button type="button" data-cmat="">${UI.icon(d.icon || 'building')} ${d.name}</button>` : html`<b>${UI.icon(d.icon || 'building')} ${d.name}</b>`];
+    if (st.at === 'g') parts.push(html`<b>العهدة العامة</b>`);
+    if (u) T.path(u.id).forEach((x) => parts.push(x.id === u.id && !w ? html`<b>${x.name}</b>` : html`<button type="button" data-cmat="u:${x.id}">${x.name}</button>`));
+    if (w) parts.push(html`<b>${WS.label(w)}</b>`);
+    return html`<nav class="cm-path">${parts.map((x, i) => html`${i ? html`<span>›</span>` : ''}${x}`)}</nav>`;
   };
+  const devActs = (kind, id, q) => {
+    if (!WS.canEdit()) return '';
+    if (kind === 'ws') return html`<button type="button" class="btn btn-ghost btn-sm" data-wsunlink="${id}" title="يبقى في المكتب مشتركاً">${UI.icon('x')} فك الربط</button>`;
+    if (kind === 'shared') { const ws = wsList.filter((w) => w.unitId === st.at.slice(2)); return ws.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-wslink="${id}">${UI.icon('monitor')} ربط بمحطة</button>` : ''; }
+    if (kind === 'pool') return html`<button type="button" class="btn btn-ghost btn-sm" data-dllend="${id}">${UI.icon('clock')} استخدام مؤقت</button>`;
+    return '';
+  };
+  const devs = (map, mode, kind) => {
+    const list = [...map].filter(([id, q]) => q > 0 && items.get(id)); if (!list.length) return '';
+    if (mode === 'list') return html`<div class="table-wrap"><table class="table cm-devt"><thead><tr><th>الجهاز</th><th>النوع</th><th style="width:70px">العدد</th><th></th></tr></thead><tbody>${list.map(([id, q]) => { const it = items.get(id); return html`<tr data-dev="${id}" tabindex="0"><td><div class="t-title">${UI.illu(cmIllu(it), 'mini')}<div><div>${it.name}</div><div class="t-sub">${MDL.sub(it)}</div></div></div></td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td><b>${fmtNum(q)}</b></td><td class="nowrap">${devActs(kind, id, q)}</td></tr>`; })}</tbody></table></div>`;
+    return html`<div class="cm-devs">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-dev="${id}" tabindex="0" role="button" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${devActs(kind, id, q)}</div>`; })}</div>`;
+  };
+  const sec = (icon, title, n, body, tools = '') => html`<section class="cm-sec"><h3>${UI.icon(icon)} ${title}${n != null ? html` <small>${fmtNum(n)}</small>` : ''}<span class="grow"></span>${tools}</h3>${body}</section>`;
+  const lendRows = (list) => (list.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>لدى</th><th>العدد</th><th>منذ</th><th>حتى</th><th></th></tr></thead><tbody>${list.map((l) => { const it = items.get(l.itemId) || { name: 'صنف' }; return html`<tr class="${DL.late(l) ? 'late' : ''}"><td>${it.name}</td><td>${l.unitId ? orgLabel(l.departmentId, l.unitId, T.units) : ''}${l.holderId ? html`${l.unitId ? ' — ' : ''}${Data.userName(l.holderId)}` : ''}${l.note ? html`<div class="t-sub">${l.note}</div>` : ''}</td><td><b>${fmtNum(l.qty)}</b></td><td>${fmtDate(l.at)}</td><td>${l.dueAt ? (DL.late(l) ? UI.chip('red', `${fmtDate(l.dueAt)} — متأخر`, 'alert') : fmtDate(l.dueAt)) : html`<span class="faint">—</span>`}</td><td>${DL.can() ? html`<button type="button" class="btn btn-soft btn-sm" data-dlret="${l.id}">${UI.icon('undo')} إرجاع للعهدة العامة</button>` : ''}</td></tr>`; })}</tbody></table></div>` : '');
+  /* الإدارة: مخطط أو شجرة، وأول فروعها «العهدة العامة» */
+  const depView = () => {
+    const d = depOf(st.dep), top = T.kids(d.id, '');
+    if (st.view === 'tree') return html`<div class="cm-tree"><div class="cm-row dep tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0"><span class="cm-ric">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}</b><small>إدارة · العهدة العامة ${fmtNum(poolN(d.id))}</small></div><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span>${pendAt(`d:${d.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`d:${d.id}`))}</span>` : ''}</div>${top.map((u) => trow(u, 1))}</div>`;
+    return html`<div class="oc-wrap cm-wrap ${st.dir}"><div class="oc ${st.dir}"><ul><li><div class="oc-box oc-dep cm-node tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة</em><b>${d.name}</b><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span></div><ul><li>${genBox(d)}</li>${top.map(cnode)}</ul></li></ul></div></div>${top.length ? '' : html`<p class="hint mt">لا فروع في هذه الإدارة بعد. ${OrgScope.covers(d.id) ? html`<button type="button" class="btn btn-ghost btn-sm" data-cmaddunit="${d.id}">${UI.icon('plus')} أضف أقسامها ومكاتبها</button>` : ''}</p>`}`;
+  };
+  /* العهدة العامة: أجهزتها، وما خرج منها مؤقتاً */
+  const genView = () => {
+    const d = depOf(st.dep), po = pool(d.id), tl = live().filter((l) => l.departmentId === d.id).sort((a, b) => (DL.late(b) - DL.late(a)) || a.at - b.at);
+    return html`<div class="cm-zone" data-cdrop="d:${d.id}"><div class="cm-gendesc">${UI.icon('o3d:warehouse')}<div><b>العهدة العامة لـ${d.name}</b><small>أجهزة صُرفت للإدارة كلها، غير مخصصة لقسم أو مكتب. تُستخدم مؤقتاً حيث يُحتاج إليها ثم تعود هنا. أفلت النماذج هنا لإضافتها عامة.</small></div></div>
+      ${sec('box', 'في العهدة العامة الآن', [...po.values()].reduce((s, q) => s + q, 0), devs(po, st.gview, 'pool') || html`<p class="hint">لا أجهزة عامة الآن.</p>`, DL.can() && po.size ? html`<button type="button" class="btn btn-soft btn-sm" data-dllend="">${UI.icon('clock')} استخدام مؤقت</button>` : '')}
+      ${sec('clock', 'مستخدمة مؤقتاً', tl.reduce((s, l) => s + l.qty, 0), lendRows(tl) || html`<p class="hint">لا شيء خارج العهدة العامة الآن.</p>`)}</div>`;
+  };
+  /* المكتب أو الفرع: هيكله (فروعه، ومحطات العمل، والأجهزة المشتركة)، أو شبكة، أو قائمة */
+  const unitView = (u) => {
+    const kids = T.kids(st.dep, u.id), ws = wsList.filter((w) => w.unitId === u.id).sort((a, b) => (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0)), sh = shared(u.id), tl = lendsAt(u.id), shN = [...sh.values()].reduce((s, q) => s + q, 0);
+    const wsBox = (w) => html`<div class="oc-box cm-node cm-wsbox tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" tabindex="0"><span class="oc-ic">${UI.icon(w.icon || 'o3d:office')}</span><em>محطة عمل</em><b>${WS.label(w)}</b>${w.holderId && w.name ? html`<small>${Data.userName(w.holderId)}</small>` : ''}${minis(wsLines(w))}<span class="cm-n${WS.count(w) ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(WS.count(w))}</span>${pendAt(`w:${w.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`w:${w.id}`))}</span>` : ''}</div>`;
+    const shBox = () => html`<div class="oc-box cm-node cm-shbox tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}" tabindex="0" title="أجهزة المكتب غير المربوطة بمحطة: للجميع"><span class="oc-ic">${UI.icon('o3d:team')}</span><em>مشتركة للمكتب</em><b>${shN ? 'أجهزة مشتركة' : 'لا أجهزة مشتركة'}</b>${minis([...sh])}<span class="cm-n${shN ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(shN)}</span>${pendAt(`u:${u.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`u:${u.id}`))}</span>` : ''}</div>`;
+    const people = Data.list('users').filter((x) => x.active !== 0 && !isSysAccount(x) && x.unitId === u.id), noWs = people.filter((p) => !ws.some((w) => w.holderId === p.id)).length;
+    const tools = WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsnew="${u.id}">${UI.icon('plus')} محطة عمل</button>${noWs ? html`<button type="button" class="btn btn-ghost btn-sm" data-wspeople="${u.id}">${UI.icon('users')} محطة لكل موظف (${fmtNum(noWs)})</button>` : ''}` : '';
+    if (st.uview === 'struct') return html`<div class="cm-zone" data-cdrop="u:${u.id}"><div class="cm-toolsrow">${tools}</div><div class="oc-wrap cm-wrap down"><div class="oc down"><ul><li>${nodeBox(u)}<ul>${ws.map((w) => html`<li>${wsBox(w)}</li>`)}<li>${shBox()}</li>${kids.map((k) => html`<li>${nodeBox(k)}</li>`)}</ul></li></ul></div></div>${tl.length ? sec('clock', 'مستخدمة هنا مؤقتاً من العهدة العامة', tl.reduce((s, l) => s + l.qty, 0), lendRows(tl)) : ''}</div>`;
+    const grid = st.uview === 'grid';
+    const wsCards = ws.length ? (grid ? html`<div class="cm-wscards">${ws.map((w) => html`<div class="cm-wscard tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" tabindex="0"><span class="cm-wsic">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${WS.label(w)}</b>${w.holderId ? html`<small>${UI.icon('user')} ${Data.userName(w.holderId)}</small>` : ''}${minis(wsLines(w), 8) || html`<small class="faint">بلا أجهزة بعد</small>`}</div><span class="cm-n">${fmtNum(WS.count(w))}</span>${pendAt(`w:${w.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`w:${w.id}`))}</span>` : ''}</div>`)}</div>`
+      : html`<div class="cm-wslist">${ws.map((w) => html`<div class="cm-wsli tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" tabindex="0"><span class="cm-wsic sm">${UI.icon(w.icon || 'o3d:office')}</span><b>${WS.label(w)}</b><small>${w.holderId ? Data.userName(w.holderId) : ''}</small><span class="grow faint small">${(w.lines || []).map((l) => `${(items.get(l.itemId) || {}).name || ''}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join('، ') || 'بلا أجهزة'}</span><span class="cm-n">${fmtNum(WS.count(w))}</span></div>`)}</div>`) : html`<p class="hint">لا محطات بعد. المحطة تجمع أجهزة موظف أو مكان داخل المكتب، بلا شرط على ما تضمه.</p>`;
+    const kidCards = kids.length ? html`<div class="cm-kids">${kids.map((k) => html`<div class="cm-row tone-${k.tone || UT(k).tone}" data-cdrop="u:${k.id}" data-cnode="u:${k.id}" tabindex="0"><span class="cm-ric">${UI.icon(k.icon || UT(k).icon)}</span><div class="grow"><b>${k.name}</b><small>${UT(k).label}</small></div>${tmpBadge(k.id)}<span class="cm-n">${UI.icon('box')} ${fmtNum(T.total(k.id))}</span></div>`)}</div>` : '';
+    return html`<div class="cm-zone" data-cdrop="u:${u.id}">
+      ${sec('monitor', 'محطات العمل', ws.length, wsCards, tools)}
+      ${sec('o3d:team', 'أجهزة مشتركة للمكتب', shN, devs(sh, st.uview, 'shared') || html`<p class="hint">كل أجهزة المكتب مربوطة بمحطات، أو لا عهدة فيه بعد. أفلت هنا ما يخص المكتب كله (طابعة، ماسح...).</p>`)}
+      ${tl.length ? sec('clock', 'مستخدمة هنا مؤقتاً من العهدة العامة', tl.reduce((s, l) => s + l.qty, 0), lendRows(tl)) : ''}
+      ${kidCards ? sec('layers', 'الفروع التابعة', kids.length, kidCards) : ''}</div>`;
+  };
+  /* محطة العمل: أجهزتها شبكة أو قائمة، والضغط على الجهاز يعرض تفاصيله */
+  const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${WS.label(w)}</b>${w.holderId ? html`<small>${UI.icon('user')} ${Data.userName(w.holderId)}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button>` : ''}</div>
+    ${sec('box', 'أجهزة المحطة', WS.count(w), devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`)}</div>`;
   const tray = () => {
     if (!CM.pend.length) return html`<div class="cm-trayempty">${UI.icon('info')} اسحب النماذج من اللوحة إلى أي إدارة أو قسم أو مكتب أو محطة${canStore ? ' أو مخزن' : ''}، فتظهر هنا لتعديل العدد والأرقام التسلسلية قبل الحفظ.</div>`;
     const tot = CM.pend.reduce((s, l) => s + l.qty, 0);
-    return html`<div class="table-wrap"><table class="table cm-trayt"><thead><tr><th>إلى</th><th>الجهاز</th><th style="width:110px">العدد</th><th>الأرقام التسلسلية <small class="faint">(اختياري)</small></th><th></th></tr></thead><tbody>${CM.pend.map((l) => { const it = items.get(l.itemId) || { name: 'صنف محذوف' }; return html`<tr data-pk="${l.k}"><td><div class="t-title">${UI.icon(l.kind === 'store' ? 'warehouse' : l.wsId ? 'monitor' : 'building')}<div><div>${placeOf(l)}</div><div class="t-sub">${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? 'توزيع من عهدة الإدارة' : 'عهدة جديدة'}</div></div></div></td><td><b>${it.name}</b><div class="t-sub">${MDL.sub(it)}</div></td><td><div class="cm-qty"><button type="button" class="icon-btn" data-pq1="-1" aria-label="إنقاص">−</button><input class="input" type="number" min="1" value="${l.qty}" data-pqty aria-label="العدد"><button type="button" class="icon-btn" data-pq1="1" aria-label="زيادة">+</button></div></td><td>${l.kind === 'assign' ? html`<span class="faint small">—</span>` : html`<input class="input ltr" data-psn value="${l.sn || ''}" placeholder="${isSerialItem(it) ? 'رقم في كل سطر أو بفاصلة' : 'اختياري'}">`}</td><td><button type="button" class="icon-btn" data-pdel title="حذف من القائمة">${UI.icon('x')}</button></td></tr>`; })}</tbody></table></div>
+    return html`<div class="table-wrap"><table class="table cm-trayt"><thead><tr><th>إلى</th><th>الجهاز</th><th style="width:110px">العدد</th><th>الأرقام التسلسلية أو مدة الاستخدام</th><th></th></tr></thead><tbody>${CM.pend.map((l) => { const it = items.get(l.itemId) || { name: 'صنف محذوف' }; return html`<tr data-pk="${l.k}"><td><div class="t-title">${UI.icon(l.kind === 'store' ? 'warehouse' : l.wsId ? 'monitor' : 'building')}<div><div>${placeOf(l)}</div><div class="t-sub">${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? (l.temp ? 'استخدام مؤقت من العهدة العامة' : 'تخصيص من العهدة العامة') : l.unitId ? 'عهدة جديدة' : 'عهدة عامة جديدة للإدارة'}</div></div></div></td><td><b>${it.name}</b><div class="t-sub">${MDL.sub(it)}</div></td><td><div class="cm-qty"><button type="button" class="icon-btn" data-pq1="-1" aria-label="إنقاص">−</button><input class="input" type="number" min="1" value="${l.qty}" data-pqty aria-label="العدد"><button type="button" class="icon-btn" data-pq1="1" aria-label="زيادة">+</button></div></td><td>${l.kind === 'assign' ? html`<div class="cm-tempc"><label class="chk"><input type="checkbox" data-ptemp${l.temp ? raw(' checked') : ''}> مؤقت</label>${l.temp ? html`<input class="input" type="date" data-pdue value="${l.due || ''}" aria-label="حتى تاريخ" title="حتى تاريخ (اختياري)">` : html`<span class="faint small">يُخصَّص للفرع</span>`}</div>` : html`<input class="input ltr" data-psn value="${l.sn || ''}" placeholder="${isSerialItem(it) ? 'رقم في كل سطر أو بفاصلة' : 'اختياري'}">`}</td><td><button type="button" class="icon-btn" data-pdel title="حذف من القائمة">${UI.icon('x')}</button></td></tr>`; })}</tbody></table></div>
       <div class="cm-trayfoot"><span>${fmtNum(CM.pend.length)} سطر · ${fmtNum(tot)} قطعة</span><button type="button" class="btn btn-ghost btn-sm" data-cmclear>${UI.icon('trash')} إفراغ القائمة</button><button type="button" class="btn btn-soft" data-cmsave="print">${UI.icon('print')} حفظ وطباعة كشف</button><button type="button" class="btn btn-primary" data-cmsave="">${UI.icon('check')} حفظ التوزيع</button></div>`;
   };
   const stores = () => (canStore ? html`<div class="cm-stores"><b>${UI.icon('warehouse')} المخازن</b>${Data.list('warehouses').map((w) => html`<span class="cm-store" data-cdrop="s:${w.id}" data-cnode="s:${w.id}" tabindex="0">${UI.illu('shelf', 'mini')}<span>${w.name}</span>${pendAt(`s:${w.id}`) ? html`<em class="cm-pend">+${fmtNum(pendAt(`s:${w.id}`))}</em>` : ''}</span>`)}</div>` : '');
+  const panel = () => {
+    if (!st.dep) return html`<div class="panel-body">${UI.empty({ illu: 'building', title: 'اختر إدارة', text: 'اضغط إحدى الإدارات أعلاه فيظهر هيكلها بأقسامه ووحداته ومكاتبه ومحطات العمل فيها. ويمكنك إفلات النماذج على الإدارة نفسها مباشرة فتصير عهدة عامة لها.' })}</div>`;
+    const [k, id] = st.at.split(':');
+    let tools = '', body = '';
+    if (!st.at) { tools = html`${seg('cmview', st.view, [['chart', 'مخطط', 'layers'], ['tree', 'شجرة', 'menu']])}${st.view === 'chart' ? seg('cmdir', st.dir, [['down', 'عمودي', 'chevron-down'], ['side', 'أفقي', 'chevron-left']]) : ''}`; body = depView(); }
+    else if (k === 'g') { tools = seg('cmgview', st.gview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = genView(); }
+    else if (k === 'u') { tools = seg('cmuview', st.uview, [['struct', 'هيكل', 'layers'], ['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = unitView(unitOf(id)); }
+    else if (k === 'w') { tools = seg('cmwview', st.wview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = wsView(wsOf(id)); }
+    return html`<div class="toolbar cm-bar">${crumbs()}<span class="grow"></span>${tools}<a class="btn btn-ghost btn-sm" href="#/inventory/departments?at=${k === 'u' ? `u:${id}` : `d:${st.dep}`}">${UI.icon('search')} المستكشف</a></div><div class="panel-body">${body}</div>`;
+  };
   const main = () => {
     const tot = CM.pend.reduce((s, l) => s + l.qty, 0);
-    return html`${UI.pageHead({ crumbs: html`<a href="#/inventory/departments">عهدة الإدارات</a>`, title: 'توزيع العهدة على الهيكل', sub: 'اختر الإدارة فيظهر هيكلها بعهدته، واسحب نماذج الأجهزة إلى أي قسم أو وحدة أو مكتب أو محطة عمل، ثم عدّل العدد واحفظ', illu: 'network', actions: html`<button class="btn ${CM.pend.length ? 'btn-primary' : 'btn-ghost'}" data-cmjump>${UI.icon('clipboard')} قائمة التوزيع${CM.pend.length ? ` (${fmtNum(tot)})` : ''}</button><a class="btn btn-ghost" href="#/inventory/models">${UI.icon('layers')} نماذج الأجهزة</a>` })}
+    return html`${UI.pageHead({ crumbs: html`<a href="#/inventory/departments">عهدة الإدارات</a>`, title: 'توزيع العهدة على الهيكل', sub: 'اختر الإدارة فيظهر هيكلها بعهدته. اضغط أي موضع لدخوله، واسحب نماذج الأجهزة إلى أي قسم أو وحدة أو مكتب أو محطة عمل أو إلى العهدة العامة، ثم عدّل العدد واحفظ', illu: 'network', actions: html`<button class="btn ${CM.pend.length ? 'btn-primary' : 'btn-ghost'}" data-cmjump>${UI.icon('clipboard')} قائمة التوزيع${CM.pend.length ? ` (${fmtNum(tot)})` : ''}</button><a class="btn btn-ghost" href="#/inventory/models">${UI.icon('layers')} نماذج الأجهزة</a>` })}
       ${cbar}
       <div class="cm-deps">${T.deps.map((d) => html`<button type="button" class="cm-dep tone-${d.tone || 'brass'}${st.dep === d.id ? ' on' : ''}" data-cmdep="${d.id}" data-cdrop="d:${d.id}">${UI.icon(d.icon || 'building')}<b>${d.name}</b><small>${fmtNum(T.depQty.get(d.id) || 0)}</small>${pendAt(`d:${d.id}`) ? html`<em class="cm-pend">+</em>` : ''}</button>`)}</div>
       ${stores()}
-      <section class="panel cm-panel">${st.dep ? html`<div class="toolbar"><b class="grow">${UI.icon('layers')} ${Data.nameOf('departments', st.dep, '')}</b>
-        <div class="seg sm"><label><input type="radio" name="cmview" value="chart"${st.view === 'chart' ? raw(' checked') : ''}><span>${UI.icon('layers')} مخطط</span></label><label><input type="radio" name="cmview" value="tree"${st.view === 'tree' ? raw(' checked') : ''}><span>${UI.icon('menu')} شجرة</span></label></div>
-        ${st.view === 'chart' ? html`<div class="seg sm"><label><input type="radio" name="cmdir" value="down"${st.dir === 'down' ? raw(' checked') : ''}><span>${UI.icon('chevron-down')} عمودي</span></label><label><input type="radio" name="cmdir" value="side"${st.dir === 'side' ? raw(' checked') : ''}><span>${UI.icon('chevron-left')} أفقي</span></label></div>` : ''}
-        <a class="btn btn-ghost btn-sm" href="#/inventory/departments?at=d:${st.dep}">${UI.icon('search')} مستكشف العهدة</a></div>
-        <div class="panel-body">${chart()}</div>` : html`<div class="panel-body">${UI.empty({ illu: 'building', title: 'اختر إدارة', text: 'اضغط إحدى الإدارات أعلاه فيظهر هيكلها بأقسامه ووحداته ومكاتبه ومحطات العمل فيها. ويمكنك إفلات النماذج على الإدارة نفسها مباشرة.' })}</div>`}</section>
+      <section class="panel cm-panel">${panel()}</section>
       ${UI.panel({ cls: 'mt cm-traypanel', title: 'قائمة التوزيع', icon: 'clipboard', sub: 'لا يُسجَّل شيء حتى «حفظ التوزيع»، وتبقى القائمة إن تنقّلت بين الإدارات', body: html`<div data-cmtray>${tray()}</div>` })}`;
   };
   /* ── الرسم: الصفحة، واللوحة الثابتة خارجها ── */
   ctx.view.innerHTML = '<div data-cmmain></div>';
   const pal = document.createElement('aside'); pal.className = 'cm-pal'; pal.setAttribute('aria-label', 'نماذج الأجهزة');
-  pal.innerHTML = String(html`<header class="cm-palh" data-palgrab title="اسحب اللوحة لتحريكها أو لتثبيتها في الجانب أو الأعلى أو الأسفل">${UI.icon('layers')}<b>نماذج الأجهزة</b><span class="grow faint small" data-palhint></span><span class="cm-docks">${[['side', 'columns', 'في الجانب'], ['top', 'chevron-up', 'في الأعلى'], ['bottom', 'chevron-down', 'في الأسفل'], ['float', 'expand', 'نافذة حرة']].map(([k, ic, l]) => html`<button type="button" class="icon-btn" data-pdock="${k}" title="${l}" aria-label="${l}">${UI.icon(ic)}</button>`)}<button type="button" class="icon-btn" data-pmin title="تصغير اللوحة" aria-label="تصغير">${UI.icon('shrink')}</button></span></header><div class="cm-palbody" data-palbody></div>`);
+  pal.innerHTML = String(html`<header class="cm-palh" data-palgrab title="اسحب اللوحة لتحريكها أو لتثبيتها في الجانب أو الأعلى أو الأسفل">${UI.icon('layers')}<b>نماذج الأجهزة</b><span class="grow faint small" data-palhint></span><span class="cm-docks">${[['side', 'columns', 'في الجانب'], ['top', 'chevron-up', 'في الأعلى'], ['bottom', 'chevron-down', 'في الأسفل'], ['float', 'expand', 'نافذة حرة']].map(([k, ic, l]) => html`<button type="button" class="icon-btn" data-pdock="${k}" title="${l}" aria-label="${l}">${UI.icon(ic)}</button>`)}<button type="button" class="icon-btn" data-pmin title="تصغير اللوحة" aria-label="تصغير">${UI.icon('shrink')}</button></span></header><div class="cm-palbody" data-palbody></div><div class="cm-palrs" data-palrs title="اسحب لتغيير الحجم"></div>`);
   document.body.appendChild(pal);
   const snaps = document.createElement('div'); snaps.className = 'cm-snaps'; snaps.innerHTML = '<i data-s="side"></i><i data-s="top"></i><i data-s="bottom"></i>'; snaps.hidden = true; document.body.appendChild(snaps);
-  ctx.onCleanup(() => { pal.remove(); snaps.remove(); document.body.classList.remove('cm-dragging', 'cm-arming'); ctx.view.style.removeProperty('--cm-pad-l'); ctx.view.style.removeProperty('--cm-pad-t'); ctx.view.style.removeProperty('--cm-pad-b'); ctx.view.classList.remove('cm-host'); });
+  ctx.onCleanup(() => { pal.remove(); snaps.remove(); document.body.classList.remove('cm-dragging', 'cm-arming'); ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v)); ctx.view.classList.remove('cm-host'); });
   ctx.view.classList.add('cm-host');
   const area = () => { const r = ctx.view.getBoundingClientRect(), top = Math.max(70, r.top); return { l: Math.max(8, r.left), r: Math.min(innerWidth - 8, r.right), t: top }; };
-  /* تثبيت اللوحة: الجانب (يسار المحتوى)، أو شريط أعلى أو أسفل المحتوى، أو نافذة حرة؛ والمحتوى يُزاح حتى لا تغطيه */
+  /* تثبيت اللوحة: الجانب (يسار المحتوى)، أو شريط أعلى أو أسفل المحتوى، أو نافذة حرة؛ والمحتوى يُزاح حتى لا تغطيه، والحجم يُسحب من الحافة */
   const place = () => {
     const a = area(), mobile = innerWidth < 760, dock = mobile && st.dock !== 'float' ? 'bottom' : st.dock;
-    pal.className = `cm-pal dock-${dock}${st.min ? ' min' : ''}`;
-    pal.style.cssText = '';
-    ctx.view.style.removeProperty('--cm-pad-l'); ctx.view.style.removeProperty('--cm-pad-t'); ctx.view.style.removeProperty('--cm-pad-b');
-    if (dock === 'side') { pal.style.left = `${a.l + 8}px`; pal.style.top = `${a.t + 8}px`; if (!st.min) ctx.view.style.setProperty('--cm-pad-l', `${Math.min(360, (a.r - a.l) * 0.4) + 16}px`); pal.style.width = `${Math.min(360, (a.r - a.l) * 0.4)}px`; }
-    else if (dock === 'top' || dock === 'bottom') { pal.style.left = `${a.l + 8}px`; pal.style.width = `${a.r - a.l - 16}px`; if (dock === 'top') { pal.style.top = `${a.t + 8}px`; if (!st.min) ctx.view.style.setProperty('--cm-pad-t', '262px'); } else if (!st.min) ctx.view.style.setProperty('--cm-pad-b', '262px'); }
+    pal.className = `cm-pal dock-${dock}${st.min ? ' min' : ''}`; pal.style.cssText = '';
+    ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v));
+    const W = clamp(st.w || Math.min(360, (a.r - a.l) * 0.4), 260, Math.max(280, (a.r - a.l) * 0.6)), H = clamp(st.h || 260, 150, Math.max(180, innerHeight * 0.7));
+    if (dock === 'side') { pal.style.left = `${a.l + 8}px`; pal.style.top = `${a.t + 8}px`; pal.style.width = `${W}px`; if (!st.min) ctx.view.style.setProperty('--cm-pad-l', `${W + 16}px`); }
+    else if (dock === 'top' || dock === 'bottom') { pal.style.left = `${a.l + 8}px`; pal.style.width = `${a.r - a.l - 16}px`; if (!st.min) pal.style.height = `${H}px`; if (dock === 'top') { pal.style.top = `${a.t + 8}px`; if (!st.min) ctx.view.style.setProperty('--cm-pad-t', `${H + 12}px`); } else if (!st.min) ctx.view.style.setProperty('--cm-pad-b', `${H + 12}px`); }
     else { const x = clamp(Number(st.pos.x) || a.l + 40, 0, innerWidth - 220), y = clamp(Number(st.pos.y) || a.t + 120, 60, innerHeight - 80); pal.style.left = `${x}px`; pal.style.top = `${y}px`; }
     $('[data-palhint]', pal).textContent = st.armed ? 'اضغط الموضع لإضافة المحدد — Esc للإلغاء' : '';
   };
   const drawPal = () => { const b = $('[data-palbody]', pal), sc = b.scrollTop; b.innerHTML = String(palBody()); b.scrollTop = sc; place(); };
-  const drawTray = () => { const t = $('[data-cmtray]', ctx.view); if (t) t.innerHTML = String(tray()); };
   const draw = async (reload = true) => {
     if (reload) await load(); if (!ctx.alive()) return;
-    const host = $('[data-cmmain]', ctx.view), sc = $('.cm-wrap', host), keep = sc ? { x: sc.scrollLeft, y: sc.scrollTop } : null;
+    const host = $('[data-cmmain]', ctx.view), sc = $('.cm-wrap', host), keep = sc ? { x: sc.scrollLeft, y: sc.scrollTop, at: st.at } : null;
     host.innerHTML = String(main()); UI.hydrate(host);
-    const sc2 = $('.cm-wrap', host); if (sc2 && keep) { sc2.scrollLeft = keep.x; sc2.scrollTop = keep.y; }
+    const sc2 = $('.cm-wrap', host); if (sc2 && keep && keep.at === st.at) { sc2.scrollLeft = keep.x; sc2.scrollTop = keep.y; }
     drawPal();
   };
   const after = () => draw(false);
   addEventListener('resize', place); ctx.onCleanup(() => removeEventListener('resize', place));
   /* ── السحب والإفلات من اللوحة ── */
   let dragPay = '';
-  const valid = (target) => !!target && !!dragPay;
-  const onStart = (e) => { const el = e.target.closest && e.target.closest('[data-pdrag]'); if (!el) return; dragPay = el.dataset.pdrag; try { e.dataTransfer.setData('text/plain', dragPay); e.dataTransfer.effectAllowed = 'copy'; } catch (_) { /* تجاهل */ } document.body.classList.add('cm-dragging'); };
-  pal.addEventListener('dragstart', onStart);
+  pal.addEventListener('dragstart', (e) => { const el = e.target.closest && e.target.closest('[data-pdrag]'); if (!el) return; dragPay = el.dataset.pdrag; try { e.dataTransfer.setData('text/plain', dragPay); e.dataTransfer.effectAllowed = 'copy'; } catch (_) { /* تجاهل */ } document.body.classList.add('cm-dragging'); });
   pal.addEventListener('dragend', () => { dragPay = ''; document.body.classList.remove('cm-dragging'); $$('.cm-over').forEach((x) => x.classList.remove('cm-over')); });
-  ctx.view.addEventListener('dragover', (e) => { const t = e.target.closest('[data-cdrop]'); if (!t || !valid(t)) return; e.preventDefault(); try { e.dataTransfer.dropEffect = 'copy'; } catch (_) { /* تجاهل */ } $$('.cm-over', ctx.view).forEach((x) => { if (x !== t) x.classList.remove('cm-over'); }); t.classList.add('cm-over'); });
+  ctx.view.addEventListener('dragover', (e) => { const t = e.target.closest('[data-cdrop]'); if (!t || !dragPay) return; e.preventDefault(); try { e.dataTransfer.dropEffect = 'copy'; } catch (_) { /* تجاهل */ } $$('.cm-over', ctx.view).forEach((x) => { if (x !== t) x.classList.remove('cm-over'); }); t.classList.add('cm-over'); });
   ctx.view.addEventListener('dragleave', (e) => { const t = e.target.closest('[data-cdrop]'); if (t && !t.contains(e.relatedTarget)) t.classList.remove('cm-over'); });
   ctx.view.addEventListener('drop', (e) => {
     const t = e.target.closest('[data-cdrop]'); if (!t) return; e.preventDefault(); t.classList.remove('cm-over');
     const pay = dragPay || (e.dataTransfer && e.dataTransfer.getData('text/plain')) || ''; dragPay = ''; document.body.classList.remove('cm-dragging');
     if (!/^[ika]:/.test(pay)) return;
-    if (addPend(t.dataset.cdrop, pay)) { if (!pay.startsWith('k:')) UI.toast(`أُضيف إلى قائمة التوزيع: ${(items.get(pay.slice(2)) || {}).name || ''} ← ${t.querySelector('b') ? t.querySelector('b').textContent : ''}`, 'ok', 2600); after(); }
+    if (addPend(t.dataset.cdrop, pay)) { if (!pay.startsWith('k:')) UI.toast(`أُضيف إلى قائمة التوزيع: ${(items.get(pay.slice(2)) || {}).name || ''}`, 'ok', 2400); after(); }
   });
-  /* بلا فأرة: اضغط النموذج ثم اضغط الموضع */
+  /* بلا فأرة: اضغط النموذج ثم اضغط الموضع (يبقى محدداً لإضافته إلى عدة مواضع حتى Esc) */
   const arm = (pay) => { st.armed = st.armed === pay ? '' : pay; document.body.classList.toggle('cm-arming', !!st.armed); drawPal(); if (st.armed) UI.toast('اضغط الآن الموضع الذي تضيفه إليه، أو Esc للإلغاء', 'info', 3500); };
   UI.on(pal, 'click', '[data-pdrag]', (e, el) => arm(el.dataset.pdrag));
   pal.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-pdrag]')) { e.preventDefault(); arm(e.target.dataset.pdrag); } });
   const onEsc = (e) => { if (e.key === 'Escape' && st.armed && !$('dialog[open]')) { st.armed = ''; document.body.classList.remove('cm-arming'); drawPal(); } };
   document.addEventListener('keydown', onEsc); ctx.onCleanup(() => document.removeEventListener('keydown', onEsc));
-  UI.on(pal, 'click', '[data-ppath]', (e, el) => { st.path = el.dataset.ppath ? el.dataset.ppath.split('|') : []; st.q = ''; drawPal(); });
+  /* شجرة اللوحة: فتح وطي كل مستوى، وتوسيع الكل أو طيه، والبحث يفتح ما يطابق */
+  UI.on(pal, 'click', '[data-gtog]', (e, el) => { const k = el.dataset.gtog; if (st.open.has(k)) st.open.delete(k); else st.open.add(k); CM.set('open', [...st.open]); drawPal(); });
+  UI.on(pal, 'click', '[data-gall]', (e, el) => { st.open = el.dataset.gall === '1' ? new Set(allKeys()) : new Set(); CM.set('open', [...st.open]); drawPal(); });
   pal.addEventListener('input', debounce((e) => { if (!e.target.matches('[data-pq]')) return; st.q = e.target.value; drawPal(); const q = $('[data-pq]', pal); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 220));
   UI.on(pal, 'click', '[data-pdock]', (e, el) => { st.dock = el.dataset.pdock; st.min = false; CM.set('dock', st.dock); CM.set('min', ''); place(); });
   UI.on(pal, 'click', '[data-pmin]', () => { st.min = !st.min; CM.set('min', st.min ? '1' : ''); place(); });
-  /* تحريك اللوحة بسحب رأسها، وتثبيتها عند حافة */
+  /* تحريك اللوحة بسحب رأسها وتثبيتها عند حافة، وتغيير حجمها بسحب حافتها الداخلية */
   pal.addEventListener('pointerdown', (e) => {
-    const h = e.target.closest('[data-palgrab]'); if (!h || e.target.closest('button,input') || e.button !== 0) return;
+    if (e.button !== 0) return;
+    const rs = e.target.closest('[data-palrs]');
+    if (rs) {
+      e.preventDefault(); const r0 = pal.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, dock = pal.className.match(/dock-(\w+)/)[1]; pal.setPointerCapture(e.pointerId);
+      const mv = (ev) => { if (dock === 'side') st.w = Math.round(r0.width + (ev.clientX - x0)); else if (dock === 'top') st.h = Math.round(r0.height + (ev.clientY - y0)); else if (dock === 'bottom') st.h = Math.round(r0.height - (ev.clientY - y0)); place(); };
+      const up = () => { pal.removeEventListener('pointermove', mv); pal.removeEventListener('pointerup', up); pal.removeEventListener('pointercancel', up); CM.set('pw', String(st.w || 0)); CM.set('ph', String(st.h || 0)); };
+      pal.addEventListener('pointermove', mv); pal.addEventListener('pointerup', up); pal.addEventListener('pointercancel', up); return;
+    }
+    const h = e.target.closest('[data-palgrab]'); if (!h || e.target.closest('button,input')) return;
     const r = pal.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; let moved = false;
-    const a = area();
-    const zone = (x, y) => (x < a.l + 90 ? 'side' : y > innerHeight - 110 ? 'bottom' : y < a.t + 90 ? 'top' : 'float');
+    const a = area(), zone = (x, y) => (x < a.l + 90 ? 'side' : y > innerHeight - 110 ? 'bottom' : y < a.t + 90 ? 'top' : 'float');
     const mv = (ev) => {
       if (!moved && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 5) return;
-      if (!moved) { moved = true; pal.setPointerCapture(e.pointerId); pal.className = `cm-pal dock-float${st.min ? ' min' : ''} moving`; pal.style.width = ''; snaps.hidden = false; }
+      if (!moved) { moved = true; pal.setPointerCapture(e.pointerId); pal.className = `cm-pal dock-float${st.min ? ' min' : ''} moving`; pal.style.width = ''; pal.style.height = ''; snaps.hidden = false; }
       pal.style.left = `${clamp(ev.clientX - dx, 0, innerWidth - 120)}px`; pal.style.top = `${clamp(ev.clientY - dy, 50, innerHeight - 50)}px`;
       const z = zone(ev.clientX, ev.clientY); $$('i', snaps).forEach((i) => i.classList.toggle('on', i.dataset.s === z));
     };
@@ -20115,38 +20259,61 @@ Pages.custodyMap = async (ctx) => {
     };
     pal.addEventListener('pointermove', mv); pal.addEventListener('pointerup', up); pal.addEventListener('pointercancel', up);
   });
-  /* ── الصفحة ── */
-  UI.on(ctx.view, 'click', '[data-cmdep]', (e, el) => { if (st.armed) { if (addPend(`d:${el.dataset.cmdep}`, st.armed)) { UI.toast('أُضيف إلى قائمة التوزيع', 'ok', 1800); after(); } return; } st.dep = el.dataset.cmdep; CM.set('dep', st.dep); st.path = st.path[0] === 'a' ? [] : st.path; draw(false); });
-  UI.on(ctx.view, 'change', 'input[name="cmview"]', (e, el) => { st.view = el.value; CM.set('view', st.view); after(); });
-  UI.on(ctx.view, 'change', 'input[name="cmdir"]', (e, el) => { st.dir = el.value; CM.set('dir', st.dir); after(); });
+  /* ── الصفحة: الدخول إلى المواضع، وطرق العرض ── */
+  const addArmed = (target) => { if (addPend(target, st.armed)) { UI.toast('أُضيف إلى قائمة التوزيع', 'ok', 1800); after(); } };
+  UI.on(ctx.view, 'click', '[data-cmdep]', (e, el) => { if (st.armed) { addArmed(`d:${el.dataset.cmdep}`); return; } st.dep = el.dataset.cmdep; CM.set('dep', st.dep); go(''); });
+  UI.on(ctx.view, 'click', '[data-cmat]', (e, el) => go(el.dataset.cmat));
+  [['cmview', 'view', 'view'], ['cmdir', 'dir', 'dir'], ['cmuview', 'uview', 'uview'], ['cmwview', 'wview', 'wview'], ['cmgview', 'gview', 'gview']].forEach(([n, k, key]) => UI.on(ctx.view, 'change', `input[name="${n}"]`, (e, el) => { st[k] = el.value; CM.set(key, el.value); after(); }));
   UI.on(ctx.view, 'click', '[data-cmjump]', () => { const t = $('.cm-traypanel', ctx.view); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   UI.on(ctx.view, 'click', '[data-cmaddunit]', async (e, el) => { const r = await Pages.orgAddBranches({ departmentId: el.dataset.cmaddunit, parentId: '', type: '' }); if (r) draw(); });
-  UI.on(ctx.view, 'click', '[data-cnode]', async (e, el) => {
-    if (e.target.closest('[data-cnode]') !== el) return;
-    if (st.armed) { e.preventDefault(); e.stopPropagation(); if (addPend(el.dataset.cdrop || el.dataset.cnode, st.armed)) { UI.toast('أُضيف إلى قائمة التوزيع', 'ok', 1800); after(); } return; }
-    if (el.matches('[data-cmdep]')) return;
-    const [k, id] = el.dataset.cnode.split(':');
-    if (k === 's') { Router.go('/inventory'); return; }
-    if (k === 'w') { const r = await Pages.wsEdit({ id }); if (r) draw(); return; }
-    if (await Pages.cmNodeModal(k, id)) draw();
+  ctx.view.addEventListener('click', async (e) => {
+    /* نموذج محدد: الضغط على أي موضع (أو فراغ داخله) يضيفه إليه */
+    if (st.armed) {
+      if (e.target.closest('[data-cmdep],[data-cmat],[data-pk],button:not([data-cdrop]),a,input,select,label')) return;
+      const t = e.target.closest('[data-cdrop]'); if (t && ctx.view.contains(t)) { e.preventDefault(); addArmed(t.dataset.cdrop); }
+      return;
+    }
+    if (e.target.closest('button,a,input,select,label,[data-pk]')) return;
+    const el = e.target.closest('[data-cnode],[data-dev]'); if (!el || !ctx.view.contains(el)) return;
+    if (el.matches('[data-dev]')) { await Pages.deviceModal(el.dataset.dev, { departmentId: st.dep }); return; }
+    const v = el.dataset.cnode;
+    if (v.startsWith('s:')) { Router.go('/inventory'); return; }
+    go(v);
   });
-  ctx.view.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-cnode]')) { e.preventDefault(); e.target.click(); } });
+  ctx.view.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-cnode],[data-dev]')) { e.preventDefault(); e.target.click(); } });
+  /* محطات العمل والعهدة العامة */
+  const act = async (fn) => { try { if (await fn()) draw(); } catch (ex) { UI.error(ex); } };
+  UI.on(ctx.view, 'click', '[data-wsnew]', (e, b) => act(async () => { const r = await Pages.wsEdit({ unitId: b.dataset.wsnew }); return r; }));
+  UI.on(ctx.view, 'click', '[data-wspeople]', (e, b) => act(() => WS.forPeople(b.dataset.wspeople)));
+  UI.on(ctx.view, 'click', '[data-wsed]', (e, b) => act(async () => { const r = await Pages.wsEdit({ id: b.dataset.wsed }); if (r === 'deleted') st.at = `u:${(wsOf(b.dataset.wsed) || {}).unitId || ''}`; return r; }));
+  UI.on(ctx.view, 'click', '[data-wsunlink]', (e, b) => act(async () => { const w = wsOf(st.at.slice(2)); if (!w) return false; await WS.unlink(w.id, b.dataset.wsunlink); UI.toast('فُك الربط، والجهاز باقٍ في المكتب مشتركاً'); return true; }));
+  UI.on(ctx.view, 'click', '[data-wslink]', (e, b) => act(async () => {
+    const uId = st.at.slice(2), ws = wsList.filter((w) => w.unitId === uId), itemId = b.dataset.wslink, max = shared(uId).get(itemId) || 0, it = items.get(itemId) || {};
+    const v = await UI.modal({ title: `ربط «${it.name || ''}» بمحطة`, icon: 'monitor', size: 'sm', body: html`${UI.field({ name: 'ws', label: 'المحطة', type: 'select', placeholder: false, options: ws.map((w) => ({ value: w.id, label: WS.label(w) })) })}${UI.field({ name: 'qty', label: `العدد (المتاح ${fmtNum(max)})`, type: 'number', min: 1 }, 1)}`, actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'ربط', kind: 'primary', icon: 'check', submit: true, handler: (form) => UI.formValues(form) }] });
+    if (!v) return false; await WS.link(v.ws, itemId, clamp(Math.floor(Number(v.qty) || 1), 1, max)); UI.toast('رُبط الجهاز بالمحطة'); return true;
+  }));
+  UI.on(ctx.view, 'click', '[data-dllend]', (e, b) => act(() => Pages.dlLendModal(st.dep, b.dataset.dllend || '')));
+  UI.on(ctx.view, 'click', '[data-dlret]', (e, b) => act(async () => { if (!(await UI.confirm('إرجاع هذه الأجهزة إلى العهدة العامة للإدارة؟', { ok: 'إرجاع' }))) return false; await DL.ret(b.dataset.dlret); UI.toast('عادت إلى العهدة العامة'); return true; }));
   /* ── قائمة التوزيع ── */
   const lineOf = (el) => CM.pend.find((l) => l.k === el.closest('[data-pk]').dataset.pk);
-  UI.on(ctx.view, 'click', '[data-pq1]', (e, b) => { const l = lineOf(b); l.qty = Math.max(1, l.qty + Number(b.dataset.pq1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast('بلغت المتبقي غير الموزّع', 'warn'); } } CM.keep(); after(); });
+  const availAssign = (l) => pool(l.depId, l).get(l.itemId) || 0;
+  UI.on(ctx.view, 'click', '[data-pq1]', (e, b) => { const l = lineOf(b); l.qty = Math.max(1, l.qty + Number(b.dataset.pq1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast('بلغت المتبقي في العهدة العامة', 'warn'); } } CM.keep(); after(); });
   ctx.view.addEventListener('change', (e) => {
-    if (e.target.matches('[data-pqty]')) { const l = lineOf(e.target); l.qty = Math.max(1, Math.floor(Number(e.target.value) || 1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast(`المتبقي غير الموزّع: ${fmtNum(av)}`, 'warn'); } } CM.keep(); after(); }
-    if (e.target.matches('[data-psn]')) { const l = lineOf(e.target); l.sn = e.target.value; const n = snSplit(l.sn).length; if (n > l.qty) { l.qty = n; after(); } CM.keep(); }
+    const t = e.target; if (!t.closest('[data-pk]')) return; const l = lineOf(t);
+    if (t.matches('[data-pqty]')) { l.qty = Math.max(1, Math.floor(Number(t.value) || 1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast(`المتبقي في العهدة العامة: ${fmtNum(av)}`, 'warn'); } } CM.keep(); after(); }
+    else if (t.matches('[data-psn]')) { l.sn = t.value; const n = snSplit(l.sn).length; if (n > l.qty) { l.qty = n; after(); } CM.keep(); }
+    else if (t.matches('[data-ptemp]')) { l.temp = t.checked; CM.keep(); after(); }
+    else if (t.matches('[data-pdue]')) { l.due = t.value; CM.keep(); }
   });
   UI.on(ctx.view, 'click', '[data-pdel]', (e, b) => { const l = lineOf(b); CM.pend = CM.pend.filter((x) => x !== l); CM.keep(); after(); });
   UI.on(ctx.view, 'click', '[data-cmclear]', async () => { if (!(await UI.confirm('إفراغ قائمة التوزيع؟ لم يُحفظ منها شيء بعد.', { ok: 'إفراغ', danger: true }))) return; CM.pend = []; CM.keep(); after(); });
-  UI.on(ctx.view, 'click', '[data-cmsave]', async (e, b) => { UI.busy(b, true); try { const r = await Pages.cmCommit(b.dataset.cmsave === 'print', T.units); if (r) await draw(); } catch (ex) { UI.error(ex); } finally { if (b.isConnected) UI.busy(b, false); } });
+  UI.on(ctx.view, 'click', '[data-cmsave]', async (e, b) => { UI.busy(b, true); try { const r = await Pages.cmCommit(b.dataset.cmsave === 'print'); if (r) await draw(); } catch (ex) { UI.error(ex); } finally { if (b.isConnected) UI.busy(b, false); } });
   ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 700)));
   ctx.onCleanup(Bus.on('org', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 700)));
   await draw();
 };
 /* حفظ قائمة التوزيع: كل سطر بإجرائه الصحيح، وما فشل يبقى في القائمة مع سببه */
-Pages.cmCommit = async (print, units) => {
+Pages.cmCommit = async (print) => {
   const lines = [...CM.pend]; if (!lines.length) { UI.toast('القائمة فارغة', 'info'); return false; }
   if (lines.some((l) => l.kind === 'add') && !(await Custody.allowed())) throw new AppError('الإضافة المباشرة لعهدة الإدارات مغلقة؛ اطلب من المشرف فتحها ثم احفظ');
   if (lines.some((l) => l.kind === 'store') && !MDL.canStore()) throw new AppError('الاستلام في المخزن لمن يملك حركات المخزون');
@@ -20157,53 +20324,25 @@ Pages.cmCommit = async (print, units) => {
   for (const l of lines) {
     const sns = l.kind === 'assign' ? [] : snSplit(l.sn).map((s) => ({ serial: s, tag: '' }));
     try {
+      const w = l.wsId ? await DB.get('workstations', l.wsId) : null;
       if (l.kind === 'store') { await Data.inv.move({ type: 'receive', itemId: l.itemId, warehouseId: l.whId, qty: l.qty, note: 'استلام من «توزيع العهدة»' }); if (sns.length) await Data.assets.add({ itemId: l.itemId, warehouseId: l.whId, serials: sns, note: 'استلام من «توزيع العهدة»' }); }
-      else if (l.kind === 'add') { const w = l.wsId ? await DB.get('workstations', l.wsId) : null; await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : 'إضافة من «توزيع العهدة»' }); }
+      else if (l.kind === 'add') { await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : l.unitId ? 'إضافة من «توزيع العهدة»' : 'عهدة عامة للإدارة من «توزيع العهدة»' }); }
+      else if (l.temp) { await DL.create({ departmentId: l.depId, unitId: l.unitId, holderId: (w && w.holderId) || '', itemId: l.itemId, qty: l.qty, dueAt: l.due ? new Date(`${l.due}T23:59:00`).getTime() : 0, note: w ? `لمحطة «${WS.label(w)}»` : '' }); }
       else { await Data.units.move({ departmentId: l.depId, itemId: l.itemId, fromUnitId: '', toUnitId: l.unitId, qty: l.qty }); }
-      if (l.wsId) { try { await WS.link(l.wsId, l.itemId, l.qty); } catch (ex) { failed.push([l, `أُضيف للمكتب ولم يُربط بالمحطة: ${ex.message}`]); } }
+      if (l.wsId && !(l.kind === 'assign' && l.temp)) { try { await WS.link(l.wsId, l.itemId, l.qty); } catch (ex) { failed.push([l, `أُضيف للمكتب ولم يُربط بالمحطة: ${ex.message}`]); } }
       done.push(l);
     } catch (ex) { failed.push([l, ex.message || String(ex)]); }
   }
   CM.pend = CM.pend.filter((l) => !done.includes(l)); CM.keep(); Bus.emit('inventory', {});
-  const units2 = await DB.getAll('deptUnits'), place = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : orgLabel(l.depId, l.unitId, units2) || Data.nameOf('departments', l.depId, ''));
+  const units2 = await DB.getAll('deptUnits'), place = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : orgLabel(l.depId, l.unitId, units2) || `${Data.nameOf('departments', l.depId, '')} — العهدة العامة`);
   const pieces = done.reduce((s, l) => s + l.qty, 0);
   if (done.length) await Data.log('move', 'inventory', '', `توزيع العهدة: ${fmtNum(done.length)} سطر (${fmtNum(pieces)} قطعة)`);
-  if (failed.length) UI.toast(`حُفظ ${fmtNum(done.length)} سطر، وتعذّر ${fmtNum(failed.length)}: ${failed.slice(0, 2).map(([l, m]) => m).join(' — ')}`, 'warn', 9000); else UI.toast(`حُفظ التوزيع: ${fmtNum(pieces)} قطعة في ${fmtNum(new Set(done.map(place)).size)} موضع`, 'ok', 5000);
+  if (failed.length) UI.toast(`حُفظ ${fmtNum(done.length)} سطر، وتعذّر ${fmtNum(failed.length)}: ${failed.slice(0, 2).map(([, m]) => m).join(' — ')}`, 'warn', 9000); else UI.toast(`حُفظ التوزيع: ${fmtNum(pieces)} قطعة في ${fmtNum(new Set(done.map(place)).size)} موضع`, 'ok', 5000);
   if (print && done.length) {
     const items = new Map((await Promise.all([...new Set(done.map((l) => l.itemId))].map((id) => DB.get('items', id)))).filter(Boolean).map((i) => [i.id, i])), ws = new Map((await DB.getAll('workstations')).map((w) => [w.id, w]));
-    UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${done.map((l, i) => { const it = items.get(l.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${place(l)}</td><td>${l.wsId && ws.get(l.wsId) ? WS.label(ws.get(l.wsId)) : '—'}</td><td>${it.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${snSplit(l.sn).join('، ') || '—'}</td><td>${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? 'توزيع داخل الإدارة' : 'عهدة جديدة'}</td></tr>`; })}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: Auth.user.id }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, 'كشف توزيع عهدة');
+    UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${done.map((l, i) => { const it = items.get(l.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${place(l)}</td><td>${l.wsId && ws.get(l.wsId) ? WS.label(ws.get(l.wsId)) : '—'}</td><td>${it.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${snSplit(l.sn).join('، ') || '—'}</td><td>${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? (l.temp ? `استخدام مؤقت${l.due ? ` حتى ${l.due.split('-').reverse().join('/')}` : ''}` : 'تخصيص من العهدة العامة') : l.unitId ? 'عهدة جديدة' : 'عهدة عامة للإدارة'}</td></tr>`; })}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: Auth.user.id }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, 'كشف توزيع عهدة');
   }
   return done.length > 0;
-};
-/* تفاصيل موضع: ما فيه مباشرة، ومحطات العمل (للفروع) */
-Pages.cmNodeModal = async (kind, id) => {
-  const T = await Data.custodyTree(), items = new Map((await DB.getAll('items')).map((i) => [i.id, i]));
-  if (kind === 'd') {
-    const d = T.deps.find((x) => x.id === id); if (!d) return false;
-    const all = T.depItems.get(id) || new Map(), inU = new Map(); T.units.filter((u) => u.departmentId === id).forEach((u) => (T.uItems.get(u.id) || new Map()).forEach((q, it) => inU.set(it, (inU.get(it) || 0) + q)));
-    return UI.modal({ title: `عهدة ${d.name}`, icon: 'building', size: 'lg', body: html`${all.size ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>الإجمالي</th><th>في الفروع</th><th>غير موزّع</th></tr></thead><tbody>${[...all].map(([it, q]) => html`<tr><td>${(items.get(it) || {}).name || 'صنف'}</td><td><b>${fmtNum(q)}</b></td><td>${fmtNum(inU.get(it) || 0)}</td><td>${q - (inU.get(it) || 0) > 0 ? UI.chip('amber', fmtNum(q - (inU.get(it) || 0))) : UI.chip('teal', '٠')}</td></tr>`)}</tbody></table></div><p class="hint mt">لتوزيع غير الموزّع: افتح «عهدة الإدارة غير الموزّعة» في لوحة النماذج واسحبها إلى الفروع.</p>` : UI.noData('لا عهدة لهذه الإدارة بعد')}`, actions: [{ label: 'إغلاق', kind: 'ghost', value: false }, { label: 'المستكشف', kind: 'soft', icon: 'search', value: false, handler: () => { Router.go(`/inventory/departments?at=d:${id}`); return false; } }] });
-  }
-  const u = T.byId.get(id); if (!u) return false;
-  const here = T.uItems.get(id) || new Map(), list = (await DB.getAll('workstations', 'unitId', KR(id))).sort((a, b) => (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0));
-  const linked = new Map(); list.forEach((w) => (w.lines || []).forEach((l) => linked.set(l.itemId, (linked.get(l.itemId) || 0) + l.qty)));
-  const people = Data.list('users').filter((x) => x.active !== 0 && !isSysAccount(x) && x.unitId === id), noWs = people.filter((p) => !list.some((w) => w.holderId === p.id)).length;
-  const can = WS.canEdit();
-  const wsCard = (w) => { const c = WS.check(w, items); return html`<div class="ws-card tone-${w.tone || 'sky'}"><span class="ws-ic">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${WS.label(w)}</b>${w.holderId ? html`<small>${UI.icon('user')} ${Data.userName(w.holderId)}</small>` : ''}<div class="ws-devs">${(w.lines || []).map((l) => { const it = items.get(l.itemId); return it ? html`<span title="${it.name}">${UI.illu(cmIllu(it), 'mini')}${l.qty > 1 ? html`<i>×${fmtNum(l.qty)}</i>` : ''}</span>` : ''; })}</div>${c.empty ? UI.chip('slate', 'بلا أجهزة بعد') : c.ok ? UI.chip('teal', 'مكتملة', 'check') : UI.chip('amber', `ينقصها: ${c.missing.join('، ')}`, 'alert')}</div>${can ? html`<button type="button" class="btn btn-ghost btn-sm" data-wsed="${w.id}">${UI.icon('edit')}</button>` : ''}</div>`; };
-  return UI.modal({
-    title: `${(UNIT_TYPES[u.type] || UNIT_TYPES.section).label}: ${u.name}`, icon: 'building', size: 'lg',
-    body: html`<p class="faint small" style="margin-top:0">${orgLabel(u.departmentId, u.id, T.units)}</p>
-      <h4>${UI.icon('monitor')} محطات العمل <small class="faint">— مكتب كل موظف بأجهزته المرتبطة</small></h4>
-      ${list.length ? html`<div class="ws-cards">${list.map(wsCard)}</div>` : html`<p class="hint">لا محطات بعد. المحطة تربط أجهزة من عهدة المكتب بموظف ومكان، فيتميز مكتب كل موظف عن غيره.</p>`}
-      ${can ? html`<div class="row mt" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-soft btn-sm" data-wsnew="${id}">${UI.icon('plus')} محطة عمل</button>${noWs ? html`<button type="button" class="btn btn-ghost btn-sm" data-wspeople="${id}">${UI.icon('users')} محطة لكل موظف (${fmtNum(noWs)})</button>` : ''}</div>` : ''}
-      <h4 class="mt">${UI.icon('box')} العهدة هنا مباشرة</h4>
-      ${here.size ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>العدد</th><th>في المحطات</th></tr></thead><tbody>${[...here].map(([it, q]) => html`<tr><td>${(items.get(it) || {}).name || 'صنف'}</td><td><b>${fmtNum(q)}</b></td><td>${linked.get(it) ? (linked.get(it) > q ? UI.chip('red', `${fmtNum(linked.get(it))} (أكثر من الموجود)`) : fmtNum(linked.get(it))) : html`<span class="faint">—</span>`}</td></tr>`)}</tbody></table></div>` : UI.noData('لا عهدة مسجلة هنا مباشرة')}`,
-    onMount: (form, finish) => {
-      UI.on(form, 'click', '[data-wsed]', async (e, b) => { if (await Pages.wsEdit({ id: b.dataset.wsed })) finish(true); });
-      UI.on(form, 'click', '[data-wsnew]', async (e, b) => { if (await Pages.wsEdit({ unitId: b.dataset.wsnew })) finish(true); });
-      UI.on(form, 'click', '[data-wspeople]', async (e, b) => { try { if (await WS.forPeople(b.dataset.wspeople)) finish(true); } catch (ex) { UI.error(ex); } });
-    },
-    actions: [{ label: 'إغلاق', kind: 'ghost', value: false }, { label: 'المستكشف', kind: 'soft', icon: 'search', handler: () => { Router.go(`/inventory/departments?at=u:${id}`); return false; } }]
-  });
 };
 Router.add('/inventory/distribute', 'inventory.read|custody.direct', Pages.custodyMap, 'توزيع العهدة');
 {

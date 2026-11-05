@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'workstations', 'deptLends', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -278,7 +278,7 @@ function pull_full(array $u): array {
   $grant(['chat.answer', 'tickets.work', 'reports'], ['chats', 'chatMsgs']);
   $grant(['activity'], ['activity']);
   $grant(['worklog', 'worklog.all', 'works', 'reports'], ['worklog', 'workFolders', 'workItems']);
-  $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'workstations', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
+  $grant(array_merge(INV_PERMS, ['inventory.read', 'extmaint.read', 'reports']), ['stock', 'deptStock', 'unitStock', 'workstations', 'deptLends', 'movements', 'vouchers', 'maintenance', 'loans', 'assets']);
   $grant(['extmaint.read', 'extmaint.manage'], ['extmaint']);
   /* قسم الإرسال إلى الصيانة: لمن منحه المشرف العرض أو الإدارة */
   $grant(['mtrack.read', 'mtrack.manage'], ['mtrack']);
@@ -737,7 +737,7 @@ function org_unit_write(array $u, ?array $old, ?array $new): bool {
   return !$new || (org_place_ok(...$pos($new)) && $under($new));
 }
 
-const INV_STORES = ['items', 'stock', 'deptStock', 'unitStock', 'workstations', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'];
+const INV_STORES = ['items', 'stock', 'deptStock', 'unitStock', 'workstations', 'deptLends', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'];
 const INV_PERMS = ['inventory.manage', 'inventory.move', 'loans.manage', 'custody.direct', 'extmaint.manage', 'settings'];
 const TICKET_STAFF = ['tickets.work', 'tickets.manage'];
 /** فني صالح للإسناد التلقائي: نشط، يعمل على البلاغات، ومسؤول عن فئة البلاغ */
@@ -1766,7 +1766,7 @@ case 'wipe': {
     'tickets' => ['tickets', 'ticketEvents', 'attachments'],
     'chats' => ['chats', 'chatMsgs'],
     'notifications' => ['notifications'],
-    'inventory' => ['items', 'stock', 'deptStock', 'unitStock', 'workstations', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'],
+    'inventory' => ['items', 'stock', 'deptStock', 'unitStock', 'workstations', 'deptLends', 'movements', 'loans', 'assets', 'vouchers', 'maintenance'],
     'works' => ['worklog', 'workFolders', 'workItems'],
     'surveys' => ['surveys', 'surveyResponses', 'surveyMarks'],
     'announcements' => ['announcements'],

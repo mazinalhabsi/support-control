@@ -4421,3 +4421,110 @@ body.cm-dragging [data-cdrop],body.cm-arming [data-cdrop]{outline:2px dashed rgb
 .ws-devs span{position:relative;display:inline-grid}
 .ws-devs .iso{width:30px;height:30px}
 .ws-devs i{position:absolute;bottom:-2px;inset-inline-end:-4px;font:800 9px var(--f-body);background:var(--surface-solid);border-radius:6px;padding:0 3px}
+
+/* ═══════════ توزيع العهدة (2): الدخول إلى المواضع، والعهدة العامة، وشجرة النماذج ═══════════ */
+.cm-bar{flex-wrap:wrap;gap:8px}
+.cm-path{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:13px}
+.cm-path button{border:0;background:none;padding:3px 6px;border-radius:8px;color:rgb(var(--accent-ink));cursor:pointer;font:inherit;display:inline-flex;align-items:center;gap:5px}
+.cm-path button:hover{background:rgba(var(--accent),.1)}
+.cm-path b{display:inline-flex;align-items:center;gap:5px}
+.cm-path .ic{width:16px;height:16px}
+.cm-path .ic.o3d{width:22px;height:22px;transform:none}
+.cm-path>span{color:var(--ink-3)}
+.cm-zone{min-height:200px;border-radius:14px;padding:4px;transition:outline-color .2s}
+.cm-sec{margin:6px 0 18px}
+.cm-sec>h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:14px}
+.cm-sec>h3>.ic{width:18px;height:18px;color:rgb(var(--accent-ink))}
+.cm-sec>h3>.ic.o3d{width:26px;height:26px;transform:none}
+.cm-sec>h3 small{padding:1px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);font-size:11.5px}
+.cm-sec>h3 .grow{flex:1}
+.cm-toolsrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.cm-devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.cm-dev{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;padding:12px 10px 10px;border-radius:16px;border:1.5px solid var(--line-2);background:var(--surface-solid);cursor:pointer;transition:transform .2s var(--spring),border-color .2s,box-shadow .2s}
+.cm-dev:hover{transform:translateY(-2px);border-color:rgb(var(--accent));box-shadow:0 12px 24px -16px rgba(var(--accent),.8)}
+.cm-dev .iso{width:56px;height:56px}
+.cm-dev b{font-size:12.5px;line-height:1.4}
+.cm-dev small{font-size:10.5px;color:var(--ink-3)}
+.cm-dq{position:absolute;top:8px;inset-inline-start:8px;padding:1px 8px;border-radius:999px;background:rgba(var(--accent),.16);color:rgb(var(--accent-ink));font:800 11px var(--f-body)}
+.cm-dev .btn{margin-top:4px}
+.cm-devt tr[data-dev]{cursor:pointer}
+.cm-devt tr[data-dev]:hover{background:rgba(var(--accent),.05)}
+.cm-devt .iso{width:34px;height:34px}
+.cm-minis{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:4px}
+.cm-minis i{position:relative;display:inline-grid;font-style:normal}
+.cm-minis .iso{width:28px;height:28px}
+.cm-minis em{position:absolute;bottom:-3px;inset-inline-end:-3px;padding:0 3px;border-radius:6px;background:var(--surface-solid);font:800 9px var(--f-body);font-style:normal}
+.cm-minis>b{font-size:10px;color:var(--ink-3);align-self:center}
+.cm-wsbox{min-width:150px}
+.cm-wsbox .oc-ic,.cm-shbox .oc-ic,.cm-gen .oc-ic{background:none;box-shadow:none}
+.cm-wsbox .oc-ic>.ic.o3d,.cm-shbox .oc-ic>.ic.o3d,.cm-gen .oc-ic>.ic.o3d{width:40px;height:40px;transform:none}
+.cm-wsbox small{font-size:10.5px;color:var(--ink-3)}
+.cm-shbox{border-style:dashed}
+.cm-gen{border-style:dashed;background:rgba(var(--t),.05)}
+.cm-tmp{display:inline-flex;align-items:center;gap:3px;margin-top:3px;padding:1px 7px;border-radius:999px;background:rgba(var(--sky),.14);color:rgb(var(--sky));font:700 10.5px var(--f-body)}
+.cm-tmp .ic{width:11px;height:11px}
+.cm-tmp.late{background:rgba(var(--red),.14);color:rgb(var(--red))}
+tr.late td{background:rgba(var(--red),.05)}
+.cm-gendesc{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line-2)}
+.cm-gendesc>.ic.o3d{width:48px;height:48px;transform:none;flex:none}
+.cm-gendesc b{display:block;font-size:14px}
+.cm-gendesc small{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+.cm-wscards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.cm-wscard{position:relative;display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:16px;border:1.5px solid rgba(var(--t),.4);background:rgba(var(--t),.06);cursor:pointer;transition:transform .2s var(--spring),box-shadow .2s}
+.cm-wscard:hover{transform:translateY(-2px);box-shadow:0 14px 28px -18px rgba(var(--t),.9)}
+.cm-wscard b{display:block;font-size:13.5px}
+.cm-wscard small{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-3)}
+.cm-wscard .cm-minis{justify-content:flex-start}
+.cm-wscard>.cm-n{position:absolute;top:10px;inset-inline-end:10px;margin:0}
+.cm-wsic{display:grid;place-items:center;width:52px;height:52px;flex:none}
+.cm-wsic>.ic{width:26px;height:26px;color:rgb(var(--t))}
+.cm-wsic>.ic.o3d{width:52px;height:52px;transform:none}
+.cm-wsic.sm{width:32px;height:32px}.cm-wsic.sm>.ic.o3d{width:32px;height:32px}
+.cm-wsic.lg{width:72px;height:72px}.cm-wsic.lg>.ic.o3d{width:72px;height:72px}
+.cm-wslist{display:flex;flex-direction:column;gap:6px}
+.cm-wsli{position:relative;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line);border-inline-start:3px solid rgb(var(--t));background:var(--surface-solid);cursor:pointer}
+.cm-wsli b{font-size:13px;white-space:nowrap}
+.cm-wsli small{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.cm-wsli .grow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-wshead{display:flex;align-items:center;gap:14px;padding:14px;margin-bottom:14px;border-radius:18px;background:rgba(var(--t),.08);border:1.5px solid rgba(var(--t),.35)}
+.cm-wshead b{display:block;font-size:16px}
+.cm-wshead small{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-3);margin-top:2px}
+.cm-kids{display:flex;flex-direction:column;gap:6px}
+.cm-tempc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cm-tempc .input{height:34px;width:auto}
+/* شجرة اللوحة */
+.cm-paltools{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+.cm-paltools .search-box{margin:0}
+.cm-paltools .icon-btn{width:32px;height:32px;flex:none}
+.cm-tree2{display:flex;flex-direction:column;gap:4px}
+.cm-grp{border-radius:12px;border:1px solid var(--line);background:var(--surface-solid)}
+.cm-grp.open{border-color:var(--line-2);background:var(--surface-2)}
+.cm-grp.hot{border-color:rgba(var(--amber),.6)}
+.cm-gh{display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit;text-align:start;border-radius:12px}
+.cm-gh:hover{background:rgba(var(--accent),.07)}
+.cm-gh>.ic{width:14px;height:14px;color:var(--ink-3);flex:none}
+.cm-gh .iso{width:30px;height:30px;flex:none}
+.cm-gh b{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-gh small{padding:0 8px;border-radius:999px;background:rgba(var(--accent),.14);color:rgb(var(--accent-ink));font:700 11px var(--f-body)}
+.cm-gb{padding:4px 6px 8px;display:flex;flex-direction:column;gap:4px}
+.cm-grp.lvl2{background:var(--surface-solid)}
+.cm-grp.lvl2 .cm-gh b{font-size:12.5px}
+.cm-grp.lvl3{background:var(--surface-2);border-style:dashed}
+.cm-grp.lvl3 .cm-gh b{font-size:12px}
+.cm-blogo{display:inline-grid;place-items:center;min-width:36px;height:22px;flex:none;overflow:hidden}
+.cm-blogo .pc-brand{width:auto;max-width:54px;height:20px;gap:0;transform:none!important}
+.cm-blogo .pc-brand .bl-m{height:16px;width:auto}
+.cm-blogo .pc-brand .bl-t{font-size:10px!important;line-height:1!important}
+.cm-blogo>.ic{width:14px;height:14px;color:var(--ink-3)}
+.cm-pal .cm-models{gap:4px}
+.cm-pal .cm-model{padding:5px 7px}
+.cm-pal .cm-model .iso{width:30px;height:30px}
+/* مقبض تغيير الحجم */
+.cm-palrs{position:absolute;z-index:2;background:transparent;transition:background .2s}
+.cm-palrs:hover,.cm-palrs:active{background:rgba(var(--accent),.35)}
+.cm-pal.dock-side .cm-palrs{top:16px;bottom:16px;right:-2px;width:7px;cursor:ew-resize;border-radius:4px}
+.cm-pal.dock-top .cm-palrs{left:16px;right:16px;bottom:-2px;height:7px;cursor:ns-resize;border-radius:4px}
+.cm-pal.dock-bottom .cm-palrs{left:16px;right:16px;top:-2px;height:7px;cursor:ns-resize;border-radius:4px}
+.cm-pal.dock-float .cm-palrs,.cm-pal.min .cm-palrs{display:none}
+.cm-paltools .search-box{flex:1 1 auto;min-width:0;width:auto;max-width:none}
+.cm-paltools .search-box input{width:100%}
