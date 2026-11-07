@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'workstations', 'deptLends', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -310,6 +310,7 @@ function self_sql(array $u, array $full = []): array {
   $add(true, "store <> 'notifications' OR {$j('userId')} = ?", [$me]);
   $add($own('chats'), "store <> 'chats' OR {$j('userId')} = ?", [$me]);
   $add($own('loans'), "store <> 'loans' OR {$j('borrowerId')} = ?", [$me]);
+  $add($own('deptLends'), "store <> 'deptLends' OR {$j('holderId')} = ?", [$me]);
   $add($own('assets'), "store <> 'assets' OR {$j('holderId')} = ? OR {$j('departmentId')} = ?", [$me, $dep === '' ? "\0" : $dep]);
   $add($own('surveyResponses'), "store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?", [$me]);
   $add(true, "store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?", [$me]);
@@ -361,6 +362,7 @@ function visible_rows(array $rows, array $u, array $full = []): array {
       case 'chats': $ok = (string) ($d['userId'] ?? '') === $me; break;
       case 'chatMsgs': $ok = ($cOwn[(string) ($d['chatId'] ?? '')] ?? '') === $me; break;
       case 'loans': $ok = (string) ($d['borrowerId'] ?? '') === $me; break;
+      case 'deptLends': $ok = (string) ($d['holderId'] ?? '') === $me; break;
       case 'assets': $ok = (string) ($d['holderId'] ?? '') === $me || ($dep !== '' && (string) ($d['departmentId'] ?? '') === $dep); break;
       case 'surveyResponses': case 'surveyMarks': $ok = (string) ($d['userId'] ?? '') === $me; break;
       /* الردود الخاصة لا تصل إلا لصاحبها */
