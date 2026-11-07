@@ -4655,3 +4655,40 @@ tr.late td{background:rgba(var(--red),.05)}
 .rco-row .ic{width:16px;height:16px}
 .rco-row .ic.o3d{width:22px;height:22px;transform:none}
 @media (max-width:900px){.rc-totals{grid-template-columns:repeat(2,minmax(0,1fr))}.rc-flab{min-width:0;width:100%}}
+
+/* ═══════════ شريط أدوات الهيكل: يظهر بالمرور أو باللمس فقط ═══════════ */
+@media (hover:none){.org-acts{opacity:0;visibility:hidden;transition:opacity .16s,visibility 0s linear .16s}}
+.acts-on>.org-acts{opacity:1!important;visibility:visible!important;transition:none!important}
+/* ═══════════ عهدة الإدارات بأيقونات الهيكل وألوانه ═══════════ */
+.ct-tree a[class*="tone-"] .ic{color:rgb(var(--t))}
+.ct-tree a .ic.o3d{width:22px;height:22px;transform:none}
+.ct-ic:has(>.o3d){background:none}
+.ct-ic>.ic.o3d{width:46px;height:46px;transform:none}
+.unit-ic>.ic.o3d{width:38px;height:38px;transform:none}
+.icon3d.unit-ic:has(>.o3d){background:none;box-shadow:none}
+.uo-head .uo-ic{display:inline-grid;place-items:center;width:26px;height:26px;color:rgb(var(--t))}
+.uo-head .uo-ic>.ic.o3d{width:26px;height:26px;transform:none}
+/* ═══════════ هيكل المكتب: الجذر بملخص، ورفّ الأجهزة المشتركة ═══════════ */
+.cm-root{min-width:180px}
+.cm-rootsum{display:block;margin-top:4px;font-size:10.5px;color:var(--ink-3)}
+.cm-wsbox em{display:inline-flex;align-items:center;gap:3px}
+.cm-wsbox em .ic{width:11px;height:11px}
+.cm-shelf{position:relative;margin:18px auto 4px;max-width:900px;border-radius:20px;padding:14px 16px;border:2px solid rgba(var(--t),.45);background:repeating-linear-gradient(135deg,rgba(var(--t),.07) 0 12px,rgba(var(--t),.02) 12px 24px),var(--surface-solid);box-shadow:inset 0 -6px 0 rgba(var(--t),.18)}
+.cm-shelf::before{content:"";position:absolute;top:-20px;left:50%;height:18px;border-inline-start:2px dashed rgba(var(--t),.5)}
+.cm-shelf-h{display:flex;align-items:center;gap:12px}
+.cm-shelf-ic{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:16px;background:var(--surface-solid);border:1.5px solid rgba(var(--t),.35)}
+.cm-shelf-ic .iso{width:48px;height:48px}
+.cm-shelf-h b{display:flex;align-items:center;gap:6px;font-size:14px}
+.cm-shelf-h b .ic{width:16px;height:16px;color:rgb(var(--t))}
+.cm-shelf-h small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.cm-shelf-n{display:flex;flex-direction:column;align-items:center;padding:4px 14px;border-radius:14px;background:rgb(var(--t));color:#fff}
+.cm-shelf-n b{font:800 20px var(--f-display);line-height:1.1}
+.cm-shelf-n small{font-size:10px;opacity:.9}
+.cm-shelf .cm-pend{top:-10px;inset-inline-start:-8px}
+.cm-shelf-items{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cm-shelf-it{display:inline-flex;align-items:center;gap:6px;padding:4px 12px 4px 6px;border-radius:14px;border:1.5px solid rgba(var(--t),.35);background:var(--surface-solid);color:var(--ink);font:600 12.5px var(--f-body);cursor:pointer}
+.cm-shelf-it:hover{border-color:rgb(var(--t))}
+.cm-shelf-it .iso{width:30px;height:30px}
+.cm-shelf-it i{font-style:normal;font-weight:800;color:rgb(var(--t))}
+.cm-shelf-empty{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--ink-3)}
+.cm-shelf.cm-over{transform:none!important}
