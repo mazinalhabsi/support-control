@@ -959,6 +959,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
         return $m;
       }
       if ($key === 'imglib') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
+      /* بنك محتوى نماذج البلاغات: خانات يحفظها من يدير الفئات لتُستخدم في غيرها */
+      if ($key === 'formbank') return can_any($user, ['settings', 'categories.manage']) ? $new : null;
       if ($key === 'navhide') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'ratingcfg') return can_any($user, ['settings', 'ratings.manage']) ? $new : null;
       if ($key === 'xmcfg') return can_any($user, ['settings', 'extmaint.manage']) ? $new : null;

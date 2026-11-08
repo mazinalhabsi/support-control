@@ -2313,10 +2313,10 @@ Pages.newTicket = async (ctx) => {
     const c = Data.c.categories.get(st.cat) || cats[0];
     view.innerHTML = String(html`${head}${steps()}<div class="grid g-side">
       ${UI.panel({ title: 'تفاصيل البلاغ', icon: 'edit', body: html`<form id="tkForm" novalidate class="stack" style="gap:16px">
-        <div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button></div>
+        <div class="chosen">${UI.illu('cat:' + c.id)}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${c.name}</b></div><button type="button" class="btn btn-ghost btn-sm" data-act="back1">${UI.icon('edit')} تغيير</button>${canCatAdmin() ? html`<button type="button" class="btn btn-soft btn-sm fs-live" data-act="fsedit" title="عدّل خانات هذا النموذج ونصوصه وإلزاميتها مباشرة">${UI.icon('sliders')} تعديل النموذج</button>` : ''}</div>
         <div data-svcnote></div>${Pages.catNotes(c.id)}${Pages.categoryFormBar(c.id)}<div id="catFields">${Forms.render(c.id, st.x || {})}</div>${c.id === 'card' ? Forms.personsBlock(st.persons || []) : ''}${c.id === 'path_code' ? Forms.codeBlock(st.codes || []) : ''}
         <div class="field"><label for="tt">${Forms.titleLabel(c.id)}<em>*</em></label><input id="tt" name="title" maxlength="120" placeholder="${catCfg(c.id) ? 'اكتب عنواناً مختصراً وواضحاً' : 'مثال: الطابعة في مكتب 12 لا تطبع'}" value="${st.title || ''}">${Forms.quickTitles(c.id).length ? html`<div class="quick-chips" style="margin-top:6px">${Forms.quickTitles(c.id).map((x) => html`<button type="button" class="qchip" data-quick="${x}">${x}</button>`)}</div>` : ''}</div>
-        <div class="field"><label for="td">وصف المشكلة</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea><div class="desc-tools" data-desctools></div></div>
+        <div class="field"><label for="td">${Forms.sys(c.id, 'desc').l}${Forms.sys(c.id, 'desc').req ? html`<em>*</em>` : ''}</label><textarea id="td" name="description" rows="4" placeholder="${Forms.descHint(c.id)}">${st.description || ''}</textarea><div class="desc-tools" data-desctools></div></div>
         <div class="field"><label>مدى تأثير المشكلة</label><div class="seg" role="radiogroup">${Object.entries(PRIORITY).reverse().map(([k, p]) => html`<label class="tone-${p.tone}"><input type="radio" name="priority" value="${k}"${(st.priority || 'medium') === k ? raw(' checked') : ''}><span><i class="dot"></i>${p.label}<small class="faint">${PRIO_HINT[k]}</small></span></label>`)}</div><small class="hint" id="slaHint"></small></div>
         ${Forms.baseFields(c.id, st)}
         <div class="field"><label>المرفقات (صور أو ملفات)</label><div class="dropzone" id="drop" tabindex="0" role="button">${UI.icon('upload')}<b>اسحب الملفات هنا أو انقر للاختيار</b><span class="small faint">حتى 5 ملفات، 10 ميجابايت لكل ملف</span></div><div class="files" id="fileList" style="margin-top:10px"></div></div>
@@ -2365,6 +2365,7 @@ Pages.newTicket = async (ctx) => {
   UI.on(view, 'click', '.tile[data-cat]', (e, el) => { st.cat = el.dataset.cat; $$('.tile', view).forEach((x) => x.classList.toggle('selected', x === el)); setTimeout(() => { if (!ctx.alive()) return; st.step = 2; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }, 220); });
   UI.on(view, 'click', '[data-act="back1"]', () => { save(); st.step = 1; render(); });
   UI.on(view, 'click', '[data-act="back2"]', () => { st.step = 2; render(); });
+  UI.on(view, 'click', '[data-act="fsedit"]', async () => { save(); if (await Pages.formStudioOverlay(st.cat)) { if (!ctx.alive()) return; render(); UI.toast('طُبّق تعديل النموذج، وبقيت القيم التي كتبتها', 'success'); } });
   UI.on(view, 'click', '[data-quick]', (e, el) => { const t = $('#tt', view); t.value = el.dataset.quick; t.dispatchEvent(new Event('input')); t.focus(); });
   UI.on(view, 'click', '[data-rm]', (e, el) => { files.splice(Number(el.dataset.rm), 1); renderFiles(); });
   UI.on(view, 'click', '[data-kb]', (e, el) => Pages.kbArticle(el.dataset.kb));
@@ -2374,6 +2375,7 @@ Pages.newTicket = async (ctx) => {
     const cf = $('#catFields', view), v = st.x || {};
     Forms.def(st.cat).filter((f) => f.req && Forms.visible(f, v) && !v[f.k]).forEach((f) => mark(cf && cf.querySelector(`[name="x_${f.k}"]`), f.l));
     $$('.persons-box input[required], .persons-box [data-req]', form).forEach((el) => { if (!String(el.value || '').trim()) mark(el, el.placeholder || 'بيانات الشخص'); });
+    Forms.sysMissing(st.cat, view, st).forEach(([el, label, msg]) => mark(el, label, msg));
     if (String(st.title || '').trim().length < 3) mark($('#tt', view), Forms.titleLabel(st.cat), 'اكتب عنواناً واضحاً (3 أحرف على الأقل)');
     if (catFormRequired(st.cat) && !files.length) mark($('#drop', view), 'مستند الفئة', 'أرفق مستند الفئة بعد تعبئته (إلزامي لهذه الفئة)');
     else if (Forms.attachReq(st.cat) && !files.length) mark($('#drop', view), 'المرفقات', Forms.attachMsg(st.cat));
@@ -3875,16 +3877,17 @@ const Forms = {
   render(catId, v = {}) {
     const defs = this.def(catId); if (!defs.length) return '';
     return html`<div class="cat-fields" data-catfields="${catId}">${defs.map((f) => {
+      if (isDisp(f.t)) return Forms.disp(f, this.visible(f, v));
       const show = this.visible(f, v), opts = this.options(f, v), val = v[f.k] == null ? f.def || '' : v[f.k], isOther = val && opts.length && !opts.includes(val);
-      const input = f.t === 'inklines' ? InkReq.html(f, v) : f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick${f.k === 'brand' ? ' brand-pick' : ''}">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
+      const input = f.t === 'inklines' ? InkReq.html(f, v) : f.t === 'rankpick' ? UI.rankPickList(`x_${f.k}`, val) : f.t === 'choice' ? html`<div class="choice-pick${f.k === 'brand' ? ' brand-pick' : ''}${f.os ? ` os-${f.os}` : ''}">${opts.map((o) => html`<label><input type="radio" name="x_${f.k}" value="${o}"${val === o ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
         : f.t === 'select' ? html`<select name="x_${f.k}">${html`<option value="">${opts.length ? 'اختر...' : 'لا توجد خيارات، اكتبها يدوياً'}</option>`}${opts.map((o) => html`<option value="${o}"${val === o ? raw(' selected') : ''}>${o}</option>`)}${f.other || !opts.length ? html`<option value="__other"${isOther ? raw(' selected') : ''}>أخرى / غير مدرج</option>` : ''}</select>${f.other || !opts.length ? html`<input class="input cf-other" name="x_${f.k}_other" placeholder="اكتب الاسم يدوياً" value="${isOther ? val : ''}"${isOther || !opts.length ? '' : raw(' hidden')}>` : ''}`
         : f.t === 'table' ? Forms.tableHTML(f, val)
-        : f.t === 'multi' ? html`<div class="choice-pick multi">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
+        : f.t === 'multi' ? html`<div class="choice-pick multi${f.os ? ` os-${f.os}` : ''}">${opts.map((o) => html`<label><input type="checkbox" name="x_${f.k}" value="${o}"${String(val).split('، ').includes(o) ? raw(' checked') : ''}><span>${Forms.optIco(f, o)}${o}</span></label>`)}</div>`
         : f.t === 'textarea' ? html`<textarea name="x_${f.k}" rows="3" placeholder="${f.hint || ''}">${val}</textarea>`
         : f.t === 'date' ? html`<input name="x_${f.k}" type="date" value="${val}">`
         : html`<input name="x_${f.k}" type="${f.t === 'number' ? 'number' : 'text'}"${f.t === 'number' ? raw(' min="1"') : ''}${f.dir ? raw(` dir="${f.dir}"`) : ''} value="${val}" placeholder="${f.hint || ''}">`;
       const chips = (f.t === 'text' || f.t === 'textarea') && opts.length ? html`<div class="quick-chips cf-chips">${opts.map((o) => html`<button type="button" class="qchip" data-cffill="x_${f.k}" data-val="${o}">${o}</button>`)}</div>` : '';
-      return html`<div class="field cf${['choice', 'multi', 'textarea', 'table', 'inklines'].includes(f.t) ? ' wide' : ''}"${show ? '' : raw(' hidden')}><label>${f.ic ? html`<span class="cf-ic">${refIcon(f.ic, f.l)}</span>` : ''}${f.l}${f.req ? html`<em>*</em>` : ''}${Forms.qe ? Forms.qe(catId, f) : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
+      return html`<div class="field cf${Forms.wcls(f)}"${show ? '' : raw(' hidden')}><label>${f.ic ? html`<span class="cf-ic">${refIcon(f.ic, f.l)}</span>` : ''}${f.l}${f.req ? html`<em>*</em>` : ''}${Forms.qe ? Forms.qe(catId, f) : ''}</label>${input}${chips}${f.hint && !['text', 'textarea', 'number'].includes(f.t) ? html`<small class="hint">${f.hint}</small>` : ''}${f.note ? html`<small class="hint cf-note">${f.note}</small>` : ''}</div>`;
     })}</div>`;
   },
   values(root) {
@@ -5803,8 +5806,8 @@ Forms.baseFields = (catId, values = {}) => {
   return html`<div class="form-grid">
     ${Forms.orgPlace(values.departmentId || u.departmentId || '', deps)}
     <input type="hidden" name="unitId" value="${values.unitId != null ? values.unitId : (values.departmentId || u.departmentId || '') === u.departmentId ? u.unitId || '' : ''}"><input type="hidden" name="unitPath" value="${values.unitPath || ''}">
-    ${UI.field({ name: 'contact', label: 'رقم التواصل', inputmode: 'tel' }, values.contact || u.phone || '')}
-    ${show.includes('deviceName') ? UI.field({ name: 'deviceName', label: 'اسم الجهاز على الشبكة', placeholder: 'مثال: NZWSQP00WS001', hint: 'يساعد الفني على الاتصال بجهازك عن بُعد' }, values.deviceName || '') : ''}
+    ${UI.field({ name: 'contact', label: Forms.sys(catId, 'contact').l, required: !!Forms.sys(catId, 'contact').req, inputmode: 'tel' }, values.contact || u.phone || '')}
+    ${show.includes('deviceName') ? UI.field({ name: 'deviceName', label: Forms.sys(catId, 'device').l, required: !!Forms.sys(catId, 'device').req, placeholder: 'مثال: NZWSQP00WS001', hint: 'يساعد الفني على الاتصال بجهازك عن بُعد' }, values.deviceName || '') : ''}
   </div>`;
 };
 
@@ -5825,9 +5828,9 @@ const patchRankField = () => { const f = CAT_FORMS.card.find((x) => x.k === 'ran
 
 /* أشخاص إضافيون لإصدار عدة بطاقات دفعة واحدة */
 Forms.personsBlock = (list = []) => html`<div class="persons-box" data-persons>
-  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b class="small">${UI.icon('users')} أشخاص إضافيون (إصدار عدة بطاقات دفعة واحدة)</b><button type="button" class="btn btn-ghost btn-sm" data-act="addperson">${UI.icon('plus')} إضافة شخص</button></div>
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b class="small">${UI.icon('users')} ${Forms.sys('card', 'persons').l}${Forms.sys('card', 'persons').req ? html`<em class="req-star" aria-hidden="true">*</em>` : ''}</b><button type="button" class="btn btn-ghost btn-sm" data-act="addperson">${UI.icon('plus')} إضافة شخص</button></div>
   <div class="persons-list">${list.map((p, i) => Forms.personRow(p, i))}</div>
-  <small class="hint">اترك القائمة فارغة إذا كانت البطاقة لشخص واحد فقط.</small></div>`;
+  <small class="hint">${Forms.sys('card', 'persons').hint || (Forms.sys('card', 'persons').req ? 'أضف شخصاً واحداً على الأقل.' : 'اترك القائمة فارغة إذا كانت البطاقة لشخص واحد فقط.')}</small></div>`;
 Forms.personRow = (p = {}, i = 0) => html`<div class="person-row" data-person="${i}">
   <input name="pn_${i}" value="${p.name || ''}" placeholder="الاسم الكامل">
   <select name="pr_${i}"><option value="">الرتبة</option>${rankOptions().map((r) => html`<option value="${r}"${p.rank === r ? raw(' selected') : ''}>${r}</option>`)}</select>
@@ -11005,7 +11008,7 @@ const READY_NOTES = ['أعد تشغيل الجهاز قبل تقديم البل�
 const catDraft = (id) => {
   const c = Data.c.categories.get(id) || {}, cf = catCfg(id) || {};
   const fields = Forms.def(id).map(({ by, fallback, ...f }) => JSON.parse(JSON.stringify(f)));
-  return { name: c.name || '', image: CatIcon.ref(id), order: c.order || 0, hidden: c.hidden ? 1 : 0, titleLabel: Forms.titleLabel(id), descHint: Forms.descHint(id), quickTitles: [...Forms.quickTitles(id)], notes: [...Forms.notes(id)], noteIc: [...(Array.isArray(cf.noteIc) ? cf.noteIc : [])], base: [...Forms.baseShow(id)], attachReq: cf.attachReq ? 1 : 0, attachLabel: cf.attachLabel || '', fields, eform: { on: 0, title: `استمارة ${c.name || ''}`.trim(), signs: [...EFORM_SIGNS], notes: [], noDownload: 0, ...JSON.parse(JSON.stringify(eformOf(id) || {})) } };
+  return { name: c.name || '', image: CatIcon.ref(id), order: c.order || 0, hidden: c.hidden ? 1 : 0, titleLabel: Forms.titleLabel(id), descHint: Forms.descHint(id), quickTitles: [...Forms.quickTitles(id)], notes: [...Forms.notes(id)], noteIc: [...(Array.isArray(cf.noteIc) ? cf.noteIc : [])], base: [...Forms.baseShow(id)], attachReq: cf.attachReq ? 1 : 0, attachLabel: cf.attachLabel || '', sys: JSON.parse(JSON.stringify(cf.sys || {})), fields, eform: { on: 0, title: `استمارة ${c.name || ''}`.trim(), signs: [...EFORM_SIGNS], notes: [], noDownload: 0, ...JSON.parse(JSON.stringify(eformOf(id) || {})) } };
 };
 Data.catAdmin = {
   guard() { if (!canCatAdmin()) throw new AppError('لا تملك صلاحية إدارة البلاغات'); },
@@ -11091,7 +11094,7 @@ Pages.ticketAdmin = async (ctx) => {
     const head = UI.pageHead({ title: 'إدارة البلاغات', sub: 'ابنِ فئات البلاغات وعدّل صورها ومسمياتها وخاناتها وملاحظاتها ومرفقاتها', illu: 'clipboard', actions: st.tab === 'cats' ? html`<button class="btn btn-primary" data-act="newcat">${UI.icon('plus')} فئة جديدة</button>` : '' });
     if (st.tab === 'images') { ctx.view.innerHTML = String(html`${head}${tabs}<div id="imgTab"></div>`); Pages.imagesTab($('#imgTab', ctx.view), ctx); return; }
     const cats = Data.list('categories');
-    ctx.view.innerHTML = String(html`${head}${tabs}${UI.stateLegend(['off', 'lock', 'mod'], { off: 'مخفية عن الموظفين', lock: 'تحميل المستند موقوف', mod: 'معدّلة عن الأصل' })}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id), cf = catCfg(c.id); return html`<div class="cat-card${c.hidden ? ' off x-off' : docLocked(c.id) ? ' x-lock' : cf ? ' x-mod' : ''}" data-open="${c.id}" tabindex="0" role="link">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('red', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><div class="cc-acts"><button class="btn btn-soft btn-sm" data-open="${c.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-hide="${c.id}" title="${c.hidden ? 'إظهار للموظفين' : 'إخفاء عن الموظفين'}">${UI.icon(c.hidden ? 'eye' : 'eye-off')} ${c.hidden ? 'إظهار' : 'إخفاء'}</button><button class="btn btn-ghost btn-sm danger" data-cdel="${c.id}" title="حذف">${UI.icon('trash')}</button></div></div>`; })}
+    ctx.view.innerHTML = String(html`${head}${tabs}${UI.stateLegend(['off', 'lock', 'mod'], { off: 'مخفية عن الموظفين', lock: 'تحميل المستند موقوف', mod: 'معدّلة عن الأصل' })}<div class="cat-admin stagger">${cats.map((c) => { const d = Forms.def(c.id).filter((f) => !isDisp(f.t)), cf = catCfg(c.id); return html`<div class="cat-card${c.hidden ? ' off x-off' : docLocked(c.id) ? ' x-lock' : cf ? ' x-mod' : ''}" data-open="${c.id}" tabindex="0" role="link">${raw(CatIcon.svg(c.id))}<div class="grow"><b>${c.name}</b><div class="cc-meta"><span>${UI.icon('menu')} ${fmtNum(d.length)} خانة</span><span>${UI.icon('alert')} ${fmtNum(d.filter((f) => f.req).length)} إلزامية</span><span>${UI.icon('ticket')} ${fmtNum(counts.get(c.id) || 0)} بلاغ</span></div><div class="cc-tags">${c.hidden ? UI.chip('red', 'مخفية عن الموظفين', 'eye-off') : ''}${cf ? UI.chip('violet', 'معدّلة', 'edit') : UI.chip('sky', 'الأصل', 'star')}${Forms.notes(c.id).length ? UI.chip('amber', `${fmtNum(Forms.notes(c.id).length)} ملاحظات`, 'info') : ''}${Forms.attachReq(c.id) || catFormRequired(c.id) ? UI.chip('red', 'مرفق إلزامي', 'clip') : ''}</div></div><div class="cc-acts"><button class="btn btn-soft btn-sm" data-open="${c.id}">${UI.icon('edit')} تعديل</button><button class="btn btn-ghost btn-sm" data-hide="${c.id}" title="${c.hidden ? 'إظهار للموظفين' : 'إخفاء عن الموظفين'}">${UI.icon(c.hidden ? 'eye' : 'eye-off')} ${c.hidden ? 'إظهار' : 'إخفاء'}</button><button class="btn btn-ghost btn-sm danger" data-cdel="${c.id}" title="حذف">${UI.icon('trash')}</button></div></div>`; })}
       <button class="cat-card add" data-act="newcat">${UI.icon('plus')}<div class="grow"><b>توليد فئة جديدة</b><div class="t-sub">من قالب جاهز أو بنسخ فئة موجودة</div></div></button></div>`);
   };
   UI.on(ctx.view, 'click', '[data-tab]', (e, el) => { st.tab = el.dataset.tab; history.replaceState(null, '', `#/ticket-admin${st.tab === 'images' ? '?tab=images' : ''}`); draw(); });
@@ -11178,7 +11181,7 @@ Pages.catEditor = async (ctx) => {
       <div class="ce-danger">${builtIn ? html`<button class="btn btn-ghost" data-act="reset">${UI.icon('undo')} استعادة الإعداد الأصلي</button>` : ''}<button class="btn btn-ghost" data-act="copy">${UI.icon('copy')} نسخ الفئة</button><button class="btn btn-ghost danger" data-act="del">${UI.icon('trash')} حذف الفئة</button></div>
     </div><aside class="ce-side">${UI.panel({ title: 'المعاينة المباشرة', icon: 'eye', body: html`<div id="cePreview"></div>` })}</aside></div>`);
   UI.hydrate(ctx.view); preview();
-  ctx.ce = { d, open, mark: () => mark(), redrawFields: () => redrawFields(), redrawNotes: () => redrawNotes(), preview: () => preview() };
+  ctx.ce = { d, open, mark: () => mark(), redrawFields: () => redrawFields(), redrawNotes: () => redrawNotes(), preview: () => preview(), isDirty: () => dirty, saved: () => { dirty = false; const b = $('#ceDirty', ctx.view); if (b) b.hidden = true; } };
   const field = (el) => d.fields[Number(el.closest('[data-fi]').dataset.fi)];
   ctx.view.addEventListener('input', (e) => {
     const t = e.target;
@@ -11216,7 +11219,7 @@ Pages.catEditor = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="img"]', async () => { const r = await Pages.imgPickModal(d.image, d.name); if (r) { d.image = r; mark(); $('.ce-img', ctx.view).innerHTML = `${ImgLib.html(d.image, 'cat-ic')}<span>${UI.icon('photo')} تغيير</span>`; preview(); } });
   UI.on(ctx.view, 'click', '[data-act="efprev"]', () => Pages.eFormView({ categoryId: id }, { blank: true, ef: { ...d.eform, title: d.eform.title || `استمارة ${d.name}` }, defs: d.fields.filter((f) => f.l) }));
   UI.on(ctx.view, 'click', '[data-act="owners"]', async () => { await Pages.lookupModal('categories', id); });
-  UI.on(ctx.view, 'click', '[data-act="save"]', async (e, btn) => { UI.busy(btn, true); try { await Data.catAdmin.save(id, d); dirty = false; $('#ceDirty', ctx.view).hidden = true; UI.toast('حُفظت الفئة وتُطبَّق على البلاغات الجديدة فوراً'); } catch (er) { UI.error(er); } finally { UI.busy(btn, false); } });
+  UI.on(ctx.view, 'click', '[data-act="save"]', async (e, btn) => { UI.busy(btn, true); try { await Data.catAdmin.save(id, d); dirty = false; if (ctx.ceSaved) ctx.ceSaved(); $('#ceDirty', ctx.view).hidden = true; UI.toast('حُفظت الفئة وتُطبَّق على البلاغات الجديدة فوراً'); } catch (er) { UI.error(er); } finally { UI.busy(btn, false); } });
   UI.on(ctx.view, 'click', '[data-act="reset"]', async () => { if (!catCfg(id)) { UI.toast('الفئة على إعدادها الأصلي، لا توجد تعديلات محفوظة', 'info'); return; } if (!(await UI.confirm('استعادة الخانات والملاحظات الأصلية لهذه الفئة؟ ستُحذف تعديلاتك عليها.', { danger: true, ok: 'استعادة' }))) return; await Data.catAdmin.reset(id); UI.toast('استُعيد الإعداد الأصلي'); Router.resolve(); });
   UI.on(ctx.view, 'click', '[data-act="copy"]', async () => { const n = await Data.catAdmin.create('', '', id); UI.toast(`أُنشئت «${n.name}»`); Router.go(`/ticket-admin/${n.id}`); });
   UI.on(ctx.view, 'click', '[data-act="del"]', async () => { if (await Pages.catDeleteModal(id)) { dirty = false; Router.go('/ticket-admin'); } });
@@ -17994,10 +17997,10 @@ Forms.codeRow = (p = {}, i = 0, n = 0) => html`<div class="person-row code-row" 
 Forms.codeBlock = (list = []) => {
   const rows = list.length ? list : [{}], filled = list.filter((p) => p && (p.name || p.militaryNo)).length;
   return html`<div class="persons-box codes-box" data-codes>
-  <div class="codes-head"><b class="small">${UI.icon('users')} الأشخاص المطلوب إصدار رمز لهم</b><span class="chip tone-sky" data-ccount>${filled ? arCount(filled, AR_PERSON) : 'لم يُضف أحد بعد'}</span><span class="grow"></span><button type="button" class="btn btn-soft btn-sm" data-cadd>${UI.icon('plus')} إضافة شخص</button></div>
+  <div class="codes-head"><b class="small">${UI.icon('users')} ${Forms.sys('path_code', 'codes').l}${Forms.sys('path_code', 'codes').req ? html`<em class="req-star" aria-hidden="true">*</em>` : ''}</b><span class="chip tone-sky" data-ccount>${filled ? arCount(filled, AR_PERSON) : 'لم يُضف أحد بعد'}</span><span class="grow"></span><button type="button" class="btn btn-soft btn-sm" data-cadd>${UI.icon('plus')} إضافة شخص</button></div>
   <div class="persons-list">${rows.map((p, i) => Forms.codeRow(p, i, i + 1))}</div>
   <button type="button" class="codes-more" data-cadd>${UI.icon('plus')} إضافة شخص آخر</button>
-  <small class="hint">لكل شخص خانة: اضغط «+» لإضافة خانة جديدة في كل مرة (أو Enter في خانة الرقم العسكري). يُملأ الاسم تلقائياً إن كان الرقم العسكري مسجلاً في النظام.</small></div>`;
+  <small class="hint">${Forms.sys('path_code', 'codes').hint || 'لكل شخص خانة: اضغط «+» لإضافة خانة جديدة في كل مرة (أو Enter في خانة الرقم العسكري). يُملأ الاسم تلقائياً إن كان الرقم العسكري مسجلاً في النظام.'}</small></div>`;
 };
 const Codes = {
   box: (el) => el && el.closest('[data-codes]'),
@@ -18066,14 +18069,14 @@ document.addEventListener('click', (e) => {
   Codes.refresh(box);
   const dup = box.querySelector('input.sn-dup'); if (!dup) return;
   e.preventDefault(); e.stopPropagation();
-  UI.toast('يوجد رقم عسكري مكرر في قائمة الأشخاص المطلوب إصدار رمز لهم. صحّحه أو احذف الشخص المكرر.', 'warn', 6500);
+  UI.toast(`يوجد رقم عسكري مكرر في قائمة «${Forms.sys('path_code', 'codes').l}». صحّحه أو احذف الشخص المكرر.`, 'warn', 6500);
   dup.scrollIntoView({ behavior: 'smooth', block: 'center' }); dup.focus();
 }, true);
 /* في صفحة البلاغ: القائمة كاملة مع النسخ والطباعة (كانت تُحفظ مع البلاغ ولا تظهر للفني إطلاقاً) */
 const ticketCodes = (t) => (((t && t.extra) || {}).codes || []).filter((p) => p && (p.name || p.militaryNo));
 Pages.codesPanel = (t) => {
   const list = ticketCodes(t); if (!list.length) return '';
-  return UI.panel({ title: 'الأشخاص المطلوب إصدار رمز لهم', icon: 'key', sub: arCount(list.length, AR_PERSON),
+  return UI.panel({ title: Forms.sys('path_code', 'codes').l, icon: 'key', sub: arCount(list.length, AR_PERSON),
     tools: html`<button type="button" class="btn btn-ghost btn-sm" data-codescopy="${t.id}" title="نسخ القائمة كاملة">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-ghost btn-sm" data-codesprint="${t.id}">${UI.icon('print')} طباعة</button>`,
     body: html`<div class="codes-view">${list.map((p, i) => html`<div class="codes-vrow"><span class="code-n">${fmtNum(i + 1)}</span><b class="grow">${p.name || '—'}</b><span class="ltr codes-mil">${p.militaryNo || '—'}</span>${p.militaryNo ? html`<button type="button" class="icon-btn" data-codecopy="${p.militaryNo}" title="نسخ الرقم العسكري">${UI.icon('copy')}</button>` : ''}</div>`)}</div>` });
 };
@@ -20879,6 +20882,670 @@ const TvTheme = {
 };
 /* أيقونة ثلاثية الأبعاد لكل نوع تعميم */
 const TV_K3D = { notice: 'media', article: 'library', message: 'mail', guide: 'idea', service: 'pulse' };
+
+/* ══════════ استوديو النموذج: بنك محتوى يُسحب منه، ولوحة هي نموذج البلاغ نفسه، ولوحة خصائص للعنصر المحدد ══════════
+   كل ما يراه الموظف قابل للتعديل في مكانه: الخانات وخياراتها وأيقوناتها وعرضها، والنصوص والتنبيهات،
+   وأقسام النظام (البيانات، الوصف، رقم التواصل، اسم الجهاز، المرفقات) بمسمياتها وإلزاميتها */
+
+/* أنواع للعرض فقط (بلا إدخال): تُرتّب بين الخانات وتظهر للموظف كما هي */
+FIELD_TYPES.heading = { label: 'عنوان قسم', icon: 'layers', opts: '', disp: 1 };
+FIELD_TYPES.para = { label: 'نص إرشادي', icon: 'paper', opts: '', disp: 1 };
+FIELD_TYPES.alert = { label: 'تنبيه ملون', icon: 'alert', opts: '', disp: 1 };
+FIELD_TYPES.divider = { label: 'فاصل', icon: 'menu', opts: '', disp: 1 };
+const isDisp = (t) => !!(FIELD_TYPES[t] && FIELD_TYPES[t].disp);
+/* عرض الخانة في شبكة من ستة أعمدة: ثلث، نصف، ثلثان، كامل */
+const FS_WIDE = ['choice', 'multi', 'textarea', 'table', 'inklines', 'heading', 'para', 'alert', 'divider'];
+const FS_W = [['third', '⅓', 'ثلث العرض'], ['half', '½', 'نصف العرض'], ['twothird', '⅔', 'ثلثا العرض'], ['full', '▬', 'العرض كاملاً']];
+const FS_SPAN = { third: 2, half: 3, twothird: 4, full: 6 };
+const FS_TONES = [['amber', 'تنبيه'], ['sky', 'معلومة'], ['red', 'تحذير'], ['teal', 'نجاح'], ['violet', 'ملاحظة']];
+const FS_OS = [['sm', 'صغيرة'], ['md', 'متوسطة'], ['lg', 'كبيرة']];
+const fsW = (f) => (FS_W.some(([k]) => k === f.w) ? f.w : FS_WIDE.includes(f.t) ? 'full' : 'half');
+Forms.wcls = (f) => { const w = fsW(f); return ` w-${w}${w === 'full' ? ' wide' : ''}`; };
+Forms.disp = (f, show = true) => {
+  const hid = show ? '' : raw(' hidden'), w = Forms.wcls(f);
+  if (f.t === 'divider') return html`<div class="field cf cf-div${w}"${hid}><hr></div>`;
+  if (f.t === 'heading') return html`<div class="field cf cf-head${w}"${hid}><h4>${f.ic ? html`<span class="cf-ic">${refIcon(f.ic, f.l)}</span>` : ''}<span>${f.l}</span></h4>${f.note ? html`<p>${f.note}</p>` : ''}</div>`;
+  if (f.t === 'alert') return html`<div class="field cf cf-alert tone-${FS_TONES.some(([k]) => k === f.tone) ? f.tone : 'amber'}${w}"${hid}><span class="cf-aic">${f.ic ? refIcon(f.ic, f.l) : UI.icon('alert')}</span><div>${f.l}</div></div>`;
+  return html`<div class="field cf cf-para${w}"${hid}>${f.ic ? html`<span class="cf-ic">${refIcon(f.ic, f.l)}</span>` : ''}<p>${f.l}</p></div>`;
+};
+/* الاستمارة الإلكترونية لا تعرض نصوص العرض خاناتٍ فارغة */
+{ const ef0 = Pages.eFormHTML; Pages.eFormHTML = (t, o = {}) => ef0(t, { ...o, defs: (o.defs || Forms.def(t.categoryId)).filter((f) => !isDisp(f.t)) }); }
+
+/* ── أقسام النظام في نموذج البلاغ: مسمّاها وإلزاميتها من إعداد الفئة ── */
+const SYS_DEF = {
+  codes: { l: 'البيانات', req: 1, hint: '' },
+  persons: { l: 'أشخاص إضافيون (إصدار عدة بطاقات دفعة واحدة)', req: 0, hint: '' },
+  desc: { l: 'وصف المشكلة', req: 0 },
+  contact: { l: 'رقم التواصل', req: 0 },
+  device: { l: 'اسم الجهاز على الشبكة', req: 0 }
+};
+Forms.sys = (catId, k) => { const pv = Forms._sysPv, src = pv && pv.id === catId ? pv.sys : (catCfg(catId) || {}).sys; return { ...SYS_DEF[k], ...(((src || {})[k]) || {}) }; };
+Forms.sysMissing = (catId, view, st) => {
+  const S = (k) => Forms.sys(catId, k), out = [];
+  if (catId === 'path_code' && S('codes').req && !(st.codes || []).length) out.push([$('[data-codes]', view), S('codes').l, 'أضف شخصاً واحداً على الأقل بالاسم والرقم العسكري']);
+  if (catId === 'card' && S('persons').req && !(st.persons || []).length) out.push([$('[data-persons]', view), S('persons').l, 'أضف شخصاً واحداً على الأقل']);
+  if (S('desc').req && !String(st.description || '').trim()) out.push([$('#td', view), S('desc').l]);
+  if (S('contact').req && !String(st.contact || '').trim()) out.push([$('[name="contact"]', view), S('contact').l]);
+  if (Forms.baseShow(catId).includes('deviceName') && S('device').req && !String(st.deviceName || '').trim()) out.push([$('[name="deviceName"]', view), S('device').l]);
+  return out.filter(([el]) => el);
+};
+const fsCleanSys = (sys) => {
+  if (!sys || typeof sys !== 'object') return null;
+  const out = {};
+  Object.keys(SYS_DEF).forEach((k) => {
+    const x = sys[k]; if (!x) return;
+    const o = {}, l = String(x.l || '').trim(), h = String(x.hint || '').trim();
+    if (l && l !== SYS_DEF[k].l) o.l = l;
+    if (x.req != null && (x.req ? 1 : 0) !== SYS_DEF[k].req) o.req = x.req ? 1 : 0;
+    if (h) o.hint = h;
+    if (Object.keys(o).length) out[k] = o;
+  });
+  return Object.keys(out).length ? out : null;
+};
+{ const c1 = Data.catAdmin.clean.bind(Data.catAdmin); Data.catAdmin.clean = function (d) { const r = c1(d), s = fsCleanSys(d.sys); if (s) r.sys = s; else delete r.sys; return r; }; }
+
+/* ── بنك المحتوى المحفوظ: خانات يحفظها المسؤولون من أي فئة لتُستخدم في غيرها ── */
+const fsClone = (f) => { const x = JSON.parse(JSON.stringify(f)); ['k', 'showIf', 'dep', 'byo', 'by', 'fallback', 'id'].forEach((p) => delete x[p]); return x; };
+const FSBank = {
+  list: null,
+  async load(force) { if (this.list && !force) return this.list; try { const m = await DB.get('meta', 'formbank'); this.list = m && Array.isArray(m.value) ? m.value : []; } catch (_) { this.list = []; } return this.list; },
+  async save() { await DB.put('meta', { key: 'formbank', value: this.list }); },
+  /* الخانة بالاسم والنوع نفسيهما تُستبدل بدل أن تتكرر */
+  async add(f) { await this.load(); const x = fsClone(f); x.id = uid('fb'); this.list = [x, ...this.list.filter((y) => !(String(y.l).trim() === String(x.l).trim() && y.t === x.t))].slice(0, 80); await this.save(); return x; },
+  async del(id) { await this.load(); this.list = this.list.filter((x) => x.id !== id); await this.save(); }
+};
+/* خانات جاهزة إضافية */
+const FS_READY = [
+  { l: 'نوع الجهاز', t: 'choice', req: 1, o: ['حاسب مكتبي', 'حاسب محمول', 'طابعة', 'شاشة', 'ماسح ضوئي'] },
+  { l: 'الرقم التسلسلي للجهاز', t: 'text', dir: 'ltr', hint: 'مكتوب على ملصق خلف الجهاز' },
+  { l: 'رقم المكتب أو الغرفة', t: 'text', w: 'third' },
+  { l: 'البريد الإلكتروني', t: 'text', dir: 'ltr', hint: 'name@example.com' },
+  { l: 'من تاريخ', t: 'date', w: 'half' }, { l: 'إلى تاريخ', t: 'date', w: 'half' },
+  { l: 'منذ متى بدأت المشكلة؟', t: 'select', o: ['اليوم', 'منذ يومين', 'منذ أسبوع', 'أكثر من أسبوع'] },
+  { l: 'هل المشكلة متكررة؟', t: 'choice', o: ['أول مرة', 'تتكرر أحياناً', 'تتكرر دائماً'] },
+  { l: 'المستفيدون', t: 'table', o: ['الرقم العسكري', 'الرتبة', 'الاسم'] }
+];
+const FS_GROUPS = [['إدخال', ['text', 'textarea', 'number', 'date']], ['اختيار', ['choice', 'select', 'multi']], ['متقدم', ['table', 'rankpick']]];
+const FS_TDESC = { text: 'سطر واحد: اسم، رقم، عنوان', textarea: 'فقرة أو تفاصيل', number: 'أرقام فقط', date: 'يوم وشهر وسنة', choice: 'بطاقات يختار الموظف إحداها', select: 'قائمة منسدلة مختصرة', multi: 'يختار أكثر من خيار', table: 'صفوف وأعمدة (أشخاص مثلاً)', rankpick: 'قائمة الرتب جاهزة', heading: 'يقسّم النموذج إلى أجزاء', para: 'شرح أو تعليمات بين الخانات', alert: 'رسالة بارزة ملونة', divider: 'خط يفصل بين الأجزاء' };
+
+/* ══ الاستوديو ══
+   opts: { id, d, overlay, onSaved(), onClose(), onAdv(i), isDirty() } */
+Pages.formStudio = (host, opts) => {
+  const { id, d } = opts;
+  d.sys = d.sys && typeof d.sys === 'object' ? d.sys : {};
+  if (!Array.isArray(d.noteIc)) d.noteIc = [];
+  const st = { sel: { kind: 'cat' }, opt: -1, view: 'design', dev: 'pc', tab: 'fields', q: '', dirty: false, tone: ibTone.get(), pv: {} };
+  let alive = true;
+  try { const v = JSON.parse(localStorage.getItem('sq_fs_ui') || '{}'); if (v.dev === 'phone') st.dev = 'phone'; if (['fields', 'ready', 'text', 'icons'].includes(v.tab)) st.tab = v.tab; } catch (_) { /* تجاهل */ }
+  const keepUi = () => { try { localStorage.setItem('sq_fs_ui', JSON.stringify({ dev: st.dev, tab: st.tab })); } catch (_) { /* تجاهل */ } };
+  const S = (k) => ({ ...SYS_DEF[k], ...(d.sys[k] || {}) });
+  const setS = (k, p, v) => { d.sys[k] = { ...(d.sys[k] || {}), [p]: v }; };
+  const opts0 = (f) => (f.o = (f.o || []).filter((x) => String(x).trim()));
+  const fOf = (el) => { const w = el && el.closest('[data-fsf]'); return w ? d.fields[Number(w.dataset.fsf)] : null; };
+  const iOf = (el) => { const w = el && el.closest('[data-fsf]'); return w ? Number(w.dataset.fsf) : -1; };
+
+  /* ── السجل: تراجع وإعادة ── */
+  const H = { stack: [], i: -1 };
+  const snap = () => JSON.stringify(d);
+  const push = () => { const s = snap(); if (H.stack[H.i] === s) return; H.stack = H.stack.slice(0, H.i + 1); H.stack.push(s); if (H.stack.length > 100) H.stack.shift(); H.i = H.stack.length - 1; tb(); };
+  /* الكتابة تُسجَّل خطوة واحدة بعد توقفها، وتُسجَّل فوراً قبل أي تراجع أو تعديل آخر فلا يضيع ما كُتب */
+  let pendT = 0;
+  const pushLater = () => { clearTimeout(pendT); pendT = setTimeout(() => { pendT = 0; if (alive) push(); }, 600); };
+  const flush = () => { if (pendT) { clearTimeout(pendT); pendT = 0; push(); } };
+  const restore = (s) => { const o = JSON.parse(s); Object.keys(d).forEach((k) => delete d[k]); Object.assign(d, o); if (!d.sys) d.sys = {}; if (!Array.isArray(d.noteIc)) d.noteIc = []; dirty(); st.dirty = s !== st.saved; if (st.sel.kind === 'f' && !d.fields[st.sel.i]) st.sel = { kind: 'cat' }; draw(); };
+  const undo = () => { flush(); if (H.i > 0) { H.i -= 1; restore(H.stack[H.i]); } };
+  const redo = () => { flush(); if (H.i < H.stack.length - 1) { H.i += 1; restore(H.stack[H.i]); } };
+  const dirty = () => { st.dirty = true; if (opts.mark) opts.mark(); tb(); };
+  const commit = (sel) => { clearTimeout(pendT); pendT = 0; if (sel) st.sel = sel; dirty(); push(); draw(); };
+  const typed = () => { dirty(); pushLater(); };
+
+  host.innerHTML = String(html`<div class="fs${opts.overlay ? ' fs-ov' : ''}">
+    <div class="fs-top">
+      ${opts.overlay ? html`<div class="fs-ttl">${raw(ImgLib.html(d.image, 'cat-ic'))}<div><small>تعديل النموذج مباشرة</small><b data-fsttl>${d.name}</b></div></div>` : ''}
+      <div class="fs-grp"><button type="button" class="icon-btn" data-fsact="undo" title="تراجع (Ctrl+Z)">${UI.icon('undo')}</button><button type="button" class="icon-btn fs-redo" data-fsact="redo" title="إعادة (Ctrl+Y)">${UI.icon('undo')}</button></div>
+      <div class="seg sm fs-seg" role="radiogroup" aria-label="طريقة العرض">${[['design', 'تصميم', 'edit'], ['try', 'تجربة كموظف', 'eye']].map(([k, l, ic]) => html`<label><input type="radio" name="fsview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>
+      <div class="seg sm fs-seg" role="radiogroup" aria-label="حجم الشاشة">${[['pc', 'حاسب', 'monitor'], ['phone', 'جوال', 'phone']].map(([k, l, ic]) => html`<label title="${l}"><input type="radio" name="fsdev" value="${k}"${st.dev === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>
+      <span class="grow"></span>
+      <span class="fs-status" data-fsstatus></span>
+      <button type="button" class="btn btn-primary" data-fsact="save">${UI.icon('check')} حفظ النموذج</button>
+      ${opts.overlay ? html`<button type="button" class="icon-btn" data-fsact="close" title="إغلاق (Esc)">${UI.icon('x')}</button>` : ''}
+    </div>
+    <div class="fs-body">
+      <aside class="fs-bank" data-fsbank></aside>
+      <div class="fs-stage" data-fsstage><div class="fs-paper" data-fspaper></div></div>
+      <aside class="fs-props" data-fsprops></aside>
+    </div>
+  </div>`);
+  const root = host.firstElementChild, $r = (s) => root.querySelector(s);
+  const tb = () => {
+    const u = $r('[data-fsact="undo"]'), r = $r('[data-fsact="redo"]'); if (u) u.disabled = H.i <= 0; if (r) r.disabled = H.i >= H.stack.length - 1;
+    const s = $r('[data-fsstatus]'); if (s) { s.className = `fs-status${st.dirty ? ' dirty' : ''}`; s.innerHTML = String(html`<i></i>${st.dirty ? 'تعديلات غير محفوظة' : 'كل التعديلات محفوظة'}`); }
+  };
+
+  /* ══ بنك المحتوى ══ */
+  const tile = (key, ic, label, sub = '', q = '') => html`<button type="button" class="fs-tile" draggable="true" data-fsadd="${key}" data-q="${label} ${sub} ${q}" title="اسحبها إلى النموذج، أو اضغطها لإضافتها بعد العنصر المحدد"><span class="fs-tic">${ic}</span><span class="fs-ttx"><b>${label}</b>${sub ? html`<small>${sub}</small>` : ''}</span></button>`;
+  const readyAll = () => [...READY_FIELDS, ...FS_READY];
+  const bankHTML = async () => {
+    const bank = await FSBank.load();
+    const others = Data.list('categories').filter((c) => c.id !== id).map((c) => [c, Forms.def(c.id).filter((f) => f.l && !isDisp(f.t) && !['inklines'].includes(f.t) && !f.dep)]).filter(([, l]) => l.length);
+    const TABS = [['fields', 'الخانات', 'grid'], ['ready', 'جاهزة', 'sparkle'], ['text', 'نصوص', 'paper'], ['icons', 'أيقونات', 'photo']];
+    const pane = (k, body) => html`<div class="fs-pane" data-fspane="${k}"${st.tab === k || st.q ? '' : raw(' hidden')}>${body}</div>`;
+    return html`<div class="fs-bhead"><b>${UI.icon('box')} بنك المحتوى</b><small>اسحب إلى النموذج أو اضغط للإضافة</small>
+      <div class="search-box">${UI.icon('search')}<input type="search" data-fsq placeholder="ابحث: هاتف، تاريخ، تنبيه، طابعة…" value="${st.q}"></div>
+      <div class="fs-tabs" role="tablist">${TABS.map(([k, l, ic]) => html`<button type="button" role="tab" class="${st.tab === k ? 'on' : ''}" data-fstab="${k}" aria-selected="${st.tab === k ? 'true' : 'false'}">${UI.icon(ic)}<span>${l}</span></button>`)}</div></div>
+      <div class="fs-bbody">
+      ${pane('fields', html`${FS_GROUPS.map(([g, ts]) => html`<h5>${g}</h5><div class="fs-tiles">${ts.map((t) => tile(`t:${t}`, UI.icon(FIELD_TYPES[t].icon), FIELD_TYPES[t].label, FS_TDESC[t]))}</div>`)}
+        <h5>أقسام النظام</h5><p class="fs-bnote">${UI.icon('info')} العنوان والوصف ورقم التواصل واسم الجهاز والمرفقات${id === 'path_code' ? ' وقائمة البيانات' : id === 'card' ? ' وقائمة الأشخاص' : ''} ثابتة في أسفل النموذج: اضغط أياً منها لتغيير مسماه وإلزاميته.</p>`)}
+      ${pane('ready', html`<h5>خانات جاهزة</h5><div class="fs-tiles">${readyAll().map((r, i) => tile(`r:${i}`, r.ic ? refIcon(r.ic, r.l) : UI.icon(FIELD_TYPES[r.t].icon), r.l, FIELD_TYPES[r.t].label, (r.o || []).join(' ')))}</div>
+        <h5>${UI.icon('star')} محفوظاتي <small class="faint">— خانات حفظتموها من أي فئة</small></h5>${bank.length ? html`<div class="fs-tiles">${bank.map((r) => html`<div class="fs-tw">${tile(`s:${r.id}`, r.ic ? refIcon(r.ic, r.l) : UI.icon((FIELD_TYPES[r.t] || FIELD_TYPES.text).icon), r.l, (FIELD_TYPES[r.t] || FIELD_TYPES.text).label, (r.o || []).join(' '))}<button type="button" class="fs-tdel" data-fsbdel="${r.id}" title="حذف من البنك">${UI.icon('x')}</button></div>`)}</div>` : html`<p class="fs-bnote">${UI.icon('info')} حدد أي خانة ثم اضغط «حفظ في البنك» لتجدها هنا في كل الفئات.</p>`}
+        <h5>${UI.icon('copy')} من فئات أخرى</h5>${others.map(([c, list]) => html`<details class="fs-oc"><summary>${raw(ImgLib.html(CatIcon.ref(c.id), 'cat-ic'))}<span>${c.name}</span><i>${fmtNum(list.length)}</i></summary><div class="fs-tiles">${list.map((f) => tile(`c:${c.id}:${f.k}`, f.ic ? refIcon(f.ic, f.l) : UI.icon((FIELD_TYPES[f.t] || FIELD_TYPES.text).icon), f.l, (FIELD_TYPES[f.t] || FIELD_TYPES.text).label, `${c.name} ${(f.o || []).join(' ')}`))}</div></details>`)}`)}
+      ${pane('text', html`<h5>نصوص وتنسيق</h5><div class="fs-tiles">${tile('x:heading', UI.icon('layers'), 'عنوان قسم', FS_TDESC.heading)}${tile('x:para', UI.icon('paper'), 'نص إرشادي', FS_TDESC.para)}${FS_TONES.map(([k, l]) => tile(`x:alert:${k}`, html`<i class="fs-dot tone-${k}"></i>`, `تنبيه: ${l}`, FS_TDESC.alert, 'تنبيه'))}${tile('x:divider', UI.icon('menu'), 'فاصل', FS_TDESC.divider)}</div>
+        <h5>ملاحظات «قبل تقديم الطلب»</h5><div class="fs-tiles">${tile('n:', UI.icon('plus'), 'ملاحظة جديدة', 'تظهر أعلى النموذج')}${READY_NOTES.filter((x) => !d.notes.includes(x)).map((x, i) => tile(`n:${i}`, UI.icon('info'), x, '', 'ملاحظة'))}</div>`)}
+      ${pane('icons', html`<p class="fs-bnote">${UI.icon('info')} اسحب الأيقونة إلى خانة أو خيار أو ملاحظة، أو حدد العنصر ثم اضغط الأيقونة.</p>
+        <div class="org-tonepick ib-tones fs-tones">${ORG_TONES.slice(0, 14).map((t) => html`<label title="${TONE_NAMES[t] || t}"><input type="radio" name="fstone" value="${t}"${st.tone === t ? raw(' checked') : ''}><span class="tone-${t}"></span></label>`)}</div>
+        <h5>ثلاثية الأبعاد ملونة</h5><div class="fs-icons tone-${st.tone}" data-fso3d>${Org3D.names.map((k) => html`<button type="button" class="fs-ico" draggable="true" data-fsicon="o3d:${k}:${st.tone}" data-q="${Org3D.LABELS[k]} ${k}" title="${Org3D.LABELS[k]}">${raw(Org3D.get(k))}</button>`)}</div>
+        <h5>صور مجسمة</h5><div class="fs-icons">${[...ImgLib.custom.map((c) => [`lib:${c.id}`, c.name]), ...Img3D.names.map((n) => [`i3d:${n}`, Img3D.LABELS[n] || n])].map(([ref, l]) => html`<button type="button" class="fs-ico" draggable="true" data-fsicon="${ref}" data-q="${l}" title="${l}">${raw(ImgLib.html(ref, '', l))}</button>`)}</div>`)}
+      </div>`;
+  };
+  const drawBank = async () => {
+    const b = $r('[data-fsbank]'), q = b.querySelector('[data-fsq]'), had = q && document.activeElement === q;
+    b.innerHTML = String(await bankHTML()); if (!alive) return;
+    filterBank();
+    if (had) { const n = b.querySelector('[data-fsq]'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
+  };
+  const filterBank = () => {
+    const b = $r('[data-fsbank]'), q = normalizeAr(st.q.trim());
+    $$('[data-fspane]', b).forEach((p) => { p.hidden = !q && p.dataset.fspane !== st.tab; });
+    $$('[data-fspane] .fs-tile, [data-fspane] .fs-ico', b).forEach((t) => { const hit = !q || normalizeAr(String(t.dataset.q || '')).includes(q); (t.closest('.fs-tw') || t).hidden = !hit; });
+    $$('.fs-oc', b).forEach((x) => { const any = $$('.fs-tile', x).some((t) => !(t.closest('.fs-tw') || t).hidden); x.hidden = !any; if (q && any) x.open = true; });
+    $$('.fs-bnote, .fs-tones', b).forEach((x) => { x.hidden = !!q; });
+    $$('[data-fspane] h5', b).forEach((h) => { let n = h.nextElementSibling; while (n && n.tagName === 'P') n = n.nextElementSibling; h.hidden = !!q && !(n && n.matches('.fs-tiles, .fs-icons') && $$('.fs-tile, .fs-ico', n).some((t) => !(t.closest('.fs-tw') || t).hidden)); });
+  };
+
+  /* عنصر جديد من مفتاح البنك */
+  const fromKey = async (key) => {
+    const [kind, a, b] = key.split(':');
+    const nf = (x) => { const f = { k: newKey(), ...JSON.parse(JSON.stringify(x)) }; if (needsOpts(f.t) && !Array.isArray(f.o)) f.o = f.t === 'table' ? ['الرقم العسكري', 'الرتبة', 'الاسم'] : []; return f; };
+    if (kind === 't') return nf({ l: '', t: a });
+    if (kind === 'r') return nf(readyAll()[Number(a)]);
+    if (kind === 's') { const x = (await FSBank.load()).find((r) => r.id === a); return x ? nf(fsClone(x)) : null; }
+    if (kind === 'c') { const x = Forms.def(a).find((f) => f.k === b); return x ? nf(fsClone(x)) : null; }
+    if (kind === 'x') return nf(a === 'alert' ? { t: 'alert', l: '', tone: b || 'amber' } : a === 'divider' ? { t: 'divider', l: 'فاصل' } : { t: a, l: '' });
+    if (kind === 'n') return { note: a === '' || a == null ? '' : READY_NOTES.filter((x) => !d.notes.includes(x))[Number(a)] };
+    return null;
+  };
+  const insert = async (key, at) => {
+    const x = await fromKey(key); if (!x) return;
+    if ('note' in x) { d.notes.push(x.note); d.noteIc.length = d.notes.length; commit({ kind: 'notes' }); const all = $$('[data-fsnote]', root); if (all.length && !x.note) all[all.length - 1].focus(); else UI.toast('أُضيفت الملاحظة أعلى النموذج', 'info', 2200); return; }
+    const i = at == null ? (st.sel.kind === 'f' ? st.sel.i + 1 : d.fields.length) : at;
+    d.fields.splice(i, 0, x); st.opt = -1; commit({ kind: 'f', i });
+    const el = $r(`[data-fsf="${i}"]`); if (el) { el.classList.add('fs-new'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const l = el.querySelector('[data-fsp="l"]'); if (l && !x.l) setTimeout(() => l.focus(), 60); }
+  };
+
+  /* ══ اللوحة: النموذج كما يراه الموظف، وكل نص فيه يُعدَّل مكانه ══ */
+  const selIs = (kind, i) => st.sel.kind === kind && (i == null || st.sel.i === i || st.sel.k === i);
+  const icBtn = (attr, ref, label, tip) => html`<button type="button" class="fs-icb${ref ? ' has' : ''}" ${raw(attr)} title="${tip}">${ref ? refIcon(ref, label) : UI.icon('photo')}</button>`;
+  const optW = (o) => `${Math.max(3, Math.min(28, String(o).length + 2))}ch`;
+  const optList = (f, i, kind) => {
+    const list = opts0(f), hid = new Set(f.oh || []);
+    return html`<div class="fs-opts ${kind}${f.t === 'multi' ? ' multi' : ''}${f.os ? ` os-${f.os}` : ''}" data-fsopts>${list.map((o, j) => html`<div class="fs-opt${hid.has(o) ? ' x-off' : ''}${st.sel.kind === 'f' && st.sel.i === i && st.opt === j ? ' on' : ''}" data-fsoi="${j}"><span><button type="button" class="fs-oic${f.oi && f.oi[o] ? ' has' : ''}" data-fsoic draggable="true" title="أيقونة الخيار — اسحبها لترتيب الخيار">${Forms.optIco(f, o) || UI.icon('photo')}</button><input class="fs-in fs-on" data-fson="${j}" value="${o}" style="width:${optW(o)}!important" aria-label="اسم الخيار"><button type="button" class="fs-ox" data-fsodel="${j}" title="حذف الخيار">${UI.icon('x')}</button></span></div>`)}<div class="fs-opt fs-oadd"><span>${UI.icon('plus')}<input class="fs-in" data-fsonew placeholder="${f.t === 'table' ? 'عمود جديد' : 'خيار جديد'} — Enter" aria-label="إضافة خيار"></span></div></div>`;
+  };
+  const control = (f, i) => {
+    if (f.dep) return html`<div class="fs-static">${UI.icon('layers')} خياراتها تتغير حسب خانة «${(d.fields.find((x) => x.k === f.dep) || {}).l || f.dep}»${opts.onAdv ? html` <button type="button" class="btn btn-ghost btn-xs" data-fsadv>${UI.icon('sliders')} تعديلها</button>` : ''}</div>`;
+    if (f.t === 'choice' || f.t === 'multi') return optList(f, i, 'cards');
+    if (f.t === 'select') return html`<div class="fs-mock fs-sel"><span>${f.def || 'اختر...'}</span>${UI.icon('chevron-down')}</div>${optList(f, i, 'list')}`;
+    if (f.t === 'table') return html`<div class="fs-sub">${UI.icon('grid')} أعمدة الجدول:</div>${optList(f, i, 'cols')}`;
+    if (f.t === 'text') return html`<input class="fs-in fs-mock${f.dir === 'ltr' ? ' ltr' : ''}" data-fsp="hint" value="${f.hint || ''}" placeholder="اكتب هنا النص الإرشادي داخل الخانة (اختياري)">`;
+    if (f.t === 'textarea') return html`<textarea class="fs-in fs-mock" data-fsp="hint" rows="2" placeholder="اكتب هنا النص الإرشادي داخل الخانة (اختياري)">${f.hint || ''}</textarea>`;
+    if (f.t === 'number') return html`<input class="fs-in fs-mock" type="number" data-fsp="def" value="${f.def || ''}" placeholder="القيمة الافتراضية (اختياري)">`;
+    if (f.t === 'date') return html`<div class="fs-mock">${UI.icon('calendar')}<span>يوم / شهر / سنة</span></div>`;
+    if (f.t === 'rankpick') return html`<div class="fs-mock fs-sel"><span>اختر الرتبة</span>${UI.icon('chevron-down')}</div>`;
+    return html`<div class="fs-static">${UI.icon((FIELD_TYPES[f.t] || FIELD_TYPES.text).icon)} ${(FIELD_TYPES[f.t] || FIELD_TYPES.text).label}</div>`;
+  };
+  const condTxt = (f) => { const k = Object.keys(f.showIf || {})[0]; if (!k) return ''; return html`<div class="fs-cond">${UI.icon('eye')} تظهر فقط عند اختيار «${(f.showIf[k] || []).join(' أو ') || '…'}» في «${(d.fields.find((x) => x.k === k) || {}).l || '؟'}»</div>`; };
+  const barHTML = (f, i) => html`<div class="fs-bar" data-fsbar><span class="fs-grip" draggable="true" data-fsgrip title="اسحب لنقل الخانة">${UI.icon('menu')}</span>
+      <span class="fs-tn">${UI.icon((FIELD_TYPES[f.t] || FIELD_TYPES.text).icon)}${(FIELD_TYPES[f.t] || FIELD_TYPES.text).label}</span>
+      ${isDisp(f.t) ? '' : html`<button type="button" class="fs-req${f.req ? ' on' : ''}" data-fsreq aria-pressed="${f.req ? 'true' : 'false'}" title="اضغط لتجعلها ${f.req ? 'اختيارية' : 'إلزامية'}">${f.req ? html`${UI.icon('check')} إلزامية` : 'اختيارية'}</button>`}
+      <span class="fs-ws">${FS_W.map(([k, s, t]) => html`<button type="button" data-fsw="${k}" class="${fsW(f) === k ? 'on' : ''}" title="${t}">${s}</button>`)}</span>
+      <button type="button" class="fs-bb" data-fsdup title="تكرار (Ctrl+D)">${UI.icon('copy')}</button><button type="button" class="fs-bb danger" data-fsdel title="حذف (Delete)">${UI.icon('trash')}</button></div>`;
+  const fieldEl = (f, i) => {
+    const on = selIs('f', i), disp = isDisp(f.t);
+    let body;
+    if (f.t === 'divider') body = html`<hr class="fs-hr">`;
+    else if (f.t === 'heading') body = html`<h4 class="fs-h">${icBtn('data-fsic', f.ic, f.l, 'أيقونة العنوان')}<input class="fs-in" data-fsp="l" value="${f.l}" placeholder="اكتب عنوان القسم"></h4><input class="fs-in fs-subl" data-fsp="note" value="${f.note || ''}" placeholder="سطر توضيحي تحت العنوان (اختياري)">`;
+    else if (f.t === 'alert') body = html`<div class="cf-alert tone-${FS_TONES.some(([k]) => k === f.tone) ? f.tone : 'amber'}">${icBtn('data-fsic', f.ic, f.l, 'أيقونة التنبيه')}<textarea class="fs-in" data-fsp="l" rows="1" placeholder="اكتب نص التنبيه">${f.l}</textarea></div>`;
+    else if (f.t === 'para') body = html`<div class="fs-para">${icBtn('data-fsic', f.ic, f.l, 'أيقونة')}<textarea class="fs-in" data-fsp="l" rows="2" placeholder="اكتب النص الإرشادي">${f.l}</textarea></div>`;
+    else body = html`<div class="fs-lab">${icBtn('data-fsic', f.ic, f.l, 'أيقونة الخانة')}<input class="fs-in fs-l" data-fsp="l" value="${f.l}" placeholder="اسم الخانة" aria-label="اسم الخانة">${f.req ? html`<em>*</em>` : ''}</div>${control(f, i)}<input class="fs-in fs-note" data-fsp="note" value="${f.note || ''}" placeholder="ملاحظة صغيرة تحت الخانة (اختياري)">`;
+    return html`<div class="field cf fs-el${Forms.wcls(f)}${disp ? ' fs-disp' : ''}${f.req ? ' req' : ''}${on ? ' on' : ''}" data-fsf="${i}" tabindex="-1">${barHTML(f, i)}${body}${condTxt(f)}<i class="fs-rs" data-fsrs title="اسحب لتغيير عرض الخانة"></i></div>`;
+  };
+  const reqBtn = (k) => html`<button type="button" class="fs-req${S(k).req ? ' on' : ''}" data-fssysreq="${k}" title="اضغط لتجعله ${S(k).req ? 'اختيارياً' : 'إلزامياً'}">${S(k).req ? html`${UI.icon('check')} إلزامي` : 'اختياري'}</button>`;
+  const lock = (t = 'إلزامي دائماً') => html`<span class="fs-lock">${UI.icon('lock')} ${t}</span>`;
+  const sysEl = (k, inner, extra = '') => html`<div class="fs-sys${selIs('sys', k) ? ' on' : ''}" data-fssys="${k}" tabindex="-1">${inner}${extra}</div>`;
+  const sysLab = (k) => html`<input class="fs-in fs-l" data-fssysl="${k}" value="${S(k).l}" placeholder="${SYS_DEF[k].l}" aria-label="مسمى القسم">${S(k).req ? html`<em>*</em>` : ''}`;
+  const sysBlocks = () => {
+    const qt = d.quickTitles || [], dev = d.base.includes('deviceName');
+    const people = (k, cols) => sysEl(k, html`<div class="persons-box codes-box fs-people"><div class="codes-head"><b class="small fs-plab">${UI.icon('users')}${sysLab(k)}</b>${reqBtn(k)}<span class="grow"></span><span class="btn btn-soft btn-sm fs-fake">${UI.icon('plus')} إضافة شخص</span></div>
+      <div class="person-row code-row fs-fake"><span class="code-n">1</span>${cols.map((c) => html`<span class="fs-mock">${c}</span>`)}</div><small class="hint">${S(k).hint || 'يضيف الموظف شخصاً في كل سطر، ويُملأ الاسم تلقائياً من الرقم العسكري المسجل.'}</small></div>`);
+    return html`<div class="fs-sysz">
+      ${id === 'path_code' ? people('codes', ['الاسم الكامل', 'الرقم العسكري']) : ''}
+      ${id === 'card' ? people('persons', ['الاسم الكامل', 'الرتبة', 'الرقم العسكري']) : ''}
+      ${sysEl('title', html`<div class="field"><div class="fs-lab">${UI.icon('edit')}<input class="fs-in fs-l" data-fsd="titleLabel" value="${d.titleLabel}" placeholder="عنوان مختصر للمشكلة" aria-label="مسمى خانة العنوان"><em>*</em>${lock()}</div><div class="fs-mock"><span>يكتبه الموظف أو يختار من العناوين الجاهزة</span></div>
+        <div class="fs-sub">${UI.icon('sparkle')} عناوين جاهزة يضغطها الموظف:</div><div class="fs-qts">${qt.map((x, i) => html`<span class="qchip fs-qt"><input class="fs-in" data-fsqt="${i}" value="${x}" style="width:${optW(x)}!important"><button type="button" data-fsqtdel="${i}" title="حذف">${UI.icon('x')}</button></span>`)}<input class="fs-in fs-qtnew" data-fsqtnew placeholder="+ عنوان جاهز — Enter"></div></div>`)}
+      ${sysEl('desc', html`<div class="field"><div class="fs-lab">${UI.icon('paper')}${sysLab('desc')}${reqBtn('desc')}</div><textarea class="fs-in fs-mock" data-fsd="descHint" rows="2" placeholder="النص الإرشادي داخل خانة الوصف (اختياري)">${d.descHint}</textarea></div>`)}
+      ${sysEl('prio', html`<div class="field"><div class="fs-lab">${UI.icon('alert')}<span>مدى تأثير المشكلة</span>${lock('ثابت لكل الفئات')}</div><div class="fs-mock fs-prio">${Object.values(PRIORITY).reverse().map((p) => html`<span class="tone-${p.tone}"><i class="dot"></i>${p.label}</span>`)}</div></div>`)}
+      <div class="fs-row2">
+        ${sysEl('org', html`<div class="field"><div class="fs-lab">${UI.icon('building')}<span>موضعك في الهيكل التنظيمي</span>${lock()}</div><div class="fs-mock fs-sel"><span>الإدارة ← القسم ← المكتب</span>${UI.icon('chevron-down')}</div></div>`)}
+        ${sysEl('contact', html`<div class="field"><div class="fs-lab">${UI.icon('phone')}${sysLab('contact')}${reqBtn('contact')}</div><div class="fs-mock"><span>رقم هاتف الموظف</span></div></div>`)}
+      </div>
+      ${sysEl('device', html`<div class="field${dev ? '' : ' fs-off'}"><div class="fs-lab">${UI.icon('monitor')}${sysLab('device')}${dev ? reqBtn('device') : ''}<label class="fs-show"><input type="checkbox" data-fsdevice${dev ? raw(' checked') : ''}> ظاهرة</label></div><div class="fs-mock ltr"><span>NZWSQP00WS001</span></div></div>`)}
+      ${sysEl('attach', html`<div class="field"><div class="fs-lab">${UI.icon('clip')}<span>المرفقات (صور أو ملفات)</span><button type="button" class="fs-req${d.attachReq ? ' on' : ''}" data-fsattreq>${d.attachReq ? html`${UI.icon('check')} إلزامي` : 'اختياري'}</button></div><div class="fs-mock fs-drop">${UI.icon('upload')}<span>${d.attachReq ? (d.attachLabel ? `مطلوب: ${d.attachLabel}` : 'إرفاق ملف أو صورة مطلوب') : 'اسحب الملفات هنا أو انقر للاختيار'}</span></div>${d.attachReq ? html`<input class="fs-in fs-note" data-fsd="attachLabel" value="${d.attachLabel}" placeholder="ما المرفق المطلوب؟ مثال: خطاب الاعتماد" style="opacity:1">` : ''}</div>`)}
+    </div>`;
+  };
+  const notesEl = () => html`<div class="cat-notes fs-notes${selIs('notes') ? ' on' : ''}" data-fsnotes>${UI.icon('info')}<div class="grow"><b>قبل تقديم الطلب</b> <small class="faint">— ملاحظات ومتطلبات تظهر للموظف أعلى النموذج</small><ul>
+      ${d.notes.map((n, i) => html`<li class="fs-nrow" data-fsni="${i}">${icBtn(`data-fsnic="${i}"`, d.noteIc[i], n, 'أيقونة الملاحظة')}<input class="fs-in" data-fsnote="${i}" value="${n}" placeholder="اكتب الملاحظة أو المطلوب"><button type="button" class="fs-ox" data-fsndel="${i}" title="حذف">${UI.icon('x')}</button></li>`)}
+      </ul><button type="button" class="btn btn-ghost btn-xs" data-fsnadd>${UI.icon('plus')} ملاحظة</button></div></div>`;
+  const designHTML = () => html`<div class="chosen fs-cat${selIs('cat') ? ' on' : ''}" data-fscat><button type="button" class="fs-catimg" data-fsimg title="تغيير صورة الفئة">${raw(ImgLib.html(d.image, 'cat-ic'))}<span>${UI.icon('photo')}</span></button><div class="grow"><small class="faint">الفئة</small><input class="fs-in fs-catname" data-fsd="name" value="${d.name}" placeholder="اسم الفئة" aria-label="اسم الفئة"></div><label class="fs-show"><input type="checkbox" data-fsshow${d.hidden ? '' : raw(' checked')}> ظاهرة للموظفين</label></div>
+    ${notesEl()}
+    <div class="cat-fields fs-fields" data-fsfields>${d.fields.map(fieldEl)}${d.fields.length ? '' : html`<div class="fs-empty wide">${UI.icon('box')}<b>اسحب خانة من بنك المحتوى إلى هنا</b><span>أو اضغط أي خانة في البنك لإضافتها</span></div>`}</div>
+    <div class="fs-sysh">${UI.icon('lock')} أقسام النظام <small>— ثابتة الموضع، ويُعدَّل مسماها وإلزاميتها</small></div>
+    ${sysBlocks()}`;
+  /* التجربة: النموذج الحقيقي بخاناته وقوائمه، مع فحص الإلزامي كما عند الإرسال */
+  const tryHTML = () => {
+    Forms._pv = { id, fields: d.fields }; Forms._sysPv = { id, sys: d.sys };
+    try {
+      const nts = d.notes.map((x, i) => [x, d.noteIc[i]]).filter(([x]) => String(x).trim());
+      return html`<div class="chosen">${raw(ImgLib.html(d.image, 'cat-ic'))}<div class="grow"><div class="faint small">الفئة المختارة</div><b style="font-size:16px">${d.name}</b></div><span class="chip tone-sky">${UI.icon('eye')} معاينة</span></div>
+        ${nts.length || d.attachReq ? html`<div class="cat-notes">${UI.icon('info')}<div class="grow"><b>قبل تقديم الطلب</b><ul>${nts.map(([x, ic]) => html`<li${ic ? raw(' class="has-ic"') : ''}>${ic ? html`<span class="cn-ic">${refIcon(ic)}</span>` : ''}${x}</li>`)}${d.attachReq ? html`<li class="req">${d.attachLabel ? `إرفاق ${d.attachLabel} إلزامي` : 'إرفاق ملف أو صورة إلزامي'}</li>` : ''}</ul></div></div>` : ''}
+        <div data-fspv>${Forms.render('__pv', st.pv)}</div>
+        ${id === 'path_code' ? Forms.codeBlock([]) : ''}${id === 'card' ? Forms.personsBlock([]) : ''}
+        <div class="field"><label>${d.titleLabel || 'عنوان مختصر للمشكلة'}<em>*</em></label><input data-fstitle placeholder="…">${(d.quickTitles || []).filter(Boolean).length ? html`<div class="quick-chips" style="margin-top:6px">${d.quickTitles.filter(Boolean).map((q) => html`<button type="button" class="qchip">${q}</button>`)}</div>` : ''}</div>
+        <div class="field"><label>${S('desc').l}${S('desc').req ? html`<em>*</em>` : ''}</label><textarea data-fsdesc rows="3" placeholder="${d.descHint || ''}"></textarea></div>
+        <div class="form-grid">${UI.field({ name: 'fs_contact', label: S('contact').l, required: !!S('contact').req })}${d.base.includes('deviceName') ? UI.field({ name: 'fs_device', label: S('device').l, required: !!S('device').req, placeholder: 'مثال: NZWSQP00WS001' }) : ''}</div>
+        <div class="row" style="justify-content:flex-end"><button type="button" class="btn btn-primary" data-fscheck>${UI.icon('check')} جرّب الإرسال: فحص الخانات المطلوبة</button></div>`;
+    } finally { Forms._sysPv = null; }
+  };
+  const tryCheck = () => {
+    const p = $r('[data-fspaper]'); $$('.field-miss', p).forEach((x) => { x.classList.remove('field-miss'); const m = x.querySelector('.miss-msg'); if (m) m.remove(); });
+    const v = Forms.values($r('[data-fspv]')), miss = [], mk = (el, l, msg = 'هذه الخانة مطلوبة') => { const b = el && (el.closest('.field') || el); if (!b) return; b.classList.add('field-miss'); b.insertAdjacentHTML('beforeend', `<small class="miss-msg">${esc(msg)}</small>`); miss.push(l); };
+    Forms._pv = { id, fields: d.fields };
+    Forms.def('__pv').filter((f) => f.req && Forms.visible(f, v) && !v[f.k]).forEach((f) => mk($r(`[data-fspv] [name="x_${f.k}"]`), f.l));
+    if (id === 'path_code' && S('codes').req && !Forms.readCodes($r('[data-codes]')).length) mk($r('[data-codes]'), S('codes').l, 'أضف شخصاً واحداً على الأقل بالاسم والرقم العسكري');
+    if (id === 'card' && S('persons').req && !Forms.readPersons($r('[data-persons]')).length) mk($r('[data-persons]'), S('persons').l, 'أضف شخصاً واحداً على الأقل');
+    if (String(($r('[data-fstitle]') || {}).value || '').trim().length < 3) mk($r('[data-fstitle]'), d.titleLabel || 'العنوان', 'اكتب عنواناً واضحاً (3 أحرف على الأقل)');
+    if (S('desc').req && !String(($r('[data-fsdesc]') || {}).value || '').trim()) mk($r('[data-fsdesc]'), S('desc').l);
+    if (S('contact').req && !String(($r('[name="fs_contact"]') || {}).value || '').trim()) mk($r('[name="fs_contact"]'), S('contact').l);
+    if (d.base.includes('deviceName') && S('device').req && !String(($r('[name="fs_device"]') || {}).value || '').trim()) mk($r('[name="fs_device"]'), S('device').l);
+    if (miss.length) UI.toast(`سيُطلب من الموظف إكمال: ${miss.join('، ')}`, 'warn', 6000); else UI.toast('النموذج مكتمل، ويمكن إرساله', 'success');
+  };
+
+  /* ══ لوحة الخصائص ══ */
+  const sw = (attr, on, text) => html`<label class="switch fs-sw"><input type="checkbox" ${raw(attr)}${on ? raw(' checked') : ''}><i></i><span>${text}</span></label>`;
+  const propsField = (f, i) => {
+    const T = FIELD_TYPES[f.t] || FIELD_TYPES.text, disp = isDisp(f.t), parents = d.fields.slice(0, i).filter((p) => ['choice', 'select', 'multi'].includes(p.t) && opts0(p).length && !p.dep);
+    const ck = Object.keys(f.showIf || {})[0] || '', par = parents.find((p) => p.k === ck);
+    const types = Object.entries(FIELD_TYPES).filter(([k, x]) => (disp ? x.disp : !x.disp) && (k !== 'inklines' || f.t === 'inklines'));
+    return html`<div class="fs-ph"><span class="fs-phic">${UI.icon(T.icon)}</span><div class="grow"><small>${disp ? 'عنصر عرض' : 'خانة'} رقم ${fmtNum(i + 1)} من ${fmtNum(d.fields.length)}</small><b>${f.l || T.label}</b></div><button type="button" class="icon-btn" data-fspmove="-1" title="تقديم (Alt+↑)"${i ? '' : raw(' disabled')}>▲</button><button type="button" class="icon-btn" data-fspmove="1" title="تأخير (Alt+↓)"${i < d.fields.length - 1 ? '' : raw(' disabled')}>▼</button></div>
+      <div class="fs-pb">
+      <div class="field"><label>النوع</label><select data-fspp="t">${types.map(([k, x]) => html`<option value="${k}"${f.t === k ? raw(' selected') : ''}>${x.label}</option>`)}</select></div>
+      ${f.t === 'divider' ? '' : html`<div class="field"><label>${disp ? 'النص' : 'اسم الخانة'}</label>${f.t === 'para' || f.t === 'alert' ? html`<textarea data-fspp="l" rows="3">${f.l}</textarea>` : html`<input data-fspp="l" value="${f.l}">`}</div>`}
+      ${disp ? '' : html`${sw('data-fspp="req"', f.req, 'خانة إلزامية: لا يُرسل البلاغ دونها')}`}
+      <div class="field"><label>العرض</label><div class="fs-wseg">${FS_W.map(([k, s, t]) => html`<button type="button" data-fsw="${k}" class="${fsW(f) === k ? 'on' : ''}"><b>${s}</b><small>${t}</small></button>`)}</div></div>
+      ${f.t === 'divider' ? '' : html`<div class="field"><label>الأيقونة</label><div class="row" style="gap:8px">${icBtn('data-fsic', f.ic, f.l, 'اختر من بنك الأيقونات')}<button type="button" class="btn btn-soft btn-sm" data-fsic>${UI.icon('photo')} ${f.ic ? 'تغيير' : 'اختيار أيقونة'}</button>${f.ic ? html`<button type="button" class="btn btn-ghost btn-sm" data-fsicx>${UI.icon('x')} إزالة</button>` : ''}</div></div>`}
+      ${f.t === 'alert' ? html`<div class="field"><label>لون التنبيه</label><div class="fs-tonesel">${FS_TONES.map(([k, l]) => html`<button type="button" class="tone-${k}${(f.tone || 'amber') === k ? ' on' : ''}" data-fstone="${k}"><i class="fs-dot tone-${k}"></i>${l}</button>`)}</div></div>` : ''}
+      ${f.t === 'heading' || !disp ? html`<div class="field"><label>${f.t === 'heading' ? 'سطر توضيحي' : 'ملاحظة تحت الخانة'}</label><input data-fspp="note" value="${f.note || ''}" placeholder="اختياري"></div>` : ''}
+      ${['text', 'textarea', 'number'].includes(f.t) ? html`<div class="field"><label>نص إرشادي داخل الخانة</label><input data-fspp="hint" value="${f.hint || ''}" placeholder="مثال: NZWSQP00WS001"></div>` : ''}
+      ${['text', 'number', 'select', 'choice'].includes(f.t) ? html`<div class="field"><label>القيمة الافتراضية</label>${['select', 'choice'].includes(f.t) && opts0(f).length ? html`<select data-fspp="def"><option value="">— بلا —</option>${f.o.map((o) => html`<option value="${o}"${f.def === o ? raw(' selected') : ''}>${o}</option>`)}</select>` : html`<input data-fspp="def" value="${f.def || ''}" placeholder="اختياري">`}</div>` : ''}
+      ${f.t === 'text' ? sw('data-fspp="dir"', f.dir === 'ltr', 'كتابة من اليسار (أرقام، بريد، رموز إنجليزية)') : ''}
+      ${['choice', 'multi'].includes(f.t) ? html`<div class="field"><label>حجم بطاقات الخيارات</label><div class="seg sm">${FS_OS.map(([k, l]) => html`<label><input type="radio" name="fsos" value="${k}"${(f.os || 'md') === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>` : ''}
+      ${f.t === 'select' ? sw('data-fspp="other"', f.other, 'السماح بكتابة خيار غير موجود («أخرى»)') : ''}
+      ${needsOpts(f.t) && !f.dep ? html`<div class="field"><label>${f.t === 'table' ? 'الأعمدة' : 'الخيارات'} <small class="faint">— عدّلها في النموذج مباشرة، أو الصق قائمة هنا (سطر لكل خيار)</small></label><textarea data-fspaste rows="2" placeholder="الصق هنا عدة خيارات، ثم اضغط إضافة"></textarea><button type="button" class="btn btn-soft btn-sm mt" data-fspasteadd>${UI.icon('plus')} إضافة الملصق</button>${(f.oh || []).length ? html`<p class="small faint mt">${UI.icon('eye-off')} مخفية عن الموظفين: ${f.oh.join('، ')}</p>` : ''}</div>` : ''}
+      ${parents.length ? html`<div class="field"><label>متى تظهر؟</label><select data-fscond><option value="">دائماً</option>${parents.map((p) => html`<option value="${p.k}"${ck === p.k ? raw(' selected') : ''}>عند اختيار معيّن في «${p.l}»</option>`)}</select>${par ? html`<div class="fs-condv">${opts0(par).map((o) => html`<label class="chk"><input type="checkbox" data-fscondv="${o}"${(f.showIf[ck] || []).includes(o) ? raw(' checked') : ''}> ${o}</label>`)}</div>` : ''}</div>` : ''}
+      <div class="fs-pact"><button type="button" class="btn btn-soft btn-sm" data-fsdup>${UI.icon('copy')} تكرار</button>${disp ? '' : html`<button type="button" class="btn btn-soft btn-sm" data-fsbsave>${UI.icon('star')} حفظ في البنك</button>`}${opts.onAdv && !disp ? html`<button type="button" class="btn btn-ghost btn-sm" data-fsadv>${UI.icon('sliders')} إعدادات أكثر</button>` : ''}<button type="button" class="btn btn-ghost btn-sm danger" data-fsdel>${UI.icon('trash')} حذف</button></div>
+      </div>`;
+  };
+  const SYS_INFO = {
+    codes: ['users', 'قائمة يضيف فيها الموظف شخصاً في كل سطر (الاسم والرقم العسكري)، ويظهر في صفحة البلاغ مع النسخ والطباعة.'],
+    persons: ['users', 'أشخاص إضافيون لإصدار عدة بطاقات في طلب واحد.'],
+    title: ['edit', 'عنوان البلاغ إلزامي دائماً: يظهر في قوائم البلاغات والإشعارات.'],
+    desc: ['paper', 'وصف حر يكتبه الموظف بكلماته.'],
+    prio: ['alert', 'مدى التأثير يحدد موعد الحل المستهدف، وهو ثابت لكل الفئات.'],
+    org: ['building', 'الإدارة والقسم والمكتب: إلزامية دائماً لتوجيه الفني إلى الموقع.'],
+    contact: ['phone', 'رقم يتصل عليه الفني. يُملأ تلقائياً من ملف الموظف.'],
+    device: ['monitor', 'اسم الجهاز على الشبكة، يساعد الفني على الاتصال عن بُعد.'],
+    attach: ['clip', 'صور أو ملفات يرفقها الموظف.']
+  };
+  const propsSys = (k) => {
+    const [ic, info] = SYS_INFO[k] || ['info', ''], editable = !!SYS_DEF[k];
+    const label = editable ? S(k).l : k === 'title' ? d.titleLabel || 'عنوان مختصر للمشكلة' : k === 'attach' ? 'المرفقات' : k === 'prio' ? 'مدى تأثير المشكلة' : 'موضعك في الهيكل التنظيمي';
+    return html`<div class="fs-ph"><span class="fs-phic">${UI.icon(ic)}</span><div class="grow"><small>قسم من النظام</small><b>${label}</b></div></div><div class="fs-pb"><p class="fs-pinfo">${info}</p>
+      ${editable ? html`<div class="field"><label>المسمى</label><input data-fssysl="${k}" value="${S(k).l}" placeholder="${SYS_DEF[k].l}"></div>${S(k).l !== SYS_DEF[k].l ? html`<button type="button" class="btn btn-ghost btn-xs" data-fssysdef="${k}">${UI.icon('undo')} المسمى الأصلي: ${SYS_DEF[k].l}</button>` : ''}
+        ${k === 'device' && !d.base.includes('deviceName') ? '' : sw(`data-fssysreqsw="${k}"`, S(k).req, k === 'codes' || k === 'persons' ? 'إلزامي: شخص واحد على الأقل' : 'إلزامي: لا يُرسل البلاغ دونه')}
+        ${k === 'codes' || k === 'persons' ? html`<div class="field"><label>نص إرشادي أسفل القائمة</label><input data-fssyshint="${k}" value="${S(k).hint || ''}" placeholder="اختياري"></div>` : ''}
+        ${k === 'device' ? sw('data-fsdevice', d.base.includes('deviceName'), 'إظهار الخانة للموظف') : ''}` : ''}
+      ${k === 'title' ? html`<div class="field"><label>المسمى</label><input data-fsd="titleLabel" value="${d.titleLabel}" placeholder="عنوان مختصر للمشكلة"></div>` : ''}
+      ${k === 'desc' ? html`<div class="field"><label>النص الإرشادي داخل الخانة</label><input data-fsd="descHint" value="${d.descHint}"></div>` : ''}
+      ${k === 'attach' ? html`${sw('data-fsattsw', d.attachReq, 'إرفاق ملف أو صورة إلزامي')}${d.attachReq ? html`<div class="field"><label>ما المرفق المطلوب؟</label><input data-fsd="attachLabel" value="${d.attachLabel}" placeholder="مثال: صورة البطاقة التالفة"></div>` : ''}` : ''}
+      ${['prio', 'org'].includes(k) || k === 'title' ? html`<p class="fs-lockp">${UI.icon('lock')} ${k === 'prio' ? 'ثابت لكل الفئات' : 'إلزامي دائماً'}</p>` : ''}</div>`;
+  };
+  const propsCat = () => {
+    const inputs = d.fields.filter((f) => !isDisp(f.t)), req = inputs.filter((f) => f.req).length;
+    return html`<div class="fs-ph"><span class="fs-phic">${raw(ImgLib.html(d.image, 'cat-ic'))}</span><div class="grow"><small>الفئة</small><b>${d.name || '—'}</b></div></div><div class="fs-pb">
+      <div class="fs-stats"><span><b>${fmtNum(inputs.length)}</b><small>خانة</small></span><span><b>${fmtNum(req)}</b><small>إلزامية</small></span><span><b>${fmtNum(d.fields.length - inputs.length)}</b><small>نص وتنسيق</small></span><span><b>${fmtNum(d.notes.filter((x) => String(x).trim()).length)}</b><small>ملاحظة</small></span></div>
+      <div class="field"><label>اسم الفئة</label><input data-fsd="name" value="${d.name}"></div>
+      ${sw('data-fsshow', !d.hidden, 'ظاهرة للموظفين عند تقديم بلاغ')}
+      <button type="button" class="btn btn-soft btn-sm" data-fsimg>${UI.icon('photo')} صورة الفئة</button>
+      <div class="fs-tips"><b>${UI.icon('sparkle')} طرق مختصرة</b><ul><li>اضغط أي نص في النموذج لتعديله مكانه.</li><li>اسحب من البنك إلى أي موضع، أو اسحب الخانة من مقبضها لنقلها.</li><li>اسحب الحافة الجانبية للخانة لتغيير عرضها.</li><li>Ctrl+Z تراجع · Ctrl+Y إعادة · Ctrl+D تكرار · Delete حذف · Ctrl+S حفظ.</li></ul></div>
+      ${opts.onAdv ? html`<button type="button" class="btn btn-ghost btn-sm" data-fsadv>${UI.icon('sliders')} الاستمارة الإلكترونية والمستند والمسؤولون</button>` : ''}</div>`;
+  };
+  const drawProps = () => {
+    const p = $r('[data-fsprops]'); if (!p) return;
+    const s = st.sel;
+    p.innerHTML = String(s.kind === 'f' && d.fields[s.i] ? propsField(d.fields[s.i], s.i) : s.kind === 'sys' ? propsSys(s.k) : s.kind === 'notes' ? html`<div class="fs-ph"><span class="fs-phic">${UI.icon('info')}</span><div class="grow"><small>أعلى النموذج</small><b>قبل تقديم الطلب</b></div></div><div class="fs-pb"><p class="fs-pinfo">ملاحظات ومتطلبات يقرؤها الموظف قبل التعبئة. عدّلها في النموذج مباشرة، واسحب إليها أيقونة من البنك.</p><button type="button" class="btn btn-soft btn-sm" data-fsnadd>${UI.icon('plus')} ملاحظة جديدة</button><div class="quick-chips mt">${READY_NOTES.filter((x) => !d.notes.includes(x)).map((x) => html`<button type="button" class="qchip" data-fsnready="${x}">+ ${x}</button>`)}</div></div>` : propsCat());
+    p.classList.toggle('show', s.kind !== 'cat');
+  };
+  const drawPaper = () => {
+    const p = $r('[data-fspaper]'), stage = $r('[data-fsstage]'), y = stage.scrollTop;
+    p.className = `fs-paper${st.dev === 'phone' ? ' phone' : ''}${st.view === 'try' ? ' try' : ''}`;
+    p.innerHTML = String(st.view === 'try' ? tryHTML() : designHTML());
+    if (st.view === 'try') UI.hydrate(p);
+    stage.scrollTop = y;
+  };
+  const draw = () => { if (!alive) return; drawPaper(); drawProps(); tb(); const t = $r('[data-fsttl]'); if (t) t.textContent = d.name; };
+  const select = (sel, { soft } = {}) => {
+    st.sel = sel; if (sel.kind !== 'f') st.opt = -1;
+    $$('.fs-el.on, .fs-sys.on, .fs-notes.on, .fs-cat.on', root).forEach((x) => x.classList.remove('on'));
+    const el = sel.kind === 'f' ? $r(`[data-fsf="${sel.i}"]`) : sel.kind === 'sys' ? $r(`[data-fssys="${sel.k}"]`) : sel.kind === 'notes' ? $r('[data-fsnotes]') : $r('[data-fscat]');
+    if (el) el.classList.add('on');
+    if (!soft) drawProps();
+  };
+  /* إعادة رسم خانة واحدة (حين تُعدّل من لوحة الخصائص) دون فقد مكان الكتابة */
+  const redrawField = (i) => { const el = $r(`[data-fsf="${i}"]`); if (!el || !d.fields[i]) return draw(); const t = document.createElement('div'); t.innerHTML = String(fieldEl(d.fields[i], i)); el.replaceWith(t.firstElementChild); };
+  const syncPropsInput = (sel, val) => { const x = $r(`[data-fsprops] ${sel}`); if (x && document.activeElement !== x) x.value = val; };
+
+  /* ══ الأحداث ══ */
+  root.addEventListener('change', async (e) => {
+    const t = e.target;
+    if (t.name === 'fsview') { st.view = t.value; if (st.view === 'try') st.pv = {}; draw(); return; }
+    if (t.name === 'fsdev') { st.dev = t.value; keepUi(); drawPaper(); return; }
+    if (t.name === 'fstone') { st.tone = t.value; ibTone.set(st.tone); const g = $r('[data-fso3d]'); if (g) { g.className = g.className.replace(/\btone-[a-z]+/, `tone-${st.tone}`); $$('[data-fsicon^="o3d:"]', g).forEach((b) => { b.dataset.fsicon = b.dataset.fsicon.replace(/:[a-z]+$/, `:${st.tone}`); }); } return; }
+    if (t.closest('[data-fspv]')) { st.pv = Forms.values($r('[data-fspv]')); Forms._pv = { id, fields: d.fields }; $r('[data-fspv]').innerHTML = String(Forms.render('__pv', st.pv)); UI.hydrate($r('[data-fspv]')); return; }
+    if (st.view === 'try') return;
+    if (t.matches('[data-fsshow]')) { d.hidden = t.checked ? 0 : 1; commit(); return; }
+    if (t.matches('[data-fsdevice]')) { d.base = t.checked ? ['deviceName'] : []; commit({ kind: 'sys', k: 'device' }); return; }
+    if (t.matches('[data-fsattsw]')) { d.attachReq = t.checked ? 1 : 0; commit({ kind: 'sys', k: 'attach' }); return; }
+    if (t.matches('[data-fssysreqsw]')) { setS(t.dataset.fssysreqsw, 'req', t.checked ? 1 : 0); commit(); return; }
+    if (t.matches('[data-fson]')) { const f = fOf(t), j = Number(t.dataset.fson), from = opts0(f)[j], to = String(t.value).trim(); if (!to) { t.value = from; return; } if (to === from) return; if (f.o.includes(to)) { UI.toast('هذا الخيار موجود في القائمة', 'warn'); t.value = from; return; } renameOpt(f, from, to); commit(); return; }
+    if (t.matches('[data-fsqt]')) { commit(); return; }
+    const f = st.sel.kind === 'f' ? d.fields[st.sel.i] : null;
+    if (t.name === 'fsos' && f) { f.os = t.value === 'md' ? undefined : t.value; if (!f.os) delete f.os; commit(); return; }
+    if (t.matches('[data-fspp]') && f) {
+      const p = t.dataset.fspp;
+      if (p === 'req') { f.req = t.checked ? 1 : 0; commit(); return; }
+      if (p === 'other') { f.other = t.checked ? 1 : 0; commit(); return; }
+      if (p === 'dir') { if (t.checked) f.dir = 'ltr'; else delete f.dir; commit(); return; }
+      if (p === 't') { f.t = t.value; if (needsOpts(f.t) && !Array.isArray(f.o)) f.o = f.t === 'table' ? ['الرقم العسكري', 'الرتبة', 'الاسم'] : []; if (!needsOpts(f.t) && !['text', 'textarea'].includes(f.t)) { delete f.o; delete f.oh; delete f.oi; } if (isDisp(f.t)) delete f.req; if (f.t === 'alert' && !f.tone) f.tone = 'amber'; commit(); return; }
+      if (p === 'def' && t.tagName === 'SELECT') { f.def = t.value; if (!f.def) delete f.def; commit(); return; }
+      push(); return;
+    }
+    if (t.matches('[data-fscond]') && f) { if (t.value) f.showIf = { [t.value]: [] }; else delete f.showIf; commit(); return; }
+    if (t.matches('[data-fscondv]') && f) { const k = Object.keys(f.showIf || {})[0]; if (!k) return; const s = new Set(f.showIf[k]); if (t.checked) s.add(t.dataset.fscondv); else s.delete(t.dataset.fscondv); f.showIf[k] = [...s]; commit(); }
+  });
+  const renameOpt = (f, from, to) => {
+    f.o = f.o.map((x) => (x === from ? to : x));
+    if (f.oi && f.oi[from] != null) { f.oi[to] = f.oi[from]; delete f.oi[from]; }
+    if (Array.isArray(f.oh)) f.oh = f.oh.map((x) => (x === from ? to : x));
+    if (f.def === from) f.def = to;
+    d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) x.showIf[f.k] = x.showIf[f.k].map((v) => (v === from ? to : v)); });
+  };
+  const delOpt = (f, o) => {
+    f.o = opts0(f).filter((x) => x !== o); if (f.oi) delete f.oi[o]; if (Array.isArray(f.oh)) f.oh = f.oh.filter((x) => x !== o); if (f.def === o) delete f.def;
+    d.fields.forEach((x) => { if (x.showIf && x.showIf[f.k]) x.showIf[f.k] = x.showIf[f.k].filter((v) => v !== o); });
+  };
+  const addOpts = (f, text) => { const add = String(text || '').split(/[\n،,]+/).map((x) => x.trim()).filter((x) => x && !opts0(f).includes(x)); f.o = [...opts0(f), ...[...new Set(add)]]; return add.length; };
+  root.addEventListener('input', (e) => {
+    const t = e.target; if (st.view === 'try') return;
+    if (t.matches('[data-fsq]')) { st.q = t.value; filterBank(); return; }
+    if (t.dataset.fsd) { const k = t.dataset.fsd; d[k] = t.value; typed(); if (k === 'name') { const x = $r('[data-fsttl]'); if (x) x.textContent = t.value; } $$(`[data-fsd="${k}"]`, root).forEach((x) => { if (x !== t) x.value = t.value; }); return; }
+    if (t.matches('[data-fsnote]')) { d.notes[Number(t.dataset.fsnote)] = t.value; typed(); return; }
+    if (t.matches('[data-fsqt]')) { d.quickTitles[Number(t.dataset.fsqt)] = t.value; t.style.setProperty('width', optW(t.value), 'important'); typed(); return; }
+    if (t.matches('[data-fssysl]')) { setS(t.dataset.fssysl, 'l', t.value); typed(); $$(`[data-fssysl="${t.dataset.fssysl}"]`, root).forEach((x) => { if (x !== t) x.value = t.value; }); return; }
+    if (t.matches('[data-fssyshint]')) { setS(t.dataset.fssyshint, 'hint', t.value); typed(); return; }
+    if (t.matches('[data-fson]')) { t.style.setProperty('width', optW(t.value), 'important'); return; }
+    if (t.matches('[data-fsp]')) { const f = fOf(t); if (!f) return; f[t.dataset.fsp] = t.value; typed(); syncPropsInput(`[data-fspp="${t.dataset.fsp}"]`, t.value); if (t.dataset.fsp === 'l') { const b = $r('[data-fsprops] .fs-ph b'); if (b && st.sel.kind === 'f' && st.sel.i === iOf(t)) b.textContent = t.value || (FIELD_TYPES[f.t] || {}).label || ''; } return; }
+    if (t.matches('[data-fspp]') && st.sel.kind === 'f' && !['checkbox'].includes(t.type) && t.tagName !== 'SELECT') { const f = d.fields[st.sel.i]; if (!f) return; f[t.dataset.fspp] = t.value; typed(); const el = $r(`[data-fsf="${st.sel.i}"] [data-fsp="${t.dataset.fspp}"]`); if (el) el.value = t.value; else redrawField(st.sel.i); }
+  });
+  root.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (e.key === 'Enter' && t.matches('[data-fsonew]')) { e.preventDefault(); const f = fOf(t), i = iOf(t); if (!addOpts(f, t.value)) return; commit({ kind: 'f', i }); const n = $r(`[data-fsf="${i}"] [data-fsonew]`); if (n) n.focus(); return; }
+    if (e.key === 'Enter' && t.matches('[data-fson]')) { e.preventDefault(); t.blur(); return; }
+    if (e.key === 'Enter' && t.matches('[data-fsqtnew]')) { e.preventDefault(); const add = String(t.value).split(/[\n،]+/).map((x) => x.trim()).filter((x) => x && !d.quickTitles.includes(x)); if (!add.length) return; d.quickTitles = [...d.quickTitles.filter((x) => String(x).trim()), ...add]; commit({ kind: 'sys', k: 'title' }); const n = $r('[data-fsqtnew]'); if (n) n.focus(); return; }
+    if (e.key === 'Enter' && t.matches('[data-fsnote]')) { e.preventDefault(); d.notes.splice(Number(t.dataset.fsnote) + 1, 0, ''); d.noteIc.splice(Number(t.dataset.fsnote) + 1, 0, ''); commit({ kind: 'notes' }); const n = $r(`[data-fsnote="${Number(t.dataset.fsnote) + 1}"]`); if (n) n.focus(); return; }
+    if (e.key === 'Backspace' && t.matches('[data-fsnote]') && !t.value && d.notes.length) { e.preventDefault(); const i = Number(t.dataset.fsnote); d.notes.splice(i, 1); d.noteIc.splice(i, 1); commit({ kind: 'notes' }); const n = $r(`[data-fsnote="${Math.max(0, i - 1)}"]`); if (n) n.focus(); }
+  });
+  /* التحديد بالضغط أو بالتركيز داخل العنصر */
+  root.addEventListener('focusin', (e) => {
+    const t = e.target; if (st.view === 'try' || !$r('[data-fspaper]').contains(t)) return;
+    const fe = t.closest('[data-fsf]'), se = t.closest('[data-fssys]');
+    if (fe) { const i = Number(fe.dataset.fsf), oi = t.closest('[data-fsoi]'); const j = oi ? Number(oi.dataset.fsoi) : -1; if (!(st.sel.kind === 'f' && st.sel.i === i)) { st.opt = j; select({ kind: 'f', i }); } else if (j !== st.opt) { st.opt = j; $$('.fs-opt.on', fe).forEach((x) => x.classList.remove('on')); if (oi) oi.classList.add('on'); } }
+    else if (se) { if (!selIs('sys', se.dataset.fssys)) select({ kind: 'sys', k: se.dataset.fssys }); }
+    else if (t.closest('[data-fsnotes]')) { if (st.sel.kind !== 'notes') select({ kind: 'notes' }); }
+    else if (t.closest('[data-fscat]') && st.sel.kind !== 'cat') select({ kind: 'cat' });
+  });
+  root.addEventListener('click', async (e) => {
+    const t = e.target, b = t.closest('button,[data-fsadd],[data-fsicon]');
+    const A = (sel) => t.closest(sel);
+    if (A('[data-fsact="undo"]')) return undo();
+    if (A('[data-fsact="redo"]')) return redo();
+    if (A('[data-fsact="save"]')) return save(A('[data-fsact="save"]'));
+    if (A('[data-fsact="close"]')) return opts.onClose && opts.onClose();
+    if (A('[data-fstab]')) { st.tab = A('[data-fstab]').dataset.fstab; st.q = ''; keepUi(); drawBank(); return; }
+    if (A('[data-fsbdel]')) { const x = A('[data-fsbdel]'); if (!(await UI.confirm('حذف هذه الخانة من بنك المحتوى؟ لا تتأثر الفئات التي استخدمتها.', { ok: 'حذف', danger: true }))) return; await FSBank.del(x.dataset.fsbdel); drawBank(); return; }
+    if (A('[data-fsadd]')) { if (st.view === 'try') { st.view = 'design'; $r('[name="fsview"][value="design"]').checked = true; } insert(A('[data-fsadd]').dataset.fsadd); return; }
+    if (A('[data-fsicon]')) { applyIcon(A('[data-fsicon]').dataset.fsicon); return; }
+    if (A('[data-fscheck]')) { tryCheck(); return; }
+    if (st.view === 'try') return;
+    const f = st.sel.kind === 'f' ? d.fields[st.sel.i] : null;
+    if (A('[data-fsreq]')) { const x = fOf(t); x.req = x.req ? 0 : 1; commit({ kind: 'f', i: iOf(t) }); return; }
+    if (A('[data-fsw]')) { const i = A('[data-fsf]') ? iOf(t) : st.sel.i, x = d.fields[i]; if (!x) return; const w = A('[data-fsw]').dataset.fsw; x.w = w; if (w === (FS_WIDE.includes(x.t) ? 'full' : 'half')) delete x.w; commit({ kind: 'f', i }); return; }
+    if (A('[data-fsdup]')) { const i = A('[data-fsf]') ? iOf(t) : st.sel.i; dup(i); return; }
+    if (A('[data-fsdel]')) { const i = A('[data-fsf]') ? iOf(t) : st.sel.i; del(i); return; }
+    if (A('[data-fspmove]')) { move(st.sel.i, Number(A('[data-fspmove]').dataset.fspmove)); return; }
+    if (A('[data-fsic]')) { const i = A('[data-fsf]') ? iOf(t) : st.sel.i, x = d.fields[i]; if (!x) return; const r = await Pages.iconBank(x.ic || ''); if (!r) return; if (r === 'none') delete x.ic; else x.ic = r; commit({ kind: 'f', i }); return; }
+    if (A('[data-fsicx]') && f) { delete f.ic; commit(); return; }
+    if (A('[data-fsoic]')) { const x = fOf(t), i = iOf(t), j = Number(A('[data-fsoi]').dataset.fsoi), o = opts0(x)[j], r = await Pages.iconBank((x.oi || {})[o] || ''); if (!r) return; x.oi = x.oi || {}; if (r === 'none') delete x.oi[o]; else x.oi[o] = r; st.opt = j; commit({ kind: 'f', i }); return; }
+    if (A('[data-fsodel]')) { const x = fOf(t), i = iOf(t); delOpt(x, opts0(x)[Number(A('[data-fsodel]').dataset.fsodel)]); commit({ kind: 'f', i }); return; }
+    if (A('[data-fstone]') && f) { f.tone = A('[data-fstone]').dataset.fstone; commit(); return; }
+    if (A('[data-fspasteadd]') && f) { const ta = $r('[data-fspaste]'), n = addOpts(f, ta.value); if (!n) { UI.toast('لا خيارات جديدة في النص', 'info'); return; } commit(); UI.toast(`أُضيف ${fmtNum(n)} خيار`); return; }
+    if (A('[data-fsbsave]') && f) { if (!String(f.l || '').trim()) { UI.toast('اكتب اسم الخانة أولاً', 'warn'); return; } try { await FSBank.add(f); UI.toast(`حُفظت «${f.l}» في بنك المحتوى، وتجدها في «جاهزة» لكل الفئات`); st.tab = 'ready'; drawBank(); } catch (ex) { UI.error(ex); } return; }
+    if (A('[data-fsadv]')) { if (opts.onAdv) opts.onAdv(st.sel.kind === 'f' ? st.sel.i : -1); return; }
+    if (A('[data-fssysreq]')) { const k = A('[data-fssysreq]').dataset.fssysreq; setS(k, 'req', S(k).req ? 0 : 1); commit({ kind: 'sys', k }); return; }
+    if (A('[data-fssysdef]')) { const k = A('[data-fssysdef]').dataset.fssysdef; setS(k, 'l', ''); commit({ kind: 'sys', k }); return; }
+    if (A('[data-fsattreq]')) { d.attachReq = d.attachReq ? 0 : 1; commit({ kind: 'sys', k: 'attach' }); return; }
+    if (A('[data-fsqtdel]')) { d.quickTitles.splice(Number(A('[data-fsqtdel]').dataset.fsqtdel), 1); commit({ kind: 'sys', k: 'title' }); return; }
+    if (A('[data-fsnadd]')) { d.notes.push(''); d.noteIc.length = d.notes.length; commit({ kind: 'notes' }); const all = $$('[data-fsnote]', root); if (all.length) all[all.length - 1].focus(); return; }
+    if (A('[data-fsnready]')) { d.notes.push(A('[data-fsnready]').dataset.fsnready); commit({ kind: 'notes' }); return; }
+    if (A('[data-fsndel]')) { const i = Number(A('[data-fsndel]').dataset.fsndel); d.notes.splice(i, 1); d.noteIc.splice(i, 1); commit({ kind: 'notes' }); return; }
+    if (A('[data-fsnic]')) { const i = Number(A('[data-fsnic]').dataset.fsnic), r = await Pages.iconBank(d.noteIc[i] || ''); if (!r) return; d.noteIc[i] = r === 'none' ? '' : r; commit({ kind: 'notes' }); return; }
+    if (A('[data-fsimg]')) { const r = await Pages.imgPickModal(d.image, d.name); if (r) { d.image = r; commit(); } return; }
+    if (b && !b.closest('[data-fspaper]')) return;
+    /* تحديد العنصر بالضغط على مساحته */
+    const fe = A('[data-fsf]'), se = A('[data-fssys]');
+    if (fe) { if (!(st.sel.kind === 'f' && st.sel.i === Number(fe.dataset.fsf))) { st.opt = -1; select({ kind: 'f', i: Number(fe.dataset.fsf) }); } return; }
+    if (se) { select({ kind: 'sys', k: se.dataset.fssys }); return; }
+    if (A('[data-fsnotes]')) { select({ kind: 'notes' }); return; }
+    if (A('[data-fsstage]')) select({ kind: 'cat' });
+  });
+  const dup = (i) => { const x = d.fields[i]; if (!x) return; const c = JSON.parse(JSON.stringify(x)); c.k = newKey(); if (c.l && !isDisp(c.t)) c.l = `${c.l} (2)`; delete c.dep; d.fields.splice(i + 1, 0, c); commit({ kind: 'f', i: i + 1 }); };
+  const del = (i) => {
+    const x = d.fields[i]; if (!x) return;
+    const users = d.fields.filter((y) => (y.showIf && y.showIf[x.k]) || y.dep === x.k);
+    d.fields.splice(i, 1); users.forEach((y) => { if (y.showIf) delete y.showIf[x.k]; if (y.showIf && !Object.keys(y.showIf).length) delete y.showIf; if (y.dep === x.k) delete y.dep; });
+    commit(d.fields.length ? { kind: 'f', i: Math.min(i, d.fields.length - 1) } : { kind: 'cat' });
+    UI.toast(`حُذفت «${x.l || (FIELD_TYPES[x.t] || {}).label || 'الخانة'}» — Ctrl+Z للتراجع`, 'info', 4500);
+  };
+  const move = (i, dir) => { const j = i + dir; if (j < 0 || j >= d.fields.length) return; [d.fields[i], d.fields[j]] = [d.fields[j], d.fields[i]]; commit({ kind: 'f', i: j }); };
+  /* تطبيق أيقونة على المحدد: الخيار المحدد، أو الخانة، أو الملاحظة */
+  const applyIcon = (ref, target) => {
+    const tgt = target || (st.sel.kind === 'f' ? { kind: st.opt >= 0 ? 'opt' : 'f', i: st.sel.i, j: st.opt } : st.sel.kind === 'notes' ? { kind: 'note', i: Math.max(0, d.notes.length - 1) } : null);
+    if (!tgt) { UI.toast('حدد خانة أو خياراً أو ملاحظة أولاً، أو اسحب الأيقونة إليه', 'info'); return; }
+    if (tgt.kind === 'note') { if (!d.notes.length) return; d.noteIc[tgt.i] = ref; commit({ kind: 'notes' }); return; }
+    const f = d.fields[tgt.i]; if (!f || f.t === 'divider') return;
+    if (tgt.kind === 'opt') { const o = opts0(f)[tgt.j]; if (o == null) return; f.oi = f.oi || {}; f.oi[o] = ref; st.opt = tgt.j; } else f.ic = ref;
+    commit({ kind: 'f', i: tgt.i });
+  };
+
+  /* ══ السحب والإفلات ══ */
+  let drag = null;
+  const clear = () => $$('.fs-dropb,.fs-dropa,.fs-dropin,.fs-dropv', root).forEach((x) => x.classList.remove('fs-dropb', 'fs-dropa', 'fs-dropin', 'fs-dropv'));
+  root.addEventListener('dragstart', (e) => {
+    const t = e.target, g = t.closest && t.closest('[data-fsgrip]'), o = t.closest && t.closest('[data-fsoic]'), a = t.closest && t.closest('[data-fsadd]'), ic = t.closest && t.closest('[data-fsicon]');
+    if (g) { const w = g.closest('[data-fsf]'); drag = { kind: 'move', i: Number(w.dataset.fsf) }; w.classList.add('fs-dragging'); try { e.dataTransfer.setDragImage(w, 24, 18); } catch (_) { /* تجاهل */ } }
+    else if (o) { const r = o.closest('[data-fsoi]'); drag = { kind: 'opt', fi: iOf(o), i: Number(r.dataset.fsoi) }; r.classList.add('fs-dragging'); }
+    else if (a) drag = { kind: a.dataset.fsadd.startsWith('n:') ? 'note' : 'add', key: a.dataset.fsadd };
+    else if (ic) drag = { kind: 'icon', ref: ic.dataset.fsicon };
+    else return;
+    e.dataTransfer.effectAllowed = drag.kind === 'move' || drag.kind === 'opt' ? 'move' : 'copy'; try { e.dataTransfer.setData('text/plain', 'fs'); } catch (_) { /* تجاهل */ }
+    root.classList.add(`fs-dragging-${drag.kind}`);
+  });
+  const rtl = () => getComputedStyle(root).direction === 'rtl';
+  const slot = (e) => {
+    const grid = $r('[data-fsfields]'); if (!grid) return null;
+    const els = $$(':scope > [data-fsf]', grid), gr = grid.getBoundingClientRect();
+    if (!els.length) return { i: 0, el: grid, empty: true };
+    const inGrid = e.clientY >= gr.top - 30 && e.clientY <= gr.bottom + 30;
+    if (!inGrid) return e.clientY < gr.top ? { i: 0, el: els[0], after: false } : { i: els.length, el: els[els.length - 1], after: true };
+    let best = null, bd = Infinity;
+    els.forEach((el) => { const r = el.getBoundingClientRect(), dx = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0, dy = e.clientY < r.top ? r.top - e.clientY : e.clientY > r.bottom ? e.clientY - r.bottom : 0, dd = dx * dx + dy * dy * 4; if (dd < bd) { bd = dd; best = { el, r }; } });
+    const { el, r } = best, full = r.width > gr.width * 0.8;
+    const after = full ? e.clientY > r.top + r.height / 2 : rtl() ? e.clientX < r.left + r.width / 2 : e.clientX > r.left + r.width / 2;
+    return { i: Number(el.dataset.fsf) + (after ? 1 : 0), el, after, vert: !full };
+  };
+  const iconTarget = (e) => {
+    const opt = e.target.closest && e.target.closest('[data-fsoi]:not(.fs-oadd)'); if (opt) return { el: opt, kind: 'opt', i: iOf(opt), j: Number(opt.dataset.fsoi) };
+    const n = e.target.closest && e.target.closest('[data-fsni]'); if (n) return { el: n, kind: 'note', i: Number(n.dataset.fsni) };
+    const f = e.target.closest && e.target.closest('[data-fsf]:not(.fs-disp), [data-fsf].fs-disp:not(.cf-div)'); if (f && d.fields[Number(f.dataset.fsf)].t !== 'divider') return { el: f, kind: 'f', i: Number(f.dataset.fsf) };
+    return null;
+  };
+  root.addEventListener('dragover', (e) => {
+    if (!drag || st.view === 'try') return;
+    clear();
+    if (drag.kind === 'icon') { const tg = iconTarget(e); if (!tg) return; e.preventDefault(); tg.el.classList.add('fs-dropin'); return; }
+    if (drag.kind === 'note') { const n = e.target.closest && e.target.closest('[data-fsnotes]'); if (n || $r('[data-fspaper]').contains(e.target)) { e.preventDefault(); $r('[data-fsnotes]').classList.add('fs-dropin'); } return; }
+    if (drag.kind === 'opt') { const o = e.target.closest && e.target.closest('[data-fsoi]:not(.fs-oadd)'); if (!o || iOf(o) !== drag.fi) return; e.preventDefault(); const r = o.getBoundingClientRect(), after = rtl() ? e.clientX < r.left + r.width / 2 : e.clientX > r.left + r.width / 2; o.classList.add(after ? 'fs-dropa' : 'fs-dropb', 'fs-dropv'); drag.to = Number(o.dataset.fsoi) + (after ? 1 : 0); return; }
+    if (!$r('[data-fsstage]').contains(e.target) && !e.target.closest('[data-fsstage]')) return;
+    const s = slot(e); if (!s) return; e.preventDefault(); drag.to = s.i;
+    if (s.empty) s.el.classList.add('fs-dropin'); else s.el.classList.add(s.after ? 'fs-dropa' : 'fs-dropb', ...(s.vert ? ['fs-dropv'] : []));
+  });
+  root.addEventListener('dragleave', (e) => { if (!root.contains(e.relatedTarget)) clear(); });
+  root.addEventListener('drop', async (e) => {
+    if (!drag) return; e.preventDefault(); clear();
+    const dr = drag; drag = null; root.className = root.className.replace(/\bfs-dragging-\w+/g, '').trim();
+    if (dr.kind === 'icon') { const tg = iconTarget(e); if (tg) applyIcon(dr.ref, tg); return; }
+    if (dr.kind === 'note') { insert(dr.key); return; }
+    if (dr.kind === 'opt') { const f = d.fields[dr.fi], list = opts0(f); let to = dr.to == null ? dr.i : dr.to; if (dr.i < to) to -= 1; if (to !== dr.i && to >= 0) { const [x] = list.splice(dr.i, 1); list.splice(to, 0, x); f.o = list; st.opt = to; commit({ kind: 'f', i: dr.fi }); } return; }
+    if (dr.to == null) return;
+    if (dr.kind === 'add') { insert(dr.key, dr.to); return; }
+    if (dr.kind === 'move') { let to = dr.to; if (dr.i < to) to -= 1; if (to === dr.i) return; const [x] = d.fields.splice(dr.i, 1); d.fields.splice(to, 0, x); commit({ kind: 'f', i: to }); }
+  });
+  root.addEventListener('dragend', () => { drag = null; clear(); $$('.fs-dragging', root).forEach((x) => x.classList.remove('fs-dragging')); root.className = root.className.replace(/\bfs-dragging-\w+/g, '').trim(); });
+
+  /* تغيير العرض بسحب الحافة: يلتصق بالثلث والنصف والثلثين والكامل */
+  root.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest && e.target.closest('[data-fsrs]'); if (!h || st.dev === 'phone') return;
+    e.preventDefault(); const el = h.closest('[data-fsf]'), i = Number(el.dataset.fsf), f = d.fields[i], grid = $r('[data-fsfields]'), gw = grid.getBoundingClientRect().width / 6, r = el.getBoundingClientRect(), isR = rtl();
+    let w = fsW(f); const badge = document.createElement('span'); badge.className = 'fs-wbadge'; el.appendChild(badge); el.classList.add('fs-resizing');
+    const showW = () => { el.className = el.className.replace(/\bw-[a-z]+/g, '').replace(/\bwide\b/, '').trim() + ` w-${w}${w === 'full' ? ' wide' : ''}`; badge.textContent = (FS_W.find(([k]) => k === w) || [])[2] || ''; };
+    showW();
+    const mv = (ev) => { const span = (isR ? r.right - ev.clientX : ev.clientX - r.left) / gw, n = [2, 3, 4, 6].reduce((a, b) => (Math.abs(b - span) < Math.abs(a - span) ? b : a)); const nw = Object.keys(FS_SPAN).find((k) => FS_SPAN[k] === n); if (nw !== w) { w = nw; showW(); } };
+    const up = () => { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); badge.remove(); el.classList.remove('fs-resizing'); if (w !== fsW(f)) { f.w = w; if (w === (FS_WIDE.includes(f.t) ? 'full' : 'half')) delete f.w; commit({ kind: 'f', i }); } };
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+  });
+
+  /* اختصارات لوحة المفاتيح */
+  const onKey = (e) => {
+    if (!alive || !root.isConnected || $('dialog[open]')) return;
+    const typing = e.target.matches && e.target.matches('input,textarea,select,[contenteditable]'), mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (mod && k === 's') { e.preventDefault(); save($r('[data-fsact="save"]')); return; }
+    if (mod && (k === 'z' || k === 'y') && !(typing && !e.target.closest('[data-fspaper],[data-fsprops]'))) { e.preventDefault(); if (k === 'y' || e.shiftKey) redo(); else undo(); return; }
+    if (typing) return;
+    if (st.sel.kind === 'f') {
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); del(st.sel.i); return; }
+      if (mod && k === 'd') { e.preventDefault(); dup(st.sel.i); return; }
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); move(st.sel.i, e.key === 'ArrowUp' ? -1 : 1); return; }
+    }
+    if (e.key === 'Escape') { if (st.sel.kind !== 'cat') { select({ kind: 'cat' }); } else if (opts.onClose) opts.onClose(); }
+  };
+  document.addEventListener('keydown', onKey);
+
+  /* الحفظ: يُبرز الخانة الناقصة بدل رسالة عامة */
+  const save = async (btn) => {
+    UI.busy(btn, true);
+    try {
+      await Data.catAdmin.save(id, d); st.dirty = false; st.saved = snap(); tb(); if (opts.onSaved) opts.onSaved();
+      UI.toast('حُفظ النموذج، ويظهر للموظفين في البلاغات الجديدة فوراً', 'success');
+    } catch (ex) {
+      const m = /رقم (\d+)/.exec(String(ex.message || '')); if (m && d.fields[Number(m[1]) - 1]) { st.view = 'design'; const r = $r('[name="fsview"][value="design"]'); if (r) r.checked = true; commit({ kind: 'f', i: Number(m[1]) - 1 }); const l = $r(`[data-fsf="${Number(m[1]) - 1}"] [data-fsp="l"]`); if (l) { l.scrollIntoView({ block: 'center', behavior: 'smooth' }); l.focus(); } }
+      UI.error(ex);
+    } finally { UI.busy(btn, false); }
+  };
+
+  push(); st.dirty = !!(opts.isDirty && opts.isDirty()); st.saved = st.dirty ? '' : H.stack[0]; draw(); drawBank(); FSBank.load(true).then(() => { if (alive) drawBank(); });
+  return {
+    refresh: () => draw(),
+    saved: () => { st.dirty = false; st.saved = snap(); tb(); },
+    get dirty() { return st.dirty; },
+    destroy: () => { alive = false; clearTimeout(pendT); document.removeEventListener('keydown', onKey); Forms._pv = null; }
+  };
+};
+
+/* ── محرر الفئة: الاستوديو بدل «التصميم المباشر»، والإعدادات التفصيلية للاستمارة والمستند ── */
+Pages.ceDesign = (ctx) => {
+  const ce = ctx.ce; if (!ce || $('#ceDesign', ctx.view)) return;
+  const grid = $('.ce-grid', ctx.view); if (!grid) return;
+  let mode = 'design'; try { if (localStorage.getItem('sq_ce_mode') === 'adv') mode = 'adv'; } catch (_) { /* تجاهل */ }
+  const bar = document.createElement('div'); bar.className = 'ce-modes';
+  bar.innerHTML = String(html`<div class="seg" role="radiogroup" aria-label="طريقة التعديل">${[['design', 'استوديو النموذج', 'edit'], ['adv', 'الإعدادات التفصيلية', 'sliders']].map(([k, l, ic]) => html`<label><input type="radio" name="cemode" value="${k}"${mode === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div><span class="faint small" data-cemhint></span>`);
+  const box = document.createElement('div'); box.id = 'ceDesign';
+  grid.parentNode.insertBefore(bar, grid); grid.parentNode.insertBefore(box, grid);
+  let studio = null;
+  const syncAdv = () => {
+    $$('.ce-grid [data-d]', ctx.view).forEach((el) => { const k = el.dataset.d; el.value = k === 'quickTitles' ? (ce.d.quickTitles || []).join('\n') : ce.d[k] == null ? '' : ce.d[k]; });
+    const sw = (n, v) => { const el = $(`.ce-grid [name="${n}"]`, ctx.view); if (el) el.checked = !!v; };
+    sw('ceShow', !ce.d.hidden); sw('ceAttach', ce.d.attachReq); sw('ceDevice', ce.d.base.includes('deviceName'));
+    const hb = $('#ceHidden', ctx.view); if (hb) hb.hidden = !ce.d.hidden;
+    const img = $('.ce-grid .ce-img', ctx.view); if (img) img.innerHTML = `${ImgLib.html(ce.d.image, 'cat-ic')}<span>${UI.icon('photo')} تغيير</span>`;
+    ce.redrawNotes(); ce.redrawFields();
+  };
+  const setMode = (m, fi = -1) => {
+    mode = m; try { localStorage.setItem('sq_ce_mode', m); } catch (_) { /* تجاهل */ }
+    const r = $(`[name="cemode"][value="${m}"]`, bar); if (r) r.checked = true;
+    box.hidden = m !== 'design'; grid.hidden = m === 'design'; grid.classList.remove('ce-only-pv'); ctx.view.classList.toggle('ce-studio', m === 'design');
+    $('[data-cemhint]', bar).textContent = m === 'design' ? 'اسحب من بنك المحتوى، واضغط أي نص في النموذج لتعديله مكانه' : 'الاستمارة الإلكترونية والمستند والمسؤولون عن الفئة، وكل خصائص الخانات';
+    if (m === 'design') { if (studio) studio.refresh(); }
+    else { syncAdv(); if (fi >= 0 && ce.d.fields[fi]) { ce.open.add(ce.d.fields[fi].k); ce.redrawFields(); const c = $(`.ce-grid [data-fi="${fi}"]`, ctx.view); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }
+  };
+  studio = Pages.formStudio(box, { id: ctx.params.id, d: ce.d, mark: ce.mark, isDirty: () => !!(ce.isDirty && ce.isDirty()), onSaved: () => { if (ce.saved) ce.saved(); }, onAdv: (fi) => setMode('adv', fi) });
+  ctx.onCleanup(() => { studio.destroy(); ctx.view.classList.remove('ce-studio'); });
+  ctx.ceHook = () => { if (mode === 'design' && studio) studio.refresh(); };
+  ctx.ceSaved = () => studio.saved();
+  bar.addEventListener('change', (e) => { if (e.target.name === 'cemode') setMode(e.target.value); });
+  setMode(mode);
+};
+
+/* ── تعديل النموذج مباشرة من صفحة البلاغ الجديد: الاستوديو في طبقة فوق الصفحة، وبعد الحفظ يتحدث النموذج بقيمه ── */
+Pages.formStudioOverlay = (catId) => new Promise((resolve) => {
+  if (!canCatAdmin()) { resolve(false); return; }
+  const d = catDraft(catId), ov = document.createElement('div'); ov.className = 'fs-overlay'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'تعديل النموذج');
+  document.body.appendChild(ov); document.body.classList.add('fs-open');
+  let saved = false, studio = null;
+  const close = async () => {
+    if (studio.dirty && !(await UI.confirm('لم تُحفظ التعديلات الأخيرة. إغلاق دون حفظها؟', { ok: 'إغلاق دون حفظ', danger: true }))) return;
+    studio.destroy(); ov.remove(); document.body.classList.remove('fs-open'); window.removeEventListener('hashchange', gone); resolve(saved);
+  };
+  const gone = () => { studio.destroy(); ov.remove(); document.body.classList.remove('fs-open'); resolve(saved); };
+  window.addEventListener('hashchange', gone, { once: true });
+  studio = Pages.formStudio(ov, { id: catId, d, overlay: true, onSaved: () => { saved = true; }, onClose: close });
+});
 
 boot();
 })();
