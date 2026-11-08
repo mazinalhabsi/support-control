@@ -5209,3 +5209,62 @@ body.fs-open{overflow:hidden}
 @container (max-width:300px){.fs-bar .fs-tn{display:none}.fs-bar .fs-req{margin-inline-start:auto}}
 @container (max-width:200px){.fs-bar .fs-ws,.fs-bar [data-fsdup]{display:none}}
 .fs-bnote[hidden],.fs-tones[hidden]{display:none!important}
+
+/* ══════════ شارات القائمة بأيقونات، وتنبيه الملاحظات ══════════ */
+.sidebar .nav-badge{display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:0 7px 0 6px;min-width:24px;height:21px;box-shadow:0 2px 8px -2px rgba(0,0,0,.35)}
+.sidebar .nav-badge[hidden]{display:none!important}
+.sidebar .nav-link .nav-badge .ic{width:12px!important;height:12px!important;margin:0!important;color:currentColor!important;opacity:.95}
+.sidebar .nav-badge span{font:800 11px var(--f-num,var(--f-body));line-height:1}
+.sidebar .nav-badge.note{animation:nbPulse 2.2s ease-in-out infinite}
+@keyframes nbPulse{50%{box-shadow:0 0 0 4px rgba(var(--teal),.25),0 2px 8px -2px rgba(0,0,0,.35)}}
+.sidebar .nav-badge.nb-bump{animation:nbBump .6s var(--spring)}
+@keyframes nbBump{40%{transform:scale(1.35)}}
+.nav-link{position:relative}
+.nl-dot{position:absolute;top:8px;inset-inline-start:24px;width:9px;height:9px;border-radius:50%;background:rgb(var(--teal));box-shadow:0 0 0 2px var(--surface-solid);z-index:1;animation:nlPulse 1.8s ease-out infinite}
+@keyframes nlPulse{0%{box-shadow:0 0 0 2px var(--surface-solid),0 0 0 2px rgba(var(--teal),.7)}100%{box-shadow:0 0 0 2px var(--surface-solid),0 0 0 9px rgba(var(--teal),0)}}
+@media (prefers-reduced-motion:reduce){.sidebar .nav-badge.note,.nl-dot{animation:none}}
+/* بطاقة الملاحظة العائمة */
+.na-pop{position:fixed;inset-inline-start:22px;bottom:22px;z-index:880;width:min(420px,calc(100vw - 32px));border-radius:18px;background:var(--surface-solid);border:1px solid rgba(var(--t),.45);box-shadow:0 0 0 6px rgba(var(--t),.1),0 30px 60px -20px rgba(0,0,0,.55);overflow:hidden}
+.na-pop.in{animation:naIn .5s var(--spring)}
+@keyframes naIn{from{opacity:0;transform:translateY(24px) scale(.96)}}
+.na-pop::before{content:'';position:absolute;inset-inline:0;top:0;height:4px;background:rgb(var(--t))}
+.na-head{display:flex;align-items:center;gap:12px;padding:16px 14px 10px}
+.na-head b{display:block;font-size:15px}.na-head small{display:block;font-size:12px;color:var(--ink-3)}
+.na-ic{position:relative;flex:none;display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:rgba(var(--t),.14);color:rgb(var(--t))}
+.na-ic .ic{width:22px;height:22px}
+.na-ic i{position:absolute;top:-3px;inset-inline-end:-3px;width:12px;height:12px;border-radius:50%;background:rgb(var(--t));box-shadow:0 0 0 3px var(--surface-solid);animation:tvBlink 1.3s infinite}
+.na-list{display:flex;flex-direction:column;gap:6px;padding:0 10px 12px;max-height:50vh;overflow:auto}
+.na-row{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);text-decoration:none;transition:border-color .2s,transform .25s var(--spring)}
+.na-row:hover{border-color:rgba(var(--t),.6);transform:translateX(-3px)}
+.na-row .iso.mini{width:42px;height:38px;flex:none}
+.na-row b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.na-row p{margin:3px 0;font-size:12.5px;color:var(--ink-2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.na-row small{font-size:11.5px;color:var(--ink-3)}
+.na-row>.ic{width:16px;height:16px;color:var(--ink-3);flex:none}
+.na-all{margin:0 10px 12px;width:calc(100% - 20px);justify-content:center}
+/* شريط الملاحظات أعلى قائمة البلاغات */
+.tk-nbar{margin-bottom:14px;align-items:center}
+.tk-nic{position:relative;display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:rgba(var(--t),.16);flex:none}
+.tk-nic .ic{width:19px;height:19px;color:rgb(var(--t))}
+.tk-nic i{position:absolute;top:-2px;inset-inline-end:-2px;width:10px;height:10px;border-radius:50%;background:rgb(var(--t));animation:tvBlink 1.3s infinite}
+@media (max-width:720px){.na-pop{inset-inline:12px;bottom:12px;width:auto}}
+/* شاشة العرض: صف البلاغ الذي فيه ملاحظة من الموظف */
+.tv2-tr.has-note{border-color:rgba(43,212,164,.45);box-shadow:inset 0 0 0 1px rgba(43,212,164,.15)}
+.tv-light .tv2-tr.has-note{border-color:rgba(31,181,164,.45)}
+.tv2-nl{display:flex!important;align-items:center;gap:5px;color:#5FE3C1!important;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-light .tv2-nl{color:#0C766A!important}
+.tv2-nl .ic{width:13px;height:13px;flex:none}.tv2-nl b{flex:none}
+.tv2-new.tv2-nnew{display:inline-flex;align-items:center;gap:4px;background:#2BD4A4;color:#04241D}
+.tv2-nnew .ic{width:12px;height:12px}
+.tv2-cchip.note{background:rgba(43,212,164,.12);border-color:rgba(43,212,164,.4);color:#5FE3C1}
+.tv-light .tv2-cchip.note{color:#0C766A}
+.tv2-cchip.note b{color:inherit}
+/* شريط المستجدات: رسم فئة البلاغ وشارة الحدث فوقه */
+.tv2-ti>.tv2-tart{position:relative;width:34px;height:30px;background:none!important;overflow:visible}
+.tv2-tart .iso,.tv2-tart .iso.mini,.tv2-tart svg:not(.ic),.tv2-tart img{width:34px;height:30px}
+.tv2-tart .ic.o3d{width:28px!important;height:28px!important;transform:none}
+.tv2-tart>b{position:absolute;bottom:-4px;inset-inline-end:-6px;display:grid;place-items:center;width:17px;height:17px;border-radius:6px;background:rgb(var(--t));color:#fff;box-shadow:0 0 0 2px var(--tv-bg)}
+.tv2-tart>b .ic{width:11px!important;height:11px!important}
+/* بطاقة الملاحظة الكبيرة */
+.tv-note-q{margin:4px 0 14px;padding:14px 18px;border-radius:16px;border-inline-start:5px solid rgb(var(--t));background:rgba(var(--t),.1);font-size:26px;line-height:1.7;color:var(--ink);font-weight:600}
+.tv-alert-kicker .ic{width:18px;height:18px;vertical-align:-3px}

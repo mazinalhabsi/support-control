@@ -10640,10 +10640,10 @@ Pages.monitor = async (ctx) => {
       const pr = PRIORITY[r.priority] || {}, stt = r.kind === 'chat' ? { label: r.status === 'new' ? 'بانتظار الرد' : 'قيد المتابعة', tone: 'violet' } : (STATUS[r.status] || { label: r.status, tone: 'slate' });
       const sla = r.due ? Math.min(100, Math.max(0, ((now() - r.at) / Math.max(1, r.due - r.at)) * 100)) : 0;
       const late = r.due && now() > r.due;
-      return html`<div class="tv2-tr pe-${r.kind === 'chat' ? 'chat' : r.priority}${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}${turn ? ' enter' : ''}" style="--i:${slice.indexOf(r)}">
+      return html`<div class="tv2-tr pe-${r.kind === 'chat' ? 'chat' : r.priority}${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}${r.note ? ' has-note' : ''}${turn ? ' enter' : ''}" style="--i:${slice.indexOf(r)}">
         <span class="tv2-n">${rows.indexOf(r) + 1}</span>
         <span class="tv2-kind k-${r.kind} tone-${r.kind === 'chat' ? 'violet' : 'sky'}">${UI.icon(r.kind === 'chat' ? 'o3d:chat' : 'o3d:ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
-        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('message') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}${r.by ? ` · ${r.by}` : ''}</small></span></span>
+        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('message') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? (st.npin && st.npin.has(r.key) ? html`<em class="tv2-new tv2-nnew">${UI.icon('message')} ملاحظة جديدة</em>` : html`<em class="tv2-new">جديد</em>`) : ''}${r.title}</b>${r.note ? html`<small class="tv2-nl">${UI.icon('message')}<b>${r.note.by || 'الموظف'}:</b> «${r.note.text.length > 90 ? `${r.note.text.slice(0, 90)}…` : r.note.text}»</small>` : html`<small>${r.number ? `${r.number} · ` : ''}${r.cat}${r.by ? ` · ${r.by}` : ''}</small>`}</span></span>
         <span class="tv2-dep">${r.dep || '—'}${r.office ? html`<small>${r.office}</small>` : ''}</span>
         <span>${r.kind === 'chat' ? html`<i class="tv2-pr p-low"></i>—` : html`<i class="tv2-pr p-${r.priority}"></i>${pr.label || ''}`}</span>
         <span><em class="tv2-st tone-${stt.tone || 'slate'}">${stt.label}</em></span>
@@ -10675,11 +10675,17 @@ Pages.monitor = async (ctx) => {
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
-      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.unitPath || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0 })),
+      ...open.map((t) => ({ key: `t:${t.id}`, kind: 'ticket', number: t.number, title: t.title, by: t.requesterId ? Data.userName(t.requesterId) : '', cat: Data.nameOf('categories', t.categoryId, ''), catId: t.categoryId || 'other', dep: Data.nameOf('departments', t.departmentId, ''), office: t.unitPath || (t.extra && t.extra.office) || '', priority: t.priority, status: t.status, assignee: t.assigneeId ? Data.userName(t.assigneeId) : '', at: t.createdAt, due: t.dueAt || 0, note: t.noteFrom === 'requester' && t.noteAt ? { at: t.noteAt, text: String(t.noteText || ''), by: t.noteBy ? Data.userName(t.noteBy) : '' } : null })),
       ...openChats.map((c) => ({ key: `c:${c.id}`, kind: 'chat', number: '', title: c.subject || 'استفسار', by: c.userId ? Data.userName(c.userId) : '', cat: 'استفسار', catId: '', dep: Data.nameOf('departments', c.departmentId || (Data.c.users.get(c.userId) || {}).departmentId, ''), office: '', priority: 'low', status: c.unreadStaff ? 'new' : 'progress', assignee: c.staffId ? Data.userName(c.staffId) : '', at: c.createdAt, due: 0 }))
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
+    /* ملاحظة الموظف على بلاغ مفتوح: بطاقة وصوت، وتثبيت البلاغ أعلى القائمة ثلاث دقائق بعلامة «ملاحظة جديدة».
+       تبقى علامة الملاحظة على الصف حتى يرد الفني (الرد يغيّر صاحب آخر ملاحظة) */
+    const noteK = (r) => `${r.key}:${r.note.at}`, noted = rows.filter((r) => r.note);
+    st.fnotes = st.nseen ? noted.filter((r) => !st.nseen.has(noteK(r))) : [];
+    st.nseen = new Set(noted.map(noteK)); st.npin = st.npin || new Set();
+    if (st.fnotes.length) { const fn = st.fnotes; fn.forEach((r) => { st.flash.add(r.key); st.npin.add(r.key); st.pin.set(r.key, tn + 3 * MIN); }); st.page = 0; setTimeout(() => { fn.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     /* الوارد الجديد يتصدر القائمة ثلاث دقائق، وتعود الشاشة إلى صفحتها الأولى ليُرى فوراً */
     st.fresh.forEach((r) => st.pin.set(r.key, tn + 3 * MIN)); st.pin.forEach((until, k) => { if (until < tn) st.pin.delete(k); });
     if (st.fresh.length) st.page = 0;
@@ -10688,7 +10694,7 @@ Pages.monitor = async (ctx) => {
     /* شريط الفئات: أيقونة كل فئة وعدد المفتوح منها، وفئة الوارد الجديد تتوهج */
     const byCat = new Map(); open.forEach((t) => { const k = t.categoryId || 'other'; byCat.set(k, (byCat.get(k) || 0) + 1); });
     const hot = new Set(st.fresh.filter((r) => r.kind === 'ticket').map((r) => r.catId)), cats = [...byCat].sort((a, b) => b[1] - a[1]), shown = cats.slice(0, 6), more = cats.slice(6).reduce((a, x) => a + x[1], 0);
-    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('message')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}`);
+    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('message')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}${noted.length ? html`<span class="tv2-cchip note${st.fnotes.length ? ' hot' : ''}">${UI.icon('send')}<span>ملاحظات الموظفين</span><b>${fmtNum(noted.length)}</b></span>` : ''}`);
     /* المؤشرات: رقم اليوم ومقارنته بالأمس، وسطر يشرح ما وراء الرقم */
     const avgMin = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length / MIN) : 0);
     const waiting = open.filter((t) => t.status === 'new'), oldest = waiting.reduce((m, t) => Math.min(m, t.createdAt), Infinity);
@@ -10736,16 +10742,18 @@ Pages.monitor = async (ctx) => {
     $v('[data-team]').innerHTML = team.length ? String(html`${team.slice(0, 8).map((u) => { const n = open.filter((x) => x.assigneeId === u.id).length; const cls = n >= 6 ? 'busy' : n >= 3 ? 'mid' : 'free'; return html`<div class="tv2-mate ${cls}">${UI.avatar(u, 'av-sm')}<b>${u.name}</b><span>${n ? `${fmtNum(n)} مفتوح` : 'متاح'}</span><i class="tv2-load"><i style="width:${Math.min(100, Math.max(n ? 12 : 0, (n / 6) * 100)).toFixed(0)}%"></i></i></div>`; })}`) : String(html`<p class="tv2-none">${UI.icon('users')} لا يوجد فني متصل الآن</p>`);
     /* شريط المستجدات: كل خبر بأيقونته ولونه بدل الرموز التعبيرية */
     const H2 = 2 * HOUR, ev = [];
-    tickets.filter((x) => x.createdAt >= tn - H2).forEach((x) => { const d = Data.nameOf('departments', x.departmentId, ''); ev.push([x.createdAt, 'ticket', 'sky', `بلاغ جديد: ${x.title}${d ? ` — ${d}` : ''}`]); });
-    tickets.filter((x) => (x.resolvedAt || 0) >= tn - H2).forEach((x) => ev.push([x.resolvedAt, 'check', 'teal', `تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`]));
-    open.filter((x) => x.dueAt && x.dueAt < tn).slice(0, 5).forEach((x) => ev.push([x.dueAt, 'clock', 'red', `تجاوز الموعد: ${x.number} ${x.title}`]));
-    svcs.filter((x) => x.status !== 'up').forEach((x) => ev.push([x.updatedAt, 'alert', 'amber', `${x.name}: ${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}`]));
-    live.forEach((a) => ev.push([a.createdAt, 'bell', 'brass', a.title]));
+    const cart = (x) => UI.illu(catIllu(x.categoryId || 'other'), 'mini');
+    tickets.filter((x) => x.createdAt >= tn - H2).forEach((x) => { const d = Data.nameOf('departments', x.departmentId, ''); ev.push([x.createdAt, 'plus', 'sky', `بلاغ جديد: ${x.title}${d ? ` — ${d}` : ''}`, cart(x)]); });
+    open.filter((x) => x.noteFrom === 'requester' && (x.noteAt || 0) >= tn - H2).forEach((x) => { const tx = String(x.noteText || ''); ev.push([x.noteAt, 'message', 'teal', `ملاحظة من ${x.noteBy ? Data.userName(x.noteBy) : 'الموظف'} على «${x.title}»: ${tx.length > 70 ? `${tx.slice(0, 70)}…` : tx}`, cart(x)]); });
+    tickets.filter((x) => (x.resolvedAt || 0) >= tn - H2).forEach((x) => ev.push([x.resolvedAt, 'check', 'teal', `تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`, cart(x)]));
+    open.filter((x) => x.dueAt && x.dueAt < tn).slice(0, 5).forEach((x) => ev.push([x.dueAt, 'clock', 'red', `تجاوز الموعد: ${x.number} ${x.title}`, cart(x)]));
+    svcs.filter((x) => x.status !== 'up').forEach((x) => ev.push([x.updatedAt, 'alert', 'amber', `${x.name}: ${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}`, UI.illu(x.icon || 'network', 'mini')]));
+    live.forEach((a) => ev.push([a.createdAt, 'bell', 'brass', a.title, UI.icon(`o3d:${TV_K3D[a.kind] || 'media'}:${a.level === 'critical' ? 'red' : 'amber'}`)]));
     const items = ev.sort((a, b) => b[0] - a[0]).slice(0, 14), key = items.map((x) => x[3]).join('|') || '-';
     const track = $v('[data-ticker]');
     if (track && track.dataset.key !== key) {
       track.dataset.key = key;
-      const grp = (hide) => html`<span class="tv2-tg"${hide ? raw(' aria-hidden="true"') : ''}>${items.length ? items.map(([, ic, tone, tx]) => html`<span class="tv2-ti tone-${tone}"><i>${UI.icon(ic)}</i>${tx}</span>`) : html`<span class="tv2-ti tone-teal"><i>${UI.icon('check')}</i>لا توجد مستجدات مهمة حالياً</span>`}</span>`;
+      const grp = (hide) => html`<span class="tv2-tg"${hide ? raw(' aria-hidden="true"') : ''}>${items.length ? items.map(([, ic, tone, tx, art]) => html`<span class="tv2-ti tone-${tone}">${art ? html`<i class="tv2-tart">${art}<b>${UI.icon(ic)}</b></i>` : html`<i>${UI.icon(ic)}</i>`}${tx}</span>`) : html`<span class="tv2-ti tone-teal"><i>${UI.icon('check')}</i>لا توجد مستجدات مهمة حالياً</span>`}</span>`;
       track.innerHTML = String(html`${grp(false)}${grp(true)}`);
       track.style.animationDuration = `${Math.max(30, items.reduce((a, x) => a + x[3].length + 8, 0) / 5.5)}s`;
     }
@@ -10753,6 +10761,7 @@ Pages.monitor = async (ctx) => {
     fit(); drawRows();
     if (st.fresh.length) TvAlert.show(st.fresh);
     TvSound.tick(st, { open, tickets, svcs, live });
+    if (st.fnotes.length) { TvAlert.note(st.fnotes); TvSound.note(st, st.fnotes); }
   };
   UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
@@ -21546,6 +21555,117 @@ Pages.formStudioOverlay = (catId) => new Promise((resolve) => {
   window.addEventListener('hashchange', gone, { once: true });
   studio = Pages.formStudio(ov, { id: catId, d, overlay: true, onSaved: () => { saved = true; }, onClose: close });
 });
+
+/* ══════════ ملاحظات البلاغات: شارات بأيقونات، وتنبيه خاص، وشاشة العرض ══════════ */
+
+/* ١) شارات القائمة الجانبية: أيقونة لكل نوع بجانب العدد (كانت أرقاماً مجردة لا يُعرف معناها)،
+   ونقطة نابضة على أيقونة «البلاغات» حين توجد ملاحظة لم تُفتح */
+const NAV_BIC = { tickets: ['inbox', 'بانتظار الاستلام والمسندة إليك'], tnotes: ['message', 'ملاحظات جديدة على البلاغات'], low: ['box', 'أصناف منخفضة أو نافدة'], overdue: ['clock', 'عهد وإعارات متأخرة'], notes: ['key', 'ملاحظات لم تُقرأ'], surveys: ['poll', 'استبيانات بانتظارك'], mtrack: ['tools', 'متأخرة عن موعدها'] };
+Shell.decorBadges = () => {
+  $$('.sidebar .nav-badge').forEach((b) => {
+    const k = b.dataset.badge, [ic, tip] = NAV_BIC[k] || ['bell', ''], n = String(b.textContent || '').trim();
+    if (b.hidden || !n) { b.dataset.n = ''; return; }
+    if (b.querySelector('.ic') && b.dataset.n === n) return;
+    const was = Number(b.dataset.n) || 0; b.dataset.n = n;
+    b.innerHTML = String(html`${UI.icon(ic)}<span>${n}</span>`);
+    if (!b.title) b.title = tip;
+    if (was && Number(n) > was) { b.classList.remove('nb-bump'); void b.offsetWidth; b.classList.add('nb-bump'); }
+  });
+  const tn = $('.sidebar [data-badge="tnotes"]'), link = tn && tn.closest('.nav-link');
+  if (link) {
+    const on = !tn.hidden && !!String(tn.textContent).trim(); link.classList.toggle('nl-note', on);
+    let dot = link.querySelector('.nl-dot'); if (on && !dot) { link.insertAdjacentHTML('afterbegin', '<i class="nl-dot" aria-hidden="true"></i>'); } else if (!on && dot) dot.remove();
+  }
+};
+
+/* ٢) تنبيه خاص بالملاحظة: بطاقة عائمة عند وصول ملاحظة جديدة (للفني: ملاحظة الموظف على بلاغ يتابعه، وللموظف: ملاحظة الفني على بلاغه).
+   تظهر مرة لكل ملاحظة، ومنها يُفتح البلاغ مباشرة. لا صوت إضافي: جرس الإشعارات يرن معها أصلاً */
+const NoteAlert = {
+  key: () => `sq_nalert_${(Auth.user || {}).id || ''}`,
+  map() { try { return JSON.parse(localStorage.getItem(this.key()) || '{}') || {}; } catch (_) { return {}; } },
+  done(list) {
+    try { const m = this.map(); list.forEach((t) => { m[t.id] = t.noteAt; }); const ks = Object.keys(m); if (ks.length > 400) ks.sort((a, b) => m[a] - m[b]).slice(0, ks.length - 400).forEach((x) => { delete m[x]; }); localStorage.setItem(this.key(), JSON.stringify(m)); } catch (_) { /* تجاهل */ }
+  },
+  busy: false,
+  async check() {
+    const u = Auth.user; if (!u || u.role === 'monitor' || this.busy || document.body.classList.contains('tv-mode')) return;
+    this.busy = true;
+    try {
+      const m = this.map(), list = (await Pages.noteTickets()).filter((t) => Pages.noteNew(t) && (Number(m[t.id]) || 0) < t.noteAt);
+      if (!list.length) return;
+      const cur = (location.hash.match(/^#\/tickets\/([^/?]+)/) || [])[1];
+      this.done(list);
+      const show = list.filter((t) => t.id !== cur); if (show.length) this.show(show);
+    } catch (e) { console.warn('note alert', e); } finally { this.busy = false; }
+  },
+  show(list) {
+    const staff = canUser(Auth.user, 'tickets.work'), one = list.length === 1, t0 = list[0];
+    const head = staff ? (one ? Pages.noteLabel(t0) || 'ملاحظة من الموظف' : `${arCount(list.length, AR_NOTE)} جديدة من الموظفين`) : one ? `${Pages.noteLabel(t0) || 'ملاحظة من الفني'} على بلاغك` : `${arCount(list.length, AR_NOTE)} جديدة على بلاغاتك`;
+    let el = document.getElementById('noteAlert');
+    if (!el) { el = document.createElement('div'); el.id = 'noteAlert'; el.setAttribute('role', 'alert'); document.body.appendChild(el); }
+    el.className = `na-pop tone-${staff ? 'teal' : 'amber'}`;
+    el.innerHTML = String(html`<div class="na-head"><span class="na-ic">${UI.icon('message')}<i></i></span><div class="grow"><b>${head}</b><small>${staff ? 'افتح البلاغ لترد على الموظف' : 'افتح بلاغك لترى الملاحظة وترد عليها'}</small></div><button type="button" class="icon-btn" data-nax title="إغلاق" aria-label="إغلاق">${UI.icon('x')}</button></div>
+      <div class="na-list">${list.slice(0, 3).map((t) => html`<a class="na-row" href="#/tickets/${t.id}" data-naopen>${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><b><span class="ltr">${t.number}</span> · ${t.title}</b><p>«${String(t.noteText || '').slice(0, 140)}»</p><small>${Data.userName(t.noteBy)} · ${timeAgo(t.noteAt)}${t.assigneeId && staff ? ` · المسؤول: ${Data.userName(t.assigneeId)}` : ''}</small></div>${UI.icon('chevron-left')}</a>`)}</div>
+      ${staff && list.length > 1 ? html`<a class="btn btn-soft btn-sm na-all" href="#/tickets?scope=notes" data-naopen>${UI.icon('send')} كل ملاحظات الموظفين (${fmtNum(list.length)})</a>` : ''}`);
+    el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
+  },
+  hide() { const el = document.getElementById('noteAlert'); if (el) el.remove(); }
+};
+document.addEventListener('click', (e) => {
+  const x = e.target.closest && e.target.closest('#noteAlert [data-nax], #noteAlert [data-naopen]'); if (!x) return;
+  NoteAlert.hide();
+});
+{
+  const rbN = Shell.refreshBadges.bind(Shell), later = debounce(() => NoteAlert.check(), 900);
+  Shell.refreshBadges = async function () { await rbN(); try { Shell.decorBadges(); } catch (_) { /* تجاهل */ } later(); };
+  const um0 = Shell.unmount.bind(Shell); Shell.unmount = function () { NoteAlert.hide(); return um0(); };
+}
+
+/* ٣) قسم البلاغات: شريط بارز أعلى القائمة بعدد الملاحظات التي لم تُفتح، ومنه إلى «ملاحظات الموظفين» */
+{
+  const tk0 = Pages.tickets;
+  Pages.tickets = async (ctx) => {
+    await tk0(ctx); if (!ctx.alive()) return;
+    const staff = canUser(Auth.user, 'tickets.work');
+    const draw = async () => {
+      if (!ctx.alive()) return;
+      const list = (await Pages.noteTickets()).filter(Pages.noteNew), onNotes = /scope=notes/.test(location.hash);
+      let bar = $('.tk-nbar', ctx.view);
+      if (!list.length || (staff && onNotes)) { if (bar) bar.remove(); return; }
+      const one = list.length === 1, t0 = list[0];
+      const h = String(html`<div class="banner tone-${staff ? 'teal' : 'amber'} tk-nbar" role="status"><span class="tk-nic">${UI.icon('message')}<i></i></span><div class="grow"><b>${staff ? (one ? `${Pages.noteLabel(t0)} على البلاغ ${t0.number}` : `${arCount(list.length, AR_NOTE)} جديدة من الموظفين لم تفتحها`) : one ? `${Pages.noteLabel(t0)} على بلاغك ${t0.number}` : `${arCount(list.length, AR_NOTE)} جديدة على بلاغاتك`}</b><div class="small">${one ? html`«${String(t0.noteText || '').slice(0, 120)}» — ${Data.userName(t0.noteBy)}، ${timeAgo(t0.noteAt)}` : list.slice(0, 3).map((t) => t.number).join('، ')}</div></div>${one ? html`<a class="btn btn-sm btn-primary" href="#/tickets/${t0.id}">${UI.icon('eye')} فتح البلاغ</a>` : staff ? html`<a class="btn btn-sm btn-primary" href="#/tickets?scope=notes">${UI.icon('send')} عرضها</a>` : ''}</div>`);
+      if (bar) bar.outerHTML = h; else { const ph = $('.page-head', ctx.view); if (ph) ph.insertAdjacentHTML('afterend', h); }
+    };
+    await draw();
+    const again = debounce(draw, 500);
+    ctx.onCleanup(Bus.on('noteseen', again)); ctx.onCleanup(Bus.on('tickets', again));
+    window.addEventListener('hashchange', again); ctx.onCleanup(() => window.removeEventListener('hashchange', again));
+  };
+}
+
+/* ٤) شاشة العرض: صوت وبطاقة كبيرة لملاحظة الموظف، وحدث في إعدادات أصوات الشاشات */
+SND_TV_DEF.note = 1;
+TV_EVENTS.splice(3, 0, ['note', 'ملاحظة من الموظف على بلاغ', 'message']);
+TvSound.note = function (st, list) {
+  const c = this.cfg(); if (!st.sound || c.note === 0) return;
+  Snd.play('message', { ...this.opts(), repeat: 2 });
+  if (c.speak) this.say(list.length === 1 ? `ملاحظة جديدة من الموظف على بلاغ: ${list[0].title}` : `${arCount(list.length, AR_NOTE)} جديدة من الموظفين`, 1500);
+};
+TvAlert.note = function (list) {
+  if (!list.length || !this.enabled() || !document.body.classList.contains('tv-mode')) return;
+  const top = list[0], rest = list.slice(1), ms = 20000;
+  let el = document.getElementById('tvAlert');
+  if (!el) { el = document.createElement('div'); el.id = 'tvAlert'; el.className = 'tv-alert'; el.setAttribute('role', 'alert'); el.addEventListener('click', () => this.hide()); document.body.appendChild(el); }
+  this.list = [];
+  el.style.setProperty('--t', 'var(--teal)');
+  el.innerHTML = String(html`<div class="tv-alert-card tv-note-card"><div class="tv-alert-ic has-cat">${UI.illu(catIllu(top.catId || 'other'), 'tva-cat')}<i class="tva-badge">${UI.icon('message')}</i></div><div class="grow" style="min-width:0">
+    <span class="tv-alert-kicker">${UI.icon('message')} ملاحظة جديدة من الموظف${rest.length ? ` · ومعها ${fmtNum(rest.length)} غيرها` : ''}</span><h2>${top.title}</h2>
+    <blockquote class="tv-note-q">«${top.note.text}»</blockquote>
+    <div class="tv-alert-meta">${top.number ? html`<span class="ltr">${top.number}</span>` : ''}<span>${UI.icon('user')} ${top.note.by || top.by || 'الموظف'}</span>${top.dep ? html`<span>${UI.icon('building')} ${top.dep}</span>` : ''}${top.assignee ? html`<span>${UI.icon('users')} المسؤول: ${top.assignee}</span>` : html`<span>${UI.icon('inbox')} لم يُستلم بعد</span>`}<span>${UI.icon('clock')} ${new Date(top.note.at).toTimeString().slice(0, 5)}</span></div>
+    ${rest.length ? html`<ul class="tv-alert-more">${rest.slice(0, 3).map((r) => html`<li><b>${r.title}</b><small>«${r.note.text.slice(0, 70)}»</small></li>`)}</ul>` : ''}
+    </div></div><i class="tv-alert-bar" style="animation-duration:${ms}ms"></i><small class="tv-alert-hint">المس الشاشة للإغلاق</small>`);
+  clearTimeout(this.timer); this.timer = setTimeout(() => this.hide(), ms);
+};
 
 boot();
 })();
