@@ -5268,3 +5268,67 @@ body.fs-open{overflow:hidden}
 /* بطاقة الملاحظة الكبيرة */
 .tv-note-q{margin:4px 0 14px;padding:14px 18px;border-radius:16px;border-inline-start:5px solid rgb(var(--t));background:rgba(var(--t),.1);font-size:26px;line-height:1.7;color:var(--ink);font-weight:600}
 .tv-alert-kicker .ic{width:18px;height:18px;vertical-align:-3px}
+
+/* ══════════ توزيع العهدة: المحطات قابلة للتعديل والنقل، والموظفون يُسحبون، والأجهزة المشتركة خانة مميزة ══════════ */
+/* خانة المحطة: موظفها شارة تُسحب */
+.cm-wsbox{min-width:150px;max-width:190px}
+.cm-wsbox[draggable="true"]{cursor:grab}
+.cm-holder{display:inline-flex;align-items:center;gap:6px;max-width:100%;margin:3px 0 1px;padding:2px 9px 2px 3px;border-radius:999px;background:rgba(var(--t),.1);border:1px solid rgba(var(--t),.3);font-size:11.5px;font-weight:600;color:var(--ink);cursor:grab}
+.cm-holder .av{width:22px;height:22px;font-size:9px;flex:none}
+.cm-holder span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-holder:hover{border-color:rgb(var(--t));box-shadow:0 4px 10px -6px rgba(var(--t),.9)}
+.cm-noholder{display:inline-flex;align-items:center;gap:4px;margin:3px 0 1px;padding:2px 8px;border-radius:999px;border:1px dashed var(--line-2);font-size:10.5px;color:var(--ink-3)}
+.cm-noholder .ic{width:11px;height:11px}
+.cm-wsacts .icon-btn.danger:hover{color:rgb(var(--red-ink));background:rgba(var(--red),.12)}
+/* الأجهزة المشتركة: بحجم المحطة، وإطار متقطع مزدوج، وخلفية مخططة، وأيقونة في دائرة، وشريط «مشتركة» */
+.cm-shnode{min-width:150px;max-width:190px;border:2px dashed rgba(var(--t),.6)!important;border-top:4px solid rgb(var(--t))!important;background:repeating-linear-gradient(135deg,rgba(var(--t),.09) 0 9px,rgba(var(--t),.025) 9px 18px),var(--surface-solid)!important;box-shadow:0 0 0 4px rgba(var(--t),.08),0 12px 26px -16px rgba(var(--t),.9)!important;cursor:pointer}
+.cm-shnode[draggable="true"]{cursor:grab}
+.cm-shnode:hover{transform:translateY(-2px);box-shadow:0 0 0 5px rgba(var(--t),.14),0 16px 30px -16px rgba(var(--t),1)!important}
+.cm-shrib{position:absolute;top:-11px;inset-inline-start:50%;translate:50% 0;display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:rgb(var(--t));color:#fff;font:700 10.5px var(--f-body);font-style:normal;white-space:nowrap;box-shadow:0 4px 10px -4px rgba(var(--t),.9);z-index:1}
+[dir="ltr"] .cm-shrib{translate:-50% 0}
+.cm-shrib .ic{width:11px;height:11px}
+.cm-shic{width:52px;height:52px;border-radius:50%!important;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#fff,rgba(var(--t),.22) 75%)!important;box-shadow:inset 0 0 0 2px rgba(var(--t),.35),0 6px 14px -8px rgba(var(--t),1)!important;margin-bottom:2px}
+.cm-shic .iso,.cm-shic .iso.mini,.cm-shic img,.cm-shic svg:not(.ic){width:40px;height:36px}
+.cm-shic .ic.o3d{width:36px;height:36px;transform:none}.cm-shic>.ic:not(.o3d){width:24px;height:24px;color:rgb(var(--t))}
+.cm-shic .opt-img img{width:34px;height:34px}
+.cm-shnode em{color:rgb(var(--tl,var(--t)))!important;font-weight:700}
+[data-theme=dark] .cm-shnode em{color:rgb(var(--td,var(--t)))!important}
+.cm-shnote{font-size:10.5px;color:var(--ink-3);text-align:center;line-height:1.5}
+.ws-shhead{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:repeating-linear-gradient(135deg,rgba(var(--t),.08) 0 9px,transparent 9px 18px);border:2px dashed rgba(var(--t),.5)}
+.ws-shhead b{display:block;font-size:15px}.ws-shhead small{display:block;color:var(--ink-3);font-size:12px}
+/* شريط موظفي المكتب */
+.cm-people{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line-2);transition:background .2s,border-color .2s}
+.cm-ptitle{display:inline-flex;align-items:center;gap:6px;font-size:13px;margin-inline-end:4px}.cm-ptitle .ic{width:15px;height:15px}.cm-ptitle small{font-weight:600;color:var(--ink-3)}
+.cm-pchip{display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--surface-solid);border:1px solid var(--line-2);cursor:grab;transition:border-color .2s,transform .2s var(--spring),box-shadow .2s}
+.cm-pchip:hover{border-color:rgba(var(--accent),.6);transform:translateY(-1px);box-shadow:0 6px 14px -10px rgba(0,0,0,.5)}
+.cm-pchip .av{width:28px;height:28px;font-size:10px;flex:none}
+.cm-pchip b{display:block;font-size:12.5px;line-height:1.2}.cm-pchip small{display:block;font-size:10.5px;color:var(--ink-3)}
+.cm-pchip:not(.has) small{color:rgb(var(--amber-ink))}
+.cm-pchip.has{border-color:rgba(var(--teal),.35)}
+.cm-phint{flex-basis:100%;display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-3)}.cm-phint .ic{width:12px;height:12px}
+/* أثناء السحب */
+.cm-mvsrc{opacity:.45;outline:2px dashed var(--line-2)}
+body.cm-moving-p .cm-wsbox,body.cm-moving-p .cm-wscard,body.cm-moving-p .cm-wsli{outline:1px dashed rgba(var(--accent),.45);outline-offset:3px}
+body.cm-moving-p .cm-people{border-color:rgba(var(--accent),.5)}
+.cm-mvover{outline:3px solid rgb(var(--accent))!important;outline-offset:3px;background-color:rgba(var(--accent),.08)!important}
+.cm-mvb,.cm-mva{position:relative}
+.cm-mvb::before,.cm-mva::after{content:'';position:absolute;top:6px;bottom:6px;width:4px;border-radius:4px;background:rgb(var(--accent));box-shadow:0 0 0 4px rgba(var(--accent),.2);z-index:3;pointer-events:none}
+.cm-mvb::before{inset-inline-start:-10px}.cm-mva::after{inset-inline-end:-10px}
+.cm-mvv.cm-mvb::before,.cm-mvv.cm-mva::after{top:auto;bottom:auto;inset-inline:0;width:auto;height:4px}
+.cm-mvv.cm-mvb::before{top:-6px}.cm-mvv.cm-mva::after{bottom:-6px}
+/* الشبكة والقائمة: أزرار المحطة */
+.cm-wscard,.cm-wsli{position:relative}
+.cm-wscard>.org-acts,.cm-wsli>.org-acts{position:absolute;top:-12px;inset-inline-end:8px;background:var(--surface-solid);border:1px solid var(--line);border-radius:10px;padding:2px;z-index:2}
+.cm-wscard:hover>.org-acts,.cm-wscard:focus-within>.org-acts,.cm-wsli:hover>.org-acts,.cm-wsli:focus-within>.org-acts{opacity:1;visibility:visible;transition:none}
+@media (hover:none){.cm-wscard>.org-acts,.cm-wsli>.org-acts{opacity:1;visibility:visible}}
+.cm-wscard[draggable="true"],.cm-wsli[draggable="true"]{cursor:grab}
+.ws-mvdev{flex-direction:column;align-items:stretch}
+.ws-mvp{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:var(--surface-2)}
+.ws-mvp b{display:block}.ws-mvp small{display:block;color:var(--ink-3);font-size:12px}
+.cm-path button[data-cdrop].cm-mvover{border-radius:8px}
+/* خانة المشتركة: الأيقونة الدائرية أعلى الخانة دون أن تغطي العنوان، وشريط «مشتركة» معلّق أسفلها */
+.cm-shnode{padding-top:34px!important;padding-bottom:18px!important}
+.cm-shnode>.cm-shic{position:absolute;top:-22px;width:46px;height:46px;margin:0}
+.cm-shnode>.cm-shic .iso,.cm-shnode>.cm-shic .iso.mini,.cm-shnode>.cm-shic img,.cm-shnode>.cm-shic svg:not(.ic){width:34px;height:30px}
+.cm-shnode>.cm-shic .ic.o3d{width:32px;height:32px}
+.cm-shnode>.cm-shrib{top:auto;bottom:-11px}
