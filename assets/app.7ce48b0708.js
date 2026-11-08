@@ -3285,7 +3285,7 @@ Data.users.save = async function (input, password) {
     }
   }
   if (Array.isArray(input.categories)) { const cats = ['technician', 'support_manager', 'supervisor'].includes(rec.role) ? input.categories.filter((c) => Data.c.categories.has(c)) : []; if (JSON.stringify(cats) !== JSON.stringify(rec.categories || [])) { rec.categories = cats; changed = true; } }
-  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [], departments: [...new Set(input.monitor.departments || [])], sound: input.monitor.sound ? 1 : 0, style: SND_TIMBRE[input.monitor.style] ? input.monitor.style : '' }; changed = true; }
+  if (rec.role === 'monitor' && input.monitor) { rec.monitor = { categories: [...new Set(input.monitor.categories || [])], locations: [], departments: [...new Set(input.monitor.departments || [])], sound: input.monitor.sound ? 1 : 0, style: SND_TIMBRE[input.monitor.style] ? input.monitor.style : '', theme: ['dark', 'light', 'auto'].includes(input.monitor.theme) ? input.monitor.theme : 'dark' }; changed = true; }
   if (before && before.role !== rec.role) await Data.log('update', 'user', rec.id, `تغيير دور ${rec.username} من ${ROLES[before.role]} إلى ${ROLES[rec.role]}`);
   if (changed) { rec.updatedAt = now(); await DB.put('users', rec); await Data.refresh('users'); Bus.emit('users'); }
   return rec;
@@ -3310,7 +3310,7 @@ Pages.userModal = async (id) => {
     const defaults = new Set(roleDefaults(role)), all = role === 'supervisor';
     return html`<h3>${UI.icon('key')} الصلاحيات ${sup ? html`<small class="faint">فعّل أي صلاحية إضافية لهذا المستخدم أو اسحب صلاحية من دوره</small>` : html`<small class="faint">(يعدّلها المشرف فقط)</small>`}</h3>${all ? html`<div class="banner tone-brass">${UI.icon('key')}<div class="grow">المشرف يملك كل الصلاحيات دون استثناء.</div></div>` : ''}${sup && role !== 'supervisor' ? html`<div class="perm-presets"><span class="faint small">حزم جاهزة:</span>${PERM_PRESETS.map((p) => html`<button type="button" class="qchip" data-preset="${p.id}">${UI.icon(p.icon)}${p.label}</button>`)}</div>` : ''}<div class="perm-groups">${PERM_GROUPS.map((g) => html`<div class="perm-group"><div class="pg-head">${UI.icon(g.icon)}${g.title}</div>${g.items.map(([k, label, hint]) => { const on = all || perms.has(k), isDef = defaults.has(k); return html`<label class="perm${all ? '' : isDef && !on ? ' x-off' : !isDef && on ? ' x-mod' : ''}"><input type="checkbox" data-perm="${k}"${on ? raw(' checked') : ''}${all || !sup ? raw(' disabled') : ''}><i></i><span><b>${label}</b>${hint ? html`<small>${hint}</small>` : ''}</span>${all ? '' : isDef ? (on ? html`<em class="perm-tag">من الدور</em>` : html`<em class="perm-tag off">مسحوبة</em>`) : on ? html`<em class="perm-tag extra">إضافية</em>` : ''}</label>`; })}</div>`)}</div>`;
   };
-  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والإدارات التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>الإدارات</label><div class="chip-pick">${Data.list('departments').map((d) => html`<label><input type="checkbox" data-mdep="${d.id}"${(mcfg.departments || []).includes(d.id) ? raw(' checked') : ''}><span>${d.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div><div class="field mt"><label>نغمة هذه الشاشة <small class="faint">(تُسمع عند اختيارها)</small></label><select name="mstyle" data-tone-preview><option value="">— نغمة شاشات العرض من «الأصوات والتنبيهات» —</option>${SND_STYLES.map(([k, l]) => html`<option value="${k}"${mcfg.style === k ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
+  const monitorHTML = () => html`<h3>${UI.icon('monitor')} ما الذي تعرضه هذه الشاشة؟</h3><p class="hint" style="margin:-6px 0 12px">اتركها دون اختيار لعرض كل البلاغات، أو اختر فئات فريق الفنيين والإدارات التي يخدمها المكتب.</p><div class="field"><label>الفئات</label><div class="chip-pick">${Data.list('categories').map((c) => html`<label><input type="checkbox" data-mcat="${c.id}"${mcfg.categories.includes(c.id) ? raw(' checked') : ''}><span>${c.name}</span></label>`)}</div></div><div class="field mt"><label>الإدارات</label><div class="chip-pick">${Data.list('departments').map((d) => html`<label><input type="checkbox" data-mdep="${d.id}"${(mcfg.departments || []).includes(d.id) ? raw(' checked') : ''}><span>${d.name}</span></label>`)}</div></div><div class="mt">${UI.field({ name: 'msound', type: 'switch', text: 'التنبيهات الصوتية على هذه الشاشة (البلاغ الجديد والعاجل والتأخر…)' }, mcfg.sound !== 0)}</div><div class="field mt"><label>نغمة هذه الشاشة <small class="faint">(تُسمع عند اختيارها)</small></label><select name="mstyle" data-tone-preview><option value="">— نغمة شاشات العرض من «الأصوات والتنبيهات» —</option>${SND_STYLES.map(([k, l]) => html`<option value="${k}"${mcfg.style === k ? raw(' selected') : ''}>${l}</option>`)}</select></div><div class="field mt"><label>مظهر الشاشة</label><select name="mtheme">${TvTheme.MODES.map(([k, l, , tip]) => html`<option value="${k}"${(mcfg.theme || 'dark') === k ? raw(' selected') : ''}>${l} — ${tip}</option>`)}</select><small class="hint">يمكن تغييره من الشاشة نفسها لذلك الجهاز، ويعود إلى اختيارك هنا متى غيّرته.</small></div>`;
   const body = html`<div class="umodal">
     <div class="u-sec"><h3>${UI.icon('user')} البيانات الأساسية</h3>${UI.fields([{ name: 'name', label: 'الاسم الكامل', required: true }, { name: 'username', label: 'اسم المستخدم للدخول', required: true, dir: 'ltr', autocomplete: 'off' }, { name: 'militaryNo', label: 'الرقم العسكري', dir: 'ltr' }, { name: 'rankId', label: 'الرتبة', type: 'select', options: UI.opts('ranks') }, { name: 'phone', label: 'الهاتف', type: 'tel', dir: 'ltr' }, { name: 'email', label: 'البريد الإلكتروني', type: 'email', dir: 'ltr' }], u)}</div>
     <div class="u-sec"><h3>${UI.icon('layers')} الانتماء في الهيكل</h3>${UI.fields([{ name: 'departmentId', label: 'الإدارة', type: 'select', options: UI.opts('departments') }, { name: 'unitId', label: 'القسم / الشعبة / الوحدة / المكتب', type: 'select', options: [] }], u)}</div>
@@ -3339,7 +3339,7 @@ Pages.userModal = async (id) => {
       const input = { ...v, id, role };
       if (sup) { if (role === 'supervisor' || role === 'monitor') { input.extraPerms = []; input.deniedPerms = []; } else { const d = new Set(roleDefaults(role)); input.extraPerms = [...perms].filter((p) => !d.has(p)); input.deniedPerms = [...d].filter((p) => !perms.has(p) && !BASE_PERMS.includes(p)); } }
       input.categories = ['technician', 'support_manager', 'supervisor'].includes(role) ? $$('[data-spec]:checked', form).map((x) => x.dataset.spec) : [];
-      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), departments: $$('[data-mdep]:checked', form).map((x) => x.dataset.mdep), sound: Number(v.msound) ? 1 : 0, style: v.mstyle || '' };
+      if (role === 'monitor') input.monitor = { categories: $$('[data-mcat]:checked', form).map((x) => x.dataset.mcat), departments: $$('[data-mdep]:checked', form).map((x) => x.dataset.mdep), sound: Number(v.msound) ? 1 : 0, style: v.mstyle || '', theme: v.mtheme || 'dark' };
       const saved = await Data.users.save(input, v.password || '');
       const rec = await DB.get('users', saved.id); if (rec && 'mustChange' in v && Number(rec.mustChangePassword || 0) !== Number(v.mustChange)) { rec.mustChangePassword = Number(v.mustChange) ? 1 : 0; await DB.put('users', rec); await Data.refresh('users'); }
       UI.toast(id ? 'تم حفظ الحساب' : `أُنشئ حساب ${saved.name} (${ROLES[saved.role]})${v.password ? ` — كلمة المرور المؤقتة: ${v.password}` : ''}`, 'ok', 9000); return saved;
@@ -10557,7 +10557,7 @@ const tvGreg = () => { try { return new Intl.DateTimeFormat('ar-OM-u-nu-latn', {
 
 Pages.monitor = async (ctx) => {
   const s = Data.c.settings, isMonitor = Auth.user.role === 'monitor';
-  document.documentElement.dataset.theme = 'dark'; ctx.onCleanup(() => UI.theme.apply());
+  ctx.onCleanup(() => UI.theme.apply());
   document.body.classList.add('tv-mode'); ctx.onCleanup(() => document.body.classList.remove('tv-mode'));
   /* إبقاء الشاشة مضاءة: المتصفح يُسقط الطلب كلما اختفت الصفحة، فيُطلب من جديد عند عودتها */
   let wake = null;
@@ -10565,69 +10565,110 @@ Pages.monitor = async (ctx) => {
   await keepAwake();
   document.addEventListener('visibilitychange', keepAwake);
   ctx.onCleanup(() => { document.removeEventListener('visibilitychange', keepAwake); try { if (wake) wake.release(); } catch (_) { /* تجاهل */ } });
-  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map(), drawn: -1, pageAt: now() };
+  const st = { page: 0, seen: null, sound: TvSound.enabled(), rows: [], flash: new Set(), pin: new Map(), drawn: -1, pageAt: now(), per: 9, today: null, loadedAt: 0 };
+  const mode = TvTheme.mode(), h3d = TvTheme.h3d;
   ctx.view.innerHTML = String(html`<div class="tv2">
     <header class="tv2-head">
       <img src="${ASSETS.logo}" alt="">
-      <div class="tv2-title"><h1>مركز متابعة الدعم الفني</h1><p>${s.orgName || 'قسم تقنية المعلومات'}</p></div>
+      <div class="tv2-title"><h1>مركز متابعة الدعم الفني <em class="tv2-live" title="تتحدث الشاشة لحظياً"><i></i>مباشر</em></h1><p>${s.orgName || 'قسم تقنية المعلومات'}</p></div>
       <div class="tv2-pills" data-pills></div>
-      <div class="tv2-clock"><b data-clock>--:--</b><span data-greg></span><span class="faint" data-hijri></span></div>
+      <div class="tv2-clock"><b data-clock>--:--</b><span data-greg></span><span class="tv2-hijri" data-hijri></span></div>
       <div class="tv2-ctrl">
+        <div class="tv2-theme" role="group" aria-label="مظهر الشاشة">${TvTheme.MODES.map(([k, l, ic, tip]) => html`<button type="button" data-tvtheme="${k}" class="${mode === k ? 'on' : ''}" aria-pressed="${mode === k ? 'true' : 'false'}" title="${l}: ${tip}">${UI.icon(ic)}</button>`)}</div>
         <button class="icon-btn${st.sound ? '' : ' off'}" data-act="sound" title="التنبيه الصوتي للوارد الجديد">${UI.icon('bell')}</button>
-        <button class="icon-btn" data-act="full" title="ملء الشاشة">${UI.icon('grid')}</button>
+        <button class="icon-btn" data-act="full" title="ملء الشاشة">${UI.icon('expand')}</button>
         <button class="icon-btn${isMonitor ? ' tv2-exit' : ''}" data-act="exit" title="${isMonitor ? 'تسجيل الخروج' : 'العودة'}">${UI.icon(isMonitor ? 'logout' : 'x')}${isMonitor ? html`<span>خروج</span>` : ''}</button>
       </div>
     </header>
     <section class="tv2-kpis" data-kpis></section>
     <div class="tv2-body">
-      <section class="tv2-queue"><div class="tv2-qhead"><h2>${UI.icon('inbox')} قائمة الوصول</h2><div class="tv2-cats" data-cats></div><span class="tv2-qinfo"><span class="faint" data-qinfo></span><span class="tv2-dots" data-dots></span></span></div><div class="tv2-prog" data-prog hidden><i></i></div><div class="tv2-rows" data-rows></div></section>
+      <section class="tv2-queue"><div class="tv2-qhead"><h2>${h3d('inbox', 'amber')} قائمة الوصول</h2><div class="tv2-cats" data-cats></div><span class="tv2-qinfo"><span class="tv2-faint" data-qinfo></span><span class="tv2-dots" data-dots></span></span></div><div class="tv2-prog" data-prog hidden><i></i></div><div class="tv2-rows" data-rows></div></section>
       <aside class="tv2-side">
-        <section class="tv2-card"><h3>${UI.icon('pulse')} حالة الخدمات</h3><div class="tv2-svcs" data-svcs></div></section>
-        <section class="tv2-card grow"><h3>${UI.icon('bell')} التعاميم والتوضيحات</h3><div class="tv2-news" data-news></div></section>
-        <section class="tv2-card"><h3>${UI.icon('users')} <span data-teamh>الفريق المتواجد</span></h3><div class="tv2-team" data-team></div></section>
+        <section class="tv2-card"><h3>${h3d('pulse', 'teal')} حالة الخدمات<small class="tv2-hsum" data-svcsum></small></h3><div class="tv2-svcs" data-svcs></div></section>
+        <section class="tv2-card tv2-pulse" data-pulsec><h3>${h3d('stats', 'sky')} نبض اليوم<small class="tv2-hsum" data-pulsesum></small></h3><div class="tv2-pbody" data-pulse></div></section>
+        <section class="tv2-card tv2-newsc" data-newsc><h3>${h3d('media', 'amber')} التعاميم والتوضيحات<small class="tv2-hsum" data-newssum></small></h3><div class="tv2-news" data-news></div></section>
+        <section class="tv2-card tv2-teamc" data-teamc><h3>${h3d('team', 'violet')} <span data-teamh>الفريق المتواجد</span></h3><div class="tv2-team" data-team></div></section>
       </aside>
     </div>
-    <footer class="tv2-ticker"><span class="tv2-tlabel">${UI.icon('bell')} آخر المستجدات</span><div class="tv2-tview"><div class="tv2-ttrack" data-ticker></div></div></footer>
+    <footer class="tv2-ticker"><span class="tv2-tlabel">${UI.icon('bell')} آخر المستجدات</span><div class="tv2-tview"><div class="tv2-ttrack" data-ticker></div></div><span class="tv2-upd" data-upd></span></footer>
   </div>`);
-  const $v = (sel) => ctx.view.querySelector(sel);
-  const tick = () => { const d = new Date(); const c = $v('[data-clock]'); if (c) c.textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+  const $v = (sel) => ctx.view.querySelector(sel), root = () => $v('.tv2');
+  /* المظهر: داكن أو فاتح أو تلقائي حسب الوقت. يُعاد تطبيقه مع كل تحديث فيلحق تغيير المشرف من حساب الشاشة */
+  const syncTheme = () => {
+    const m = TvTheme.mode(); TvTheme.apply(root());
+    ctx.view.querySelectorAll('[data-tvtheme]').forEach((b) => { const on = b.dataset.tvtheme === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+  };
+  syncTheme();
+  const tick = () => {
+    const d = new Date(), c = $v('[data-clock]'); if (c) c.innerHTML = `${pad2(d.getHours())}:${pad2(d.getMinutes())}<small>:${pad2(d.getSeconds())}</small>`;
+    /* آخر مزامنة مع الخادم: إن تأخرت دقيقتين تُنبَّه الشاشة إلى أن ما تعرضه قد لا يكون حديثاً */
+    const u = $v('[data-upd]'); if (!u) return;
+    const at = Sync.on ? Sync.lastAt : st.loadedAt, ago = at ? Math.max(0, Math.round((now() - at) / 1000)) : -1, stale = Sync.on && (ago < 0 || ago > 120);
+    const txt = ago < 0 ? '—' : ago < 60 ? `قبل ${fmtNum(ago)} ث` : `قبل ${tvTimeAgo(at)}`;
+    u.classList.toggle('stale', stale); u.title = Sync.on ? 'آخر مزامنة ناجحة مع الخادم' : 'آخر تحديث للبيانات على هذا الجهاز';
+    u.innerHTML = String(html`${UI.icon(stale ? 'alert' : 'refresh')}<span>${stale ? 'تأخرت المزامنة: آخرها' : 'آخر تحديث'} ${txt}</span>`);
+  };
   const dates = () => { const g = $v('[data-greg]'), h = $v('[data-hijri]'); if (g) g.textContent = tvGreg(); if (h) h.textContent = tvHijri(); };
   tick(); dates();
-  const PER = 9;
+  /* عدد الصفوف في الصفحة حسب ارتفاع الشاشة الفعلي: شاشة أطول تعرض أكثر بدل فراغ أسفل القائمة */
+  const fit = () => {
+    if (innerWidth <= 900) { st.per = 8; return; }
+    const box = $v('[data-rows]'), foot = $v('.tv2-ticker'), q = $v('.tv2-queue'); if (!box || !foot || !q) return;
+    /* الشاشة مثبتة على ارتفاعها (عرض 1101 فأكثر): أسفل القائمة ثابت فيُقاس مباشرة. وإلا يُقدَّر من ارتفاع النافذة */
+    const th = box.querySelector('.tv2-th'), thH = th ? th.offsetHeight + 6 : 28, top = box.getBoundingClientRect().top;
+    const avail = getComputedStyle(root()).overflow === 'hidden' ? q.getBoundingClientRect().bottom - 15 - top - thH : innerHeight - (top + scrollY) - foot.offsetHeight - 18 - 14 - 14 - thH;
+    /* ارتفاع الصف الفعلي (يختلف بحجم الخط والشاشة)، و10 بكسل احتياطاً لشريط تقليب الصفحات حين يظهر */
+    const r1 = box.querySelector('.tv2-tr:not(.tv2-th)'), pitch = r1 ? r1.offsetHeight + 6 : 74;
+    st.per = clamp(Math.floor((avail - 10 + 6) / pitch), 4, 18);
+  };
   const drawRows = () => {
     const box = $v('[data-rows]'); if (!box) return;
     /* الوارد الجديد ثابت أعلى كل صفحة مدة تثبيته، وتتناوب بقية القائمة تحته */
-    const rows = st.rows, pins = rows.filter((r) => st.pin.has(r.key)).slice(0, 4), rest = pins.length ? rows.filter((r) => !pins.includes(r)) : rows, per = PER - pins.length, pages = Math.max(1, Math.ceil(rest.length / per));
+    const rows = st.rows, pins = rows.filter((r) => st.pin.has(r.key)).slice(0, 4), rest = pins.length ? rows.filter((r) => !pins.includes(r)) : rows, per = Math.max(1, st.per - pins.length), pages = Math.max(1, Math.ceil(rest.length / per));
     if (st.page >= pages) st.page = 0;
     const slice = [...pins, ...rest.slice(st.page * per, st.page * per + per)];
     const info = $v('[data-qinfo]'); if (info) info.textContent = rows.length ? `${fmtNum(rows.length)} في الانتظار${pages > 1 ? ` — صفحة ${st.page + 1} من ${pages}` : ''}` : '';
     /* تقليب الصفحات: الصفوف تدخل متتابعة، وشريط رفيع يمتلئ حتى الصفحة التالية، ونقاط تبين موضعها */
     const turn = st.drawn !== st.page; if (turn || pages < 2) { st.drawn = st.page; st.pageAt = now(); }
-    /* صفحة واحدة: لا تقليب، فيُعاد الرسم في دورته العادية (كل 12 ثانية) لا كل 400 جزء من الثانية */
     const dots = $v('[data-dots]'); if (dots) dots.innerHTML = pages > 1 && pages <= 12 ? Array.from({ length: pages }, (_, i) => `<i${i === st.page ? ' class="on"' : ''}></i>`).join('') : '';
     const prog = $v('[data-prog]'); if (prog) { prog.hidden = pages < 2; if (turn && pages > 1) { const bar = prog.firstElementChild; bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; } }
+    const td = st.today;
     box.innerHTML = slice.length ? String(html`<div class="tv2-tr tv2-th"><span>#</span><span>النوع</span><span>الموضوع</span><span>الإدارة والموقع</span><span>الأولوية</span><span>الحالة</span><span>المسؤول</span><span>الوصول</span><span>الانتظار</span></div>${slice.map((r) => {
       const pr = PRIORITY[r.priority] || {}, stt = r.kind === 'chat' ? { label: r.status === 'new' ? 'بانتظار الرد' : 'قيد المتابعة', tone: 'violet' } : (STATUS[r.status] || { label: r.status, tone: 'slate' });
       const sla = r.due ? Math.min(100, Math.max(0, ((now() - r.at) / Math.max(1, r.due - r.at)) * 100)) : 0;
       const late = r.due && now() > r.due;
       return html`<div class="tv2-tr pe-${r.kind === 'chat' ? 'chat' : r.priority}${late ? ' late' : ''}${st.flash.has(r.key) ? ' flash' : ''}${st.pin.has(r.key) ? ' pinned' : ''}${turn ? ' enter' : ''}" style="--i:${slice.indexOf(r)}">
         <span class="tv2-n">${rows.indexOf(r) + 1}</span>
-        <span class="tv2-kind k-${r.kind}">${UI.icon(r.kind === 'chat' ? 'bell' : 'ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
-        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('bell') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}</small></span></span>
+        <span class="tv2-kind k-${r.kind} tone-${r.kind === 'chat' ? 'violet' : 'sky'}">${UI.icon(r.kind === 'chat' ? 'o3d:chat' : 'o3d:ticket')}${r.kind === 'chat' ? 'استفسار' : 'بلاغ'}</span>
+        <span class="tv2-subj"><span class="tv2-cat${r.kind === 'chat' ? ' chat' : ''}" title="${r.cat}">${r.kind === 'chat' ? UI.icon('message') : UI.illu(catIllu(r.catId))}</span><span class="tv2-stx"><b>${st.pin.has(r.key) ? html`<em class="tv2-new">جديد</em>` : ''}${r.title}</b><small>${r.number ? `${r.number} · ` : ''}${r.cat}${r.by ? ` · ${r.by}` : ''}</small></span></span>
         <span class="tv2-dep">${r.dep || '—'}${r.office ? html`<small>${r.office}</small>` : ''}</span>
         <span>${r.kind === 'chat' ? html`<i class="tv2-pr p-low"></i>—` : html`<i class="tv2-pr p-${r.priority}"></i>${pr.label || ''}`}</span>
         <span><em class="tv2-st tone-${stt.tone || 'slate'}">${stt.label}</em></span>
-        <span class="tv2-who">${r.assignee || html`<em class="faint">لم يُستلم</em>`}</span>
+        <span class="tv2-who">${r.assignee || html`<em class="tv2-faint">لم يُستلم</em>`}</span>
         <span class="tv2-time ltr">${new Date(r.at).toTimeString().slice(0, 5)}</span>
         <span class="tv2-wait"><b>${tvTimeAgo(r.at)}</b>${r.due ? html`<i class="tv2-sla ${late ? 'bad' : sla > 75 ? 'warn' : 'ok'}"><i style="width:${sla.toFixed(0)}%"></i></i>` : ''}</span>
       </div>`;
-    })}`) : String(html`<div class="tv2-empty">${UI.illu('headset')}<b>لا توجد بلاغات أو استفسارات في الانتظار</b><span>كل الطلبات مستلمة ✓</span></div>`);
+    })}`) : String(html`<div class="tv2-empty"><span class="tv2-e3d tone-teal">${UI.icon('o3d:check')}</span><b>لا شيء في الانتظار</b><span>كل البلاغات والاستفسارات مستلمة ✓</span>${td ? html`<div class="tv2-echips"><span class="tv2-echip tone-teal">${UI.icon('check')} أُنجز اليوم <b>${fmtNum(td.done)}</b></span><span class="tv2-echip tone-sky">${UI.icon('plus')} ورد اليوم <b>${fmtNum(td.created)}</b></span>${td.resp ? html`<span class="tv2-echip tone-brass">${UI.icon('clock')} أول استجابة <b>${fmtNum(td.resp)} د</b></span>` : ''}${td.sla != null ? html`<span class="tv2-echip tone-${td.sla >= 90 ? 'teal' : td.sla >= 70 ? 'amber' : 'red'}">${UI.icon('shield')} ضمن الموعد <b>${fmtNum(td.sla)}%</b></span>` : ''}</div>` : ''}</div>`);
+  };
+  /* «نبض اليوم» والتعاميم يتناوبان على المساحة نفسها كل 15 ثانية حين توجد تعاميم (والتعميم الجديد يُعرض أولاً)،
+     وبلا تعاميم يبقى النبض ممتداً والتعاميم سطراً واحداً. على الشاشات القصيرة (أقل من 900 بكسل) ينضم الفريق إلى التناوب بدل أن يُقص */
+  const sideSeq = () => ['pulse', ...(st.news ? ['news'] : []), ...(innerHeight < 900 && innerWidth > 900 ? ['team'] : [])];
+  const side = () => {
+    const nc = $v('[data-newsc]'), pc = $v('[data-pulsec]'), tc = $v('[data-teamc]'); if (!nc || !pc || !tc) return;
+    const seq = sideSeq(), rot = seq.length > 1; if (!seq.includes(st.sideCur)) st.sideCur = 'pulse';
+    const cur = rot ? st.sideCur : 'pulse';
+    [[pc, 'pulse'], [nc, 'news'], [tc, 'team']].forEach(([el, k]) => {
+      const inSeq = seq.includes(k), on = inSeq ? cur === k : k === 'team' || !rot && innerHeight >= 900;
+      el.hidden = !on; el.classList.toggle('grow', inSeq && on); el.classList.toggle('rot', rot && inSeq);
+    });
+    nc.classList.toggle('empty', !st.news);
   };
   const load = async () => {
     const [allT, allC, svcs, anns] = await Promise.all([DB.getAll('tickets'), DB.getAll('chats'), Data.svc.list(), DB.getAll('announcements')]);
     const tickets = allT.filter(MonScope.ticket), chats = allC.filter(MonScope.chat);
     if (!ctx.alive()) return;
-    const t0 = startOfDay();
+    syncTheme();
+    const t0 = startOfDay(), y0 = t0 - DAY, tn = now(), inDay = (v, a, b) => v >= a && v < b, doneAt = (x) => x.resolvedAt || x.closedAt || 0;
     const open = tickets.filter((t) => OPEN.includes(t.status));
     const openChats = chats.filter((c) => c.status !== 'closed' && !c.staffClosedAt);
     const rows = [
@@ -10636,64 +10677,104 @@ Pages.monitor = async (ctx) => {
     ].sort((a, b) => a.at - b.at);
     st.fresh = st.seen ? rows.filter((r) => !st.seen.has(r.key)) : []; if (st.fresh.length) { const fresh = st.fresh; fresh.forEach((r) => st.flash.add(r.key)); setTimeout(() => { fresh.forEach((r) => st.flash.delete(r.key)); drawRows(); }, 12000); }
     st.seen = new Set(rows.map((r) => r.key));
-    /* الوارد الجديد يتصدر القائمة ثلاث دقائق، وتعود الشاشة إلى صفحتها الأولى ليُرى فوراً.
-       القائمة مرتبة من الأقدم، فكان الجديد يقع في آخر صفحة ولا يظهر حين يكثر المفتوح */
-    const tn = now(); st.fresh.forEach((r) => st.pin.set(r.key, tn + 3 * MIN)); st.pin.forEach((until, k) => { if (until < tn) st.pin.delete(k); });
+    /* الوارد الجديد يتصدر القائمة ثلاث دقائق، وتعود الشاشة إلى صفحتها الأولى ليُرى فوراً */
+    st.fresh.forEach((r) => st.pin.set(r.key, tn + 3 * MIN)); st.pin.forEach((until, k) => { if (until < tn) st.pin.delete(k); });
     if (st.fresh.length) st.page = 0;
     rows.sort((a, b) => (st.pin.has(b.key) - st.pin.has(a.key)) || (st.pin.has(a.key) ? b.at - a.at : a.at - b.at));
     st.rows = rows;
     /* شريط الفئات: أيقونة كل فئة وعدد المفتوح منها، وفئة الوارد الجديد تتوهج */
     const byCat = new Map(); open.forEach((t) => { const k = t.categoryId || 'other'; byCat.set(k, (byCat.get(k) || 0) + 1); });
     const hot = new Set(st.fresh.filter((r) => r.kind === 'ticket').map((r) => r.catId)), cats = [...byCat].sort((a, b) => b[1] - a[1]), shown = cats.slice(0, 6), more = cats.slice(6).reduce((a, x) => a + x[1], 0);
-    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('bell')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}`);
-    const overdue = open.filter((t) => t.dueAt && t.dueAt < now()).length;
-    const doneToday = tickets.filter((t) => (t.resolvedAt || t.closedAt || 0) >= t0).length;
-    const newToday = tickets.filter((t) => t.createdAt >= t0).length;
-    const firsts = tickets.filter((t) => t.createdAt >= t0 && t.firstResponseAt).map((t) => t.firstResponseAt - t.createdAt);
-    const avgResp = firsts.length ? Math.round(firsts.reduce((a, b) => a + b, 0) / firsts.length / MIN) : 0;
+    const cb = $v('[data-cats]'); if (cb) cb.innerHTML = String(html`${shown.map(([k, n]) => html`<span class="tv2-cchip${hot.has(k) ? ' hot' : ''}" title="${Data.nameOf('categories', k, 'أخرى')}">${UI.illu(catIllu(k))}<span>${Data.nameOf('categories', k, 'أخرى')}</span><b>${fmtNum(n)}</b></span>`)}${more ? html`<span class="tv2-cchip more"><span>فئات أخرى</span><b>${fmtNum(more)}</b></span>` : ''}${openChats.length ? html`<span class="tv2-cchip chat">${UI.icon('message')}<span>استفسارات</span><b>${fmtNum(openChats.length)}</b></span>` : ''}`);
+    /* المؤشرات: رقم اليوم ومقارنته بالأمس، وسطر يشرح ما وراء الرقم */
+    const avgMin = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length / MIN) : 0);
+    const waiting = open.filter((t) => t.status === 'new'), oldest = waiting.reduce((m, t) => Math.min(m, t.createdAt), Infinity);
+    const overdue = open.filter((t) => t.dueAt && t.dueAt < tn).length, urgent = open.filter((t) => t.priority === 'urgent').length, inProg = open.length - waiting.length, unread = openChats.filter((c) => c.unreadStaff).length;
+    const created = tickets.filter((t) => t.createdAt >= t0), createdY = tickets.filter((t) => inDay(t.createdAt, y0, t0));
+    const resolved = tickets.filter((t) => doneAt(t) >= t0), resolvedY = tickets.filter((t) => inDay(doneAt(t), y0, t0));
+    const avgResp = avgMin(created.filter((t) => t.firstResponseAt).map((t) => t.firstResponseAt - t.createdAt)), avgRespY = avgMin(createdY.filter((t) => t.firstResponseAt).map((t) => t.firstResponseAt - t.createdAt));
+    const withDue = resolved.filter((t) => t.dueAt), sla = withDue.length ? Math.round((withDue.filter((t) => doneAt(t) <= t.dueAt).length / withDue.length) * 100) : null;
+    st.today = { done: resolved.length, created: created.length, resp: avgResp, sla };
+    /* اتجاه المقارنة: good=1 الزيادة أفضل، good=-1 النقصان أفضل، good=0 محايد */
+    const cmp = (a, b, good) => { if (!a && !b) return ''; const d = a - b, cls = !d ? 'eq' : !good ? 'nt' : (d > 0) === (good > 0) ? 'up' : 'down'; return html`<i class="tv2-dl ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : '='}${d ? ` ${fmtNum(Math.abs(d))}` : ''}</i>`; };
     $v('[data-kpis]').innerHTML = String(html`${[
-      ['inbox', 'بانتظار الاستلام', open.filter((t) => t.status === 'new').length, 'amber'],
-      ['ticket', 'البلاغات المفتوحة', open.length, 'sky'],
-      ['bell', 'الاستفسارات المفتوحة', openChats.length, 'violet'],
-      ['alert', 'تجاوزت الموعد', overdue, overdue ? 'red' : 'teal'],
-      ['plus', 'وردت اليوم', newToday, 'brass'],
-      ['check', 'أُنجزت اليوم', doneToday, 'teal'],
-      ['clock', 'متوسط أول استجابة', avgResp ? `${avgResp} د` : '—', 'sky']
-    ].map(([ic, l, v, tone]) => html`<div class="tv2-kpi tone-${tone}">${UI.icon(ic)}<b>${typeof v === 'number' ? fmtNum(v) : v}</b><span>${l}</span></div>`)}`);
-    const down = svcs.filter((x) => x.status !== 'up');
-    $v('[data-pills]').innerHTML = String(html`<span class="tv2-pill ${Sync && Sync.state && Sync.state.online === false ? 'bad' : 'ok'}"><i></i>${Sync && Sync.state && Sync.state.online === false ? 'غير متصل بالخادم' : 'متصل'}</span><span class="tv2-pill ${down.length ? 'bad' : 'ok'}"><i></i>${down.length ? `${fmtNum(down.length)} خدمة متأثرة` : 'كل الخدمات تعمل'}</span>`);
-    $v('[data-svcs]').innerHTML = String(html`${svcs.map((x) => html`<div class="tv2-svc tone-${SVC_STATUS[x.status].tone}"><i></i><b>${x.name}</b><span>${SVC_STATUS[x.status].label}</span></div>`)}`);
-    const t = now();
-    const live = anns.filter((a) => (!a.startsAt || a.startsAt <= t) && (!a.endsAt || a.endsAt >= t) && ['all', 'monitor', 'staff'].includes(a.audience || 'all')).sort((a, b) => (b.pinned || 0) - (a.pinned || 0) || b.createdAt - a.createdAt).slice(0, 5);
-    $v('[data-news]').innerHTML = live.length ? String(html`${live.map((a) => { const k = TV_KIND[a.kind] || TV_KIND[a.level === 'critical' ? 'service' : 'notice']; return html`<article class="tv2-ann tone-${a.level === 'critical' ? 'red' : a.level === 'warn' ? 'amber' : k[2]}"><em>${UI.icon(k[1])}${k[0]}</em><b>${a.title}</b>${a.body ? html`<p>${a.body}</p>` : ''}</article>`; })}`) : String(html`<p class="faint tv2-none">لا توجد تعاميم حالياً. يضيفها المشرف أو المخوَّلون من صفحة «حالة الخدمات».</p>`);
-    /* الفريق المتواجد الآن فقط: من له نبضة تواجد حديثة (داخل النظام على أي جهاز) */
+      ['inbox', 'بانتظار الاستلام', waiting.length, 'amber', waiting.length ? `أقدمها منذ ${tvTimeAgo(oldest)}` : 'لا شيء ينتظر', waiting.length > 0],
+      ['ticket', 'البلاغات المفتوحة', open.length, 'sky', urgent ? html`<b class="tv2-kred">${fmtNum(urgent)} عاجل</b> · ${fmtNum(inProg)} قيد المعالجة` : `${fmtNum(inProg)} قيد المعالجة`],
+      ['chat', 'الاستفسارات المفتوحة', openChats.length, 'violet', unread ? `${fmtNum(unread)} بانتظار الرد` : openChats.length ? 'كلها قيد المتابعة' : 'لا استفسارات'],
+      ['alarm', 'تجاوزت الموعد', overdue, overdue ? 'red' : 'teal', open.length ? (overdue ? `${fmtNum(Math.round((overdue / open.length) * 100))}% من المفتوح` : 'كل المفتوح ضمن موعده') : 'لا تأخير', overdue > 0],
+      ['calendar', 'وردت اليوم', created.length, 'brass', html`أمس ${fmtNum(createdY.length)} ${cmp(created.length, createdY.length, 0)}`],
+      ['check', 'أُنجزت اليوم', resolved.length, 'teal', html`أمس ${fmtNum(resolvedY.length)} ${cmp(resolved.length, resolvedY.length, 1)}`],
+      ['clock', 'متوسط أول استجابة', avgResp ? `${fmtNum(avgResp)} د` : '—', 'sky', avgRespY ? html`أمس ${fmtNum(avgRespY)} د ${avgResp ? cmp(avgResp, avgRespY, -1) : ''}` : 'لا مقارنة بالأمس']
+    ].map(([o3, l, v, tone, foot, alarm]) => html`<div class="tv2-kpi tone-${tone}${alarm ? ' alarm' : ''}"><span class="tv2-kic">${UI.icon(`o3d:${o3}`)}</span><div class="tv2-kt"><b>${typeof v === 'number' ? fmtNum(v) : v}</b><span>${l}</span></div><small class="tv2-kf">${foot}</small></div>`)}`);
+    /* الاتصال: Sync.status هو المصدر الصحيح (كانت الشاشة تقرأ حقلاً غير موجود فتعرض «متصل» دائماً) */
+    const down = svcs.filter((x) => x.status !== 'up'), net = !Sync.on ? ['warn', 'وضع محلي'] : Sync.status === 'offline' ? ['bad', 'غير متصل بالخادم'] : ['ok', 'متصل بالخادم'];
+    $v('[data-pills]').innerHTML = String(html`<span class="tv2-pill ${net[0]}"><i></i>${net[1]}</span><span class="tv2-pill ${down.length ? 'bad' : 'ok'}"><i></i>${down.length ? `${fmtNum(down.length)} خدمة متأثرة` : 'كل الخدمات تعمل'}</span>`);
+    const ss = $v('[data-svcsum]'); if (ss) ss.textContent = svcs.length ? `${fmtNum(svcs.length - down.length)} من ${fmtNum(svcs.length)} تعمل` : '';
+    $v('[data-svcs]').innerHTML = String(html`${svcs.map((x) => html`<div class="tv2-svc tone-${SVC_STATUS[x.status].tone}${x.status === 'up' ? '' : ' bad'}" title="${x.note || SVC_STATUS[x.status].label}"><span class="tv2-svic">${UI.illu(x.icon || 'network', 'mini')}<i></i></span><span class="tv2-svt"><b>${x.name}</b>${x.status === 'up' ? '' : html`<small>${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}</small>`}</span></div>`)}`);
+    /* نبض اليوم: الالتزام بالموعد، ومتوسط الحل، وذروة الوارد، والإدارة الأكثر طلباً، والوارد ساعة بساعة */
+    const hrs = new Array(24).fill(0); created.forEach((t) => { hrs[new Date(t.createdAt).getHours()]++; });
+    const hNow = new Date().getHours(), firstH = hrs.findIndex((n) => n > 0), from = Math.min(7, firstH < 0 ? 7 : firstH), to = Math.max(hNow, 15), span = hrs.slice(from, to + 1), mx = Math.max(1, ...span), peakI = span.indexOf(Math.max(...span));
+    const byDep = new Map(); created.forEach((t) => { if (t.departmentId) byDep.set(t.departmentId, (byDep.get(t.departmentId) || 0) + 1); }); const topDep = [...byDep].sort((a, b) => b[1] - a[1])[0];
+    const fix = resolved.length ? resolved.reduce((a, t) => a + Math.max(0, doneAt(t) - t.createdAt), 0) / resolved.length : 0, ring = sla == null ? 'slate' : sla >= 90 ? 'teal' : sla >= 70 ? 'amber' : 'red';
+    const ps = $v('[data-pulsesum]'); if (ps) ps.textContent = created.length ? `${fmtNum(created.length)} وارد اليوم` : '';
+    $v('[data-pulse]').innerHTML = String(html`<div class="tv2-ptop"><div class="tv2-ring tone-${ring}" title="البلاغات المحلولة اليوم قبل موعدها"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg${sla ? '' : ' none'}" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="${sla || 0} 100"/></svg><div><b>${sla == null ? '—' : `${fmtNum(sla)}%`}</b><small>ضمن الموعد</small></div></div>
+      <dl class="tv2-pstats"><div><dt>${UI.icon('check')} أُنجز اليوم</dt><dd>${fmtNum(resolved.length)}</dd></div><div><dt>${UI.icon('clock')} متوسط الحل</dt><dd>${fmtDuration(fix)}</dd></div><div><dt>${UI.icon('pulse')} ذروة الوارد</dt><dd>${span[peakI] ? `${pad2(from + peakI)}:00` : '—'}</dd></div><div><dt>${UI.icon('building')} الأكثر طلباً</dt><dd title="${topDep ? Data.nameOf('departments', topDep[0], '') : ''}">${topDep ? Data.nameOf('departments', topDep[0], '—') : '—'}</dd></div></dl></div>
+      <div class="tv2-hours" role="img" aria-label="الوارد اليوم حسب الساعة">${span.map((n, i) => { const h = from + i; return html`<span class="${h === hNow ? 'now' : ''}${n ? '' : ' zero'}${n && i === peakI ? ' peak' : ''}" title="${pad2(h)}:00 — ${fmtNum(n)} وارد"><b><i style="height:${n ? Math.max(10, (n / mx) * 100).toFixed(0) : 3}%">${n ? html`<em>${fmtNum(n)}</em>` : ''}</i></b><small>${h % 2 === 0 || h === hNow ? h : ''}</small></span>`; })}</div>`);
+    /* التعاميم: بطاقة كبيرة حين توجد، وسطر واحد حين لا توجد فيأخذ «نبض اليوم» المساحة */
+    const live = anns.filter((a) => (!a.startsAt || a.startsAt <= tn) && (!a.endsAt || a.endsAt >= tn) && ['all', 'monitor', 'staff'].includes(a.audience || 'all')).sort((a, b) => (b.pinned || 0) - (a.pinned || 0) || b.createdAt - a.createdAt).slice(0, 5);
+    const nk = live.map((a) => a.id).join('|'); if (nk && nk !== st.newsKey) st.sideCur = 'news'; st.newsKey = nk; st.news = live.length; side();
+    const nsum = $v('[data-newssum]'); if (nsum) nsum.textContent = live.length ? `${fmtNum(live.length)} ${live.length > 2 && live.length < 11 ? 'تعاميم' : 'تعميم'}` : '';
+    $v('[data-news]').innerHTML = live.length ? String(html`${live.map((a) => { const k = TV_KIND[a.kind] || TV_KIND[a.level === 'critical' ? 'service' : 'notice']; return html`<article class="tv2-ann tone-${a.level === 'critical' ? 'red' : a.level === 'warn' ? 'amber' : k[2]}"><span class="tv2-a3d">${UI.icon(`o3d:${TV_K3D[a.kind] || (a.level === 'critical' ? 'alarm' : 'media')}`)}</span><div class="tv2-atx"><em>${k[0]}${a.pinned ? ' · مثبّت' : ''}</em><b>${a.title}</b>${a.body ? html`<p>${a.body}</p>` : ''}</div></article>`; })}`) : String(html`<p class="tv2-none">${UI.icon('info')} لا توجد تعاميم حالياً. يضيفها المشرف أو المخوَّلون من صفحة «حالة الخدمات».</p>`);
+    /* الفريق المتواجد الآن فقط: من له نبضة تواجد حديثة، ومؤشر حمل لكل فني */
     const here = new Set((await Presence.online()).map((p) => p.userId));
+    if (!ctx.alive()) return;
     const team = Data.list('users').filter((u) => u.active && ['technician', 'support_manager'].includes(u.role) && here.has(u.id));
     const th = $v('[data-teamh]'); if (th) th.textContent = team.length ? `الفريق المتواجد (${fmtNum(team.length)})` : 'الفريق المتواجد';
-    $v('[data-team]').innerHTML = team.length ? String(html`${team.slice(0, 8).map((u) => { const n = open.filter((x) => x.assigneeId === u.id).length; const cls = n >= 6 ? 'busy' : n >= 3 ? 'mid' : 'free'; return html`<div class="tv2-mate ${cls}">${UI.avatar(u, 'av-sm')}<b>${u.name}</b><span>${n ? `${fmtNum(n)} مفتوح` : 'متاح'}</span></div>`; })}`) : '<p class="tv2-none faint">لا يوجد فني متصل الآن</p>';
+    $v('[data-team]').innerHTML = team.length ? String(html`${team.slice(0, 8).map((u) => { const n = open.filter((x) => x.assigneeId === u.id).length; const cls = n >= 6 ? 'busy' : n >= 3 ? 'mid' : 'free'; return html`<div class="tv2-mate ${cls}">${UI.avatar(u, 'av-sm')}<b>${u.name}</b><span>${n ? `${fmtNum(n)} مفتوح` : 'متاح'}</span><i class="tv2-load"><i style="width:${Math.min(100, Math.max(n ? 12 : 0, (n / 6) * 100)).toFixed(0)}%"></i></i></div>`; })}`) : String(html`<p class="tv2-none">${UI.icon('users')} لا يوجد فني متصل الآن</p>`);
+    /* شريط المستجدات: كل خبر بأيقونته ولونه بدل الرموز التعبيرية */
     const H2 = 2 * HOUR, ev = [];
-    tickets.filter((x) => x.createdAt >= t - H2).forEach((x) => ev.push([x.createdAt, `🆕 بلاغ جديد: ${x.title} — ${Data.nameOf('departments', x.departmentId, '')}`]));
-    tickets.filter((x) => (x.resolvedAt || 0) >= t - H2).forEach((x) => ev.push([x.resolvedAt, `✅ تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`]));
-    open.filter((x) => x.dueAt && x.dueAt < t).slice(0, 5).forEach((x) => ev.push([x.dueAt, `⏰ تجاوز الموعد: ${x.number} ${x.title}`]));
-    svcs.filter((x) => x.status !== 'up').forEach((x) => ev.push([x.updatedAt, `⚠️ ${x.name}: ${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}`]));
-    live.forEach((a) => ev.push([a.createdAt, `📢 ${a.title}`]));
-    const items = ev.sort((a, b) => b[0] - a[0]).slice(0, 14).map((x) => x[1]);
+    tickets.filter((x) => x.createdAt >= tn - H2).forEach((x) => { const d = Data.nameOf('departments', x.departmentId, ''); ev.push([x.createdAt, 'ticket', 'sky', `بلاغ جديد: ${x.title}${d ? ` — ${d}` : ''}`]); });
+    tickets.filter((x) => (x.resolvedAt || 0) >= tn - H2).forEach((x) => ev.push([x.resolvedAt, 'check', 'teal', `تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`]));
+    open.filter((x) => x.dueAt && x.dueAt < tn).slice(0, 5).forEach((x) => ev.push([x.dueAt, 'clock', 'red', `تجاوز الموعد: ${x.number} ${x.title}`]));
+    svcs.filter((x) => x.status !== 'up').forEach((x) => ev.push([x.updatedAt, 'alert', 'amber', `${x.name}: ${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}`]));
+    live.forEach((a) => ev.push([a.createdAt, 'bell', 'brass', a.title]));
+    const items = ev.sort((a, b) => b[0] - a[0]).slice(0, 14), key = items.map((x) => x[3]).join('|') || '-';
     const track = $v('[data-ticker]');
-    const text = items.length ? items.join('   •   ') : 'لا توجد مستجدات مهمة حالياً';
-    if (track && track.dataset.text !== text) { track.dataset.text = text; track.innerHTML = `<span>${text.replace(/</g, '&lt;')}</span><span aria-hidden="true">${text.replace(/</g, '&lt;')}</span>`; track.style.animationDuration = `${Math.max(30, text.length / 6)}s`; }
-    drawRows();
+    if (track && track.dataset.key !== key) {
+      track.dataset.key = key;
+      const grp = (hide) => html`<span class="tv2-tg"${hide ? raw(' aria-hidden="true"') : ''}>${items.length ? items.map(([, ic, tone, tx]) => html`<span class="tv2-ti tone-${tone}"><i>${UI.icon(ic)}</i>${tx}</span>`) : html`<span class="tv2-ti tone-teal"><i>${UI.icon('check')}</i>لا توجد مستجدات مهمة حالياً</span>`}</span>`;
+      track.innerHTML = String(html`${grp(false)}${grp(true)}`);
+      track.style.animationDuration = `${Math.max(30, items.reduce((a, x) => a + x[3].length + 8, 0) / 5.5)}s`;
+    }
+    st.loadedAt = now();
+    fit(); drawRows();
     if (st.fresh.length) TvAlert.show(st.fresh);
     TvSound.tick(st, { open, tickets, svcs, live });
   };
   UI.on(ctx.view, 'click', '[data-act="exit"]', (e, el) => { if (!isMonitor) { Router.go('/dashboard'); return; } if (el.classList.contains('busy')) return; el.classList.add('busy'); Shell.logout(); });
   UI.on(ctx.view, 'click', '[data-act="full"]', () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (_) { /* تجاهل */ } });
   UI.on(ctx.view, 'click', '[data-act="sound"]', (e, el) => { st.sound = !st.sound; localStorage.setItem('sq_tv_sound', st.sound ? '1' : '0'); el.classList.toggle('off', !st.sound); if (st.sound) tvChime(); UI.toast(st.sound ? 'فُعّل التنبيه الصوتي للوارد الجديد' : 'أُوقف التنبيه الصوتي'); });
-  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { if (now() - st.pageAt >= 11800) { st.page++; drawRows(); } }, 400), iLoad = setInterval(load, 20000);
-  let idle; const hideCursor = () => { document.body.classList.remove('tv-cursor'); clearTimeout(idle); document.body.classList.add('tv-cursor'); idle = setTimeout(() => document.body.classList.remove('tv-cursor'), 4000); };
+  /* تبديل المظهر بدائرة تتسع من موضع النقرة، كتبديل مظهر المنصة */
+  UI.on(ctx.view, 'click', '[data-tvtheme]', (e, el) => {
+    const m = el.dataset.tvtheme, was = TvTheme.resolved(); TvTheme.set(m);
+    const md = TvTheme.MODES.find((x) => x[0] === m) || TvTheme.MODES[0];
+    if (TvTheme.resolved(m) !== was && document.startViewTransition && !UI.reduced()) {
+      const x = e.clientX || innerWidth / 2, y = e.clientY || 0, r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+      document.startViewTransition(syncTheme).ready.then(() => document.documentElement.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] }, { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', pseudoElement: '::view-transition-new(root)' })).catch(() => {});
+    } else syncTheme();
+    UI.toast(`مظهر الشاشة: ${md[1]} — ${md[3]}`);
+  });
+  /* حماية الشاشة من «الاحتراق»: إزاحة العرض كله بكسلاً أو اثنين كل دقيقتين، لا تُلاحظ وتمنع ثبات الصورة على الشاشات العاملة طوال اليوم */
+  const SHIFT = [[0, 0], [2, 1], [1, -2], [-2, 1], [-1, -1], [2, -1]]; let si = 0;
+  const iShift = setInterval(() => { const el = root(); if (!el || UI.reduced()) return; si = (si + 1) % SHIFT.length; const [x, y] = SHIFT[si]; el.style.translate = x || y ? `${x}px ${y}px` : ''; }, 2 * MIN);
+  const iClock = setInterval(tick, 1000), iDate = setInterval(dates, 60000), iPage = setInterval(() => { if (now() - st.pageAt >= 11800) { st.page++; drawRows(); } }, 400), iLoad = setInterval(load, 20000), iTheme = setInterval(syncTheme, 60000), iSide = setInterval(() => { const seq = sideSeq(); if (seq.length < 2) return; st.sideCur = seq[(seq.indexOf(st.sideCur) + 1) % seq.length]; side(); }, 15000);
+  let idle; const hideCursor = () => { clearTimeout(idle); document.body.classList.add('tv-cursor'); idle = setTimeout(() => document.body.classList.remove('tv-cursor'), 4000); };
   document.addEventListener('mousemove', hideCursor);
-  ctx.onCleanup(() => { clearInterval(iClock); clearInterval(iDate); clearInterval(iPage); clearInterval(iLoad); clearTimeout(idle); document.removeEventListener('mousemove', hideCursor); });
+  const onResize = debounce(() => { if (!ctx.alive()) return; side(); const was = st.per; fit(); if (st.per !== was) drawRows(); }, 250);
+  window.addEventListener('resize', onResize);
+  ctx.onCleanup(() => { clearInterval(iClock); clearInterval(iDate); clearInterval(iPage); clearInterval(iLoad); clearInterval(iTheme); clearInterval(iSide); clearInterval(iShift); clearTimeout(idle); document.removeEventListener('mousemove', hideCursor); window.removeEventListener('resize', onResize); document.body.classList.remove('tv-cursor'); });
   const again = debounce(() => { if (ctx.alive()) load(); }, 1500);
-  ['tickets', 'chat', 'status', 'sync'].forEach((ev) => ctx.onCleanup(Bus.on(ev, again)));
+  ['tickets', 'chat', 'status', 'sync', 'users'].forEach((ev) => ctx.onCleanup(Bus.on(ev, again)));
   await load();
 };
 
@@ -19495,9 +19576,17 @@ const Org3D = (() => {
     library: (o) => { o.shadow(64, 120, 54).rect(16, 28, 22, 78, 5, 'T').rect(40, 14, 24, 92, 5, 'white').rect(66, 34, 20, 72, 5, 'T', { shade: 0.25 }).path('M88 106 L101 38 Q102 34 106 35 L115 37 Q119 38 118 42 L106 108 Z', 'silver').raw(`<g ${W(0.65)}><rect x="16" y="40" width="22" height="4"/><rect x="16" y="88" width="22" height="4"/><rect x="66" y="46" width="20" height="4"/><rect x="66" y="90" width="20" height="4"/></g><rect x="40" y="28" width="24" height="5" ${tf(0.75)}/><rect x="40" y="86" width="24" height="5" ${tf(0.75)}/>`).rect(10, 104, 108, 11, 5.5, 'graphite', { d: 3 }); },
     reception: (o) => { o.shadow(64, 118, 56).rect(58, 26, 12, 20, 4, 'graphite').rect(46, 20, 36, 10, 5, 'silver').path('M16 92 Q16 42 64 42 Q112 42 112 92 Z', 'T').rect(8, 90, 112, 16, 8, 'silver', { d: 5 }); },
     flag: (o) => { o.shadow(44, 120, 34).rect(24, 12, 9, 106, 4.5, 'silver').circ(28.5, 11, 7, 'gold', { d: 1 }).path('M33 20 Q55 8 76 20 T120 20 V70 Q98 58 76 70 T33 70 Z', 'T', { d: 5 }); },
-    camera: (o) => { o.shadow(64, 120, 42).rect(60, 66, 9, 40, 4, 'silver', { rim: false }).rect(38, 102, 52, 10, 5, 'silver', { d: 3 }).path('M16 32 L98 22 Q108 21 108 31 V58 Q108 68 98 68 L16 64 Q8 64 8 56 V40 Q8 33 16 32 Z', 'T', { d: 6 }).circ(94, 45, 11, 'graphite').raw('<circle cx="94" cy="45" r="5" fill="#9CC8FF"/><circle cx="24" cy="44" r="3.5" fill="#FF6B6B"/>'); }
+    camera: (o) => { o.shadow(64, 120, 42).rect(60, 66, 9, 40, 4, 'silver', { rim: false }).rect(38, 102, 52, 10, 5, 'silver', { d: 3 }).path('M16 32 L98 22 Q108 21 108 31 V58 Q108 68 98 68 L16 64 Q8 64 8 56 V40 Q8 33 16 32 Z', 'T', { d: 6 }).circ(94, 45, 11, 'graphite').raw('<circle cx="94" cy="45" r="5" fill="#9CC8FF"/><circle cx="24" cy="44" r="3.5" fill="#FF6B6B"/>'); },
+    inbox: (o) => { o.shadow(64, 120, 54).path('M8 62 L24 30 Q27 24 34 24 H94 Q101 24 104 30 L120 62 Z', 'T', { shade: 0.38, gloss: false, rim: false }).rect(34, 8, 60, 60, 7, 'white', { d: 3 }).raw(`<rect x="43" y="20" width="42" height="5" rx="2.5" ${tf(0.6)}/><rect x="43" y="31" width="32" height="5" rx="2.5" ${tf(0.45)}/><rect x="43" y="42" width="38" height="5" rx="2.5" ${tf(0.45)}/>`).path('M8 62 H42 Q46 62 48 68 Q52 80 64 80 Q76 80 80 68 Q82 62 86 62 H120 V100 Q120 112 108 112 H20 Q8 112 8 100 Z', 'T', { d: 6 }); },
+    ticket: (o) => { o.shadow(64, 116, 54).path('M10 36 Q10 26 20 26 H108 Q118 26 118 36 V50 Q106 50 106 62 Q106 74 118 74 V88 Q118 98 108 98 H20 Q10 98 10 88 V74 Q22 74 22 62 Q22 50 10 50 Z', 'T', { d: 7 }).raw(`<path d="M84 34 V90" stroke="#fff" stroke-opacity=".55" stroke-width="3" stroke-dasharray="5 6" stroke-linecap="round"/><rect x="30" y="44" width="42" height="7" rx="3.5" ${W(0.92)}/><rect x="30" y="58" width="32" height="6" rx="3" ${W(0.6)}/><rect x="30" y="70" width="38" height="6" rx="3" ${W(0.6)}/>`).path(star(99, 62, 10, 4.5), 'gold', { rim: false }); },
+    chat: (o) => { o.shadow(64, 120, 52).path('M44 22 Q44 10 56 10 H106 Q118 10 118 22 V54 Q118 66 106 66 H102 L104 80 L88 66 H56 Q44 66 44 54 Z', 'silver', { d: 4 }).path('M10 44 Q10 30 24 30 H80 Q94 30 94 44 V80 Q94 94 80 94 H46 L26 110 L29 94 H24 Q10 94 10 80 Z', 'T', { d: 6 }).raw(`<circle cx="34" cy="62" r="6.5" ${W(0.95)}/><circle cx="52" cy="62" r="6.5" ${W(0.95)}/><circle cx="70" cy="62" r="6.5" ${W(0.95)}/>`); },
+    alarm: (o) => { o.shadow(64, 120, 54).path('M64 10 Q71 10 75 17 L119 95 Q124 106 111 108 H17 Q4 106 9 95 L53 17 Q57 10 64 10 Z', 'T', { d: 7 }).rect(57, 38, 14, 40, 7, 'white', { gloss: false, rim: false }).circ(64, 92, 7.5, 'white', { gloss: false, rim: false }); },
+    check: (o) => { o.shadow(64, 120, 46).path(gear(64, 60, 54, 46, 14, 0.11), 'T', { d: 6 }).circ(64, 60, 37, 'T', { shade: 0.16 }).line('M44 61 L58 75 L86 46', '#fff', 10); },
+    clock: (o) => { let tk = ''; for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, r0 = i % 3 ? 31 : 28; tk += `M${r1(64 + r0 * Math.sin(a))} ${r1(70 - r0 * Math.cos(a))} L${r1(64 + 35 * Math.sin(a))} ${r1(70 - 35 * Math.cos(a))} `; } o.shadow(64, 122, 44).rect(55, 6, 18, 12, 4, 'silver', { d: 2 }).rect(60, 14, 8, 10, 2, 'graphite', { gloss: false, rim: false }).circ(64, 70, 48, 'T', { d: 6 }).circ(64, 70, 38, 'white', { rim: false }).raw(`<path d="${tk}" stroke="#2E3B58" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>`).line('M64 70 V44', 'navy', 6).line('M64 70 L82 81', 'T', 6).circ(64, 70, 6, 'navy', { gloss: false, rim: false }); },
+    bell: (o) => { o.shadow(64, 122, 46).circ(64, 106, 11, 'gold', { d: 2 }).path('M64 18 Q94 18 97 50 L100 80 Q102 88 112 94 V100 H16 V94 Q26 88 28 80 L31 50 Q34 18 64 18 Z', 'T', { d: 6 }).circ(64, 15, 8, 'T', { d: 2 }); },
+    pulse: (o) => { o.shadow(64, 120, 46).rect(42, 102, 44, 9, 4.5, 'silver', { d: 3 }).rect(58, 84, 12, 20, 3, 'silver', { rim: false }).rect(8, 14, 112, 74, 12, 'graphite', { d: 6 }).rect(15, 21, 98, 60, 7, 'T').line('M22 54 H42 L50 36 L62 72 L72 44 L78 54 H106', '#fff', 5.5, 0.95); }
   };
-  const LABELS = { building: 'مبنى إداري', office: 'مكتب', team: 'فريق عمل', person: 'موظف', briefcase: 'شؤون إدارية', finance: 'شؤون مالية', legal: 'شؤون قانونية', badge: 'موارد بشرية', training: 'تدريب وتعليم', shield: 'أمن وحماية', it: 'تقنية المعلومات', network: 'شبكات', support: 'دعم فني', archive: 'أرشيف', docs: 'مستندات', mail: 'مراسلات', stats: 'تخطيط وإحصاء', medical: 'خدمات طبية', vehicle: 'نقل وحركة', warehouse: 'مخازن', tools: 'صيانة', media: 'إعلام وعلاقات', calendar: 'مواعيد', quality: 'جودة وتميز', globe: 'علاقات خارجية', key: 'صلاحيات', phone: 'اتصالات', folder: 'ملفات', idea: 'تطوير وابتكار', structure: 'هيكل تنظيمي', server: 'خوادم', library: 'مكتبة', reception: 'استقبال', flag: 'مراسم', camera: 'مراقبة' };
+  const LABELS = { building: 'مبنى إداري', office: 'مكتب', team: 'فريق عمل', person: 'موظف', briefcase: 'شؤون إدارية', finance: 'شؤون مالية', legal: 'شؤون قانونية', badge: 'موارد بشرية', training: 'تدريب وتعليم', shield: 'أمن وحماية', it: 'تقنية المعلومات', network: 'شبكات', support: 'دعم فني', archive: 'أرشيف', docs: 'مستندات', mail: 'مراسلات', stats: 'تخطيط وإحصاء', medical: 'خدمات طبية', vehicle: 'نقل وحركة', warehouse: 'مخازن', tools: 'صيانة', media: 'إعلام وعلاقات', calendar: 'مواعيد', quality: 'جودة وتميز', globe: 'علاقات خارجية', key: 'صلاحيات', phone: 'اتصالات', folder: 'ملفات', idea: 'تطوير وابتكار', structure: 'هيكل تنظيمي', server: 'خوادم', library: 'مكتبة', reception: 'استقبال', flag: 'مراسم', camera: 'مراقبة', inbox: 'وارد وطلبات', ticket: 'بلاغ', chat: 'محادثة واستفسار', alarm: 'تنبيه وتحذير', check: 'إنجاز واعتماد', clock: 'وقت ومواعيد', bell: 'جرس وإشعار', pulse: 'مراقبة الخدمات' };
   const cache = new Map(); let seq = 0;
   const get = (name, cls = '') => {
     const k = D[name] ? name : 'building';
@@ -20763,5 +20852,33 @@ document.addEventListener('pointerup', (e) => {
   if (!box || e.target.closest('button,a,input,select,label') || !box.querySelector(':scope > .org-acts')) return;
   box.classList.toggle('acts-on');
 });
+/* ══════════ شاشة العرض: المظهر الداكن والفاتح والتلقائي ══════════
+   الافتراضي من حساب الشاشة (يختاره المشرف)، ويمكن تغييره من الشاشة نفسها فيُحفظ لهذا الجهاز.
+   إن غيّر المشرف مظهر الحساب لاحقاً يعود الجهاز إلى اختيار المشرف (الاختيار المحلي مربوط بقيمة الحساب وقت حفظه) */
+const TvTheme = {
+  MODES: [['dark', 'داكن', 'moon', 'للمكاتب الخافتة وساعات المساء'], ['light', 'فاتح', 'sun', 'للقاعات المضاءة وضوء النهار'], ['auto', 'تلقائي', 'clock', 'فاتح من 6 صباحاً إلى 6 مساءً وداكن بعدها']],
+  ok: (m) => ['dark', 'light', 'auto'].includes(m),
+  acc() { const u = Auth.user, m = u && u.role === 'monitor' ? (u.monitor || {}).theme : ''; return this.ok(m) ? m : ''; },
+  mode() {
+    const a = this.acc(); let l = null;
+    try { l = JSON.parse(localStorage.getItem('sq_tv_theme') || 'null'); } catch (_) { l = null; }
+    if (l && this.ok(l.m) && (l.a || '') === a) return l.m;
+    return a || 'dark';
+  },
+  set(m) { try { localStorage.setItem('sq_tv_theme', JSON.stringify({ m, a: this.acc() })); } catch (_) { /* تجاهل */ } },
+  day(d = new Date()) { const h = d.getHours(); return h >= 6 && h < 18; },
+  resolved(m = this.mode()) { return m === 'auto' ? (this.day() ? 'light' : 'dark') : m === 'light' ? 'light' : 'dark'; },
+  /* يُطبق على الشاشة وعلى الصفحة كلها: بطاقة الوارد الجديد والتنبيهات المنبثقة تتبع المظهر نفسه */
+  apply(root) {
+    const r = this.resolved();
+    if (root) { root.classList.toggle('tv-light', r === 'light'); root.classList.toggle('tv-dark', r !== 'light'); }
+    if (document.documentElement.dataset.theme !== r) document.documentElement.dataset.theme = r;
+    return r;
+  },
+  h3d: (name, tone) => html`<span class="tv2-h3d tone-${tone}">${UI.icon(`o3d:${name}`)}</span>`
+};
+/* أيقونة ثلاثية الأبعاد لكل نوع تعميم */
+const TV_K3D = { notice: 'media', article: 'library', message: 'mail', guide: 'idea', service: 'pulse' };
+
 boot();
 })();
