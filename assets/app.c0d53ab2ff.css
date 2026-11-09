@@ -6319,3 +6319,98 @@ article.vc-card2[data-vpv]{cursor:pointer}
 .vfu-help{margin-top:14px}
 .vfu-help summary{display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;flex-wrap:wrap}
 .vfu-help ol{margin:0 0 8px;padding-inline-start:22px;line-height:2;font-size:13.5px}
+
+/* ══════════ الجولة 20: نتائج الاستبيانات ══════════ */
+.svx-bar{display:flex;flex-direction:column;gap:8px;padding:12px 14px;margin-bottom:12px;border-radius:16px;border:1px solid var(--line-2);background:linear-gradient(135deg,rgba(var(--accent),.08),transparent 60%),var(--surface-solid)}
+.svx-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.svx-l{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+.svx-l .ic{width:15px;height:15px}
+.svx-seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:12px;background:var(--surface-3)}
+.svx-seg button{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:0;border-radius:9px;background:none;color:var(--ink-2);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.svx-seg button .ic{width:14px;height:14px}
+.svx-seg button.on{background:var(--surface-solid);color:var(--ink);box-shadow:0 2px 8px -3px rgba(0,0,0,.25)}
+.svx-tg{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-solid);color:var(--ink-3);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.svx-tg .ic{width:13px;height:13px}
+.svx-tg.on{color:var(--ink);border-color:rgba(var(--accent),.55);background:rgba(var(--accent),.1)}
+.svx-hint{margin:0;font-size:11.5px;color:var(--ink-3);display:flex;align-items:center;gap:5px}
+.svx-grid{grid-template-columns:repeat(var(--svx-cols,2),minmax(0,1fr))!important}
+.svx-c{position:relative;min-width:0}
+.svx-c>.svr-q{height:100%}
+.svx-tools{position:absolute;top:8px;inset-inline-end:8px;z-index:2;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.svx-c:hover .svx-tools,.svx-c:focus-within .svx-tools{opacity:1}
+.svx-ms{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface-solid);border:1px solid var(--line-2);box-shadow:0 6px 14px -8px rgba(0,0,0,.4)}
+.svx-ms button,.svx-hide{width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:7px;background:none;color:var(--ink-3);cursor:pointer}
+.svx-ms button.on{background:rgba(var(--accent),.18);color:var(--ink)}
+.svx-hide{background:var(--surface-solid);border:1px solid var(--line-2)}
+.svx-ms .ic,.svx-hide .ic{width:14px;height:14px}
+@media (hover:none){.svx-tools{opacity:1}}
+.svx-donut .donut{justify-content:center}
+.svx-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.svx-tbl th,.svx-tbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:start}
+.svx-tbl th{font-size:11.5px;color:var(--ink-3);font-weight:800}
+.svx-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:rgb(var(--t,100,116,139));margin-inline-end:6px;vertical-align:0}
+.svx-ins{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.3fr);gap:12px}
+.svx-ins.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.svx-box{padding:14px 16px;border-radius:16px;border:1px solid var(--line-2);background:var(--surface-solid);min-width:0;break-inside:avoid}
+.svx-box h3{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 10px;font-size:14.5px}
+.svx-box h3 .ic{width:16px;height:16px;color:rgb(var(--accent))}
+.svx-idx{display:flex;flex-direction:column;align-items:center;text-align:center}
+.svx-idx .gauge{width:190px}
+.svx-note{margin:6px 0 0;font-size:11.5px;color:var(--ink-3)}
+.svx-rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.svx-rank li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(var(--t),.08);border:1px solid rgba(var(--t),.25)}
+.svx-rank b{display:block;font-size:13px;line-height:1.5}.svx-rank small{font-size:11px;color:var(--ink-3)}
+.svx-pc{flex:none;min-width:52px;text-align:center;font-weight:900;font-size:16px;color:rgb(var(--t))}
+.svx-dep{width:100%;border-collapse:separate;border-spacing:3px;font-size:12.5px}
+.svx-dep th{font-size:11.5px;color:var(--ink-3);padding:4px 6px;text-align:center}
+.svx-dep th:first-child{text-align:start}
+.svx-dep td{padding:6px 8px;border-radius:8px;text-align:center;background:var(--surface-2)}
+.svx-dep td:first-child{text-align:start;background:none}
+.svx-heat{background:rgba(var(--t),.18)!important;color:var(--ink)}
+.svx-heat b{color:rgb(var(--t))}
+.svx-tot td{border-top:2px solid var(--line-2)}
+.svx-legend{margin:10px 0 0;padding-inline-start:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:3px 14px;font-size:11.5px;color:var(--ink-2)}
+.svx-legend b{color:rgb(var(--accent));margin-inline-end:4px}
+.svx-words{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.svx-words span{font-size:calc(13px * var(--w,1));font-weight:800;padding:3px 10px;border-radius:999px;background:var(--surface-3);color:var(--ink-2)}
+.svx-words span.hot{background:rgba(var(--accent),.16);color:var(--ink)}
+.svx-words small{font-size:10.5px;color:var(--ink-3);font-weight:600}
+.svx-notes{white-space:pre-line;line-height:1.9;margin:0;font-size:13.5px}
+.svx-h4{display:flex;align-items:center;gap:6px;margin:12px 0 8px;font-size:13.5px}
+.svx-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.svx-opt{display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-solid);cursor:pointer}
+.svx-opt.dis{opacity:.55;cursor:default}
+.svx-opt input{margin-top:3px}
+.svx-opt b{display:block;font-size:13px}.svx-opt small{display:block;font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.svx-po{display:flex;flex-wrap:wrap;gap:6px 24px}
+.svx-stage{height:min(74vh,900px)}
+@media (max-width:900px){.svx-grid{grid-template-columns:minmax(0,1fr)!important}.svx-ins,.svx-ins.two{grid-template-columns:minmax(0,1fr)}}
+/* التقرير المطبوع */
+.svx-print{direction:rtl;color:#111;font-size:12.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.svx-print .svx-tools{display:none!important}
+.svx-ph{display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:2px solid #8a6a22}
+.svx-ph img{width:54px;height:54px;object-fit:contain}
+.svx-ph b{display:block;font-size:15px}.svx-ph span{font-size:12px;color:#444}
+.svx-pm{text-align:end}.svx-pm b{display:block;font-size:13px;color:#8a6a22}.svx-pm span{font-size:11px;color:#555}
+.svx-pt{margin:12px 0 2px;font-size:20px;text-align:center}
+.svx-pd{margin:0 0 4px;text-align:center;color:#444}
+.svx-pf{margin:0 0 10px;text-align:center;font-size:11.5px;color:#666}
+.svx-ks{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:10px}
+.svx-k{text-align:center;padding:8px 6px;border-radius:10px;border:1px solid rgba(var(--t),.4);background:rgba(var(--t),.08)}
+.svx-k b{display:block;font-size:18px;color:rgb(var(--t))}.svx-k small{font-size:11px;color:#444}
+.svx-ps{margin:14px 0 8px;font-size:15px;padding-bottom:4px;border-bottom:1px solid #ccc}
+.svx-print .svx-ps.pb{break-before:page}
+.svx-print .svr-grid{display:grid;gap:8px}
+.svx-print .svr-q,.svx-print .svx-box{background:#fff!important;box-shadow:none!important;border:1px solid #d5d0c4!important;break-inside:avoid;page-break-inside:avoid}
+.svx-print .svx-ins{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.3fr)}
+.svx-print .svx-ins.two{grid-template-columns:1fr 1fr}
+.svx-print .svx-pp{break-after:page}.svx-print .svx-pp:last-child{break-after:auto}
+.svx-print .svr-texts{max-height:none!important;overflow:visible!important}
+.svx-print *{animation:none!important;transition:none!important}
+.svx-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:26px;break-inside:avoid}
+.svx-sign div{display:flex;flex-direction:column;gap:4px}
+.svx-sign b{font-size:12.5px}.svx-sign span{font-size:12px;color:#333;min-height:16px}
+.svx-sign i{border-bottom:1px dotted #777;height:26px}
+
+.svr-bars.svx-hb li{grid-template-columns:minmax(80px,1fr) minmax(60px,1.4fr) auto}
+.svx-hb li>b{white-space:nowrap;font-size:12px;min-width:44px;text-align:end}

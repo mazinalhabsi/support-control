@@ -3056,7 +3056,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -13040,12 +13040,14 @@ Pages.surveyResults = async (ctx) => {
     const secs = rows.length ? rows.reduce((x, r) => x + (r.secs || 0), 0) / rows.length : 0, last = Math.max(0, ...marks.map((m) => m.at || 0));
     const quizAvg = s.quiz && rows.length ? (rows.reduce((x, r) => x + (r.max ? r.score / r.max : 0), 0) / rows.length) * 100 : null;
     const done = new Set(marks.map((m) => m.userId)), missing = aud.filter((u) => !done.has(u.id));
-    const tabs = [['summary', 'الملخص', 'chart'], ...(s.anonymous ? [] : [['people', `الإجابات الفردية (${fmtNum(all.length)})`, 'users']]), ['missing', `لم يشاركوا (${fmtNum(missing.length)})`, 'clock']];
+    ctx._svx = { s, rows, all, agg, marks, aud, st };
+    const tabs = [['summary', 'الملخص', 'chart'], ['insights', 'التحليل والتوصيات', 'target'], ...(s.anonymous ? [] : [['people', `الإجابات الفردية (${fmtNum(all.length)})`, 'users']]), ['missing', `لم يشاركوا (${fmtNum(missing.length)})`, 'clock']];
     let k = 0;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title, illu: 'report', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${s.anonymous ? UI.chip('violet', 'مجهول الهوية', 'shield') : ''}${s.quiz ? UI.chip('sky', 'اختبار', 'target') : ''}${UI.chip('slate', Surveys.audText(s), 'users')}</span>`, actions: html`<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button><button class="btn" data-act="print">${UI.icon('print')} طباعة</button><a class="btn btn-soft" href="#/surveys/${id}/edit">${UI.icon('edit')} تعديل</a>` })}
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title, illu: 'report', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${s.anonymous ? UI.chip('violet', 'مجهول الهوية', 'shield') : ''}${s.quiz ? UI.chip('sky', 'اختبار', 'target') : ''}${UI.chip('slate', Surveys.audText(s), 'users')}</span>`, actions: html`<button class="btn" data-act="svxlsx" title="ملف Excel بأوراق: الملخص، والإجابات، وحسب الإدارة">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="csv" title="ملف CSV للإجابات">CSV</button><button class="btn btn-primary" data-act="print" title="طباعة النتائج بالشكل الذي تراه، مع معاينة">${UI.icon('print')} طباعة التقرير</button><a class="btn btn-soft" href="#/surveys/${id}/edit">${UI.icon('edit')} تعديل</a>` })}
       <div class="kpis">${UI.kpi({ label: 'المشاركات', icon: 'users', tone: 'sky', value: marks.length, foot: `من ${fmtNum(aud.length)} مستهدف` })}${UI.kpi({ label: 'نسبة المشاركة', icon: 'chart', tone: rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red', value: rate, suffix: '%' })}${UI.kpi({ label: 'متوسط مدة الإجابة', icon: 'clock', tone: 'violet', ...(secs && secs < 60 ? { value: Math.round(secs), suffix: ' ث' } : { value: secs / 60, dec: 1, suffix: ' د' }) })}${quizAvg != null ? UI.kpi({ label: 'متوسط الدرجة', icon: 'target', tone: quizAvg >= 70 ? 'teal' : 'amber', value: quizAvg, suffix: '%' }) : html`<div class="kpi tone-brass"><div class="kpi-label"><span class="k-ic">${UI.icon('calendar')}</span>آخر مشاركة</div><b class="kpi-num" style="font-size:20px">${last ? timeAgo(last) : '—'}</b></div>`}</div>
       <div class="row mt" style="gap:10px;flex-wrap:wrap;align-items:center"><div class="tabs" style="margin:0">${tabs.map(([t, l, ic]) => html`<button class="tab ${st.tab === t ? 'active' : ''}" data-tab="${t}">${UI.icon(ic)}${l}</button>`)}</div>${!s.anonymous ? html`<span class="grow"></span><select id="svrDep" class="input" style="width:auto;height:38px" aria-label="الإدارة"><option value="">كل الإدارات</option>${UI.opts('departments').map((o) => html`<option value="${o.value}"${st.dep === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><select id="svrRole" class="input" style="width:auto;height:38px" aria-label="نوع الحساب"><option value="">كل الحسابات</option>${SV_ROLES.map(([r, l]) => html`<option value="${r}"${st.role === r ? raw(' selected') : ''}>${l}</option>`)}</select>` : ''}</div>
-      <div class="mt">${st.tab === 'summary' ? (rows.length ? html`<div class="svr-grid">${s.questions.filter(Surveys.answerable).map((q) => Surveys.resultCard(s, q, agg.q[q.id], ++k))}</div>` : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: st.dep || st.role ? 'لا توجد مشاركات تطابق التصفية.' : 'ستظهر النتائج هنا لحظة وصول أول مشاركة.' }))
+      <div class="mt">${st.tab === 'summary' ? (rows.length ? SVX.summary(ctx._svx) : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: st.dep || st.role ? 'لا توجد مشاركات تطابق التصفية.' : 'ستظهر النتائج هنا لحظة وصول أول مشاركة.' }))
+        : st.tab === 'insights' ? SVX.insights(ctx._svx)
         : st.tab === 'people' ? UI.panel({ flush: true, body: rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>المشارك</th><th>الإدارة</th><th>الوقت</th><th>المدة</th>${s.quiz ? html`<th>الدرجة</th>` : ''}<th></th></tr></thead><tbody>${rows.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map((r) => html`<tr><td><div class="row nowrap" style="gap:8px;flex-wrap:nowrap">${UI.avatar(r.userId, 'av-sm')}<b>${Data.userName(r.userId)}</b></div></td><td>${Data.nameOf('departments', r.departmentId, '—')}</td><td class="nowrap faint">${fmtDateTime(r.at)}</td><td>${r.secs > 0 && r.secs < 60 ? `${fmtNum(r.secs)} ث` : fmtDuration((r.secs || 0) * 1000)}</td>${s.quiz ? html`<td>${r.max ? UI.chip(r.score / r.max >= 0.7 ? 'teal' : 'amber', `${fmtNum(r.score)} / ${fmtNum(r.max)}`) : '—'}</td>` : ''}<td><button class="btn btn-ghost btn-sm" data-resp="${r.id}">${UI.icon('eye')} الإجابات</button></td></tr>`)}</tbody></table></div>` : html`<div class="panel-body">${UI.noData('لا توجد مشاركات')}</div>` })
         : UI.panel({ title: 'لم يشاركوا بعد', icon: 'clock', tools: missing.length && Surveys.state(s) === 'live' ? html`<button class="btn btn-soft btn-sm" data-act="remind">${UI.icon('bell')} تذكير الجميع (${fmtNum(missing.length)})</button>` : '', body: missing.length ? html`<div class="list">${missing.slice(0, 200).map((u) => html`<div class="list-row">${UI.avatar(u, 'av-sm')}<b class="grow">${u.name}</b><span class="faint small">${Data.nameOf('departments', u.departmentId, '')} · ${ROLES[u.role] || ''}</span></div>`)}</div>${missing.length > 200 ? html`<p class="hint mt">وغيرهم ${fmtNum(missing.length - 200)}…</p>` : ''}` : html`<div class="empty-mini">${UI.icon('check')} شارك كل المستهدفين — رائع!</div>` })}</div>`);
     UI.hydrate(ctx.view);
@@ -13059,7 +13061,9 @@ Pages.surveyResults = async (ctx) => {
     const qs = s.questions.filter(Surveys.answerable), cols = [{ label: 'التاريخ', value: (r) => fmtDateTime(r.at) }, ...(s.anonymous ? [] : [{ label: 'الاسم', value: (r) => Data.userName(r.userId) }, { label: 'الإدارة', value: (r) => Data.nameOf('departments', r.departmentId, '') }, { label: 'نوع الحساب', value: (r) => ROLES[r.role] || '' }]), { label: 'المدة (ثانية)', key: 'secs' }, ...(s.quiz ? [{ label: 'الدرجة', value: (r) => (r.max ? `${r.score}/${r.max}` : '') }] : []), ...qs.map((q) => ({ label: q.l, value: (r) => Surveys.fmtAnswer(q, (r.answers || {})[q.id], r.answers || {}) }))];
     downloadBlob(new Blob([toCSV(rows, cols)], { type: 'text/csv;charset=utf-8' }), `${s.title}-${dateInput(now())}.csv`);
   });
-  UI.on(ctx.view, 'click', '[data-act="print"]', () => {
+  UI.on(ctx.view, 'click', '[data-act="print"]', () => { SVX.printDialog(ctx).catch(UI.error); });
+  SVX.bind(ctx);
+  UI.on(ctx.view, 'click', '[data-act="print-plain"]', () => {
     const agg = Surveys.aggregate(s, rows); let k = 0;
     UI.print(html`<h2>${s.title}</h2><p>المشاركات: ${fmtNum(marks.length)} من ${fmtNum(aud.length)} — ${fmtDateTime(now())}</p>${s.questions.filter(Surveys.answerable).map((q) => { const a = agg.q[q.id] || { n: 0, c: {}, texts: [], rows: {} }; k++; const opts = SV_CHOICE.includes(q.t) ? (SV_TYPES[q.t].fixed || (q.o || []).filter(Boolean)) : q.t === 'likert' ? LIKERT.map((l, i) => i + 1) : q.t === 'rating' ? [5, 4, 3, 2, 1] : []; return html`<h3>${fmtNum(k)}. ${q.l} <small>(${fmtNum(a.n)} إجابة)</small></h3>${opts.length ? html`<table><tr><th>الخيار</th><th>العدد</th><th>النسبة</th></tr>${opts.map((o) => html`<tr><td>${q.t === 'likert' ? LIKERT[o - 1] : q.t === 'rating' ? `${o} نجوم` : o}</td><td>${fmtNum(a.c[o] || 0)}</td><td>${a.n ? `${Math.round(((a.c[o] || 0) / a.n) * 100)}%` : '—'}</td></tr>`)}</table>` : q.t === 'matrix' ? html`<table><tr><th>البند</th><th>المتوسط من 5</th></tr>${(q.rows || []).filter(Boolean).map((r) => { const x = a.rows[r] || { n: 0, sum: 0 }; return html`<tr><td>${r}</td><td>${x.n ? (x.sum / x.n).toFixed(1) : '—'}</td></tr>`; })}</table>` : a.texts.length ? html`<ul>${a.texts.slice(0, 50).map((x) => html`<li>${x.v}</li>`)}</ul>` : a.num ? html`<p>المتوسط: ${(a.sum / a.num).toFixed(1)}</p>` : html`<p>—</p>`}`; })}`, `نتائج ${s.title}`);
   });
@@ -24147,6 +24151,240 @@ VTF.status = ((s0) => (x) => (VFU.has(x.f) ? ['violet', 'مرفوع للنظام
     UI.on(ctx.view, 'click', '[data-vfdel]', async (e, b) => { try { if (await VFU.remove(b.dataset.vfdel)) redraw(); } catch (ex) { UI.error(ex); } });
   };
 }
+
+/* ══════════ الجولة 20: نتائج الاستبيانات — عرض قابل للتخصيص، وتحليل، وطباعة كما تظهر ══════════
+   - لكل سؤال شكل عرض (تلقائي، أعمدة أفقية، أعمدة رأسية، دائري، جدول) ولكل التقرير أعمدة وترتيب وما يظهر
+   - «التحليل والتوصيات»: مؤشر الرضا العام، ونقاط القوة وفرص التحسين، والمقارنة بين الإدارات، والمشاركات عبر الزمن،
+     والكلمات الأكثر تكراراً في الإجابات النصية، والتوصيات المكتوبة
+   - الطباعة بالشكل نفسه الذي اخترته، مع معاينة قبلها، وتصدير Excel بأوراق متعددة */
+{ const sd1 = VPV.srcdoc; VPV.srcdoc = (h, P) => sd1(h, P).replace('<body>', `<body>${$$('body > svg').filter((x) => x.querySelector('symbol')).map((x) => x.outerHTML).join('')}`); }
+const SVX = {
+  MODES: [['auto', 'تلقائي', 'sparkle'], ['hbar', 'أعمدة أفقية', 'menu'], ['vbar', 'أعمدة رأسية', 'chart'], ['donut', 'دائري', 'pulse'], ['table', 'جدول', 'list']],
+  DEF: { chart: 'auto', cols: 2, sort: 'order', pct: 1, cnt: 1, texts: 1, per: {}, hide: [] },
+  key: (id) => `sq_svx:${id}`,
+  state(id) { try { return { ...SVX.DEF, ...(JSON.parse(localStorage.getItem(SVX.key(id)) || '{}')) }; } catch (_) { return { ...SVX.DEF }; } },
+  save(id, o) { try { localStorage.setItem(SVX.key(id), JSON.stringify(o)); } catch (_) { /* تجاهل */ } },
+  modesFor(q) { if (q.t === 'matrix') return ['auto', 'hbar', 'vbar', 'table']; if (SVX.distOk(q)) return SVX.MODES.map((m) => m[0]); return []; },
+  distOk: (q) => SV_CHOICE.includes(q.t) || ['likert', 'rating', 'nps', 'scale'].includes(q.t),
+  dist(s, q, a) {
+    const T = SV_TYPES[q.t] || {};
+    if (SV_CHOICE.includes(q.t)) { const o = (T.fixed || (q.o || []).filter(Boolean)).map((x, j) => ({ k: x, label: x, tone: T.fixed ? (j ? 'red' : 'teal') : SV_BAR_TONES[j % SV_BAR_TONES.length] })); if (q.other) o.push({ k: '__other', label: 'أخرى', tone: 'slate' }); return o.map((x) => ({ ...x, value: a.c[x.k] || 0 })); }
+    if (q.t === 'likert') return LIKERT.map((l, k) => ({ k: k + 1, label: l, tone: ['red', 'amber', 'slate', 'teal', 'green'][k], value: a.c[k + 1] || 0 })).reverse();
+    if (q.t === 'rating') return [5, 4, 3, 2, 1].map((k) => ({ k, label: `${k} ${RATE_FACES[k][0]}`, tone: RATE_FACES[k][1], value: a.c[k] || 0 }));
+    if (q.t === 'nps') { let pro = 0, pas = 0, det = 0; Object.entries(a.c).forEach(([k, c]) => { const x = Number(k); if (x >= 9) pro += c; else if (x >= 7) pas += c; else det += c; }); return [{ k: 'pro', label: 'مروّجون (9–10)', tone: 'teal', value: pro }, { k: 'pas', label: 'محايدون (7–8)', tone: 'amber', value: pas }, { k: 'det', label: 'منتقدون (0–6)', tone: 'red', value: det }]; }
+    if (q.t === 'scale') { const lo = Number(q.min != null ? q.min : 1), hi = Number(q.max || 10), out = []; for (let k = hi; k >= lo; k--) out.push({ k, label: fmtNum(k), tone: 'violet', value: a.c[k] || 0 }); return out; }
+    if (q.t === 'matrix') return (q.rows || []).filter(Boolean).map((r) => { const x = a.rows[r] || { n: 0, sum: 0 }, avg = x.n ? x.sum / x.n : 0; return { k: r, label: r, tone: avg >= 4 ? 'teal' : avg >= 3 ? 'amber' : 'red', value: Math.round(avg * 10) / 10, n: x.n, avg: 1 }; });
+    return null;
+  },
+  /* درجة السؤال من 100 (للترتيب والتحليل): المتوسطات، وصافي التوصية، ونسبة «نعم» */
+  score(q, a) {
+    if (!a || !a.n) return null;
+    if (q.t === 'rating' || q.t === 'likert') return a.num ? (a.sum / a.num / 5) * 100 : null;
+    if (q.t === 'scale') { const lo = Number(q.min != null ? q.min : 1), hi = Number(q.max || 10); return a.num && hi > lo ? ((a.sum / a.num - lo) / (hi - lo)) * 100 : null; }
+    if (q.t === 'nps') { const d = SVX.dist(null, q, a), t = d.reduce((x, y) => x + y.value, 0) || 1; return ((d[0].value - d[2].value) / t) * 50 + 50; }
+    if (q.t === 'matrix') { const r = Object.values(a.rows).filter((x) => x.n); return r.length ? (r.reduce((x, y) => x + y.sum / y.n, 0) / r.length / 5) * 100 : null; }
+    if (q.t === 'yesno' || q.t === 'truefalse') { const T = SV_TYPES[q.t]; return ((a.c[T.fixed[0]] || 0) / a.n) * 100; }
+    return null;
+  },
+  tone: (sc) => (sc == null ? 'slate' : sc >= 75 ? 'teal' : sc >= 55 ? 'amber' : 'red'),
+  summaryLine(q, a) {
+    if (q.t === 'rating' || q.t === 'likert') { const avg = a.num ? a.sum / a.num : 0; return html`<div class="svr-avg sm"><b>${avg.toFixed(1)}</b><div><small>المتوسط من 5</small><span>${q.t === 'likert' ? LIKERT[Math.max(0, Math.round(avg) - 1)] || '' : RATE_FACES[Math.max(1, Math.round(avg))][0]}</span></div></div>`; }
+    if (q.t === 'nps') { const d = SVX.dist(null, q, a), t = d.reduce((x, y) => x + y.value, 0) || 1, nps = Math.round(((d[0].value - d[2].value) / t) * 100); return html`<div class="svr-avg sm"><b class="ltr">${nps > 0 ? '+' : ''}${fmtNum(nps)}</b><div><small>صافي نقاط التوصية (NPS)</small></div></div>`; }
+    if (q.t === 'scale') { const avg = a.num ? a.sum / a.num : 0; return html`<div class="svr-avg sm"><b>${avg.toFixed(1)}</b><div><small>المتوسط</small></div></div>`; }
+    if (q.t === 'matrix') { const sc = SVX.score(q, a); return sc == null ? '' : html`<div class="svr-avg sm"><b>${((sc / 100) * 5).toFixed(1)}</b><div><small>متوسط البنود من 5</small></div></div>`; }
+    return '';
+  },
+  chart(q, a, D, mode, o) {
+    const mx = q.t === 'matrix', n = a.n, pct = (v) => (n ? Math.round((v / n) * 100) : 0);
+    const val = (d) => (mx ? d.value.toFixed(1) : `${o.pct ? `${fmtNum(pct(d.value))}%` : ''}${o.pct && o.cnt ? ' · ' : ''}${o.cnt ? fmtNum(d.value) : ''}`);
+    if (mode === 'vbar') return UI.chart.bars(D.map((d) => ({ label: d.label, value: d.value, tone: d.tone })), { height: 150, format: mx ? (v) => Number(v).toFixed(1) : (v) => (o.pct ? `${fmtNum(pct(v))}%` : fmtNum(v)) });
+    if (mode === 'donut' && !mx) return html`<div class="svx-donut">${UI.chart.donut(D.filter((d) => d.value).map((d) => ({ label: d.label, value: d.value, tone: d.tone })), { label: 'إجابة', size: 150 })}</div>`;
+    if (mode === 'table') return html`<table class="svx-tbl"><thead><tr><th>${mx ? 'البند' : 'الخيار'}</th>${mx ? html`<th>المتوسط من 5</th><th>التقييمات</th>` : html`${o.cnt ? html`<th>العدد</th>` : ''}${o.pct ? html`<th>النسبة</th>` : ''}`}</tr></thead><tbody>${D.map((d) => html`<tr class="tone-${d.tone}"><td><i class="svx-dot"></i>${d.label}</td>${mx ? html`<td><b>${d.n ? d.value.toFixed(1) : '—'}</b></td><td>${fmtNum(d.n || 0)}</td>` : html`${o.cnt ? html`<td>${fmtNum(d.value)}</td>` : ''}${o.pct ? html`<td><b>${fmtNum(pct(d.value))}%</b></td>` : ''}`}</tr>`)}</tbody></table>`;
+    /* أعمدة أفقية (وللمصفوفة إذا اختير الدائري) */
+    return html`<ul class="svr-bars svx-hb">${D.map((d) => { const w = mx ? (d.value / 5) * 100 : pct(d.value); return html`<li class="tone-${d.tone}"><span class="svr-l" title="${d.label}">${d.label}</span><span class="svr-t"><i style="width:${w.toFixed(1)}%"></i></span><b>${val(d) || '—'}</b></li>`; })}</ul>`;
+  },
+  texts(s, a, label = '') {
+    if (!a.texts || !a.texts.length) return '';
+    const list = a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0));
+    return html`${label ? html`<b class="svr-sub">${label}</b>` : ''}<div class="svr-texts">${list.slice(0, 12).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${fmtDate(x.at)}</small></blockquote>`)}</div>${list.length > 12 ? html`<small class="faint">و${fmtNum(list.length - 12)} إجابة أخرى</small>` : ''}`;
+  },
+  card(s, q, a, num, o, { print = false } = {}) {
+    const mode = o.per[q.id] || o.chart, modes = SVX.modesFor(q), use = modes.includes(mode) ? mode : 'auto';
+    const tools = print ? '' : html`<div class="svx-tools">${modes.length ? html`<span class="svx-ms">${modes.map((m) => { const M = SVX.MODES.find((x) => x[0] === m); return html`<button type="button" class="${use === m ? 'on' : ''}" data-svxm="${q.id}:${m}" title="${M[1]}">${UI.icon(M[2])}</button>`; })}</span>` : ''}<button type="button" class="svx-hide" data-svxhide="${q.id}" title="إخفاء هذا السؤال من العرض والطباعة">${UI.icon('eye-off')}</button></div>`;
+    const sc = SVX.score(q, a);
+    if (use === 'auto' || !a || !a.n) { const c = Surveys.resultCard(s, q, a, num, { pub: !o.texts }); return c ? html`<div class="svx-c" data-svxq="${q.id}">${tools}${c}</div>` : ''; }
+    const T = SV_TYPES[q.t] || SV_TYPES.text, D = SVX.dist(s, q, a);
+    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label} · ${fmtNum(a.n)} إجابة</small></div>${sc != null ? html`<span class="chip tone-${SVX.tone(sc)}">${fmtNum(Math.round(sc))}%</span>` : ''}</div>`;
+    return html`<div class="svx-c" data-svxq="${q.id}">${tools}<div class="svr-q svx-q-${use}">${head}${SVX.summaryLine(q, a)}${SVX.chart(q, a, D, use, o)}${o.texts ? SVX.texts(s, a, 'إجابات «أخرى»') : ''}</div></div>`;
+  },
+  ordered(s, agg, o) {
+    const qs = s.questions.filter(Surveys.answerable).map((q, i) => ({ q, i: i + 1, sc: SVX.score(q, agg.q[q.id]) }));
+    if (o.sort === 'low') qs.sort((x, y) => (x.sc == null) - (y.sc == null) || (x.sc ?? 0) - (y.sc ?? 0) || x.i - y.i);
+    if (o.sort === 'high') qs.sort((x, y) => (x.sc == null) - (y.sc == null) || (y.sc ?? 0) - (x.sc ?? 0) || x.i - y.i);
+    return qs;
+  },
+  grid(D, o, { print = false, cols = o.cols, per = 0 } = {}) {
+    const qs = SVX.ordered(D.s, D.agg, o).filter((x) => !o.hide.includes(x.q.id));
+    const cards = qs.map((x) => SVX.card(D.s, x.q, D.agg.q[x.q.id], x.i, o, { print })).filter((c) => String(c));
+    if (per) return html`${cards.map((c) => html`<div class="svx-pp">${c}</div>`)}`;
+    return html`<div class="svr-grid svx-grid" style="--svx-cols:${cols}">${cards}</div>`;
+  },
+  bar(o, D) {
+    const seg = (k, list) => html`<span class="svx-seg">${list.map(([v, l, ic]) => html`<button type="button" class="${String(o[k]) === String(v) ? 'on' : ''}" data-svxset="${k}:${v}" title="${l}">${ic ? UI.icon(ic) : ''}<span>${l}</span></button>`)}</span>`;
+    const tg = (k, l) => html`<button type="button" class="svx-tg${o[k] ? ' on' : ''}" data-svxset="${k}:${o[k] ? 0 : 1}">${UI.icon(o[k] ? 'check' : 'x')} ${l}</button>`;
+    const hidden = o.hide.filter((id) => D.s.questions.some((q) => q.id === id)).length;
+    return html`<div class="svx-bar" data-svxbar>
+      <div class="svx-row"><span class="svx-l">${UI.icon('chart')} شكل العرض</span>${seg('chart', SVX.MODES)}</div>
+      <div class="svx-row"><span class="svx-l">${UI.icon('grid')} الأعمدة</span>${seg('cols', [[1, 'عمود'], [2, 'عمودان'], [3, 'ثلاثة']])}<span class="svx-l">${UI.icon('filter')} الترتيب</span>${seg('sort', [['order', 'ترتيب الاستبيان'], ['low', 'الأضعف أولاً'], ['high', 'الأقوى أولاً']])}<span class="grow"></span>${tg('pct', 'النسب')}${tg('cnt', 'الأعداد')}${tg('texts', 'الإجابات النصية')}${Object.keys(o.per).length || hidden ? html`<button type="button" class="btn btn-ghost btn-xs" data-svxreset>${UI.icon('undo')} ${hidden ? `إظهار ${fmtNum(hidden)} مخفي و` : ''}إعادة الضبط</button>` : ''}</div>
+      <p class="svx-hint">${UI.icon('info')} يمكنك تغيير شكل أي سؤال من أزراره أعلى بطاقته أو إخفاؤه، و«طباعة» تطبع النتائج بالشكل الذي تراه.</p></div>`;
+  },
+  summary(D) { const o = SVX.state(D.s.id); return html`<div data-svx>${SVX.bar(o, D)}${D.rows.length ? SVX.grid(D, o) : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: 'تظهر النتائج هنا فور وصول أول مشاركة.' })}</div>`; },
+
+  /* ── التحليل ── */
+  items(s, agg) {
+    const out = [];
+    s.questions.filter(Surveys.answerable).forEach((q, i) => {
+      const a = agg.q[q.id]; if (!a || !a.n) return;
+      if (q.t === 'matrix') { Object.entries(a.rows).forEach(([r, x]) => { if (x.n) out.push({ label: r, sub: q.l, sc: (x.sum / x.n / 5) * 100, n: x.n, num: i + 1 }); }); return; }
+      const sc = SVX.score(q, a); if (sc != null) out.push({ label: q.l, sub: (SV_TYPES[q.t] || {}).label || '', sc, n: a.n, num: i + 1 });
+    });
+    return out;
+  },
+  index(s, agg) { const v = s.questions.filter(Surveys.answerable).map((q) => SVX.score(q, agg.q[q.id])).filter((x) => x != null); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; },
+  STOP: new Set(['من', 'في', 'على', 'الى', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'ذلك', 'التي', 'الذي', 'ان', 'أن', 'إن', 'كان', 'كانت', 'لا', 'ما', 'لم', 'لن', 'هو', 'هي', 'هم', 'نحن', 'انا', 'أنا', 'او', 'أو', 'ثم', 'قد', 'كل', 'بعض', 'غير', 'عند', 'بعد', 'قبل', 'حتى', 'اي', 'أي', 'ايضا', 'أيضا', 'أيضاً', 'جدا', 'جداً', 'يا', 'الله', 'شكرا', 'شكراً', 'يتم', 'تم', 'لكم', 'لكن', 'وكذلك', 'كذلك', 'فقط', 'عدم', 'بشكل', 'خلال', 'لدى', 'ولا', 'وفي', 'ومن', 'الذين', 'هناك', 'اكثر', 'أكثر']),
+  words(rows, s) {
+    const m = new Map();
+    rows.forEach((r) => s.questions.forEach((q) => { const v = (r.answers || {})[q.id], o = (r.answers || {})[`${q.id}__o`]; [['text', 'textarea'].includes(q.t) ? v : '', o].filter((x) => typeof x === 'string').forEach((t) => String(t).split(/[\s،,.؛;:!?؟()«»"'\-_/]+/).forEach((w) => { const k = normalizeAr(w).replace(/^و(?=..)/, ''); if (k.length < 3 || SVX.STOP.has(w) || SVX.STOP.has(k) || /^\d+$/.test(k)) return; const e = m.get(k) || { w, n: 0 }; e.n++; m.set(k, e); })); }));
+    return [...m.values()].sort((a, b) => b.n - a.n).slice(0, 18);
+  },
+  timeline(rows) {
+    if (!rows.length) return '';
+    const ts = rows.map((r) => r.at || 0).filter(Boolean), d0 = startOfDay(Math.min(...ts)), d1 = startOfDay(Math.max(...ts)), days = Math.round((d1 - d0) / DAY) + 1, wk = days > 31;
+    const step = wk ? 7 * DAY : DAY, m = new Map(); for (let t = d0; t <= d1; t += step) m.set(t, 0);
+    ts.forEach((t) => { const k = wk ? d0 + Math.floor((startOfDay(t) - d0) / step) * step : startOfDay(t); m.set(k, (m.get(k) || 0) + 1); });
+    const data = [...m.entries()].slice(-40).map(([t, v]) => ({ label: new Date(t).toLocaleDateString('ar-OM-u-nu-latn', { day: 'numeric', month: 'numeric' }), value: v, tone: 'sky' }));
+    return html`${UI.chart.bars(data, { height: 130 })}<small class="faint">${wk ? 'لكل أسبوع' : 'لكل يوم'}</small>`;
+  },
+  depTable(s, all) {
+    if (s.anonymous) return '';
+    const qs = s.questions.filter(Surveys.answerable).map((q, i) => ({ q, i: i + 1 })).filter((x) => ['rating', 'likert', 'nps', 'scale', 'matrix', 'yesno', 'truefalse'].includes(x.q.t));
+    if (!qs.length) return '';
+    const by = new Map(); all.forEach((r) => { const k = r.departmentId || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(r); });
+    const rowsOut = [...by.entries()].map(([dep, rs]) => { const ag = Surveys.aggregate(s, rs), cells = qs.map((x) => SVX.score(x.q, ag.q[x.q.id])), v = cells.filter((c) => c != null); return { dep, n: rs.length, cells, idx: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }; }).sort((a, b) => (b.idx ?? -1) - (a.idx ?? -1));
+    if (rowsOut.length < 1) return '';
+    const totAg = Surveys.aggregate(s, all), tot = qs.map((x) => SVX.score(x.q, totAg.q[x.q.id])), tv = tot.filter((c) => c != null);
+    const cell = (c) => (c == null ? html`<td class="faint">—</td>` : html`<td class="svx-heat tone-${SVX.tone(c)}"><b>${fmtNum(Math.round(c))}%</b></td>`);
+    return html`<div class="table-wrap"><table class="svx-dep"><thead><tr><th>الإدارة</th><th>المشاركات</th>${qs.map((x) => html`<th title="${x.q.l}">س${fmtNum(x.i)}</th>`)}<th>المؤشر</th></tr></thead><tbody>${rowsOut.map((r) => html`<tr><td><b>${r.dep ? Data.nameOf('departments', r.dep, 'غير محددة') : 'غير محددة'}</b></td><td>${fmtNum(r.n)}</td>${r.cells.map(cell)}${cell(r.idx)}</tr>`)}<tr class="svx-tot"><td><b>الكل</b></td><td>${fmtNum(all.length)}</td>${tot.map(cell)}${cell(tv.length ? tv.reduce((a, b) => a + b, 0) / tv.length : null)}</tr></tbody></table></div>
+      <ol class="svx-legend">${qs.map((x) => html`<li value="${x.i}"><b>س${fmtNum(x.i)}</b> ${x.q.l}</li>`)}</ol>`;
+  },
+  insightsBody(D, { print = false } = {}) {
+    const { s, agg, rows, all } = D, idx = SVX.index(s, agg), its = SVX.items(s, agg);
+    const top = its.slice().sort((a, b) => b.sc - a.sc).slice(0, 3), low = its.slice().sort((a, b) => a.sc - b.sc).filter((x) => !top.includes(x) || its.length <= 3).slice(0, 3);
+    const li = (x) => html`<li class="tone-${SVX.tone(x.sc)}"><span class="svx-pc">${fmtNum(Math.round(x.sc))}%</span><div class="grow"><b>${x.label}</b><small>${x.sub ? `${x.sub} · ` : ''}${fmtNum(x.n)} إجابة</small></div></li>`;
+    const words = SVX.words(rows, s), dep = SVX.depTable(s, all);
+    const lbl = idx == null ? '' : idx >= 85 ? 'ممتاز' : idx >= 75 ? 'جيد جداً' : idx >= 60 ? 'جيد' : idx >= 45 ? 'مقبول' : 'يحتاج تحسيناً';
+    return html`<div class="svx-ins">
+      <section class="svx-box svx-idx"><h3>${UI.icon('target')} مؤشر الرضا العام</h3>${idx == null ? html`<p class="hint">لا توجد أسئلة تقييم (نجوم، موافقة، توصية، مصفوفة، نعم/لا) لحساب المؤشر.</p>` : html`${UI.chart.gauge(Math.round(idx), { label: lbl, tone: SVX.tone(idx) })}<p class="svx-note">متوسط درجات أسئلة التقييم بعد تحويلها إلى نسبة من 100.</p>`}</section>
+      <section class="svx-box"><h3>${UI.icon('star')} نقاط القوة</h3>${top.length ? html`<ol class="svx-rank">${top.map(li)}</ol>` : html`<p class="hint">لا بيانات كافية.</p>`}</section>
+      <section class="svx-box"><h3>${UI.icon('alert')} فرص التحسين</h3>${low.length ? html`<ol class="svx-rank">${low.map(li)}</ol>` : html`<p class="hint">لا بيانات كافية.</p>`}</section>
+    </div>
+    ${dep ? html`<section class="svx-box mt"><h3>${UI.icon('building')} المقارنة بين الإدارات <small class="faint">— درجة كل سؤال تقييم من 100، مرتبة بالمؤشر</small></h3>${dep}</section>` : ''}
+    <div class="svx-ins two mt">
+      <section class="svx-box"><h3>${UI.icon('calendar')} المشاركات عبر الزمن</h3>${SVX.timeline(rows) || html`<p class="hint">لا مشاركات بعد.</p>`}</section>
+      <section class="svx-box"><h3>${UI.icon('message')} الكلمات الأكثر تكراراً في الإجابات النصية</h3>${words.length ? html`<div class="svx-words">${words.map((w, i) => html`<span style="--w:${(0.8 + (w.n / words[0].n) * 0.7).toFixed(2)}" class="${i < 3 ? 'hot' : ''}">${w.w} <small>${fmtNum(w.n)}</small></span>`)}</div>` : html`<p class="hint">لا توجد إجابات نصية بعد.</p>`}</section>
+    </div>
+    ${print ? (String((s.report || {}).notes || '').trim() ? html`<section class="svx-box mt"><h3>${UI.icon('edit')} التوصيات وخطة التحسين</h3><p class="svx-notes">${s.report.notes}</p></section>` : '')
+      : html`<section class="svx-box mt"><h3>${UI.icon('edit')} التوصيات وخطة التحسين <small class="faint">— تُحفظ مع الاستبيان وتظهر في التقرير المطبوع</small></h3><textarea class="input" rows="4" data-svxnotes placeholder="مثال: رفع سرعة الاستجابة لطلبات الطابعات — المسؤول: رئيس الدعم الفني — خلال شهر">${(s.report || {}).notes || ''}</textarea><div class="row mt" style="justify-content:flex-end"><button type="button" class="btn btn-primary btn-sm" data-svxsavenotes>${UI.icon('check')} حفظ التوصيات</button></div></section>`}`;
+  },
+  insights(D) { return D.rows.length ? html`<div data-svxins>${SVX.insightsBody(D)}</div>` : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: 'يظهر التحليل فور وصول المشاركات.' }); },
+
+  /* ── الطباعة كما تظهر ── */
+  freeze(h) {
+    const t = document.createElement('template'); t.innerHTML = String(h);
+    t.content.querySelectorAll('[data-count]').forEach((el) => { const v = Number(el.dataset.count) || 0, d = Number(el.dataset.dec) || 0; el.textContent = `${d ? v.toFixed(d) : fmtNum(Math.round(v))}${el.dataset.suffix || ''}`; });
+    return t.innerHTML;
+  },
+  filters(D) { const f = []; if (D.st.dep) f.push(`الإدارة: ${Data.nameOf('departments', D.st.dep, '')}`); if (D.st.role) f.push(`نوع الحساب: ${(SV_ROLES.find((x) => x[0] === D.st.role) || [, D.st.role])[1]}`); return f; },
+  report(D, P) {
+    const { s, rows, marks, aud } = D, o = SVX.state(s.id), set = Data.c.settings || {}, fl = SVX.filters(D);
+    const rate = aud.length ? Math.min(100, (marks.length / aud.length) * 100) : 0, secs = rows.length ? rows.reduce((x, r) => x + (r.secs || 0), 0) / rows.length : 0;
+    const box = (l, v, tone) => html`<div class="svx-k tone-${tone}"><b>${v}</b><small>${l}</small></div>`;
+    return html`<div class="svx-print${P.orient === 'landscape' ? ' land' : ''}">
+      ${P.head ? html`<header class="svx-ph"><img src="${ASSETS.logo}" alt=""><div class="grow"><b>${set.orgName || ''}</b><span>${set.systemName || ''}</span></div><div class="svx-pm"><b>تقرير نتائج ${s.quiz ? 'اختبار' : 'استبيان'}</b><span>${fmtDateTime(now())}</span></div></header>
+        <h1 class="svx-pt">${s.title}</h1>${s.desc ? html`<p class="svx-pd">${s.desc}</p>` : ''}
+        <p class="svx-pf">${[s.publishedAt ? `نُشر ${fmtDate(s.publishedAt)}` : '', s.endAt ? `ينتهي ${fmtDate(s.endAt)}` : '', s.anonymous ? 'مجهول الهوية' : '', ...fl].filter(Boolean).join(' · ') || 'كل المشاركات'}</p>
+        <div class="svx-ks">${box('المشاركات', fmtNum(marks.length), 'sky')}${box('المستهدفون', fmtNum(aud.length), 'violet')}${box('نسبة المشاركة', `${fmtNum(Math.round(rate))}%`, rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red')}${box('متوسط مدة الإجابة', secs ? `${fmtNum(Math.max(1, Math.round(secs / 60)))} د` : '—', 'slate')}${SVX.index(s, D.agg) != null ? box('مؤشر الرضا العام', `${fmtNum(Math.round(SVX.index(s, D.agg)))}%`, SVX.tone(SVX.index(s, D.agg))) : ''}</div>` : ''}
+      ${P.ins ? html`<h2 class="svx-ps">التحليل</h2>${SVX.insightsBody({ ...D, s: { ...s, anonymous: s.anonymous || !P.dep } }, { print: true })}` : ''}
+      ${!P.ins && P.dep && !s.anonymous ? html`<h2 class="svx-ps">المقارنة بين الإدارات</h2>${SVX.depTable(s, D.all)}` : ''}
+      ${P.qs ? html`<h2 class="svx-ps${P.ins ? ' pb' : ''}">نتائج الأسئلة</h2>${SVX.grid(D, { ...o, texts: P.texts ? o.texts : 0 }, { print: true, cols: P.cols, per: P.per })}` : ''}
+      ${P.sign ? html`<div class="svx-sign"><div><b>أعدّه</b><span>${Auth.user ? Auth.user.name : ''}</span><i></i></div><div><b>اعتمده</b><span></span><i></i></div></div>` : ''}
+    </div>`;
+  },
+  css(P) { return `@page{size:A4 ${P.orient === 'landscape' ? 'landscape' : 'portrait'};margin:12mm}.svx-print .svx-grid{grid-template-columns:repeat(${clamp(Number(P.cols) || 2, 1, 3)},minmax(0,1fr))}`; },
+  print(D, P, real) {
+    const go = () => UI.print(raw(SVX.freeze(SVX.report(D, P))), D.s.title, { css: SVX.css(P), bare: true });
+    if (!real) return go();
+    const R = document.documentElement, th = R.dataset.theme;
+    if (th !== 'light') { R.dataset.theme = 'light'; window.addEventListener('afterprint', () => { R.dataset.theme = th || ''; if (!th) delete R.dataset.theme; }, { once: true }); }
+    return go();
+  },
+  async printDialog(ctx) {
+    const D = ctx._svx; if (!D || !D.s) return;
+    const o = SVX.state(D.s.id), P = { head: 1, ins: D.rows.length ? 1 : 0, dep: D.s.anonymous ? 0 : 1, qs: 1, texts: o.texts, orient: 'portrait', cols: o.cols, per: 0, sign: 1 };
+    const ck = (k, l, sub = '', dis = false) => html`<label class="svx-opt${dis ? ' dis' : ''}"><input type="checkbox" data-pk="${k}"${P[k] ? raw(' checked') : ''}${dis ? raw(' disabled') : ''}><span><b>${l}</b>${sub ? html`<small>${sub}</small>` : ''}</span></label>`;
+    const read = (form) => { $$('[data-pk]', form).forEach((x) => { P[x.dataset.pk] = x.checked ? 1 : 0; }); P.orient = ($('[name="orient"]:checked', form) || {}).value || 'portrait'; const pc = Number(($('[name="pcols"]:checked', form) || {}).value); P.per = pc === 0 ? 1 : 0; P.cols = pc || 1; };
+    return UI.modal({
+      title: 'طباعة تقرير النتائج', icon: 'print', size: 'lg',
+      body: html`<p class="hint" style="margin-top:0">${UI.icon('info')} يُطبع التقرير بشكل العرض الذي اخترته في «الملخص» (شكل كل سؤال، والترتيب، وما أخفيته)${SVX.filters(D).length ? ` وبالتصفية الحالية: ${SVX.filters(D).join('، ')}` : ''}.</p>
+        <h4 class="svx-h4">${UI.icon('layers')} ما يُطبع</h4>
+        <div class="svx-opts">${ck('head', 'الترويسة والمؤشرات', 'الشعار، والعنوان، والمشاركات، ونسبة المشاركة، ومؤشر الرضا')}${ck('ins', 'التحليل', 'مؤشر الرضا، ونقاط القوة، وفرص التحسين، والمشاركات عبر الزمن، والتوصيات', !D.rows.length)}${ck('dep', 'المقارنة بين الإدارات', D.s.anonymous ? 'غير متاحة في الاستبيان مجهول الهوية' : 'درجة كل سؤال لكل إدارة', D.s.anonymous)}${ck('qs', 'نتائج الأسئلة', 'بالأشكال المختارة')}${ck('texts', 'الإجابات النصية', 'آخر 12 إجابة لكل سؤال')}${ck('sign', 'خانة الإعداد والاعتماد', 'في آخر التقرير')}</div>
+        <div class="svx-po"><div><h4 class="svx-h4">${UI.icon('file')} اتجاه الورقة</h4><div class="seg sm"><label><input type="radio" name="orient" value="portrait" checked><span>عمودي</span></label><label><input type="radio" name="orient" value="landscape"><span>أفقي</span></label></div></div>
+          <div><h4 class="svx-h4">${UI.icon('grid')} الأسئلة في الصفحة</h4><div class="seg sm">${[[1, 'عمود'], [2, 'عمودان'], [3, 'ثلاثة'], [0, 'سؤال لكل صفحة']].map(([v, l]) => html`<label><input type="radio" name="pcols" value="${v}"${v === o.cols ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div></div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'معاينة', kind: 'soft', icon: 'eye', handler: async (form) => { read(form); await SVX.preview(D, P); return false; } }, { label: 'طباعة', kind: 'primary', icon: 'print', handler: (form) => { read(form); SVX.print(D, P, true); return true; } }]
+    });
+  },
+  async preview(D, P) {
+    const h = await VPV.capture(() => SVX.print(D, P, false)); if (!h) { UI.toast('تعذرت المعاينة', 'warn'); return; }
+    const Pg = VPV.page(h), st = { z: 0 };
+    return UI.modal({
+      title: `معاينة التقرير: ${D.s.title}`, icon: 'eye', size: 'xl vpv-modal',
+      body: html`<section class="vpv-doc"><div class="vpv-tb"><span class="vpv-tt">${UI.icon('file')} التقرير كما سيُطبع</span><span class="chip tone-slate">${Pg.name}</span><span class="grow"></span><button type="button" class="icon-btn" data-vz="-1">−</button><button type="button" class="btn btn-ghost btn-xs" data-vz="fit"><span data-vzv>ملاءمة</span></button><button type="button" class="icon-btn" data-vz="1">+</button></div><div class="vpv-stage svx-stage"><iframe class="vpv-frame" title="معاينة التقرير" sandbox="allow-same-origin"></iframe></div></section>`,
+      onMount: (form) => {
+        const fr = form.querySelector('.vpv-frame'), stage = form.querySelector('.vpv-stage'), zv = form.querySelector('[data-vzv]');
+        const fit = () => clamp((stage.clientWidth - 8) / (Pg.w * 3.7795 + 30), 0.3, 1);
+        const zoom = () => { const d = fr.contentDocument; if (!d || !d.body) return; const z = st.z || fit(); d.body.style.zoom = String(z); zv.textContent = st.z ? `${Math.round(z * 100)}%` : `ملاءمة (${Math.round(z * 100)}%)`; };
+        UI.on(form, 'click', '[data-vz]', (e, b) => { const d = b.dataset.vz; st.z = d === 'fit' ? 0 : clamp(Math.round(((st.z || fit()) + (Number(d) > 0 ? 0.1 : -0.1)) * 10) / 10, 0.3, 2.5); zoom(); });
+        fr.addEventListener('load', zoom, { once: true });
+        fr.srcdoc = VPV.srcdoc(h, Pg);
+      },
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'طباعة', kind: 'primary', icon: 'print', handler: () => { SVX.print(D, P, true); return true; } }]
+    });
+  },
+  /* Excel بأوراق: الإجابات، والملخص، والمقارنة بين الإدارات */
+  xlsx(D) {
+    const { s, rows, all, agg } = D, qs = s.questions.filter(Surveys.answerable);
+    const ans = [['التاريخ', ...(s.anonymous ? [] : ['الاسم', 'الإدارة', 'نوع الحساب']), 'المدة (ث)', ...(s.quiz ? ['الدرجة'] : []), ...qs.map((q) => q.l)]];
+    rows.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach((r) => ans.push([fmtDateTime(r.at), ...(s.anonymous ? [] : [Data.userName(r.userId), Data.nameOf('departments', r.departmentId, ''), (SV_ROLES.find((x) => x[0] === r.role) || [, r.role || ''])[1]]), String(r.secs || ''), ...(s.quiz ? [r.max ? `${r.score}/${r.max}` : ''] : []), ...qs.map((q) => Surveys.fmtAnswer(q, (r.answers || {})[q.id], r.answers || {}))]));
+    const sum = [['م', 'السؤال', 'النوع', 'الإجابات', 'الخيار / البند', 'العدد أو المتوسط', 'النسبة', 'درجة السؤال من 100']];
+    qs.forEach((q, i) => { const a = agg.q[q.id] || { n: 0 }, D2 = a.n ? SVX.dist(s, q, a) : null, sc = SVX.score(q, a); if (!D2) { sum.push([String(i + 1), q.l, (SV_TYPES[q.t] || {}).label || '', String(a.n || 0), '', '', '', sc == null ? '' : String(Math.round(sc))]); return; } D2.forEach((d, j) => sum.push([j ? '' : String(i + 1), j ? '' : q.l, j ? '' : (SV_TYPES[q.t] || {}).label || '', j ? '' : String(a.n), d.label, q.t === 'matrix' ? d.value.toFixed(1) : String(d.value), q.t === 'matrix' ? '' : `${a.n ? Math.round((d.value / a.n) * 100) : 0}%`, j ? '' : sc == null ? '' : String(Math.round(sc))])); });
+    const sheets = [{ name: 'الملخص', widths: [5, 44, 16, 10, 30, 16, 10, 16], rows: sum }, { name: 'الإجابات', widths: [18, ...(s.anonymous ? [] : [24, 24, 14]), 10, ...(s.quiz ? [10] : []), ...qs.map(() => 30)], rows: ans }];
+    if (!s.anonymous) {
+      const sq = qs.filter((q) => ['rating', 'likert', 'nps', 'scale', 'matrix', 'yesno', 'truefalse'].includes(q.t)), by = new Map(); all.forEach((r) => { const k = r.departmentId || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(r); });
+      if (sq.length) sheets.push({ name: 'حسب الإدارة', widths: [28, 10, ...sq.map(() => 14)], rows: [['الإدارة', 'المشاركات', ...sq.map((q) => q.l)], ...[...by.entries()].map(([dep, rs]) => { const ag = Surveys.aggregate(s, rs); return [dep ? Data.nameOf('departments', dep, '') : 'غير محددة', String(rs.length), ...sq.map((q) => { const v = SVX.score(q, ag.q[q.id]); return v == null ? '' : String(Math.round(v)); })]; })] });
+    }
+    downloadBlob(XL.write(sheets), `${s.title}-${dateInput(now())}.xlsx`);
+  },
+  bind(ctx) {
+    const redraw = () => { const D = ctx._svx; const box = ctx.view.querySelector('[data-svx]'); if (!D || !box) return; box.outerHTML = String(SVX.summary(D)); UI.hydrate(ctx.view.querySelector('[data-svx]')); };
+    const upd = (f) => { const D = ctx._svx; if (!D) return; const o = SVX.state(D.s.id); f(o); SVX.save(D.s.id, o); redraw(); };
+    UI.on(ctx.view, 'click', '[data-svxset]', (e, b) => { const [k, v] = b.dataset.svxset.split(':'); upd((o) => { o[k] = ['cols', 'pct', 'cnt', 'texts'].includes(k) ? Number(v) : v; if (k === 'chart') o.per = {}; }); });
+    UI.on(ctx.view, 'click', '[data-svxm]', (e, b) => { const [q, m] = b.dataset.svxm.split(':'); upd((o) => { o.per = { ...o.per, [q]: m }; }); });
+    UI.on(ctx.view, 'click', '[data-svxhide]', (e, b) => { upd((o) => { o.hide = [...new Set([...o.hide, b.dataset.svxhide])]; }); UI.toast('أُخفي السؤال من العرض والطباعة — «إعادة الضبط» تعيده', 'info'); });
+    UI.on(ctx.view, 'click', '[data-svxreset]', () => upd((o) => { o.per = {}; o.hide = []; }));
+    UI.on(ctx.view, 'click', '[data-svxsavenotes]', async () => { const D = ctx._svx, t = ctx.view.querySelector('[data-svxnotes]'); if (!D || !t) return; try { await Surveys.patch(D.s.id, { report: { ...(D.s.report || {}), notes: t.value.trim().slice(0, 4000), at: now(), by: Auth.user.id } }, 'تحديث توصيات تقرير الاستبيان'); UI.toast('حُفظت التوصيات، وتظهر في التقرير المطبوع'); } catch (ex) { UI.error(ex); } });
+    UI.on(ctx.view, 'click', '[data-act="svxlsx"]', () => { const D = ctx._svx; if (!D) return; if (!D.rows.length) { UI.toast('لا توجد مشاركات لتصديرها', 'info'); return; } SVX.xlsx(D); });
+  }
+};
 
 boot();
 })();
