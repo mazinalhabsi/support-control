@@ -2140,7 +2140,7 @@ Pages.dashTech = (ctx) => Pages.live(ctx, async () => {
     </div>
     <section class="mt"><div class="panel-head" style="padding:0 2px 12px"><h2>${UI.icon('layers')} طابور عملي</h2><p>اسحب البطاقة من «غير مسندة» لاستلامها، أو بين الأعمدة لتغيير الحالة</p></div><div id="board"></div></section>
     <div class="grid g-3 mt">
-      ${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${!LB.ok() ? '' : UI.panel({ title: 'لوحة الشرف', icon: 'star', sub: `آخر ${days} يوماً`, body: UI.chart.leader(lb.slice(0, 6)) })}
+      ${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await Pages.myVouchersPanel()}${!LB.ok() ? '' : UI.panel({ title: 'لوحة الشرف', icon: 'star', sub: `آخر ${days} يوماً`, body: UI.chart.leader(lb.slice(0, 6)) })}
     </div>
     ${inv ? html`<div class="grid g-main mt">${UI.panel({ title: 'الوارد والمحلول في الأكاديمية', icon: 'pulse', body: UI.chart.area([{ name: 'واردة', tone: 'sky', values: Stats.daily(win.created, 'createdAt', from, days) }, { name: 'محلولة', tone: 'teal', values: Stats.daily(win.resolved, 'resolvedAt', from, days) }], Stats.dayLabels(from, days), { height: 200 }) })}${Pages.invWidget(inv)}</div>` : ''}`);
   await Board.render($('#board', ctx.view), { animate: false });
@@ -2162,7 +2162,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
     ${UI.panel({ cls: 'mt', body: html`<div class="tiles">${Nav.hidden('/chat') ? '' : Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
       ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)} ${Pages.noteChip(t)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
-      <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
+      <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await Pages.myVouchersPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
     </div>`);
 }, null);
 
@@ -5289,7 +5289,7 @@ Pages.saveVoucher = async (v) => {
   const rec = { id: uid('vc'), number: `VCH-${new Date().getFullYear()}-${pad(seq, 5)}`, at: now(), userId: Auth.user.id, units: (v.lines || []).reduce((s, l) => s + Number(l.qty || 0), 0), ...v };
   await DB.put('vouchers', rec);
   await Data.log('move', 'inventory', rec.id, `${(VOUCHER_KIND[rec.type] || {}).label || 'سند'} ${rec.number} — ${rec.holder || Data.nameOf('departments', rec.departmentId, '')}`);
-  if (rec.holderId) await Data.notify([rec.holderId], { title: `${(VOUCHER_KIND[rec.type] || {}).title}: ${rec.number}`, body: (rec.lines || []).map((l) => l.name).join('، '), link: `/inventory/vouchers?id=${rec.id}`, kind: 'inventory' });
+  if (rec.holderId) await Data.notify([rec.holderId], { title: `${(VOUCHER_KIND[rec.type] || {}).title}: ${rec.number}`, body: (rec.lines || []).map((l) => l.name).join('، '), link: `/my-vouchers?id=${rec.id}`, kind: 'inventory' });
   Bus.emit('inventory', {});
   return rec;
 };
@@ -5309,7 +5309,7 @@ Pages.deviceModal = async (itemId, scope = {}) => {
   const res = await UI.modal({
     title: it.name, icon: 'box', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
-      ${DevNote.html(it, mine)}
+      ${DevNote.html(it, mine)}${DAL.can() ? html`<div class="dal-add"><button type="button" class="btn btn-ghost btn-sm" data-dalert="item:${it.id}">${UI.icon('alert')} ${DAL.live(it) ? 'تعديل تنبيه الصنف' : 'إضافة تنبيه على كل أجهزة هذا الصنف'}</button></div>` : ''}
       ${mine.some((a) => a.specs && Object.keys(a.specs).length) ? html`<p class="hint mt">${UI.icon('info')} ${fmtNum(mine.filter((a) => a.specs && Object.keys(a.specs).length).length)} وحدة لها مواصفات خاصة (من اعتماد نموذج على مواقع بعينها): اضغط رقمها التسلسلي لعرضها.</p>` : ''}
       <div class="kpis mt" style="border-radius:14px">
         ${UI.kpi({ label: 'في المخازن', icon: 'warehouse', tone: 'teal', value: it.onHand })}
@@ -11788,7 +11788,7 @@ Pages.assetDetail = async (assetId) => {
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 6px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip(S.tone, S.label, S.icon)}${UI.chip('sky', IC.label(it.categoryId) || 'بدون تصنيف', 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}</div></div></div>
       ${DevNote.html(it, [a], 'ملاحظة على هذا الجهاز')}
       <div class="kpis mt" style="border-radius:14px">${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maint.length ? 'amber' : 'teal', value: maint.length })}${UI.kpi({ label: 'السندات المرتبطة', icon: 'file', tone: 'sky', value: vs.length })}${UI.kpi({ label: 'عمر التسجيل', icon: 'clock', tone: 'violet', value: Math.max(0, Math.floor((now() - (a.addedAt || now())) / DAY)), foot: html`<span class="faint small">يوم</span>` })}</div>
-      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button><button type="button" class="btn btn-soft btn-sm" data-asspec="${a.id}">${UI.icon('tag')} مواصفات هذا الجهاز</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
+      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button><button type="button" class="btn btn-soft btn-sm dal-btn" data-dalert="asset:${a.id}">${UI.icon('alert')} ${DAL.live(a) ? 'تعديل التنبيه' : 'إضافة تنبيه'}</button><button type="button" class="btn btn-soft btn-sm" data-asspec="${a.id}">${UI.icon('tag')} مواصفات هذا الجهاز</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
       ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}${a && a.specs && String(a.specs[k] == null ? '' : a.specs[k]).trim() ? html` <span class="chip tone-violet mdb-own" title="عُدِّلت لهذا الجهاز وحده">لهذا الجهاز</span>` : ''}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
       ${a.status === 'retired' ? html`<div class="u-sec mt"><h3>${UI.icon('x')} الخروج من الخدمة</h3><dl class="kv"><dt>السبب</dt><dd>${a.retireReason || '—'}</dd><dt>كان في</dt><dd>${Data.nameOf('departments', a.retiredFrom, '—')}</dd><dt>التاريخ</dt><dd>${a.retiredAt ? fmtDate(a.retiredAt) : '—'}</dd>${a.replacedBy ? html`<dt>البديل</dt><dd class="ltr" style="text-align:start">${a.replacedBy}</dd>` : ''}</dl></div>` : ''}
       ${maint.length ? html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3>${Pages.maintSummary(maint)}${Pages.maintTimeline(maint)}</div>` : html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3><p class="faint small" style="margin:0">لم تدخل هذه الوحدة الصيانة من قبل.</p></div>`}
@@ -20146,7 +20146,7 @@ Pages.wsEdit = async ({ id = '', unitId = '' } = {}) => {
   return UI.modal({
     title: w ? `محطة العمل: ${WS.label(w)}` : `محطة عمل جديدة في «${unit.name}»`, icon: 'monitor', size: 'lg',
     body: html`<div class="form-grid">
-        <div class="field"><label>اسم المحطة <small class="faint">(اختياري)</small></label><input class="input" name="name" value="${(w && w.name) || ''}" placeholder="مثال: مكتب أحمد، المحطة 3، ركن الاستقبال" autocomplete="off"></div>
+        <div class="field"><label>اسم المحطة <small class="faint">(اختياري — يمكن تغييره في أي وقت)</small></label><input class="input" name="name" value="${(w && w.name) || ''}" placeholder="${w ? WS.label({ ...w, name: '' }) : WS.officeName(unit)}" maxlength="60" autocomplete="off">${WS.nameSug(unit, w)}</div>
         <div class="field wide">${WS.peoplePick(people, w ? WS.holders(w) : [], unit, units)}</div>
       </div>
       <h4 class="mt">${UI.icon('box')} أجهزة المحطة <small class="faint">— من عهدة «${unit.name}» غير المربوطة بمحطة أخرى. اترك ما لا يخصها، فيبقى مشتركاً للمكتب</small></h4>
@@ -20347,7 +20347,7 @@ Pages.custodyMap = async (ctx) => {
   const unitView = (u) => {
     const kids = T.kids(st.dep, u.id), ws = wsList.filter((w) => w.unitId === u.id).sort((a, b) => (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0)), sh = shared(u.id), tl = lendsAt(u.id), shN = [...sh.values()].reduce((s, q) => s + q, 0);
     const canE = WS.canEdit(), lk = WS.lookMap.get(u.id) || {};
-    const acts = (w) => (canE ? html`<span class="org-acts cm-wsacts"><button type="button" class="icon-btn" data-wsed="${w.id}" title="تعديل المحطة وأجهزتها">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-wsmove="${w.id}" title="نقل إلى مكتب آخر">${UI.icon('swap')}</button><button type="button" class="icon-btn danger" data-wsdel="${w.id}" title="حذف المحطة">${UI.icon('trash')}</button></span>` : '');
+    const acts = (w) => (canE ? html`<span class="org-acts cm-wsacts"><button type="button" class="icon-btn" data-wsren="${w.id}" title="تسمية المحطة">${UI.icon('tag')}</button><button type="button" class="icon-btn" data-wsed="${w.id}" title="تعديل المحطة وأجهزتها">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-wsmove="${w.id}" title="نقل إلى مكتب آخر">${UI.icon('swap')}</button><button type="button" class="icon-btn danger" data-wsdel="${w.id}" title="حذف المحطة">${UI.icon('trash')}</button></span>` : '');
     const drg = (k, id) => (canE ? raw(` draggable="true" data-mdrag="${k}:${id}"`) : '');
     const holder = (w) => { const ps = WS.holders(w).map((id) => Data.c.users.get(id)).filter(Boolean); return ps.length ? html`<span class="cm-holders${ps.length > 1 ? ' multi' : ''}">${ps.slice(0, 3).map((p) => html`<span class="cm-holder"${drg('p', p.id)} title="${canE ? 'اسحبه إلى محطة أخرى، أو إلى «موظفو المكتب» لفك التخصيص' : p.name}">${UI.avatar(p, 'av-sm')}<span>${p.name}</span></span>`)}${ps.length > 3 ? html`<span class="cm-holder more" title="${ps.slice(3).map((p) => p.name).join('، ')}">+${fmtNum(ps.length - 3)}</span>` : ''}${ps.length > 1 ? html`<i class="cm-cotag" title="محطة مشتركة بين ${fmtNum(ps.length)} موظفين">${UI.icon('users')} مشتركة</i>` : ''}</span>` : html`<small class="cm-noholder">${UI.icon('user-plus')} بلا موظف${canE ? ' — اسحبه هنا' : ''}</small>`; };
     const wsBox = (w) => html`<div class="oc-box cm-node cm-wsbox tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" data-mord="ws:${w.id}"${drg('ws', w.id)} tabindex="0">${acts(w)}<span class="oc-ic">${UI.icon(w.icon || 'o3d:office')}</span><em>${UI.icon('monitor')} محطة عمل</em><b>${wsName(w)}</b>${holder(w)}${CMV.scene(wsLines(w), items, 'xs')}<span class="cm-n${WS.count(w) ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(WS.count(w))}</span>${pendAt(`w:${w.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`w:${w.id}`))}</span>` : ''}</div>`;
@@ -20380,7 +20380,7 @@ Pages.custodyMap = async (ctx) => {
       ${kidCards ? sec('layers', 'الفروع التابعة', kids.length, kidCards) : ''}</div>`;
   };
   /* محطة العمل: أجهزتها شبكة أو قائمة، والضغط على الجهاز يعرض تفاصيله */
-  const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${WS.holders(w).length ? html`<small>${UI.icon(WS.holders(w).length > 1 ? 'users' : 'user')} ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}${WS.holders(w).length > 1 ? ' — محطة مشتركة' : ''}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
+  const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${WS.holders(w).length ? html`<small>${UI.icon(WS.holders(w).length > 1 ? 'users' : 'user')} ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}${WS.holders(w).length > 1 ? ' — محطة مشتركة' : ''}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-ghost btn-sm" data-wsren="${w.id}">${UI.icon('tag')} تسمية</button>` : ''}${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
     <div class="dk-stage tone-${w.tone || 'sky'}">${CMV.scene(wsLines(w), items, 'lg')}</div>
     ${sec('box', 'أجهزة المحطة', WS.count(w), devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`)}</div>`;
   const tray = () => {
@@ -20568,8 +20568,8 @@ Pages.cmCommit = async (print) => {
     try {
       const w = l.wsId ? await DB.get('workstations', l.wsId) : null;
       if (l.kind === 'store') { await Data.inv.move({ type: 'receive', itemId: l.itemId, warehouseId: l.whId, qty: l.qty, note: 'استلام من «توزيع العهدة»' }); if (sns.length) await Data.assets.add({ itemId: l.itemId, warehouseId: l.whId, serials: sns, note: 'استلام من «توزيع العهدة»' }); }
-      else if (l.kind === 'add') { await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : l.unitId ? 'إضافة من «توزيع العهدة»' : 'عهدة عامة للإدارة من «توزيع العهدة»' }); }
-      else if (l.temp) { await DL.create({ departmentId: l.depId, unitId: l.unitId, holderId: (w && w.holderId) || '', itemId: l.itemId, qty: l.qty, dueAt: l.due ? new Date(`${l.due}T23:59:00`).getTime() : 0, note: w ? `لمحطة «${WS.label(w)}»` : '' }); }
+      else if (l.kind === 'add') { await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && WS.holders(w).length === 1 && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : l.unitId ? 'إضافة من «توزيع العهدة»' : 'عهدة عامة للإدارة من «توزيع العهدة»' }); }
+      else if (l.temp) { await DL.create({ departmentId: l.depId, unitId: l.unitId, holderId: (w && WS.holders(w).length === 1 && w.holderId) || '', itemId: l.itemId, qty: l.qty, dueAt: l.due ? new Date(`${l.due}T23:59:00`).getTime() : 0, note: w ? `لمحطة «${WS.label(w)}»` : '' }); }
       else { await Data.units.move({ departmentId: l.depId, itemId: l.itemId, fromUnitId: '', toUnitId: l.unitId, qty: l.qty }); }
       if (l.wsId && !(l.kind === 'assign' && l.temp)) { try { await WS.link(l.wsId, l.itemId, l.qty); } catch (ex) { failed.push([l, `أُضيف للمكتب ولم يُربط بالمحطة: ${ex.message}`]); } }
       done.push(l);
@@ -22334,7 +22334,7 @@ WS.label = (w) => {
 WS.peoplePick = (people, sel, unit, units) => html`<div class="ws-ppl" data-wsppl>
   <div class="ws-pplh"><b>${UI.icon('users')} الموظفون <small data-wspn>${sel.length ? `${fmtNum(sel.length)} محدد` : 'لا أحد'}</small></b><div class="search-box">${UI.icon('search')}<input type="search" data-wspq placeholder="ابحث بالاسم أو الرقم" aria-label="ابحث عن موظف"></div></div>
   <div class="ws-plist">${[...people].sort((a, b) => (sel.indexOf(a.id) < 0) - (sel.indexOf(b.id) < 0) || (sel.indexOf(a.id) - sel.indexOf(b.id))).map((u) => html`<label class="ws-pp${sel.includes(u.id) ? ' on' : ''}" data-q="${normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`)}"><input type="checkbox" name="hold" value="${u.id}"${sel.includes(u.id) ? raw(' checked') : ''}>${UI.avatar(u, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${u.unitId === unit.id ? 'في هذا المكتب' : unitName(u.unitId, units) || Data.nameOf('departments', u.departmentId, '')}</small></span></label>`)}${people.length ? '' : html`<p class="hint">لا موظفون في هذه الإدارة</p>`}</div>
-  <small class="hint">${UI.icon('info')} حدد موظفاً أو أكثر: المحطة المشتركة يستخدمها أكثر من موظف (مناوبات، استقبال، مكتب مشترك). والموظف الأول تُسجَّل عليه عهدة أجهزتها.</small>
+  <small class="hint">${UI.icon('info')} حدد موظفاً أو أكثر: المحطة المشتركة يستخدمها أكثر من موظف (مناوبات، استقبال، مكتب مشترك). وأجهزة المحطة المشتركة تُسجَّل على المحطة ومكتبها لا على موظف بعينه، واسمها يُؤخذ من اسم المكتب ما لم تكتب لها اسماً.</small>
 </div>`;
 WS.bindPeoplePick = (form) => {
   const box = $('[data-wsppl]', form); if (!box) return;
@@ -23312,7 +23312,7 @@ const VPV = {
     const item = (l) => {
       const it = its.get(l.itemId) || l, sub = [[l.brand, l.model].filter(Boolean).join(' '), l.sku].filter(Boolean).join(' · ');
       return html`<div class="vpv-it">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b>${l.name || '—'}</b>${sub ? html`<small class="ltr-num">${sub}</small>` : ''}${cust && (l.place || l.ws) ? html`<small>${UI.icon('building')} ${[l.place, l.ws].filter(Boolean).join(' — ')}</small>` : ''}
-        ${(l.serials || []).length ? html`<div class="vpv-sns">${l.serials.slice(0, 12).map((s) => { const a = bySn.get(normalizeAr(s)); return html`<button type="button" class="vpv-sn"${a ? raw(` data-vpas="${esc(a.id)}" title="تفاصيل الجهاز"`) : raw(' disabled')}><code>${s}</code>${a && a.tag ? html`<i>TAG ${a.tag}</i>` : ''}</button>`; })}${l.serials.length > 12 ? html`<span class="faint small">+${fmtNum(l.serials.length - 12)}</span>` : ''}</div>` : ''}</div>
+        ${(l.serials || []).length ? html`<div class="vpv-sns">${l.serials.slice(0, 12).map((s) => { const a = bySn.get(normalizeAr(s)); return html`<button type="button" class="vpv-sn"${a && VPV.staff() ? raw(` data-vpas="${esc(a.id)}" title="تفاصيل الجهاز"`) : raw(' disabled')}><code>${s}</code>${a && a.tag ? html`<i>TAG ${a.tag}</i>` : ''}</button>`; })}${l.serials.length > 12 ? html`<span class="faint small">+${fmtNum(l.serials.length - 12)}</span>` : ''}</div>` : ''}</div>
         <em><b>${fmtNum(l.qty || 0)}</b>${l.unit || 'قطعة'}</em></div>`;
     };
     const st = { z: 0, P: null, cap: null };
@@ -23387,7 +23387,7 @@ const CCX = {
   recent() { try { const r = JSON.parse(localStorage.getItem('sq_cc_recent') || '[]'); return Array.isArray(r) ? r : []; } catch (_) { return []; } },
   touch(k) { try { localStorage.setItem('sq_cc_recent', JSON.stringify([k, ...CCX.recent().filter((x) => x !== k)].slice(0, 6))); } catch (_) { /* تجاهل */ } },
   status(allowed) {
-    const rows = [['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0, 'ratings', 'star'], ['طلب التقييم', Ratings.cfg().on, 'ratings', 'message'], ['الإسناد التلقائي', (Data.c.settings.autoAssign || {}).on !== 0, 'handling', 'swap'], ['الإغلاق التلقائي', Data.c.settings.autoClose !== 0, 'handling', 'clock'], ['التعبئة الفورية', FF.on(), 'forms', 'edit'], [XM.name(), XM.on(), 'extmaint', 'tools'], ['الملاحظات', VAULT.on(), 'vault', 'key'], ['قوالب الاستمارات', !!(VL.data().tpls || []).length, 'vouchers', 'print']];
+    const rows = [['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0, 'ratings', 'star'], ['طلب التقييم', Ratings.cfg().on, 'ratings', 'message'], ['الإسناد التلقائي', (Data.c.settings.autoAssign || {}).on !== 0, 'handling', 'swap'], ['الإغلاق التلقائي', Data.c.settings.autoClose !== 0, 'handling', 'clock'], ['التعبئة الفورية', FF.on(), 'forms', 'edit'], [XM.name(), XM.on(), 'extmaint', 'tools'], ['الملاحظات', VAULT.on(), 'vault', 'key'], ['قوالب الاستمارات', !!(VL.data().tpls || []).length, 'vouchers', 'print'], ['سندات الموظفين', VSELF.on(), 'vself', 'file']];
     return html`<div class="cch-status">${rows.map(([l, on, k, ic]) => { const g = CCX.meta(CCX.groupOf(k)).c, inner = html`<span class="cch-sti">${UI.icon(ic)}</span><span class="grow"><b>${l}</b><small>${on ? 'مفعّل' : 'موقوف'}</small></span><i class="cch-led"></i>`; return allowed.some((x) => x[0] === k) ? html`<button type="button" class="cch-st ${on ? 'on' : 'off'}" style="--g:${g}" data-cc="${k}" title="فتح الإعداد">${inner}</button>` : html`<span class="cch-st ${on ? 'on' : 'off'}" style="--g:${g}">${inner}</span>`; })}</div>`;
   },
   home(groups, allowed) {
@@ -23802,6 +23802,231 @@ MDB.banner = (live, fam, cnt) => {
   const N = ['نموذج واحد', 'نموذجان', 'نماذج', 'نموذجاً', 'نموذج'];
   return html`<div class="mdb-banner"><span class="mdb-bart">${UI.illu('computer')}${UI.illu('printer')}</span><div class="grow"><b>${need.length ? `${arCount(need.length, N)} يمكن بناؤها من أجهزتكم الموزعة` : 'أجهزتكم مبنية في نماذجها'}</b><span>${need.length ? 'تُجمع الأجهزة حسب الماركة والموديل داخل فئتها، ثم تُكتب مواصفات كل نموذج مرة واحدة فتسري على كل أجهزته.' : ''}${noSpec ? ` ${arCount(noSpec, N)} لها أجهزة مسجلة بلا مواصفات بعد.` : ''}</span></div>${need.length ? html`<button type="button" class="btn btn-primary btn-sm" data-act="mdb">${UI.icon('layers')} بناء النماذج</button>` : ''}${noSpec ? html`<button type="button" class="btn btn-soft btn-sm" data-act="mdbspecs">${UI.icon('edit')} إكمال المواصفات</button>` : ''}</div>`;
 };
+
+/* ══════════ الجولة 18: اسم محطة العمل من اسم المكتب، وعهدة المحطة المشتركة ══════════
+   «مكتب الإداريين» ← «محطة الإداريين». المحطة المشتركة (أكثر من موظف) بلا اسم تُسمّى باسم مكتبها لا باسم أول موظف،
+   وأجهزتها تُسجَّل للمحطة والمكتب لا لأول موظف فيها. والاسم يُعدَّل في أي وقت من زر «تسمية» أو بالنقر المزدوج عليه. */
+WS.officeName = (unit) => {
+  const u = typeof unit === 'string' ? Data.list('deptUnits').find((x) => x.id === unit) : unit;
+  const n = String((u && u.name) || '').trim(); if (!n) return 'محطة عمل';
+  if (/^محط(ة|ات)\s/.test(n)) return n;
+  const m = n.match(/^(مكتب|مكاتب|غرفة|قاعة|ركن|صالة)\s+(.+)$/);
+  return `محطة ${m ? m[2] : n}`;
+};
+{
+  const l0 = WS.label;
+  WS.label = (w) => {
+    const nm = String((w && w.name) || '').trim(); if (nm) return nm;
+    if (w && w.unitId && WS.holders(w).length > 1) return WS.officeName(w.unitId);
+    return l0(w);
+  };
+}
+/* اقتراحات الاسم: باسم المكتب، وباسم الموظفين، ورقم المحطة */
+WS.nameSug = (unit, w, sibs = 0) => {
+  const off = WS.officeName(unit), hs = w ? WS.holders(w) : [];
+  const first = (id) => String(Data.userName(id) || '').trim().split(/\s+/)[0] || '';
+  const out = [[off, 'باسم المكتب', 'building']];
+  if (sibs > 0) out.push([`${off} ${fmtNum(sibs + 1)}`, 'باسم المكتب ورقمها', 'hash']);
+  if (hs.length === 1) out.push([`محطة ${Data.userName(hs[0])}`, 'باسم الموظف', 'user']);
+  if (hs.length > 1) out.push([`محطة ${hs.slice(0, 2).map(first).filter(Boolean).join(' و')}${hs.length > 2 ? ` و${fmtNum(hs.length - 2)} آخرين` : ''}`, 'بأسماء الموظفين', 'users']);
+  return html`<div class="ws-sug"><span class="faint small">${UI.icon('sparkle')} اقتراح:</span>${[...new Map(out.map((x) => [x[0], x])).values()].map(([v, l, ic]) => html`<button type="button" class="ws-sugb" data-wsname="${v}" title="${l}">${UI.icon(ic)} ${v}</button>`)}</div>`;
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-wsname]'); if (!b) return;
+  e.preventDefault(); const f = b.closest('form') || b.closest('.modal-body'); const i = f && f.querySelector('input[name="name"]'); if (!i) return;
+  i.value = b.dataset.wsname; i.dispatchEvent(new Event('input', { bubbles: true })); i.focus();
+});
+Pages.wsRename = async (id) => {
+  if (!WS.canEdit()) { UI.toast('تسمية المحطات لمن يملك صرف العهدة أو إضافتها', 'warn'); return null; }
+  const w = await DB.get('workstations', id); if (!w) return null;
+  const units = await DB.getAll('deptUnits'), unit = units.find((u) => u.id === w.unitId) || { name: '' };
+  const sibs = (await DB.getAll('workstations', 'unitId', KR(w.unitId))).filter((x) => x.kind !== 'shared' && x.id !== w.id).length;
+  const auto = WS.label({ ...w, name: '' });
+  return UI.modal({
+    title: 'تسمية محطة العمل', icon: 'tag', size: 'sm',
+    body: html`<div class="field"><label>اسم المحطة <small class="faint">(يمكن تغييره في أي وقت)</small></label><input class="input" name="name" value="${w.name || ''}" placeholder="${auto}" maxlength="60" autocomplete="off" autofocus></div>
+      ${WS.nameSug(unit, w, sibs)}
+      <p class="hint mt">${UI.icon('info')} في «${unit.name || 'المكتب'}»${WS.holders(w).length ? ` · ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}` : ''}. اتركه فارغاً ليُسمّى تلقائياً: <b>${auto}</b></p>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ الاسم', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+      const v = String(form.querySelector('[name="name"]').value || '').trim().slice(0, 60);
+      if (v === String(w.name || '').trim()) return true;
+      await WS.patch(id, { name: v }, `تسمية المحطة «${WS.label(w)}» ← «${v || auto}»`);
+      UI.toast(`صار اسم المحطة: ${v || auto}`); return true;
+    } }]
+  });
+};
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-wsren]'); if (!b) return; e.preventDefault(); e.stopPropagation(); Pages.wsRename(b.dataset.wsren).catch(UI.error); }, true);
+
+/* ══════════ الجولة 18: حقل «تنبيه» على الجهاز، منفصل عن الملاحظات ══════════
+   التنبيه (معلومة / تنبيه / تحذير مهم، وحتى تاريخ اختياري) يظهر في تفاصيل الصنف والوحدة، وعند الصرف والإعارة والنقل
+   والاستبدال والإرجاع، وفي اختيار الوحدات وسلة الصرف. الملاحظات العادية تبقى ظاهرة بلون هادئ ولا تُنبّه. */
+const DAL = {
+  LV: { info: ['معلومة', 'sky', 'info'], warn: ['تنبيه', 'amber', 'alert'], stop: ['تحذير مهم', 'red', 'alert'] },
+  ORDER: ['info', 'warn', 'stop'],
+  live(x) {
+    if (!x || !String(x.alert || '').trim()) return null;
+    if (x.alertUntil && Number(x.alertUntil) < startOfDay()) return null;
+    return { t: String(x.alert).trim(), lv: DAL.LV[x.alertLevel] ? x.alertLevel : 'warn', until: Number(x.alertUntil) || 0, by: x.alertBy || '', at: x.alertAt || 0 };
+  },
+  top(list) { return list.reduce((m, a) => (DAL.ORDER.indexOf(a.lv) > DAL.ORDER.indexOf(m) ? a.lv : m), 'info'); },
+  can: () => !!Auth.user && ['inventory.manage', 'inventory.move', 'custody.direct', 'maint.work'].some((k) => canUser(Auth.user, k)),
+  chip(a) { const L = DAL.LV[a.lv]; return html`<span class="chip tone-${L[1]} dal-chip">${UI.icon(L[2])} ${L[0]}</span>`; },
+  async edit(kind, id) {
+    if (!DAL.can()) { UI.toast('التنبيهات لمن يملك إدارة المخزن أو صرف العهدة', 'warn'); return null; }
+    const store = kind === 'item' ? 'items' : 'assets', rec = await DB.get(store, id); if (!rec) return null;
+    const it = kind === 'item' ? rec : await DB.get('items', rec.itemId), cur = DAL.live(rec) || { t: String(rec.alert || ''), lv: rec.alertLevel || 'warn', until: Number(rec.alertUntil) || 0 };
+    const title = kind === 'item' ? `تنبيه على كل أجهزة «${rec.name}»` : `تنبيه على الجهاز ${rec.serial || ''}`;
+    return UI.modal({
+      title, icon: 'alert', size: 'sm',
+      body: html`${kind === 'asset' && it ? html`<p class="t-sub" style="margin-top:0">${it.name}${rec.tag ? ` · TAG ${rec.tag}` : ''}</p>` : ''}
+        <div class="field"><label>المستوى</label><div class="seg dal-lv" role="radiogroup" aria-label="مستوى التنبيه">${DAL.ORDER.map((k) => html`<label class="lv-${k}"><input type="radio" name="lv" value="${k}"${cur.lv === k ? raw(' checked') : ''}><span>${UI.icon(DAL.LV[k][2])} ${DAL.LV[k][0]}</span></label>`)}</div></div>
+        ${UI.field({ name: 'alert', label: 'نص التنبيه', type: 'textarea', rows: 3, wide: true, placeholder: kind === 'item' ? 'مثال: لا يُصرف إلا بموافقة رئيس القسم' : 'مثال: البطارية ضعيفة — يُستخدم موصولاً بالكهرباء' }, cur.t)}
+        ${UI.field({ name: 'until', label: 'يبقى حتى (اختياري)', type: 'date' }, cur.until ? dateInput(cur.until) : '')}
+        <p class="hint">${UI.icon('info')} يظهر ${kind === 'item' ? 'على كل وحدات هذا الصنف' : 'على هذا الجهاز وحده'}: في تفاصيله، وعند الصرف والإعارة والنقل والاستبدال والإرجاع، وفي اختيار الوحدات. «تحذير مهم» يظهر باللون الأحمر مع إشعار منبثق.</p>`,
+      actions: [...(String(rec.alert || '').trim() ? [{ label: 'إزالة التنبيه', kind: 'danger', icon: 'trash', handler: async () => { await DAL.save(store, id, null); UI.toast('أُزيل التنبيه'); return 'removed'; } }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ التنبيه', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+        const v = UI.formValues(form), t = String(v.alert || '').trim().slice(0, 400);
+        if (!t) throw new AppError('اكتب نص التنبيه، أو اضغط «إزالة التنبيه»');
+        await DAL.save(store, id, { alert: t, alertLevel: DAL.LV[v.lv] ? v.lv : 'warn', alertUntil: v.until ? fromDateInput(v.until, true) : 0 });
+        UI.toast('حُفظ التنبيه'); return 'saved';
+      } }]
+    });
+  },
+  async save(store, id, p) {
+    const cur = await DB.get(store, id); if (!cur) return;
+    const nx = { ...cur, updatedAt: now() };
+    if (p) Object.assign(nx, p, { alertBy: Auth.user.id, alertAt: now() }); else ['alert', 'alertLevel', 'alertUntil', 'alertBy', 'alertAt'].forEach((k) => delete nx[k]);
+    await DB.put(store, nx);
+    await Data.log('update', 'inventory', id, `${p ? 'تنبيه' : 'إزالة تنبيه'} ${store === 'items' ? `الصنف ${cur.name}` : `الجهاز ${cur.serial || ''}`}${p ? `: ${p.alert}` : ''}`);
+    Bus.emit('inventory', {});
+  }
+};
+/* التنبيه بدل الملاحظة في كل ما يُنبّه؛ والملاحظة تبقى ظاهرة بهدوء */
+DevNote.item = (it) => (DAL.live(it) || {}).t || '';
+DevNote.unit = (a) => (DAL.live(a) || {}).t || '';
+DevNote.html = (it, units = [], ctx = '') => {
+  const ia = DAL.live(it), ua = units.map((a) => [a, DAL.live(a)]).filter(([, x]) => x);
+  const inote = String((it && it.notes) || '').trim(), unotes = units.filter((a) => String((a && a.note) || '').trim());
+  if (!ia && !ua.length && !inote && !unotes.length) return '';
+  const all = [ia, ...ua.map((x) => x[1])].filter(Boolean), lv = all.length ? DAL.top(all) : '';
+  const head = /قبل التنفيذ/.test(ctx) ? 'تنبيه قبل التنفيذ' : 'تنبيه على هذا الجهاز';
+  const until = (a) => (a.until ? html` <small class="faint">(حتى ${fmtDate(a.until)})</small>` : '');
+  return html`${all.length ? html`<div class="devnote dal-${lv}" role="alert"><span class="dn-ic">${UI.icon(DAL.LV[lv][2])}</span><div class="grow"><b>${head}</b>
+      ${ia ? html`<p>${DAL.chip(ia)} ${ia.t}${until(ia)}${units.length === 1 ? '' : html` <small class="faint">— على كل وحدات الصنف</small>`}</p>` : ''}
+      ${ua.length ? html`<ul>${ua.slice(0, 8).map(([a, x]) => html`<li>${DAL.chip(x)} <bdi class="ltr">${a.serial || ''}</bdi>: ${x.t}${until(x)}</li>`)}${ua.length > 8 ? html`<li class="faint">و${fmtNum(ua.length - 8)} أخرى</li>` : ''}</ul>` : ''}</div>
+      ${DAL.can() && it && it.id && !/قبل التنفيذ/.test(ctx) ? html`<button type="button" class="btn btn-ghost btn-xs" data-dalert="${units.length === 1 && ua.length && !ia ? `asset:${units[0].id}` : `item:${it.id}`}">${UI.icon('edit')} تعديل</button>` : ''}</div>` : ''}
+    ${inote || unotes.length ? html`<div class="devnote2"><span>${UI.icon('info')}</span><div class="grow"><b>ملاحظات</b>${inote ? html`<p>${inote}</p>` : ''}${unotes.length ? html`<ul>${unotes.slice(0, 6).map((a) => html`<li><bdi class="ltr">${a.serial || ''}</bdi>: ${a.note}</li>`)}</ul>` : ''}</div></div>` : ''}`;
+};
+DevNote.refresh = async (form, itemId = '') => {
+  if (!form || !form.isConnected) return;
+  const picks = $$('[data-pick]:checked', form).map((x) => x.dataset.pick);
+  const [it, units] = await Promise.all([itemId ? DB.get('items', itemId) : null, Promise.all(picks.map((id) => DB.get('assets', id)))]);
+  const us = units.filter(Boolean), h = DevNote.html(it, us, 'تنبيه قبل التنفيذ');
+  form._dnSeen = form._dnSeen || new Set();
+  const fire = (key, a, label) => { if (!a || form._dnSeen.has(key)) return; form._dnSeen.add(key); UI.toast(`${DAL.LV[a.lv][0]} — ${label}: ${a.t}`, a.lv === 'info' ? 'info' : 'warn', a.lv === 'stop' ? 9000 : 6000); };
+  if (it) fire(`i:${it.id}`, DAL.live(it), it.name);
+  us.forEach((a) => fire(`a:${a.id}`, DAL.live(a), a.serial || ''));
+  const b = $('[data-devnote]', form); if (!h && !b) return;
+  DevNote.box(form).innerHTML = String(h);
+};
+DevNote.cart = async (form) => {
+  const lines = $$('.cart-line', form); if (!lines.length) return;
+  for (let i = 0; i < lines.length; i++) {
+    const l = Cart.lines[i]; if (!l) continue;
+    const [it, us] = await Promise.all([DB.get('items', l.itemId), Promise.all((l.serials || []).map((s) => (s.id || s.assetId ? DB.get('assets', s.id || s.assetId) : null)))]);
+    const al = [DAL.live(it) && [it.name, DAL.live(it)], ...us.filter(Boolean).map((a) => DAL.live(a) && [a.serial, DAL.live(a)])].filter(Boolean);
+    const nt = [String((it && it.notes) || '').trim(), ...us.filter((a) => a && String(a.note || '').trim()).map((a) => `${a.serial}: ${a.note}`)].filter(Boolean);
+    const main = $('.cl-main', lines[i]); if (!main || $('.dn-inline', main) || (!al.length && !nt.length)) continue;
+    main.insertAdjacentHTML('beforeend', String(html`${al.length ? html`<div class="dn-inline dal-${DAL.top(al.map((x) => x[1]))}">${UI.icon('alert')}<span>${al.map(([w, a]) => `${DAL.LV[a.lv][0]} — ${w}: ${a.t}`).join(' · ')}</span></div>` : ''}${nt.length ? html`<div class="dn-inline soft">${UI.icon('info')}<span>${nt.join(' — ')}</span></div>` : ''}`));
+  }
+};
+UI.serialPick = (assets, need) => html`<div class="field"><label class="row" style="justify-content:space-between"><span>اختر الوحدات <span class="faint small">(المطلوب ${fmtNum(need)} من ${fmtNum(assets.length)})</span></span><button type="button" class="btn btn-ghost btn-sm" data-scanfor="pick">${UI.icon('search')} مسح رمز</button></label><div class="chip-pick serial-pick">${assets.map((a) => { const x = DAL.live(a), n = String(a.note || '').trim(); return html`<label class="${x ? `sp-alert lv-${x.lv}` : n ? 'sp-soft' : ''}"${x || n ? raw(` title="${esc([x ? `${DAL.LV[x.lv][0]}: ${x.t}` : '', n ? `ملاحظة: ${n}` : ''].filter(Boolean).join('\n'))}"`) : ''}><input type="checkbox" data-pick="${a.id}"><span>${UI.icon(x ? 'alert' : n ? 'info' : 'tag')}${a.serial}${a.tag ? ` (${a.tag})` : ''}</span></label>`; })}</div><small class="hint">اختر الأجهزة بأرقامها ليُسجَّل خروجها من المخزن.${assets.some((a) => DAL.live(a)) ? html` <b class="dn-hint">${UI.icon('alert')} الوحدات بعلامة التنبيه عليها تنبيه — مرّر المؤشر لقراءته.</b>` : ''}</small></div>`;
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-dalert]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const [kind, id] = String(b.dataset.dalert).split(':'), dlg = b.closest('dialog');
+  const r = await DAL.edit(kind, id); if (!r) return;
+  if (!dlg) return;
+  const x = dlg.querySelector('[data-x]'); if (x) x.click();
+  if (kind === 'asset') Pages.assetDetail(id);
+  else Pages.deviceModal(id);
+}, true);
+
+/* ══════════ الجولة 18: سندات الموظف — يراها ما لم يغلقها المشرف ══════════ */
+const VSELF = {
+  on: () => (Data.c.vselfCfg || {}).off !== 1,
+  mine: () => !!Auth.user && Auth.user.role === 'department' && !canUser(Auth.user, 'inventory.read') && !canUser(Auth.user, 'inventory.move'),
+  async set(on) {
+    if (!Auth.user || Auth.user.role !== 'supervisor') throw new AppError('فتح سندات الموظفين وإغلاقها للمشرف وحده');
+    const v = { off: on ? 0 : 1, by: Auth.user.id, at: now() };
+    await DB.put('meta', { key: 'vselfcfg', value: v }); Data.c.vselfCfg = v;
+    await Data.log('update', 'settings', 'vselfcfg', on ? 'فتح عرض السندات للموظفين' : 'إغلاق عرض السندات عن الموظفين');
+    Bus.emit('settings', {});
+  },
+  async list() { const me = Auth.user.id; return (await DB.getAll('vouchers')).filter((v) => v.holderId === me).sort((a, b) => b.at - a.at); }
+};
+{ const xl3 = XCFG.load.bind(XCFG); XCFG.load = async function () { await xl3(); try { const r = await DB.get('meta', 'vselfcfg'); Data.c.vselfCfg = (r && r.value) || {}; } catch (_) { Data.c.vselfCfg = {}; } }; }
+VPV.staff = () => !!Auth.user && ['inventory.read', 'inventory.move', 'inventory.manage', 'custody.direct', 'maint.work'].some((k) => canUser(Auth.user, k));
+VSELF.card = (v) => { const k = VC.kind(v), ls = v.lines || []; return html`<article class="vc-card vc-card2 tone-${k.tone}" data-vpv="${v.id}" tabindex="0" role="button"><span class="vc-paper"><span class="vcp-sheet"><span class="vcp-band"></span><span class="vcp-t">${k.title}</span><span class="vcp-no">${v.number}</span><span class="vcp-rows">${ls.slice(0, 4).map((l) => html`<i><b>${l.name}</b><em>${fmtNum(l.qty || 0)}</em></i>`)}</span><span class="vcp-sig"><i></i><i></i><i></i></span></span><span class="vcp-eye">${UI.icon('eye')} معاينة</span></span><header><span class="vc-cic">${UI.icon(k.icon)}</span><div class="grow"><b class="ltr">${v.number}</b><small>${k.label}</small></div><time title="${fmtDateTime(v.at)}">${fmtDate(v.at)}</time></header><p class="vc-purpose">${VC.purpose(v)}</p><footer><span class="vc-u"><b>${fmtNum(VC.units(v))}</b> قطعة</span><span class="grow"></span><span class="btn btn-soft btn-xs">${UI.icon('eye')} عرض السند</span></footer></article>`; };
+Pages.myVouchers = async (ctx) => {
+  const off = !VSELF.on() && VSELF.mine();
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'سنداتي', sub: 'السندات الصادرة باسمك: الصرف والإعارة والنقل والاستبدال والإرجاع. اضغط أي سند لمعاينته كما طُبع وطباعته', illu: 'paper' })}<div id="mvbody"></div>`);
+  const body = $('#mvbody', ctx.view);
+  if (off) { body.innerHTML = String(UI.empty({ illu: 'paper', title: 'عرض السندات موقوف', text: 'أغلق المشرف عرض السندات للموظفين. راجع قسم تقنية المعلومات إن احتجت نسخة من سندك.' })); return; }
+  const draw = async () => {
+    const rows = await VSELF.list(); if (!ctx.alive()) return;
+    const units = rows.reduce((s, v) => s + VC.units(v), 0);
+    body.innerHTML = String(rows.length ? html`<div class="vc-sum">${UI.icon('file')}<span><b>${fmtNum(rows.length)}</b> سند · <b>${fmtNum(units)}</b> قطعة</span></div><div class="vc-cards vc-cards2">${rows.map(VSELF.card)}</div>` : UI.empty({ illu: 'paper', title: 'لا سندات باسمك بعد', text: 'حين تُصرف لك عهدة أو تُعار لك أجهزة يظهر سندها هنا.' }));
+  };
+  ctx.view.addEventListener('keydown', (e) => { const el = e.target.closest && e.target.closest('[data-vpv]'); if (el && e.key === 'Enter') { e.preventDefault(); VPV.open(el.dataset.vpv); } });
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !$('dialog[open]')) draw(); }, 600)));
+  await draw();
+  if (ctx.query.id) VPV.open(String(ctx.query.id));
+};
+Router.add('/my-vouchers', null, Pages.myVouchers, 'سنداتي');
+Pages.myVouchersPanel = async () => {
+  if (!Auth.user || (!VSELF.on() && VSELF.mine())) return '';
+  let rows = []; try { rows = await VSELF.list(); } catch (_) { return ''; }
+  if (!rows.length) return '';
+  return UI.panel({ title: 'سنداتي', icon: 'file', sub: 'السندات الصادرة باسمك', tools: html`<a class="btn btn-ghost btn-sm" href="#/my-vouchers">${UI.icon('external')} الكل (${fmtNum(rows.length)})</a>`, body: html`<div class="list mv-list">${rows.slice(0, 4).map((v) => { const k = VC.kind(v); return html`<button type="button" class="list-row mv-row tone-${k.tone}" data-vpv="${v.id}"><span class="vc-cic">${UI.icon(k.icon)}</span><div class="grow ellipsis"><b class="ltr">${v.number}</b> <small class="faint">${k.label}</small><div class="t-sub ellipsis">${VC.purpose(v)}</div></div><span class="faint small">${fmtDate(v.at)}</span>${UI.icon('eye')}</button>`; })}</div>` });
+};
+/* القائمة: «سنداتي» للموظف ما دامت مفتوحة */
+{
+  const na0 = Shell.navAll.bind(Shell);
+  Shell.navAll = function () {
+    const g = na0();
+    if (Auth.user && VSELF.mine() && VSELF.on()) { const ops = g.find((x) => x.group === 'العمليات') || g[0]; if (ops && !ops.items.some((i) => i.path === '/my-vouchers')) ops.items.push({ path: '/my-vouchers', label: 'سنداتي', icon: 'file', perm: null }); }
+    return g;
+  };
+}
+/* الإعداد في مركز الإعدادات */
+Pages.ccVself = (ctx) => {
+  const sup = !!Auth.user && Auth.user.role === 'supervisor';
+  const draw = async () => {
+    const on = VSELF.on(), vs = await DB.getAll('vouchers'), staffIds = new Set(Data.list('users').filter((u) => u.role === 'department').map((u) => u.id));
+    const mine = vs.filter((v) => v.holderId && staffIds.has(v.holderId)), people = new Set(mine.map((v) => v.holderId)).size;
+    const c = Data.c.vselfCfg || {};
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'سندات الموظفين', sub: 'يرى الموظف السندات الصادرة باسمه ويعاينها ويطبعها من صفحة «سنداتي»، ويغلق المشرف ذلك أو يفتحه في أي وقت', illu: 'paper' })}
+      <section class="panel"><div class="panel-body vself">
+        <div class="vself-sw ${on ? 'on' : 'off'}"><span class="vself-led"></span><div class="grow"><b>${on ? 'مفتوح: يرى كل موظف سنداته' : 'مغلق: لا يرى الموظفون سنداتهم'}</b><small>${c.at ? `آخر تغيير ${fmtDateTime(c.at)}${c.by ? ` — ${Data.userName(c.by)}` : ''}` : 'الإعداد الافتراضي'}</small></div>
+          ${sup ? html`<button type="button" class="btn ${on ? 'btn-danger' : 'btn-primary'}" data-vselfset="${on ? 0 : 1}">${UI.icon(on ? 'lock' : 'check')} ${on ? 'إغلاق السندات عن الموظفين' : 'فتح السندات للموظفين'}</button>` : html`<span class="chip tone-slate">${UI.icon('lock')} يغيّره المشرف وحده</span>`}</div>
+        <div class="vtf-kpis mt">${UI.kpi({ label: 'سندات صادرة بأسماء موظفين', icon: 'file', tone: 'sky', value: mine.length })}${UI.kpi({ label: 'موظفون لهم سندات', icon: 'users', tone: 'violet', value: people })}</div>
+        <ul class="vself-ul"><li>${UI.icon('eye')} يرى الموظف سنداته وحدها (ما صدر باسمه)، ويعاينها كما طُبعت ويطبعها، ولا يعدّلها.</li><li>${UI.icon('bell')} يصله إشعار عند صدور سند باسمه، يفتح السند مباشرة.</li><li>${UI.icon('lock')} عند الإغلاق تُزال السندات من أجهزة الموظفين عند مزامنتها التالية، وتختفي «سنداتي» من قائمتهم.</li></ul>
+      </div></section>`);
+  };
+  UI.on(ctx.view, 'click', '[data-vselfset]', async (e, b) => {
+    const on = b.dataset.vselfset === '1';
+    if (!on && !(await UI.confirm('إغلاق عرض السندات عن كل الموظفين؟ تُزال من أجهزتهم عند المزامنة التالية.', { danger: true, ok: 'إغلاق' }))) return;
+    try { await VSELF.set(on); UI.toast(on ? 'فُتحت السندات للموظفين' : 'أُغلقت السندات عن الموظفين'); draw(); } catch (ex) { UI.error(ex); }
+  });
+  draw();
+};
+{
+  const grp = (CC_GROUPS.find((g) => g[0] === 'المخازن والعهد') || CC_GROUPS[0])[2];
+  const add = ['vself', 'سندات الموظفين', 'file', 'settings', 'فتح عرض السندات للموظفين أو إغلاقه (المشرف)', '', (c) => Pages.ccVself(c)];
+  const i = grp.findIndex((x) => x[0] === 'locks'); grp.splice(i >= 0 ? i + 1 : grp.length, 0, add); CC_ALL.push(add);
+  CC_KEYS.vself = 'سند سندات الموظف موظفين سنداتي عرض اغلاق فتح';
+  CCX.ILLU.vself = 'paper';
+}
 
 boot();
 })();

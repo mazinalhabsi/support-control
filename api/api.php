@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'vouchers', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -291,11 +291,26 @@ function pull_full(array $u): array {
 }
 /** من يستلم كل البيانات: المشرف، ومن يملك الإعدادات أو النسخ الاحتياطي (النسخة تشمل كل شيء) */
 function pull_everything(array $u): bool { return is_sup($u) || can_any($u, ['settings', 'backup.manage']); }
+/*
+ * سندات الموظف: يرى الموظف السندات الصادرة باسمه (صرف، إعارة، نقل، استبدال، إرجاع) ما لم يغلقها المشرف.
+ * الإعداد في meta/vselfcfg، ويُضاف «+v» إلى نطاق المزامنة حين تكون مفتوحة: تغيُّر النطاق يجعل جهاز الموظف
+ * يمسح الجداول المقيدة ويسحبها من جديد، فتصله سنداته القديمة عند الفتح، وتُزال من جهازه عند الإغلاق.
+ */
+function vself_on(): bool {
+  static $on = null; if ($on !== null) return $on;
+  $r = doc_get('meta', 'vselfcfg');
+  $d = $r && !(int) $r['deleted'] ? (json_decode((string) $r['data'], true) ?: []) : [];
+  $v = is_array($d['value'] ?? null) ? $d['value'] : [];
+  return $on = (int) ($v['off'] ?? 0) !== 1;
+}
+/** موظف بلا صلاحيات إضافية (حدود الطلب الواحد للموظفين) */
+function self_plain(array $u): bool { return ($u['role'] ?? '') === 'department' && !pull_everything($u) && empty($u['extraPerms']); }
 function sync_scope(array $u): string {
   if (($u['role'] ?? '') !== 'department' || pull_everything($u)) return 'all';
-  if (empty($u['extraPerms'])) return 'self';
+  $v = vself_on() ? '+v' : '';
+  if (empty($u['extraPerms'])) return 'self' . $v;
   $f = array_keys(pull_full($u)); sort($f);
-  return 'self:' . implode(',', $f);
+  return 'self:' . implode(',', $f) . $v;
 }
 function is_self_scope(string $scope): bool { return strpos($scope, 'self') === 0; }
 /** شرط SQL لنطاق الموظف: يستبعد في قاعدة البيانات نفسها ما لا يخصه، فلا يُنقل ولا يُفك في PHP. $full: جداول تصله كاملة بصلاحياته */
@@ -315,6 +330,9 @@ function self_sql(array $u, array $full = []): array {
   $add($own('surveyResponses'), "store NOT IN ('surveyResponses', 'surveyMarks') OR {$j('userId')} = ?", [$me]);
   $add(true, "store <> 'replies' OR {$j('scope')} = 'all' OR {$j('userId')} = ?", [$me]);
   $add($own('orgLog'), "store <> 'orgLog' OR {$j('userId')} = ?", [$me]);
+  /* السندات: ما صدر باسم الموظف فقط، وإن أغلقها المشرف فلا شيء */
+  if (vself_on()) $add($own('vouchers'), "store <> 'vouchers' OR {$j('holderId')} = ?", [$me]);
+  else $add($own('vouchers'), "store <> 'vouchers'", []);
   /* سجل صيانة جهاز: يصل الموظف إن كان مستلمه المعيَّن أو حائز الجهاز حين دخل الصيانة، ليتابعه ويؤكد استلامه */
   $add($own('maintenance'), "store <> 'maintenance' OR {$j('receiverId')} = ? OR {$j('fromHolderId')} = ?", [$me, $me]);
   return [$cond . '))', $args];
@@ -368,6 +386,7 @@ function visible_rows(array $rows, array $u, array $full = []): array {
       /* الردود الخاصة لا تصل إلا لصاحبها */
       case 'replies': $ok = ($d['scope'] ?? '') === 'all' || (string) ($d['userId'] ?? '') === $me; break;
       case 'orgLog': $ok = (string) ($d['userId'] ?? '') === $me; break;
+      case 'vouchers': $ok = vself_on() && (string) ($d['holderId'] ?? '') === $me; break;
       case 'maintenance': $ok = (string) ($d['receiverId'] ?? '') === $me || (string) ($d['fromHolderId'] ?? '') === $me; break;
       default: $ok = true;
     }
@@ -977,6 +996,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'mdlapply:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* بناء النماذج من الأجهزة الموزعة: إعداد الربط التلقائي، وآخر بناء للتراجع عنه */
       if ($key === 'mdlcfg' || $key === 'mdlbuild:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
+      /* إظهار السندات للموظفين: يفتحه المشرف ويغلقه وحده */
+      if ($key === 'vselfcfg') return is_sup($user) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
@@ -1046,7 +1067,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($deleted || $old) return null;
       /* سجل النشاط باسم صاحب الجلسة دائماً، وبشكل ثابت: لا حقول إضافية، ونص محدود، ووقت قريب من وقت الخادم،
          وعدد محدود في الطلب الواحد، فلا يُغرق السجل ولا تُكتب إدخالات بتاريخ ماضٍ */
-      if (sync_scope($user) === 'self') { $GLOBALS['ACT_N'] = ($GLOBALS['ACT_N'] ?? 0) + 1; if ($GLOBALS['ACT_N'] > 30) return null; }
+      if (self_plain($user)) { $GLOBALS['ACT_N'] = ($GLOBALS['ACT_N'] ?? 0) + 1; if ($GLOBALS['ACT_N'] > 30) return null; }
       $act = (string) ($data['action'] ?? ''); $ent = (string) ($data['entity'] ?? '');
       if (!preg_match('/^[a-z_]{1,24}$/', $act) || !preg_match('/^[A-Za-z_]{0,30}$/', $ent)) return null;
       $at = (int) ($data['at'] ?? 0); $t = now_ms();
@@ -1673,7 +1694,7 @@ case 'seq': {
   $names = $b['names'] ?? [];
   if (!is_array($names) || !count($names)) fail('لم تُحدد العدادات المطلوبة');
   /* عدادات معروفة فقط، والموظف يحجز رقم بلاغ واحداً في كل طلب */
-  $self = sync_scope($user) === 'self';
+  $self = self_plain($user);
   foreach (array_keys($names) as $nm) if (!in_array((string) $nm, SEQ_NAMES, true) || ($self && (string) $nm !== 'ticket')) fail('عداد غير معروف', 403);
   $pdo = db();
   $outv = [];

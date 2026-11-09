@@ -6262,3 +6262,46 @@ button.cch-st:hover{border-color:rgba(var(--g),.5)}
 @media (max-width:900px){.mdb-kpis{grid-template-columns:repeat(2,1fr)}.mdb-row{grid-template-columns:auto auto minmax(0,1fr);}.mdb-q,.mdb-st{grid-column:3}.mdb-q{flex-direction:row;gap:6px;justify-content:flex-start}.mdb-art{display:none}.mdb-banner{flex-wrap:wrap}}
 .mdb-row{grid-template-columns:auto auto minmax(0,1fr) 92px minmax(150px,210px)}
 .mdb-st .chip{white-space:normal;line-height:1.45;max-width:100%;text-align:start}
+
+/* ══════════ الجولة 18: اسم المحطة، والتنبيهات، وسندات الموظف ══════════ */
+.ws-sug{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+.ws-sug .ic{width:13px;height:13px}
+.ws-sugb{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;border:1px dashed rgba(var(--accent),.55);background:rgba(var(--accent),.07);color:var(--ink);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.ws-sugb:hover{background:rgba(var(--accent),.16);border-style:solid}
+.devnote.dal-info{background:linear-gradient(135deg,rgba(var(--sky),.16),rgba(var(--sky),.05));border-color:rgba(var(--sky),.55);box-shadow:none}
+.devnote.dal-info .dn-ic{background:rgb(var(--sky));animation:none}
+.devnote.dal-stop{background:linear-gradient(135deg,rgba(var(--red),.18),rgba(var(--red),.06));border-color:rgba(var(--red),.7);box-shadow:0 10px 22px -18px rgba(var(--red),.9)}
+.devnote.dal-stop .dn-ic{background:rgb(var(--red))}
+.devnote .btn-xs{align-self:flex-start;flex:none}
+.dal-chip{font-size:10.5px;padding:1px 8px;vertical-align:1px}
+.devnote2{display:flex;align-items:flex-start;gap:10px;margin:8px 0 0;padding:8px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-2);font-size:12.5px;color:var(--ink-2)}
+.devnote2>span .ic{width:16px;height:16px;color:var(--ink-3);margin-top:2px}
+.devnote2 b{display:block;font-size:12.5px;color:var(--ink-2)}
+.devnote2 p{margin:2px 0 0;line-height:1.7;white-space:pre-line}
+.devnote2 ul{margin:2px 0 0;padding-inline-start:18px;line-height:1.7}
+.dn-inline.dal-stop{background:rgba(var(--red),.1);border-color:rgba(var(--red),.5)}.dn-inline.dal-stop .ic{color:rgb(var(--red))}
+.dn-inline.dal-info{background:rgba(var(--sky),.1);border-color:rgba(var(--sky),.45)}.dn-inline.dal-info .ic{color:rgb(var(--sky))}
+.dn-inline.soft{background:var(--surface-2);border-color:var(--line-2);color:var(--ink-2)}.dn-inline.soft .ic{color:var(--ink-3)}
+.sp-alert span{border-color:rgba(var(--amber),.7)!important;background:rgba(var(--amber),.13)!important}
+.sp-alert .ic{color:rgb(var(--amber))}
+.sp-alert.lv-stop span{border-color:rgba(var(--red),.75)!important;background:rgba(var(--red),.12)!important}.sp-alert.lv-stop .ic{color:rgb(var(--red))}
+.sp-alert.lv-info span{border-color:rgba(var(--sky),.6)!important;background:rgba(var(--sky),.1)!important}.sp-alert.lv-info .ic{color:rgb(var(--sky))}
+.sp-soft .ic{color:var(--ink-3)}
+.dal-lv{display:flex;gap:6px;flex-wrap:wrap}
+.dal-lv label{flex:1}
+.dal-lv span{display:flex;align-items:center;justify-content:center;gap:5px}
+.dal-lv .lv-info input:checked+span{background:rgba(var(--sky),.2);color:var(--ink);box-shadow:inset 0 0 0 1.5px rgb(var(--sky))}
+.dal-lv .lv-warn input:checked+span{background:rgba(var(--amber),.22);color:var(--ink);box-shadow:inset 0 0 0 1.5px rgb(var(--amber))}
+.dal-lv .lv-stop input:checked+span{background:rgba(var(--red),.18);color:var(--ink);box-shadow:inset 0 0 0 1.5px rgb(var(--red))}
+.dal-add{margin-top:8px}
+.vself-sw{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;border:1px solid var(--line-2);background:var(--surface-2)}
+.vself-sw b{display:block;font-size:15px}.vself-sw small{font-size:12px;color:var(--ink-3)}
+.vself-led{width:14px;height:14px;border-radius:50%;flex:none}
+.vself-sw.on .vself-led{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.2),0 0 12px rgba(16,185,129,.7)}
+.vself-sw.off .vself-led{background:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.18)}
+.vself-ul{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-2)}
+.vself-ul li{display:flex;align-items:flex-start;gap:8px}.vself-ul .ic{width:16px;height:16px;flex:none;margin-top:3px;color:rgb(var(--accent))}
+.mv-row{display:flex;align-items:center;gap:10px;width:100%;text-align:start}
+.mv-row .vc-cic{flex:none}
+.mv-row>.ic{width:16px;height:16px;color:var(--ink-3)}
+article.vc-card2[data-vpv]{cursor:pointer}
