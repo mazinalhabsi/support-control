@@ -20244,14 +20244,44 @@ Pages.custodyMap = async (ctx) => {
     return out;
   };
   const allKeys = () => { const ks = ['k', 'a']; treeData().forEach(({ k, list }) => { ks.push(k); groupBy(list, brandOf).forEach(([b, l2]) => { ks.push(`${k}|${b}`); (subGroups(l2) || []).forEach(([s]) => { if (s) ks.push(`${k}|${b}|${s}`); }); }); }); return ks; };
+  /* ── طريقة عرض لوحة النماذج: شجرة، أو شبكة، أو قائمة، أو أعمدة (كل فئة عمود بجانب الأخرى).
+     اللوحة العريضة (أعلى الصفحة أو أسفلها) تُفتح شبكةً تستغل عرضها، والجانبية والحرة شجرة؛ ولكل منهما اختيارها المحفوظ ── */
+  const palWide = () => { const d = innerWidth < 760 && st.dock !== 'float' ? 'bottom' : st.dock; return d === 'top' || d === 'bottom'; };
+  const palView = () => { const k = palWide() ? 'wide' : 'narrow', v = CM.get(`pview_${k}`, k === 'wide' ? 'grid' : 'tree'); return ['tree', 'grid', 'list', 'cols'].includes(v) ? v : 'tree'; };
+  const PVIEWS = [['tree', 'شجرة', 'layers'], ['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu'], ['cols', 'أعمدة', 'columns']];
+  const pvSeg = (pv) => html`<div class="cm-pvseg" role="group" aria-label="طريقة عرض النماذج">${PVIEWS.map(([k, l, ic]) => html`<button type="button" class="${pv === k ? 'on' : ''}" data-pview="${k}" title="عرض ${l}" aria-pressed="${pv === k ? 'true' : 'false'}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`;
+  const palSearch = () => html`<div class="cm-palsearch search-box grow">${UI.icon('search')}<input type="search" data-pq value="${st.q}" placeholder="ابحث: Dell، طابعة، شاشة 24..."></div>`;
+  const kitCard = (kt) => html`<div class="cm-model kit${st.armed === `k:${kt.id}` ? ' armed' : ''}" draggable="true" data-pdrag="k:${kt.id}" tabindex="0" role="button" title="${kt.name}">${UI.illu('box', 'mini')}<div class="grow"><b>${kt.name}</b><small>${kt.rows.map((r) => `${fmtNum(r.qty)}× ${(items.get(r.itemId) || {}).name || ''}`).join('، ')}</small></div>${UI.icon('menu')}</div>`;
+  /* أقسام العروض الثلاثة: الحزم، والعهدة العامة للإدارة، ثم كل نوع بنماذجه مرتبة بالماركة */
+  const palSections = () => {
+    const qn = normalizeAr(st.q.trim()), out = [], kits = MDL.kits().filter((kt) => !qn || normalizeAr(kt.name).includes(qn));
+    if (kits.length) out.push({ k: 'k', name: 'الحزم', ic: UI.illu('box', 'mini'), n: kits.length, body: () => kits.map(kitCard) });
+    const po = st.dep ? pool(st.dep) : new Map(), pl = [...po].filter(([id]) => items.get(id) && (!qn || normalizeAr(items.get(id).name).includes(qn)));
+    if (pl.length) out.push({ k: 'a', name: 'العهدة العامة', hot: true, ic: UI.illu('archive', 'mini'), n: pl.reduce((s2, [, q]) => s2 + q, 0), body: () => pl.map(([id, q]) => card(items.get(id), `في العهدة العامة: ${fmtNum(q)}`, `a:${id}`)) });
+    treeData().forEach(({ k, c, list }) => { const l = [...list].sort((a, b) => AR_COLL.compare(brandOf(a), brandOf(b)) || AR_COLL.compare(a.name || '', b.name || '')); out.push({ k, name: c.name, ic: UI.illu(c.illustration || 'box', 'mini'), n: l.length, body: () => l.map((i) => card(i)) }); });
+    return out;
+  };
+  const palAlt = (pv) => {
+    const secs = palSections(); let cur = CM.get('pcat', ''); if (cur && !secs.some((x) => x.k === cur)) cur = '';
+    const wide = palWide(), shown = cur ? secs.filter((x) => x.k === cur) : secs;
+    const chips = pv === 'cols' || !secs.length ? '' : html`<div class="cm-pcats" role="tablist" aria-label="الفئات"><button type="button" class="cm-pcat${cur ? '' : ' on'}" data-pcat="" role="tab" aria-selected="${cur ? 'false' : 'true'}">${UI.icon('grid')}<b>الكل</b><small>${fmtNum(secs.reduce((s2, x) => s2 + (x.k === 'a' ? 0 : x.n), 0))}</small></button>${secs.map((x) => html`<button type="button" class="cm-pcat${cur === x.k ? ' on' : ''}${x.hot ? ' hot' : ''}" data-pcat="${x.k}" role="tab" aria-selected="${cur === x.k ? 'true' : 'false'}">${x.ic}<b>${x.name}</b><small>${fmtNum(x.n)}</small></button>`)}</div>`;
+    /* اللوحة العريضة: البحث والفئات وطريقة العرض في سطر واحد، فيبقى ارتفاعها للأجهزة */
+    const tools = wide ? html`<div class="cm-paltools wide">${palSearch()}${chips}${pvSeg(pv)}</div>` : html`<div class="cm-paltools">${palSearch()}${pvSeg(pv)}</div>${chips}`;
+    if (!secs.length) return html`${tools}<p class="hint">${st.q.trim() ? 'لا نماذج بهذا الاسم.' : 'لا نماذج بعد.'} <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`;
+    if (pv === 'cols') return html`${tools}<div class="cm-pcols">${secs.map((x) => html`<section class="cm-pcol${x.hot ? ' hot' : ''}"><header>${x.ic}<b>${x.name}</b><small>${fmtNum(x.n)}</small></header><div class="cm-pcolb">${x.body()}</div></section>`)}</div>`;
+    /* عنوان كل فئة خانة في التدفق نفسه (لا سطراً كاملاً): الفئة الصغيرة لا تهدر عرض اللوحة */
+    return html`${tools}<div class="cm-pflow ${pv === 'grid' ? 'cm-pgrid' : 'cm-plist'}">${shown.map((x) => html`${shown.length > 1 ? html`<div class="cm-psec${x.hot ? ' hot' : ''}" data-pcat="${x.k}" role="button" tabindex="0" title="عرض «${x.name}» وحدها">${x.ic}<b>${x.name}</b><small>${fmtNum(x.n)}</small></div>` : ''}${x.body()}`)}</div>`;
+  };
   const palBody = () => {
+    const pv = palView(); pal.dataset.wk = palWide() ? 'wide' : 'narrow'; pal.dataset.pv = pv;
+    if (pv !== 'tree') return palAlt(pv);
     const qn = st.q.trim(), kits = MDL.kits(), po = st.dep ? pool(st.dep) : new Map(), data = treeData();
     const brandBody = (k, list) => { const ser = subGroups(list); return ser ? html`${ser.map(([s, l3]) => (s && l3.length > 1 ? grp(`${k}|${s}`, s, l3.length, () => html`<div class="cm-models">${l3.map((i) => card(i))}</div>`, '', 'lvl3') : html`<div class="cm-models">${l3.map((i) => card(i))}</div>`))}` : html`<div class="cm-models">${list.map((i) => card(i))}</div>`; };
     const parts = [];
     if (!qn && kits.length) parts.push(grp('k', 'الحزم', kits.length, () => html`<div class="cm-models">${kits.map((kt) => html`<div class="cm-model kit${st.armed === `k:${kt.id}` ? ' armed' : ''}" draggable="true" data-pdrag="k:${kt.id}" tabindex="0" role="button">${UI.illu('box', 'mini')}<div class="grow"><b>${kt.name}</b><small>${kt.rows.map((r) => `${fmtNum(r.qty)}× ${(items.get(r.itemId) || {}).name || ''}`).join('، ')}</small></div>${UI.icon('menu')}</div>`)}</div>`, UI.illu('box', 'mini')));
     if (po.size) { const list = [...po].filter(([id]) => items.get(id) && (!qn || normalizeAr(items.get(id).name).includes(normalizeAr(qn)))); if (list.length) parts.push(grp('a', `العهدة العامة لـ${Data.nameOf('departments', st.dep, '')}`, list.reduce((s, [, q]) => s + q, 0), () => html`<p class="hint" style="margin:0 0 6px">اسحبها إلى فرع أو محطة لتخصيصها، أو اتركها عامة.</p><div class="cm-models">${list.map(([id, q]) => card(items.get(id), `في العهدة العامة: ${fmtNum(q)}`, `a:${id}`))}</div>`, UI.illu('archive', 'mini'), 'hot')); }
     data.forEach(({ k, c, list }) => parts.push(grp(k, c.name, list.length, () => { const brands = groupBy(list, brandOf); return brands.length === 1 && brands[0][0] === 'بدون ماركة' ? brandBody(`${k}|بدون ماركة`, list) : html`${brands.map(([b, l2]) => grp(`${k}|${b}`, b, l2.length, () => brandBody(`${k}|${b}`, l2), html`<span class="cm-blogo">${b === 'بدون ماركة' ? UI.icon('tag') : Forms.optIco({ k: 'brand' }, b) || UI.icon('tag')}</span>`, 'lvl2'))}`; }, UI.illu(c.illustration || 'box', 'mini'))));
-    return html`<div class="cm-paltools"><div class="cm-palsearch search-box grow">${UI.icon('search')}<input type="search" data-pq value="${st.q}" placeholder="ابحث: Dell، طابعة، شاشة 24..."></div><button type="button" class="icon-btn" data-gall="1" title="توسيع الكل">${UI.icon('expand')}</button><button type="button" class="icon-btn" data-gall="0" title="طي الكل">${UI.icon('shrink')}</button></div>
+    return html`<div class="cm-paltools"><div class="cm-palsearch search-box grow">${UI.icon('search')}<input type="search" data-pq value="${st.q}" placeholder="ابحث: Dell، طابعة، شاشة 24..."></div>${pvSeg('tree')}<button type="button" class="icon-btn" data-gall="1" title="توسيع الكل">${UI.icon('expand')}</button><button type="button" class="icon-btn" data-gall="0" title="طي الكل">${UI.icon('shrink')}</button></div>
       <div class="cm-tree2">${parts.length ? parts : html`<p class="hint">${qn ? 'لا نماذج بهذا الاسم.' : 'لا نماذج بعد.'} <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`}</div>`;
   };
   /* ── مكونات العرض ── */
@@ -20386,6 +20416,8 @@ Pages.custodyMap = async (ctx) => {
     else if (dock === 'top' || dock === 'bottom') { pal.style.left = `${a.l + 8}px`; pal.style.width = `${a.r - a.l - 16}px`; if (!st.min) pal.style.height = `${H}px`; if (dock === 'top') { pal.style.top = `${a.t + 8}px`; if (!st.min) ctx.view.style.setProperty('--cm-pad-t', `${H + 12}px`); } else if (!st.min) ctx.view.style.setProperty('--cm-pad-b', `${H + 12}px`); }
     else { const x = clamp(Number(st.pos.x) || a.l + 40, 0, innerWidth - 220), y = clamp(Number(st.pos.y) || a.t + 120, 60, innerHeight - 80); pal.style.left = `${x}px`; pal.style.top = `${y}px`; }
     $('[data-palhint]', pal).textContent = st.armed ? 'اضغط الموضع لإضافة المحدد — Esc للإلغاء' : '';
+    /* تغيّر التثبيت بين عريض وضيق (من الأزرار أو بالسحب أو بتغيير حجم النافذة) يعيد رسم المحتوى بالعرض المناسب */
+    if (pal.dataset.wk && pal.dataset.wk !== (palWide() ? 'wide' : 'narrow')) requestAnimationFrame(drawPal);
   };
   const drawPal = () => { const b = $('[data-palbody]', pal), sc = b.scrollTop; b.innerHTML = String(palBody()); b.scrollTop = sc; place(); };
   const draw = async (reload = true) => {
@@ -20417,6 +20449,8 @@ Pages.custodyMap = async (ctx) => {
   document.addEventListener('keydown', onEsc); ctx.onCleanup(() => document.removeEventListener('keydown', onEsc));
   /* شجرة اللوحة: فتح وطي كل مستوى، وتوسيع الكل أو طيه، والبحث يفتح ما يطابق */
   UI.on(pal, 'click', '[data-gtog]', (e, el) => { const k = el.dataset.gtog; if (st.open.has(k)) st.open.delete(k); else st.open.add(k); CM.set('open', [...st.open]); drawPal(); });
+  UI.on(pal, 'click', '[data-pview]', (e, el) => { CM.set(`pview_${palWide() ? 'wide' : 'narrow'}`, el.dataset.pview); drawPal(); });
+  UI.on(pal, 'click', '[data-pcat]', (e, el) => { CM.set('pcat', el.dataset.pcat); const b = $('[data-palbody]', pal); drawPal(); if (b) b.scrollTop = 0; });
   UI.on(pal, 'click', '[data-gall]', (e, el) => { st.open = el.dataset.gall === '1' ? new Set(allKeys()) : new Set(); CM.set('open', [...st.open]); drawPal(); });
   pal.addEventListener('input', debounce((e) => { if (!e.target.matches('[data-pq]')) return; st.q = e.target.value; drawPal(); const q = $('[data-pq]', pal); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 220));
   UI.on(pal, 'click', '[data-pdock]', (e, el) => { st.dock = el.dataset.pdock; st.min = false; CM.set('dock', st.dock); CM.set('min', ''); place(); });

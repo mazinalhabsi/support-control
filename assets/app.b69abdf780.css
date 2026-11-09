@@ -5664,3 +5664,64 @@ body.cm-moving-p .cm-people{border-color:rgba(var(--accent),.5)}
 .cm-palfab .ic{width:18px;height:18px}
 .cm-palfab[hidden]{display:none}
 .cm-palfab{inset-inline-end:auto;left:50%;translate:-50% 0}
+
+/* ══════════ لوحة النماذج: شبكة وقائمة وأعمدة تستغل عرض اللوحة ══════════ */
+.cm-pvseg{display:inline-flex;flex:none;gap:2px;padding:2px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.cm-pvseg button{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:0;border-radius:8px;background:none;color:var(--ink-3);font:600 11.5px var(--f-body);cursor:pointer}
+.cm-pvseg button .ic{width:14px;height:14px}
+.cm-pvseg button:hover{color:var(--ink)}
+.cm-pvseg button.on{background:var(--surface-solid);color:rgb(var(--accent-ink));box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.cm-pal.dock-side .cm-pvseg button span,.cm-pal.dock-float .cm-pvseg button span{display:none}
+.cm-pcats{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin:0 0 4px;scrollbar-width:thin}
+.cm-pcat{display:inline-flex;align-items:center;gap:6px;flex:none;padding:3px 10px 3px 5px;border-radius:99px;border:1px solid var(--line-2);background:var(--surface-solid);color:var(--ink);font:inherit;cursor:pointer;transition:background .15s,border-color .15s}
+.cm-pcat:hover{border-color:rgba(var(--accent),.55)}
+.cm-pcat .iso{width:24px;height:22px;flex:none}
+.cm-pcat>.ic{width:14px;height:14px;margin-inline-start:4px}
+.cm-pcat b{font-size:12px;white-space:nowrap}
+.cm-pcat small{font:700 10.5px var(--f-display);color:var(--ink-3)}
+.cm-pcat.on{background:rgb(var(--accent));border-color:rgb(var(--accent));color:#fff}
+.cm-pcat.on small{color:rgba(255,255,255,.85)}
+.cm-pcat.hot:not(.on){border-color:rgba(var(--amber),.65);background:rgba(var(--amber),.08)}
+.cm-pflow{display:grid;gap:6px;align-content:start}
+.cm-pgrid{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.cm-plist{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.cm-psec{grid-column:1/-1;display:flex;align-items:center;gap:6px;margin:6px 0 0;padding:2px 2px 4px;border-bottom:1px solid var(--line);font-size:12.5px}
+.cm-psec:first-child{margin-top:0}
+.cm-psec .iso{width:22px;height:20px}
+.cm-psec small{font:700 10.5px var(--f-display);color:var(--ink-3);background:var(--surface-2);border-radius:99px;padding:0 7px}
+.cm-psec.hot b{color:rgb(var(--amber-ink,var(--amber)))}
+.cm-pgrid .cm-model{flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;gap:3px;padding:8px 6px 7px}
+.cm-pgrid .cm-model .iso{width:46px;height:40px}
+.cm-pgrid .cm-model .grow{width:100%;min-width:0}
+.cm-pgrid .cm-model b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px;min-height:2.7em}
+.cm-pgrid .cm-model small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-pgrid .cm-model>.ic,.cm-pcols .cm-model>.ic{display:none}
+.cm-plist .cm-model b,.cm-pcols .cm-model b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-plist .cm-model .grow,.cm-pcols .cm-model .grow{min-width:0}
+.cm-palbody:has(>.cm-pcols){display:flex;flex-direction:column;overflow:hidden}
+.cm-pcols{flex:1;min-height:0;display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding-bottom:4px;scrollbar-width:thin}
+.cm-pcol{flex:0 0 220px;display:flex;flex-direction:column;min-height:0;border-radius:12px;border:1px solid var(--line);background:var(--surface-2)}
+.cm-pcol.hot{border-color:rgba(var(--amber),.6)}
+.cm-pcol>header{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.cm-pcol>header .iso{width:24px;height:22px;flex:none}
+.cm-pcol>header b{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cm-pcol>header small{font:700 10.5px var(--f-display);color:var(--ink-3)}
+.cm-pcolb{flex:1;min-height:0;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px}
+.cm-pcolb .cm-model .iso{width:28px;height:26px}
+.cm-pal.dock-side .cm-paltools,.cm-pal.dock-float .cm-paltools{flex-wrap:wrap}
+.cm-pal.dock-side .cm-pgrid,.cm-pal.dock-float .cm-pgrid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.cm-pal.dock-side .cm-plist,.cm-pal.dock-float .cm-plist{grid-template-columns:1fr}
+/* عناوين الفئات خانات في التدفق، والبحث والفئات في سطر واحد في اللوحة العريضة */
+.cm-paltools.wide{gap:8px}
+.cm-paltools.wide .cm-palsearch{flex:0 0 230px;margin:0}
+.cm-paltools.wide .cm-pcats{flex:1;min-width:0;margin:0;padding:2px}
+.cm-psec{grid-column:auto;margin:0;border-bottom:0;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:12px;background:linear-gradient(135deg,rgba(var(--accent),.16),rgba(var(--accent),.05));border:1.5px dashed rgba(var(--accent),.45);cursor:pointer;min-width:0}
+.cm-psec b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.cm-psec small{flex:none}
+.cm-psec:hover{border-style:solid}
+.cm-psec.hot{background:linear-gradient(135deg,rgba(var(--amber),.18),rgba(var(--amber),.05));border-color:rgba(var(--amber),.6)}
+.cm-psec:first-child{margin-top:0}
+.cm-pgrid .cm-psec{flex-direction:column;justify-content:center;text-align:center;gap:2px;padding:8px 6px}
+.cm-pgrid .cm-psec .iso{width:40px;height:36px}
+.cm-pgrid .cm-psec b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@media (max-width:760px){.cm-paltools.wide{flex-wrap:wrap}.cm-paltools.wide .cm-palsearch{flex:1 1 0;min-width:0}.cm-paltools.wide .cm-pcats{flex:1 1 100%;order:3}.cm-pvseg button span{display:none}.cm-pgrid{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}}
