@@ -5073,6 +5073,10 @@ Pages.syncModal = async () => {
 };
 
 /* ── الأقسام والمكاتب داخل الإدارات، حقول الأصناف حسب الفئة، وتحسين السندات ── */
+/* حد الهيكل الكبير: ما فوقه يُفتح مطوياً */
+const ORG_BIG = 150;
+/* «في الهيكل» من البحث عن حساب: يُفتح الهيكل على موضعه، ثم حسابات الموضع والبحث باسمه */
+const orgAccOpen = (ctx) => { const id = String(ctx.query.acc || ''), u = id && Data.c.users.get(id); if (!u || !u.departmentId) return; setTimeout(() => { if (ctx.alive()) Pages.orgMembers({ departmentId: u.departmentId, unitId: u.unitId || '', q: u.name }); }, 350); };
 const UNIT_TYPES = { section: { label: 'قسم', icon: 'building', tone: 'violet' }, office: { label: 'مكتب', icon: 'pin', tone: 'sky' } };
 Data.units = {
   async of(departmentId) { return (await DB.getAll('deptUnits', 'departmentId', KR(departmentId))).sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name), 'ar')); },
@@ -8505,16 +8509,18 @@ document.addEventListener('scroll', (e) => { if (PlacePick.pop && !(e.target ins
 const orgPeople = () => Data.list('users').filter((u) => u.active && u.role !== 'monitor');
 
 /* حسابات موضع في الهيكل: نقلها إلى موضع آخر أو إخراجها، وإضافة حسابات إليه */
-Pages.orgMembers = async ({ departmentId, unitId = '' }) => {
+Pages.orgMembers = async ({ departmentId, unitId = '', q = '' }) => {
   const units = await DB.getAll('deptUnits'), sub = unitId ? orgSubtree(units, unitId) : null, label = orgLabel(departmentId, unitId, units);
-  const st = { q: '', deep: true, pick: new Set(), addQ: '' };
+  const st = { q, deep: true, pick: new Set(), addQ: '', wsf: '' };
+  const wsAll = await WS.all(), wsBy = WS.byUser(wsAll), useWs = wsAll.some((w) => w.departmentId === departmentId);
+  const wsChip = (u) => { if (!useWs) return ''; const w = wsBy.get(u.id); if (!w) return html`<span class="om-ws off" title="لم يُخصَّص له مكتب أو محطة عمل في «توزيع العهدة»">${UI.icon('monitor')}<span>بلا محطة</span></span>`; const n = WS.holders(w).length; return html`<span class="om-ws on" title="${WS.label(w)}${n > 1 ? ` — مشتركة مع ${WS.holders(w).filter((x) => x !== u.id).map((x) => Data.userName(x)).join('، ')}` : ''}">${UI.icon('monitor')}<span>${WS.label(w)}</span>${n > 1 ? html`<i>مشتركة</i>` : ''}</span>`; };
   const inHere = (u) => u.departmentId === departmentId && (!unitId || (st.deep ? sub.has(u.unitId) : u.unitId === unitId));
   const where = (u) => (u.unitId && u.unitId !== unitId ? orgLabel(u.departmentId, u.unitId, units).split(' / ').slice(-1)[0] : '');
   /* الصف كله يحدد الحساب (لا المربع الصغير وحده) */
-  const row = (u, add) => html`${raw(add ? '<div class="list-row">' : '<label class="list-row pick-row">')}${add ? '' : html`<input type="checkbox" data-pick="${u.id}"${st.pick.has(u.id) ? raw(' checked') : ''}>`}${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub ellipsis">${ROLES[u.role] || ''}${where(u) ? ` · ${where(u)}` : ''}${add ? ` · ${u.departmentId ? orgLabel(u.departmentId, u.unitId, units) : 'بلا إدارة'}` : ''}</div></div>${add ? html`<button type="button" class="btn btn-soft btn-sm" data-add="${u.id}">${UI.icon('plus')} إضافة</button>` : ''}${raw(add ? '</div>' : '</label>')}`;
+  const row = (u, add) => html`${raw(add ? '<div class="list-row">' : '<label class="list-row pick-row">')}${add ? '' : html`<input type="checkbox" data-pick="${u.id}"${st.pick.has(u.id) ? raw(' checked') : ''}>`}${UI.avatar(u, 'av-sm')}<div class="grow" style="min-width:0"><b class="ellipsis" style="display:block">${u.name}</b><div class="t-sub ellipsis">${ROLES[u.role] || ''}${where(u) ? ` · ${where(u)}` : ''}${add ? ` · ${u.departmentId ? orgLabel(u.departmentId, u.unitId, units) : 'بلا إدارة'}` : ''}</div></div>${add ? html`<button type="button" class="btn btn-soft btn-sm" data-add="${u.id}">${UI.icon('plus')} إضافة</button>` : wsChip(u)}${raw(add ? '</div>' : '</label>')}`;
   return UI.modal({
     title: `الحسابات: ${label}`, icon: 'users', size: 'lg',
-    body: html`<div class="search-box">${UI.icon('search')}<input type="search" data-q placeholder="ابحث بالاسم أو الرقم العسكري"></div>${unitId ? html`<label class="check mt"><input type="checkbox" data-deep checked><span>تشمل الفروع التابعة</span></label>` : ''}
+    body: html`<div class="search-box">${UI.icon('search')}<input type="search" data-q value="${q}" placeholder="ابحث بالاسم أو الرقم العسكري"></div>${useWs ? html`<div class="om-wsf" data-wsfbar role="group" aria-label="محطات العمل"></div>` : ''}${unitId ? html`<label class="check mt"><input type="checkbox" data-deep checked><span>تشمل الفروع التابعة</span></label>` : ''}
       <div class="list mt" data-list style="max-height:300px;overflow:auto"></div>
       ${canAssign() || OrgScope.covers(departmentId, unitId) ? html`<div class="form-bar mt" data-bulk><div class="grow"><b data-cnt></b><div class="row" style="gap:4px;margin-top:4px"><button type="button" class="btn btn-ghost btn-sm" data-mall>${UI.icon('check')} تحديد الكل</button><button type="button" class="btn btn-ghost btn-sm" data-mnone>إلغاء التحديد</button></div></div>${PlacePick.html({ data: { to: '' }, none: '— اختر الموضع الجديد —' })}<button type="button" class="btn btn-primary btn-sm" data-move>${UI.icon('check')} نقل</button><button type="button" class="btn btn-ghost btn-sm" data-out>${UI.icon('x')} إخراج من الإدارة</button></div>
       <details class="mt"><summary><b>${UI.icon('plus')} إضافة حسابات إلى هذا الموضع</b></summary><div class="search-box mt">${UI.icon('search')}<input type="search" data-addq placeholder="اكتب اسماً أو رقماً عسكرياً"></div><div class="list mt" data-addlist></div></details>` : ''}`,
@@ -8522,7 +8528,8 @@ Pages.orgMembers = async ({ departmentId, unitId = '' }) => {
     onMount: (form) => {
       const match = (u, q) => !q || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(q);
       const draw = () => {
-        const list = orgPeople().filter((u) => inHere(u) && match(u, normalizeAr(st.q))).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        const base = orgPeople().filter((u) => inHere(u) && match(u, normalizeAr(st.q))), list = base.filter((u) => !st.wsf || (st.wsf === 'on') === wsBy.has(u.id)).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        { const bar = $('[data-wsfbar]', form); if (bar) { const on = base.filter((u) => wsBy.has(u.id)).length; bar.innerHTML = String(html`${[['', 'الكل', base.length, 'users'], ['on', 'على محطة عمل', on, 'monitor'], ['off', 'بلا محطة', base.length - on, 'user-plus']].map(([k, l, n, ic]) => html`<button type="button" class="om-wsb${st.wsf === k ? ' on' : ''}${k === 'off' && n ? ' warn' : ''}" data-wsfv="${k}" aria-pressed="${st.wsf === k ? 'true' : 'false'}">${UI.icon(ic)} ${l} <b>${fmtNum(n)}</b></button>`)}`); } }
         st.listIds = list.map((u) => u.id);
         /* القائمة تبقى حيث كانت بعد كل تحديد */
         const box = $('[data-list]', form), top = box.scrollTop;
@@ -8545,6 +8552,7 @@ Pages.orgMembers = async ({ departmentId, unitId = '' }) => {
       /* تحديد كل من في القائمة (بعد البحث) لنقلهم دفعة واحدة */
       UI.on(form, 'click', '[data-mall]', () => { (st.listIds || []).forEach((id) => st.pick.add(id)); draw(); });
       UI.on(form, 'click', '[data-mnone]', () => { st.pick.clear(); draw(); });
+      UI.on(form, 'click', '[data-wsfv]', (e, b) => { st.wsf = b.dataset.wsfv; draw(); });
       UI.on(form, 'click', '[data-add]', async (e, b) => { try { await Data.org.assign([b.dataset.add], { departmentId, unitId }); UI.toast('أُضيف الحساب'); draw(); } catch (ex) { UI.error(ex); } });
       draw();
     }
@@ -9423,7 +9431,7 @@ Pages.org = async (ctx) => {
   let lsDir = 'side'; try { lsDir = localStorage.getItem('sq_org_dir') || 'side'; } catch (_) { /* تجاهل */ }
   let lsDrag = 'move'; try { lsDrag = localStorage.getItem('sq_org_dragmode') === 'copy' ? 'copy' : 'move'; } catch (_) { /* تجاهل */ }
   let lsCompact = false; try { lsCompact = localStorage.getItem('sq_org_compact') === '1'; } catch (_) { /* تجاهل */ }
-  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: true, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set(), seld: new Set(), full: false, drag: lsDrag, compact: lsCompact, focus: String(ctx.query.focus || ''), more: new Set() };
+  const st = { q: '', mode: lsMode, dir: lsDir, open: new Set(), all: null, zoom: 1, fit: true, scroll: null, selMode: false, sel: new Set(), seld: new Set(), full: false, drag: lsDrag, compact: lsCompact, focus: String(ctx.query.focus || ''), more: new Set() };
   const draw = async () => {
     const { deps, units, users } = await Data.org.load(); if (!ctx.alive()) return;
     { const live = new Set(units.map((u) => u.id)), ld = new Set(deps.map((d) => d.id)); [...st.sel].forEach((id) => { if (!live.has(id)) st.sel.delete(id); }); [...st.seld].forEach((id) => { if (!ld.has(id)) st.seld.delete(id); }); }
@@ -9431,8 +9439,12 @@ Pages.org = async (ctx) => {
     const health = edit || head ? (await Data.org.health()).count : 0; if (!ctx.alive()) return;
     /* ما يملك المستخدم تعديله: الهيكل كله، أو ما تحت رئاسته فقط */
     const mine = (d, u) => OrgScope.covers(d.id, u ? u.id : ''), movable = (d, u) => mine(d, u) && !OrgScope.isTop(d.id, u.id);
-    const kidsOf = (depId, pid) => units.filter((u) => u.departmentId === depId && (u.parentId || '') === pid).sort(sortByOrder);
-    const usersIn = (u) => users.filter((x) => x.unitId === u.id).length, usersDep = (d) => users.filter((x) => x.departmentId === d.id).length;
+    const kidMap = new Map(); units.forEach((u) => { const k = `${u.departmentId}|${u.parentId || ''}`; if (!kidMap.has(k)) kidMap.set(k, []); kidMap.get(k).push(u); }); kidMap.forEach((l) => l.sort(sortByOrder));
+    const kidsOf = (depId, pid) => (kidMap.get(`${depId}|${pid}`) || []).slice();
+    const uCnt = new Map(), dCnt = new Map(); users.forEach((x) => { if (x.unitId) uCnt.set(x.unitId, (uCnt.get(x.unitId) || 0) + 1); if (x.departmentId) dCnt.set(x.departmentId, (dCnt.get(x.departmentId) || 0) + 1); });
+    const usersIn = (u) => uCnt.get(u.id) || 0, usersDep = (d) => dCnt.get(d.id) || 0;
+    /* الهيكل الكبير يُفتح مطوياً (الإدارات فقط) ما لم يختر المستخدم غير ذلك؛ وكان يُرسم كله مفتوحاً فيتأخر ثواني */
+    if (st.all === null) { let v = null; try { v = localStorage.getItem('sq_org_all'); } catch (_) { /* تجاهل */ } st.all = v === '1' ? true : v === '0' ? false : units.length <= ORG_BIG; st.autoFold = !st.all && v == null; }
     const subMatch = (depId, u) => normalizeAr(`${u.name} ${u.head || ''} ${u.code || ''}`).includes(qn) || kidsOf(depId, u.id).some((k) => subMatch(depId, k));
     const depMatch = (d) => !qn || normalizeAr(`${d.name} ${d.head || ''} ${d.code || ''}`).includes(qn) || kidsOf(d.id, '').some((u) => subMatch(d.id, u));
     const isOpen = (key) => st.all || !!qn || st.open.has(key);
@@ -9443,12 +9455,15 @@ Pages.org = async (ctx) => {
     const selCls = (u) => (st.selMode && st.sel.has(u.id) ? ' is-sel' : ''), selDep = (d) => (st.selMode && mine(d) && kidsOf(d.id, '').length ? html`<button type="button" class="btn btn-ghost btn-sm org-seldep" data-seldep="${d.id}">${UI.icon('check')} أقسامها</button>` : '');
     const ord = (a) => (st.dir === 'down' ? [...a].reverse() : a), T = (u) => UNIT_TYPES[u.type] || UNIT_TYPES.section, icOf = (u) => u.icon || T(u).icon, toneOf = (u) => u.tone || T(u).tone;
     const focusBtn = (d, u) => (st.mode === 'chart' && st.focus !== `${d.id}|${u ? u.id : ''}` ? html`<button type="button" class="icon-btn" data-focus="${d.id}|${u ? u.id : ''}" title="التركيز عليه وحده">${UI.icon('target')}</button>` : '');
-    const unitActs = (d, u, depth, i, n) => {
+    const lazyActs = !matchMedia('(hover: none)').matches;
+    const unitActs = (d, u, depth, i, n) => (lazyActs ? raw(`<span class="org-acts" data-lazyacts="u|${esc(d.id)}|${esc(u.id)}|${depth}|${i}|${n}"></span>`) : unitActs0(d, u, depth, i, n));
+    const depActs = (d) => (lazyActs ? raw(`<span class="org-acts" data-lazyacts="d|${esc(d.id)}"></span>`) : depActs0(d));
+    const unitActs0 = (d, u, depth, i, n) => {
       if (!mine(d, u)) return st.mode === 'chart' ? html`<span class="org-acts">${focusBtn(d, u)}</span>` : '';
       const fixed = OrgScope.isTop(d.id, u.id);
       return html`<span class="org-acts">${focusBtn(d, u)}${depth < ORG_MAX_DEPTH ? html`<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="${u.id}" title="إضافة فروع تابعة له">${UI.icon('plus')}</button>` : ''}${st.mode === 'chart' && kidsOf(d.id, u.id).length > 1 ? html`<button type="button" class="icon-btn" data-kv="u:${u.id}" title="طريقة عرض الفروع التابعة له">${UI.icon('grid')}</button>` : ''}${!fixed && i > 0 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="-1" title="تقديم">${UI.icon('chevron-right')}</button>` : ''}${!fixed && i < n - 1 ? html`<button type="button" class="icon-btn" data-shift="${u.id}" data-dir="1" title="تأخير">${UI.icon('chevron-left')}</button>` : ''}<button type="button" class="icon-btn" data-editunit="${u.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-copy="${d.id}|${u.id}" title="نسخه بكل ما يتبعه">${UI.icon('copy')}</button>${fixed ? '' : html`<button type="button" class="icon-btn" data-delunit="${u.id}" title="حذف">${UI.icon('trash')}</button>`}</span>`;
     };
-    const depActs = (d) => (!mine(d) ? (st.mode === 'chart' ? html`<span class="org-acts">${focusBtn(d, null)}</span>` : '') : html`<span class="org-acts">${focusBtn(d, null)}<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button>${st.mode === 'chart' && kidsOf(d.id, '').length > 1 ? html`<button type="button" class="icon-btn" data-kv="d:${d.id}" title="طريقة عرض أقسامها">${UI.icon('grid')}</button>` : ''}<button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ الإدارة بهيكلها">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>`);
+    const depActs0 = (d) => (!mine(d) ? (st.mode === 'chart' ? html`<span class="org-acts">${focusBtn(d, null)}</span>` : '') : html`<span class="org-acts">${focusBtn(d, null)}<button type="button" class="icon-btn" data-addunit="${d.id}" data-parent="" title="إضافة أقسام">${UI.icon('plus')}</button>${st.mode === 'chart' && kidsOf(d.id, '').length > 1 ? html`<button type="button" class="icon-btn" data-kv="d:${d.id}" title="طريقة عرض أقسامها">${UI.icon('grid')}</button>` : ''}<button type="button" class="icon-btn" data-editdep="${d.id}" title="تعديل">${UI.icon('edit')}</button>${edit ? html`<button type="button" class="icon-btn" data-copy="${d.id}|" title="نسخ الإدارة بهيكلها">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-deldep="${d.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</span>`);
     const people = (n, key) => { const [a, b] = key.split('|'); return assign || OrgScope.covers(a, b) ? html`<button type="button" class="oc-people" data-members="${key}" title="عرض الحسابات ونقلها">${UI.icon('users')}${fmtNum(n)}</button>` : n ? html`<span title="موظفون">${UI.icon('users')}${fmtNum(n)}</span>` : ''; };
     const meta = (n, cnt, key) => html`${cnt ? html`<span title="فروع">${UI.icon('layers')}${fmtNum(cnt)}</span>` : ''}${people(n, key)}`;
     /* المخطط الشجري */
@@ -9483,7 +9498,7 @@ Pages.org = async (ctx) => {
       <div class="org-grid">${deps.filter(depMatch).map((d) => { const top = kidsOf(d.id, ''), cnt = units.filter((u) => u.departmentId === d.id).length; return html`<section class="org-dept tone-${d.tone || 'brass'}${hl(d.name)}${selDCls(d)}" data-drop="dept:${d.id}"><header draggable="${edit ? 'true' : 'false'}" data-drag="dept:${d.id}">${selDBox(d)}<span class="org-dic">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}${d.code ? html` <span class="org-code ltr">${d.code}</span>` : ''}</b><small>${d.head ? `${d.head} · ` : ''}${fmtNum(cnt)} فرع</small></div>${people(usersDep(d), `${d.id}|`)}${selDep(d)}${mine(d) ? html`<span class="org-acts on">${depActs(d)}</span>` : ''}</header>
         ${top.length ? html`<ul class="org-tree">${top.map((u, j) => vnode(d, u, 1, j, top.length))}</ul>` : html`<div class="org-none">${mine(d) ? html`<button type="button" class="chip-add" data-addunit="${d.id}" data-parent="">${UI.icon('plus')} أضف أول قسم</button>` : 'لا توجد أقسام مسجلة'}</div>`}</section>`; })}</div>`;
     const legend = html`<div class="org-legend">${ORG_TYPE_ORDER.map((k) => html`<span class="tone-${UNIT_TYPES[k].tone}"><i>${UI.icon(UNIT_TYPES[k].icon)}</i>${UNIT_TYPES[k].label}</span>`)}<span class="faint">${UI.icon('info')} حتى ${ORG_MAX_DEPTH} مستويات داخل كل إدارة</span></div>`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الهيكل التنظيمي', sub: 'خطّط هيكل الأكاديمية: أضف الإدارات وفروعها، وغيّر الأيقونات والألوان والرموز، واسحب أي فرع أو إدارة لإعادة تنظيمها', illu: 'building', actions: html`${edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إضافة إدارات</button>` : ''}${assign || head ? html`<button class="btn ${lost ? 'btn-soft' : 'btn-ghost'}" data-act="lost">${UI.icon('users')} حسابات بلا إدارة${lost ? ` (${fmtNum(lost)})` : ''}</button>` : ''}${assign || head ? html`<a class="btn btn-ghost" href="#/org/people">${UI.icon('grid')} توزيع الحسابات</a>` : ''}${edit || head ? html`<button class="btn ${health ? 'btn-soft' : 'btn-ghost'}" data-act="health">${UI.icon('pulse')} فحص الهيكل${health ? ` (${fmtNum(health)})` : ''}</button>` : ''}<button class="btn btn-ghost" data-act="log">${UI.icon('clock')} سجل التغييرات</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة الهيكل</button>` })}
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الهيكل التنظيمي', sub: 'خطّط هيكل الأكاديمية: أضف الإدارات وفروعها، وغيّر الأيقونات والألوان والرموز، واسحب أي فرع أو إدارة لإعادة تنظيمها', illu: 'building', actions: html`${edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إضافة إدارات</button>` : ''}<button class="btn btn-ghost" data-act="findacc">${UI.icon('user-search')} البحث عن حساب</button>${assign || head ? html`<button class="btn ${lost ? 'btn-soft' : 'btn-ghost'}" data-act="lost">${UI.icon('users')} حسابات بلا إدارة${lost ? ` (${fmtNum(lost)})` : ''}</button>` : ''}${assign || head ? html`<a class="btn btn-ghost" href="#/org/people">${UI.icon('grid')} توزيع الحسابات</a>` : ''}${edit || head ? html`<button class="btn ${health ? 'btn-soft' : 'btn-ghost'}" data-act="health">${UI.icon('pulse')} فحص الهيكل${health ? ` (${fmtNum(health)})` : ''}</button>` : ''}<button class="btn btn-ghost" data-act="log">${UI.icon('clock')} سجل التغييرات</button><button class="btn btn-ghost" data-act="export">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة الهيكل</button>` })}
       ${head ? orgHeadBanner(units) : ''}
       <section class="panel org-panel${st.selMode ? ' org-selmode' : ''}"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="oq" type="search" placeholder="ابحث باسم أو رمز أو رئيس" value="${st.q}"></div>
         <div class="seg sm"><label><input type="radio" name="omode" value="chart"${st.mode === 'chart' ? raw(' checked') : ''}><span>${UI.icon('layers')} مخطط شجري</span></label><label><input type="radio" name="omode" value="cards"${st.mode === 'cards' ? raw(' checked') : ''}><span>${UI.icon('grid')} بطاقات</span></label></div>
@@ -9516,10 +9531,15 @@ Pages.org = async (ctx) => {
         wrap.addEventListener('pointermove', mv); wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
       });
     }
+    ctx.orgActs = (key) => { const [k, did, uid, depth, i, n] = key.split('|'), d = deps.find((x) => x.id === did); if (!d) return ''; if (k === 'd') return depActs0(d); const u = units.find((x) => x.id === uid); return u ? unitActs0(d, u, Number(depth), Number(i), Number(n)) : ''; };
+    if (qn.length >= 2) { const hits = AF.find(st.q, users, units); if (hits.length) { const tb = $('.org-panel > .toolbar', ctx.view); if (tb) tb.insertAdjacentHTML('afterend', String(html`<div class="org-accres"><b>${UI.icon('user-search')} حسابات مطابقة <small>${fmtNum(hits.length)}</small></b><div class="org-accl">${hits.slice(0, 8).map((u) => html`<button type="button" class="org-acc" data-afopen="${u.id}" title="${AF.place(u) || 'بلا إدارة'}">${UI.avatar(u, 'av-sm')}<span><b>${u.name}</b><small>${AF.place(u) || 'بلا إدارة'}</small></span></button>`)}${hits.length > 8 ? html`<button type="button" class="btn btn-ghost btn-sm" data-act="findacc">${UI.icon('search')} كل النتائج (${fmtNum(hits.length)})</button>` : ''}</div></div>`)); } }
+    if (st.autoFold) { const tb = $('.org-panel > .toolbar', ctx.view); if (tb && !$('.org-foldnote', ctx.view)) tb.insertAdjacentHTML('afterend', String(html`<div class="org-foldnote">${UI.icon('info')}<span>الهيكل كبير (${fmtNum(units.length)} فرعاً): يُفتح مطوياً على الإدارات ليظهر فوراً. افتح أي إدارة من زر «+» عليها، أو ابحث باسم الفرع، أو اضغط «توسيع الكل».</span></div>`)); }
     /* البحث يعيد ملاءمة التكبير للنتائج: كان التكبير محسوباً للهيكل كله عند الفتح، فتظهر الإدارة المطلوبة صغيرة جداً */
     const q = $('#oq', ctx.view); q.addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); st.fit = true; st.scroll = null; draw().then(() => { const k = $('#oq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
   };
   const run = async (fn) => { try { const r = await fn(); if (r !== false) draw(); } catch (ex) { UI.error(ex); } };
+  { const fillActs = (e) => { let el = e.target; for (let i = 0; el && el !== ctx.view && i < 6; i++, el = el.parentElement) { const ph = el.querySelector && el.querySelector(':scope > [data-lazyacts]'); if (ph) { const h = ctx.orgActs ? String(ctx.orgActs(ph.dataset.lazyacts) || '') : ''; ph.outerHTML = h; return; } } };
+    ctx.view.addEventListener('pointerover', fillActs); ctx.view.addEventListener('focusin', fillActs); }
   /* التكبير دون إعادة رسم: تبقى النقطة التي تحت المؤشر (أو منتصف المخطط) في مكانها */
   function setZoom(z, at) {
     z = clamp(Math.round(z * 10) / 10, 0.2, 1.6);
@@ -9610,7 +9630,9 @@ Pages.org = async (ctx) => {
   });
   UI.on(ctx.view, 'change', 'input[name="odir"]', (e, el) => { st.dir = el.value; st.fit = true; st.scroll = null; try { localStorage.setItem('sq_org_dir', st.dir); } catch (_) { /* تجاهل */ } draw(); });
   UI.on(ctx.view, 'click', '[data-tg]', (e, el) => { e.stopPropagation(); const k = el.dataset.tg; if (st.all) { st.all = false; ctx.data.units.forEach((u) => st.open.add(u.id).add('c' + u.id)); ctx.data.deps.forEach((d) => st.open.add('d' + d.id)); } if (st.open.has(k)) st.open.delete(k); else st.open.add(k); draw(); });
-  UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; st.open.clear(); st.fit = st.mode === 'chart'; draw(); });
+  UI.on(ctx.view, 'click', '[data-act="findacc"]', () => Pages.accountFinder({ q: st.q }));
+  UI.on(ctx.view, 'click', '[data-afopen]', (e, b) => { const u = Data.c.users.get(b.dataset.afopen); if (u) Pages.accountFinder({ q: u.militaryNo || u.username || u.name }); });
+  UI.on(ctx.view, 'click', '[data-act="expand"]', () => { st.all = !st.all; st.autoFold = false; try { localStorage.setItem('sq_org_all', st.all ? '1' : '0'); } catch (_) { /* تجاهل */ } st.open.clear(); st.fit = st.mode === 'chart'; draw(); });
   UI.on(ctx.view, 'click', '[data-zoom]', (e, el) => setZoom(st.zoom + Number(el.dataset.zoom) * 0.1));
   UI.on(ctx.view, 'click', '[data-act="fit"]', () => { st.fit = true; draw(); });
   /* الإضافة دفعة واحدة، ومنها «إدارة واحدة بكل تفاصيلها» أو «فرع واحد بكل تفاصيله» للنافذة الكاملة */
@@ -19628,13 +19650,25 @@ const Org3D = (() => {
   };
   const LABELS = { building: 'مبنى إداري', office: 'مكتب', team: 'فريق عمل', person: 'موظف', briefcase: 'شؤون إدارية', finance: 'شؤون مالية', legal: 'شؤون قانونية', badge: 'موارد بشرية', training: 'تدريب وتعليم', shield: 'أمن وحماية', it: 'تقنية المعلومات', network: 'شبكات', support: 'دعم فني', archive: 'أرشيف', docs: 'مستندات', mail: 'مراسلات', stats: 'تخطيط وإحصاء', medical: 'خدمات طبية', vehicle: 'نقل وحركة', warehouse: 'مخازن', tools: 'صيانة', media: 'إعلام وعلاقات', calendar: 'مواعيد', quality: 'جودة وتميز', globe: 'علاقات خارجية', key: 'صلاحيات', phone: 'اتصالات', folder: 'ملفات', idea: 'تطوير وابتكار', structure: 'هيكل تنظيمي', server: 'خوادم', library: 'مكتبة', reception: 'استقبال', flag: 'مراسم', camera: 'مراقبة', inbox: 'وارد وطلبات', ticket: 'بلاغ', chat: 'محادثة واستفسار', alarm: 'تنبيه وتحذير', check: 'إنجاز واعتماد', clock: 'وقت ومواعيد', bell: 'جرس وإشعار', pulse: 'مراقبة الخدمات' };
   const cache = new Map(); let seq = 0;
-  const get = (name, cls = '') => {
-    const k = D[name] ? name : 'building';
-    if (!cache.has(k)) cache.set(k, build(D[k]));
-    const u = (seq = (seq + 1) % 1e9).toString(36);
-    return cache.get(k).replace(/o3Z_/g, `o3${u}_`).replace('%C%', cls);
+  const built = (name) => { const k = D[name] ? name : 'building'; if (!cache.has(k)) cache.set(k, build(D[k])); return k; };
+  /* نسخة كاملة مستقلة (للطباعة والتصدير خارج الصفحة) */
+  const inline = (name, cls = '') => { const k = built(name), u = (seq = (seq + 1) % 1e9).toString(36); return cache.get(k).replace(/o3Z_/g, `o3${u}_`).replace('%C%', cls); };
+  /* كل أيقونة تُرسم مرة واحدة رمزاً مشتركاً في الصفحة، وكل ظهور لها عنصران (<use>) بدل مئات العناصر والتدرجات:
+     كان الهيكل الكبير يحمل عشرات آلاف العناصر فيبطؤ رسمه وتمريره وطيّه */
+  const done = new Set();
+  const sprite = (k) => {
+    if (done.has(k)) return true;
+    try {
+      let host = document.getElementById('o3dSprite');
+      if (!host) { host = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); host.id = 'o3dSprite'; host.setAttribute('aria-hidden', 'true'); host.setAttribute('focusable', 'false'); host.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none'; document.documentElement.appendChild(host); }
+      const body = cache.get(k).replace(/o3Z_/g, `o3s${k}_`).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+      const doc = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg"><symbol id="o3s-${k}" viewBox="0 0 128 128" overflow="visible">${body}</symbol></svg>`, 'image/svg+xml');
+      const sym = doc.querySelector('symbol'); if (!sym || doc.querySelector('parsererror')) return false;
+      host.appendChild(document.importNode(sym, true)); done.add(k); return true;
+    } catch (_) { return false; }
   };
-  return { get, names: Object.keys(D), LABELS };
+  const get = (name, cls = '') => { const k = built(name); return sprite(k) ? `<svg class="ic o3d ${cls}" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><use href="#o3s-${k}"/></svg>` : inline(k, cls); };
+  return { get, inline, names: Object.keys(D), LABELS };
 })();
 const o3dOf = (ref) => (String(ref || '').startsWith('o3d:') ? String(ref).slice(4) : '');
 /* UI.icon يرسم الأيقونة ثلاثية الأبعاد أينما طُلبت أيقونة إدارة أو فرع */
@@ -20018,7 +20052,7 @@ const WS = {
       const av = Math.max(0, free.get(itemId) || 0);
       if (q > av) { const it = await DB.get('items', itemId); throw new AppError(`المتاح من «${it ? it.name : 'الصنف'}» في «${unit.name}» وغير المربوط بمحطة أخرى: ${fmtNum(av)}`); }
     }
-    const t = now(), out = { ...(cur || {}), id: (cur && cur.id) || uid('ws'), departmentId: unit.departmentId, unitId: unit.id, name: String(rec.name || '').trim().slice(0, 60), holderId: rec.holderId || '', icon: rec.icon || 'o3d:office', tone: ORG_TONES.includes(rec.tone) ? rec.tone : 'sky', lines: [...merged].map(([itemId, qty]) => ({ itemId, qty })), note: String(rec.note || '').trim().slice(0, 300), order: Number(rec.order != null ? rec.order : cur ? cur.order : 0) || 0, createdAt: cur ? cur.createdAt : t, createdBy: cur ? cur.createdBy : Auth.user.id, updatedAt: t };
+    const t = now(), out = { ...(cur || {}), id: (cur && cur.id) || uid('ws'), departmentId: unit.departmentId, unitId: unit.id, name: String(rec.name || '').trim().slice(0, 60), ...WS.of([rec.holderId, ...(Array.isArray(rec.coIds) ? rec.coIds : (cur && cur.coIds) || [])]), icon: rec.icon || 'o3d:office', tone: ORG_TONES.includes(rec.tone) ? rec.tone : 'sky', lines: [...merged].map(([itemId, qty]) => ({ itemId, qty })), note: String(rec.note || '').trim().slice(0, 300), order: Number(rec.order != null ? rec.order : cur ? cur.order : 0) || 0, createdAt: cur ? cur.createdAt : t, createdBy: cur ? cur.createdBy : Auth.user.id, updatedAt: t };
     await DB.put('workstations', out);
     await Data.log(cur ? 'update' : 'create', 'inventory', out.id, `${cur ? 'تعديل' : 'إضافة'} محطة عمل «${WS.label(out)}» في ${orgLabel(unit.departmentId, unit.id, await DB.getAll('deptUnits'))}`);
     Bus.emit('inventory', {}); return out;
@@ -20098,22 +20132,23 @@ Pages.wsEdit = async ({ id = '', unitId = '' } = {}) => {
     title: w ? `محطة العمل: ${WS.label(w)}` : `محطة عمل جديدة في «${unit.name}»`, icon: 'monitor', size: 'lg',
     body: html`<div class="form-grid">
         <div class="field"><label>اسم المحطة <small class="faint">(اختياري)</small></label><input class="input" name="name" value="${(w && w.name) || ''}" placeholder="مثال: مكتب أحمد، المحطة 3، ركن الاستقبال" autocomplete="off"></div>
-        <div class="field"><label>الموظف <small class="faint">(اختياري)</small></label><select name="holderId"><option value="">— بلا موظف —</option>${people.map((u) => html`<option value="${u.id}"${w && w.holderId === u.id ? raw(' selected') : ''}>${u.name}${u.unitId === unit.id ? '' : ` — ${unitName(u.unitId, units) || Data.nameOf('departments', u.departmentId, '')}`}</option>`)}</select></div>
+        <div class="field wide">${WS.peoplePick(people, w ? WS.holders(w) : [], unit, units)}</div>
       </div>
       <h4 class="mt">${UI.icon('box')} أجهزة المحطة <small class="faint">— من عهدة «${unit.name}» غير المربوطة بمحطة أخرى. اترك ما لا يخصها، فيبقى مشتركاً للمكتب</small></h4>
       ${list.length ? html`<div class="ws-lines">${list.map(({ it, max, cur }) => html`<label class="ws-line${cur ? ' on' : ''}">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')} · المتاح ${fmtNum(max)}</small></div><input class="input" type="number" min="0" max="${max}" value="${cur}" data-wsq="${it.id}" aria-label="العدد في المحطة"></label>`)}</div>` : html`<p class="hint">لا توجد عهدة غير مربوطة في هذا المكتب. اسحب النماذج إلى المحطة في «توزيع العهدة» فتُضاف للمكتب وتُربط بها مباشرة.</p>`}
       <details class="olk-box mt"${w ? '' : raw(' open')}><summary>${UI.icon('palette')}<b>أيقونة المحطة ولونها</b><span class="faint small">لتمييزها عن بقية المحطات في المكتب</span></summary><div class="olk-body">${orgLookPicker({ icon: (w && w.icon) || 'o3d:office', tone: (w && w.tone) || 'sky' })}</div></details>
       ${UI.field({ name: 'note', label: 'ملاحظة', type: 'textarea', rows: 2, wide: true, placeholder: 'مثال: يحتاج نقطة شبكة ثانية' }, (w && w.note) || '')}`,
+    onMount: (form) => WS.bindPeoplePick(form),
     actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(w ? [{ label: 'حذف المحطة', kind: 'danger', icon: 'trash', handler: async () => { if (!(await UI.confirm(`حذف «${WS.label(w)}»؟ تبقى أجهزتها في عهدة المكتب مشتركة.`, { danger: true, ok: 'حذف' }))) return false; await WS.remove(w.id); UI.toast('حُذفت المحطة'); return 'deleted'; } }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form), lines = $$('[data-wsq]', form).map((x) => ({ itemId: x.dataset.wsq, qty: Math.floor(Number(x.value) || 0) })).filter((l) => l.qty > 0);
-      const r = await WS.save({ id: w ? w.id : '', unitId: unit.id, name: v.name, holderId: v.holderId, icon: v.icon, tone: v.tone, note: v.note, lines, order: w ? w.order : 0 });
+      const r = await WS.save({ id: w ? w.id : '', unitId: unit.id, name: v.name, ...WS.pickedHolders(form, w), icon: v.icon, tone: v.tone, note: v.note, lines, order: w ? w.order : 0 });
       UI.toast(`حُفظت «${WS.label(r)}»`); return r;
     } }]
   });
 };
 /* محطة لكل موظف في المكتب ليس له محطة */
 WS.forPeople = async (unitId) => {
-  const unit = await DB.get('deptUnits', unitId), have = new Set((await DB.getAll('workstations', 'unitId', KR(unitId))).map((w) => w.holderId).filter(Boolean));
+  const unit = await DB.get('deptUnits', unitId), have = new Set((await DB.getAll('workstations', 'unitId', KR(unitId))).flatMap((w) => WS.holders(w)));
   const people = Data.list('users').filter((u) => u.active !== 0 && !isSysAccount(u) && u.unitId === unitId && !have.has(u.id));
   if (!people.length) { UI.toast('لكل موظف في هذا المكتب محطة، أو لا يوجد موظفون مسجلون فيه', 'info'); return 0; }
   let i = 0; for (const u of people) await WS.save({ unitId, name: '', holderId: u.id, icon: 'o3d:person', tone: ORG_VARY[i++ % ORG_VARY.length], lines: [] });
@@ -20134,7 +20169,7 @@ const CM = {
 };
 Pages.custodyMap = async (ctx) => {
   CM.load();
-  const st = { dep: String(ctx.query.dep || CM.get('dep', '')), at: String(ctx.query.at || ''), view: CM.get('view', 'chart'), dir: CM.get('dir', 'down'), uview: CM.get('uview', 'grid'), wview: CM.get('wview', 'grid'), gview: CM.get('gview', 'grid'), armed: '', q: '', open: new Set(CM.json('open', [])), dock: CM.get('dock', 'side'), min: CM.get('min', '') === '1', pos: CM.json('pos', {}), w: Number(CM.get('pw', 0)) || 0, h: Number(CM.get('ph', 0)) || 0 };
+  const st = { dep: String(ctx.query.dep || CM.get('dep', '')), at: String(ctx.query.at || ''), view: CM.get('view', 'chart'), dir: CM.get('dir', 'down'), uview: CM.get('uview', 'grid'), wview: CM.get('wview', 'grid'), gview: CM.get('gview', 'grid'), armed: '', q: '', open: new Set(CM.json('open', [])), dock: CM.get('dock', 'side'), min: CM.get('min', innerWidth < 760 ? '1' : '') === '1', closed: CM.get('pclosed', '') === '1', pos: CM.json('pos', {}), w: Number(CM.get('pw', 0)) || 0, h: Number(CM.get('ph', 0)) || 0 };
   let T = null, wsList = [], lends = [], items = new Map(), counts = { st: new Map(), dp: new Map() }, canAdd = false, canStore = MDL.canStore(), cbar = '';
   const load = async () => {
     [T, wsList, counts, lends] = await Promise.all([Data.custodyTree(), WS.all(), MDL.counts(), DL.all()]);
@@ -20220,7 +20255,7 @@ Pages.custodyMap = async (ctx) => {
       <div class="cm-tree2">${parts.length ? parts : html`<p class="hint">${qn ? 'لا نماذج بهذا الاسم.' : 'لا نماذج بعد.'} <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`}</div>`;
   };
   /* ── مكونات العرض ── */
-  const wsChip = (w) => html`<span class="cm-ws tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" title="${wsName(w)}${w.holderId ? ` — ${Data.userName(w.holderId)}` : ''}: ${fmtNum(WS.count(w))} جهاز">${UI.icon(w.icon || 'o3d:office')}<b>${wsName(w)}</b><i>${fmtNum(WS.count(w))}</i>${pendAt(`w:${w.id}`) ? html`<em>+${fmtNum(pendAt(`w:${w.id}`))}</em>` : ''}</span>`;
+  const wsChip = (w) => html`<span class="cm-ws tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" title="${wsName(w)}${WS.holders(w).length ? ` — ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}` : ''}: ${fmtNum(WS.count(w))} جهاز">${UI.icon(w.icon || 'o3d:office')}<b>${wsName(w)}</b><i>${fmtNum(WS.count(w))}</i>${pendAt(`w:${w.id}`) ? html`<em>+${fmtNum(pendAt(`w:${w.id}`))}</em>` : ''}</span>`;
   const tmpBadge = (uId) => { const ls = lendsAt(uId); if (!ls.length) return ''; const n = ls.reduce((s, l) => s + l.qty, 0), late = ls.some(DL.late); return html`<span class="cm-tmp${late ? ' late' : ''}" title="${late ? 'استخدام مؤقت تجاوز موعد إرجاعه' : 'أجهزة مستخدمة مؤقتاً من العهدة العامة'}">${UI.icon('clock')} مؤقت ${fmtNum(n)}</span>`; };
   const minis = (lines, n = 6) => { const ls = lines.filter(([, q]) => q > 0); return ls.length ? html`<span class="cm-minis">${ls.slice(0, n).map(([id, q]) => { const it = items.get(id); return it ? html`<i title="${it.name}${q > 1 ? ` ×${q}` : ''}">${UI.illu(cmIllu(it), 'mini')}${q > 1 ? html`<em>${fmtNum(q)}</em>` : ''}</i>` : ''; })}${ls.length > n ? html`<b>+${fmtNum(ls.length - n)}</b>` : ''}</span>` : ''; };
   const wsLines = (w) => (w.lines || []).map((l) => [l.itemId, l.qty]);
@@ -20269,16 +20304,16 @@ Pages.custodyMap = async (ctx) => {
     const canE = WS.canEdit(), lk = WS.lookMap.get(u.id) || {};
     const acts = (w) => (canE ? html`<span class="org-acts cm-wsacts"><button type="button" class="icon-btn" data-wsed="${w.id}" title="تعديل المحطة وأجهزتها">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-wsmove="${w.id}" title="نقل إلى مكتب آخر">${UI.icon('swap')}</button><button type="button" class="icon-btn danger" data-wsdel="${w.id}" title="حذف المحطة">${UI.icon('trash')}</button></span>` : '');
     const drg = (k, id) => (canE ? raw(` draggable="true" data-mdrag="${k}:${id}"`) : '');
-    const holder = (w) => { const p = w.holderId ? Data.c.users.get(w.holderId) : null; return p ? html`<span class="cm-holder"${drg('p', p.id)} title="${canE ? 'اسحبه إلى محطة أخرى، أو إلى «موظفو المكتب» لفك التخصيص' : p.name}">${UI.avatar(p, 'av-sm')}<span>${p.name}</span></span>` : html`<small class="cm-noholder">${UI.icon('user-plus')} بلا موظف${canE ? ' — اسحبه هنا' : ''}</small>`; };
+    const holder = (w) => { const ps = WS.holders(w).map((id) => Data.c.users.get(id)).filter(Boolean); return ps.length ? html`<span class="cm-holders${ps.length > 1 ? ' multi' : ''}">${ps.slice(0, 3).map((p) => html`<span class="cm-holder"${drg('p', p.id)} title="${canE ? 'اسحبه إلى محطة أخرى، أو إلى «موظفو المكتب» لفك التخصيص' : p.name}">${UI.avatar(p, 'av-sm')}<span>${p.name}</span></span>`)}${ps.length > 3 ? html`<span class="cm-holder more" title="${ps.slice(3).map((p) => p.name).join('، ')}">+${fmtNum(ps.length - 3)}</span>` : ''}${ps.length > 1 ? html`<i class="cm-cotag" title="محطة مشتركة بين ${fmtNum(ps.length)} موظفين">${UI.icon('users')} مشتركة</i>` : ''}</span>` : html`<small class="cm-noholder">${UI.icon('user-plus')} بلا موظف${canE ? ' — اسحبه هنا' : ''}</small>`; };
     const wsBox = (w) => html`<div class="oc-box cm-node cm-wsbox tone-${w.tone || 'sky'}" data-cdrop="w:${w.id}" data-cnode="w:${w.id}" data-mord="ws:${w.id}"${drg('ws', w.id)} tabindex="0">${acts(w)}<span class="oc-ic">${UI.icon(w.icon || 'o3d:office')}</span><em>${UI.icon('monitor')} محطة عمل</em><b>${wsName(w)}</b>${holder(w)}${CMV.scene(wsLines(w), items, 'xs')}<span class="cm-n${WS.count(w) ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(WS.count(w))}</span>${pendAt(`w:${w.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`w:${w.id}`))}</span>` : ''}</div>`;
-    const people = Data.list('users').filter((x) => x.active !== 0 && !isSysAccount(x) && x.unitId === u.id), noWs = people.filter((p) => !ws.some((w) => w.holderId === p.id)).length;
+    const people = Data.list('users').filter((x) => x.active !== 0 && !isSysAccount(x) && x.unitId === u.id), noWs = people.filter((p) => !ws.some((w) => WS.has(w, p.id))).length;
     /* الجذر: المكتب نفسه بملخص سطر واحد (المحطات تحته، والمشتركة في رفّها) */
     const rootBox = () => { const n = T.total(u.id), p = pendAt(`u:${u.id}`); return html`<div class="oc-box cm-node cm-root tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}" tabindex="0"><span class="oc-ic">${UI.icon(u.icon || UT(u).icon)}</span><em>${UT(u).label}</em><b>${u.name}</b><span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span><small class="cm-rootsum">${fmtNum(ws.length)} محطة · ${fmtNum(shN)} مشترك${people.length ? ` · ${fmtNum(people.length)} موظف` : ''}</small>${tmpBadge(u.id)}${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>`; };
     /* رفّ الأجهزة المشتركة: شريط عريض مخطط بأيقونة طابعة، لا يُشبه المحطة: هو للمكتب كله */
     const shelf = () => html`<div class="cm-shelf tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}"><div class="cm-shelf-h"><span class="cm-shelf-ic">${UI.illu('printer', 'mini')}</span><div class="grow"><b>${UI.icon('users')} أجهزة مشتركة للمكتب كله</b><small>غير مخصصة لموظف بعينه${people.length ? ` — يستخدمها ${fmtNum(people.length)} موظف في «${u.name}»` : ''}. أفلت هنا الطابعة أو الماسح أو أي جهاز للجميع.</small></div><span class="cm-shelf-n"><b>${fmtNum(shN)}</b><small>مشترك</small></span>${pendAt(`u:${u.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`u:${u.id}`))}</span>` : ''}</div>${sh.size ? html`<div class="cm-shelf-items">${[...sh].filter(([id]) => items.get(id)).map(([id, q]) => { const it = items.get(id); return html`<button type="button" class="cm-shelf-it" data-dev="${id}" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<span>${it.name}</span>${q > 1 ? html`<i>×${fmtNum(q)}</i>` : ''}</button>`; })}</div>` : html`<div class="cm-shelf-empty">${UI.icon('info')} لا أجهزة مشتركة بعد</div>`}</div>`;
     /* الأجهزة المشتركة: خانة بحجم المحطة في صفها، بإطار متقطع وخلفية مخططة وشريط «مشتركة»، واسمها وأيقونتها ولونها قابلة للتعديل */
     const shBox = () => html`<div class="oc-box cm-node cm-shnode tone-${lk.tone || 'amber'}" data-cdrop="u:${u.id}" data-cshared="${u.id}" data-mord="sh:${u.id}"${drg('sh', u.id)} tabindex="0" role="button" title="${lk.note || 'أجهزة للمكتب كله، غير مخصصة لموظف بعينه'}">${canE ? html`<span class="org-acts"><button type="button" class="icon-btn" data-shed="${u.id}" title="الاسم والأيقونة واللون">${UI.icon('palette')}</button></span>` : ''}<i class="cm-shrib">${UI.icon('users')} مشتركة</i><span class="oc-ic cm-shic">${shIc(lk)}</span><em>للمكتب كله</em><b>${lk.name || 'أجهزة مشتركة'}</b>${lk.note ? html`<small class="cm-shnote">${lk.note}</small>` : ''}${minis([...sh]) || html`<small class="faint">أفلت هنا طابعة أو ماسحاً</small>`}<span class="cm-n${shN ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(shN)}</span>${pendAt(`u:${u.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`u:${u.id}`))}</span>` : ''}</div>`;
-    const pstrip = () => (people.length || ws.some((w) => w.holderId) ? html`<div class="cm-people" data-cdrop="pu:${u.id}"><b class="cm-ptitle">${UI.icon('users')} موظفو المكتب <small>${fmtNum(people.length)}</small></b>${people.map((p) => { const mw = ws.find((w) => w.holderId === p.id); return html`<span class="cm-pchip${mw ? ' has' : ''}"${drg('p', p.id)} title="${canE ? 'اسحبه إلى محطة لتخصيصها له، أو إلى مكتب آخر لنقل حسابه' : p.name}">${UI.avatar(p, 'av-sm')}<span><b>${p.name}</b><small>${mw ? wsName(mw) : 'بلا محطة'}</small></span></span>`; })}${people.length ? '' : html`<small class="faint">لا موظفون مسجلون في هذا المكتب</small>`}${canE ? html`<small class="cm-phint">${UI.icon('info')} اسحب الموظف إلى محطة لتخصيصها له، أو أعده هنا لفك التخصيص، أو إلى مكتب آخر لنقل حسابه</small>` : ''}</div>` : '');
+    const pstrip = () => (people.length || ws.some((w) => WS.holders(w).length) ? html`<div class="cm-people" data-cdrop="pu:${u.id}"><b class="cm-ptitle">${UI.icon('users')} موظفو المكتب <small>${fmtNum(people.length)}</small></b>${people.map((p) => { const mw = ws.find((w) => WS.has(w, p.id)); return html`<span class="cm-pchip${mw ? ' has' : ''}"${drg('p', p.id)} title="${canE ? 'اسحبه إلى محطة لتخصيصها له، أو إلى مكتب آخر لنقل حسابه' : p.name}">${UI.avatar(p, 'av-sm')}<span><b>${p.name}</b><small>${mw ? wsName(mw) : 'بلا محطة'}</small></span></span>`; })}${people.length ? '' : html`<small class="faint">لا موظفون مسجلون في هذا المكتب</small>`}${canE ? html`<small class="cm-phint">${UI.icon('info')} اسحب الموظف إلى محطة لتخصيصها له، أو أعده هنا لفك التخصيص، أو إلى مكتب آخر لنقل حسابه</small>` : ''}</div>` : '');
     const tools = WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsnew="${u.id}">${UI.icon('plus')} محطة عمل</button>${noWs ? html`<button type="button" class="btn btn-ghost btn-sm" data-wspeople="${u.id}">${UI.icon('users')} محطة لكل موظف (${fmtNum(noWs)})</button>` : ''}` : '';
     if (st.uview === 'struct') return html`<div class="cm-zone" data-cdrop="u:${u.id}"><div class="cm-toolsrow">${tools}</div>${pstrip()}<div class="oc-wrap cm-wrap down"><div class="oc down"><ul><li>${rootBox()}<ul>${WS.row(u.id, ws).map((x) => html`<li>${x.sh ? shBox() : wsBox(x.w)}</li>`)}${kids.map((k) => html`<li>${nodeBox(k)}</li>`)}</ul></li></ul></div></div>${ws.length ? '' : html`<p class="hint" style="text-align:center">لا محطات بعد. ${WS.canEdit() ? 'أضف «محطة عمل» لكل موظف، أو «محطة لكل موظف» دفعة واحدة.' : ''}</p>`}${tl.length ? sec('clock', 'مستخدمة هنا مؤقتاً من العهدة العامة', tl.reduce((s, l) => s + l.qty, 0), lendRows(tl)) : ''}</div>`;
     const grid = st.uview === 'grid';
@@ -20300,7 +20335,7 @@ Pages.custodyMap = async (ctx) => {
       ${kidCards ? sec('layers', 'الفروع التابعة', kids.length, kidCards) : ''}</div>`;
   };
   /* محطة العمل: أجهزتها شبكة أو قائمة، والضغط على الجهاز يعرض تفاصيله */
-  const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${w.holderId ? html`<small>${UI.icon('user')} ${Data.userName(w.holderId)}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
+  const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${WS.holders(w).length ? html`<small>${UI.icon(WS.holders(w).length > 1 ? 'users' : 'user')} ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}${WS.holders(w).length > 1 ? ' — محطة مشتركة' : ''}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
     <div class="dk-stage tone-${w.tone || 'sky'}">${CMV.scene(wsLines(w), items, 'lg')}</div>
     ${sec('box', 'أجهزة المحطة', WS.count(w), devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`)}</div>`;
   const tray = () => {
@@ -20332,14 +20367,17 @@ Pages.custodyMap = async (ctx) => {
   /* ── الرسم: الصفحة، واللوحة الثابتة خارجها ── */
   ctx.view.innerHTML = '<div data-cmmain></div>';
   const pal = document.createElement('aside'); pal.className = 'cm-pal'; pal.setAttribute('aria-label', 'نماذج الأجهزة');
-  pal.innerHTML = String(html`<header class="cm-palh" data-palgrab title="اسحب اللوحة لتحريكها أو لتثبيتها في الجانب أو الأعلى أو الأسفل">${UI.icon('layers')}<b>نماذج الأجهزة</b><span class="grow faint small" data-palhint></span><span class="cm-docks">${[['side', 'columns', 'في الجانب'], ['top', 'chevron-up', 'في الأعلى'], ['bottom', 'chevron-down', 'في الأسفل'], ['float', 'expand', 'نافذة حرة']].map(([k, ic, l]) => html`<button type="button" class="icon-btn" data-pdock="${k}" title="${l}" aria-label="${l}">${UI.icon(ic)}</button>`)}<button type="button" class="icon-btn" data-pmin title="تصغير اللوحة" aria-label="تصغير">${UI.icon('shrink')}</button></span></header><div class="cm-palbody" data-palbody></div><div class="cm-palrs" data-palrs title="اسحب لتغيير الحجم"></div>`);
+  pal.innerHTML = String(html`<header class="cm-palh" data-palgrab title="اسحب اللوحة لتحريكها أو لتثبيتها في الجانب أو الأعلى أو الأسفل">${UI.icon('layers')}<b>نماذج الأجهزة</b><span class="grow faint small" data-palhint></span><span class="cm-docks">${[['side', 'columns', 'في الجانب'], ['top', 'chevron-up', 'في الأعلى'], ['bottom', 'chevron-down', 'في الأسفل'], ['float', 'expand', 'نافذة حرة']].map(([k, ic, l]) => html`<button type="button" class="icon-btn" data-pdock="${k}" title="${l}" aria-label="${l}">${UI.icon(ic)}</button>`)}<button type="button" class="icon-btn cm-pmin" data-pmin title="تصغير اللوحة (أو اضغط عنوانها مرتين)" aria-label="تصغير">${UI.icon('minus')}</button><button type="button" class="icon-btn cm-pclose" data-pclose title="إغلاق اللوحة — تعود من زر «نماذج الأجهزة» العائم" aria-label="إغلاق اللوحة">${UI.icon('x')}</button></span></header><div class="cm-palbody" data-palbody></div><div class="cm-palrs" data-palrs title="اسحب لتغيير الحجم"></div>`);
   document.body.appendChild(pal);
   const snaps = document.createElement('div'); snaps.className = 'cm-snaps'; snaps.innerHTML = '<i data-s="side"></i><i data-s="top"></i><i data-s="bottom"></i>'; snaps.hidden = true; document.body.appendChild(snaps);
-  ctx.onCleanup(() => { pal.remove(); snaps.remove(); document.body.classList.remove('cm-dragging', 'cm-arming'); ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v)); ctx.view.classList.remove('cm-host'); });
+  ctx.onCleanup(() => { pal.remove(); snaps.remove(); CM.palFab(false); CM.palOpen = null; document.body.classList.remove('cm-dragging', 'cm-arming'); ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v)); ctx.view.classList.remove('cm-host'); });
   ctx.view.classList.add('cm-host');
   const area = () => { const r = ctx.view.getBoundingClientRect(), top = Math.max(70, r.top); return { l: Math.max(8, r.left), r: Math.min(innerWidth - 8, r.right), t: top }; };
   /* تثبيت اللوحة: الجانب (يسار المحتوى)، أو شريط أعلى أو أسفل المحتوى، أو نافذة حرة؛ والمحتوى يُزاح حتى لا تغطيه، والحجم يُسحب من الحافة */
   const place = () => {
+    if (st.closed) { pal.hidden = true; ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v)); CM.palFab(true); return; }
+    pal.hidden = false; CM.palFab(false);
+    { const mb = $('[data-pmin]', pal); if (mb) { mb.title = st.min ? 'إظهار محتوى اللوحة' : 'تصغير اللوحة (أو اضغط عنوانها مرتين)'; mb.innerHTML = String(UI.icon(st.min ? 'chevron-down' : 'minus')); } }
     const a = area(), mobile = innerWidth < 760, dock = mobile && st.dock !== 'float' ? 'bottom' : st.dock;
     pal.className = `cm-pal dock-${dock}${st.min ? ' min' : ''}`; pal.style.cssText = '';
     ['--cm-pad-l', '--cm-pad-t', '--cm-pad-b'].forEach((v) => ctx.view.style.removeProperty(v));
@@ -20383,6 +20421,9 @@ Pages.custodyMap = async (ctx) => {
   pal.addEventListener('input', debounce((e) => { if (!e.target.matches('[data-pq]')) return; st.q = e.target.value; drawPal(); const q = $('[data-pq]', pal); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 220));
   UI.on(pal, 'click', '[data-pdock]', (e, el) => { st.dock = el.dataset.pdock; st.min = false; CM.set('dock', st.dock); CM.set('min', ''); place(); });
   UI.on(pal, 'click', '[data-pmin]', () => { st.min = !st.min; CM.set('min', st.min ? '1' : ''); place(); });
+  UI.on(pal, 'click', '[data-pclose]', () => { st.closed = true; CM.set('pclosed', '1'); place(); UI.toast('أُغلقت لوحة النماذج — تعود من زر «نماذج الأجهزة» أسفل الشاشة', 'info', 5000); });
+  CM.palOpen = () => { st.closed = false; st.min = false; CM.set('pclosed', ''); CM.set('min', ''); place(); };
+  $('.cm-palh', pal).addEventListener('dblclick', (e) => { if (e.target.closest('button')) return; st.min = !st.min; CM.set('min', st.min ? '1' : ''); place(); });
   /* تحريك اللوحة بسحب رأسها وتثبيتها عند حافة، وتغيير حجمها بسحب حافتها الداخلية */
   pal.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
@@ -21759,7 +21800,7 @@ WS.moveTo = async (w, toUnitId, { devices = true, person = false } = {}) => {
   const out = { ...w, unitId: to.id, departmentId: to.departmentId, lines: carry ? lines : [], order, updatedAt: now() };
   await DB.put('workstations', out);
   await Data.log('move', 'inventory', w.id, `نقل محطة «${WS.label(w)}» من ${from ? from.name : '—'} إلى ${to.name}${carry ? ' بأجهزتها' : lines.length ? ' (بقيت أجهزتها مشتركة في مكتبها)' : ''}`);
-  if (person && w.holderId) await WS.placePerson(w.holderId, to.id);
+  if (person) for (const id of WS.holders(w)) await WS.placePerson(id, to.id);
   Bus.emit('inventory', {}); return out;
 };
 
@@ -21768,7 +21809,7 @@ Pages.wsMoveModal = async (w, toUnitId = '') => {
   if (!WS.canEdit()) { UI.toast('محطات العمل لمن يملك صرف العهدة أو إضافتها', 'warn'); return null; }
   const units = await DB.getAll('deptUnits'), from = units.find((u) => u.id === w.unitId) || { name: '—' }, opts = orgUnitsFlat(units, w.departmentId).filter(({ u }) => u.id !== w.unitId);
   if (!opts.length) { UI.toast('لا مكتب آخر في هذه الإدارة لنقل المحطة إليه', 'info'); return null; }
-  const holder = w.holderId ? Data.c.users.get(w.holderId) : null, canP = canUser(Auth.user, 'users.manage'), n = WS.count(w);
+  const hps = WS.holders(w).map((id) => Data.c.users.get(id)).filter(Boolean), holder = hps.length ? { name: hps.map((x) => x.name).join('، '), unitId: hps[0].unitId } : null, canP = canUser(Auth.user, 'users.manage'), n = WS.count(w);
   return UI.modal({
     title: `نقل «${WS.label(w)}»`, icon: 'swap', size: 'md',
     body: html`<p class="muted" style="margin-top:0">من «${from.name}» إلى مكتب آخر في الإدارة نفسها.</p>
@@ -21785,7 +21826,7 @@ Pages.wsMoveModal = async (w, toUnitId = '') => {
 Pages.personMoveModal = async (userId, toUnitId) => {
   const p = Data.c.users.get(userId), units = await DB.getAll('deptUnits'), to = units.find((u) => u.id === toUnitId); if (!p || !to) return null;
   if (!canUser(Auth.user, 'users.manage')) { UI.toast('نقل الحساب إلى مكتب آخر لمن يملك إدارة المستخدمين. ويمكنك تخصيص محطة له بسحبه إليها', 'warn', 6000); return null; }
-  const mine = (await WS.all()).filter((w) => w.holderId === userId && w.unitId !== to.id), carry = mine.filter((w) => w.departmentId === to.departmentId);
+  const mine = (await WS.all()).filter((w) => WS.has(w, userId) && WS.holders(w).length === 1 && w.unitId !== to.id), carry = mine.filter((w) => w.departmentId === to.departmentId);
   return UI.modal({
     title: `نقل «${p.name}»`, icon: 'user', size: 'md',
     body: html`<div class="ws-mvp">${UI.avatar(p)}<div><b>${p.name}</b><small>من «${orgLabel(p.departmentId, p.unitId, units) || '—'}»</small><small>إلى «${orgLabel(to.departmentId, to.id, units)}»</small></div></div>
@@ -21836,8 +21877,8 @@ Pages.cmMore = (o) => {
     }
     if (md.kind === 'sh') return null;
     if (md.kind === 'p') {
-      const w = e.target.closest('[data-cdrop^="w:"]'); if (w) return (wsOf(w.dataset.cdrop.slice(2)) || {}).holderId === md.id ? null : { act: 'hold', el: w, ws: w.dataset.cdrop.slice(2) };
-      const pu = e.target.closest('[data-cdrop^="pu:"]'); if (pu) return S().wsList.some((x) => x.unitId === pu.dataset.cdrop.slice(3) && x.holderId === md.id) ? { act: 'free', el: pu, unit: pu.dataset.cdrop.slice(3) } : null;
+      const w = e.target.closest('[data-cdrop^="w:"]'); if (w) return WS.has(wsOf(w.dataset.cdrop.slice(2)) || {}, md.id) ? null : { act: 'hold', el: w, ws: w.dataset.cdrop.slice(2) };
+      const pu = e.target.closest('[data-cdrop^="pu:"]'); if (pu) return S().wsList.some((x) => x.unitId === pu.dataset.cdrop.slice(3) && WS.has(x, md.id)) ? { act: 'free', el: pu, unit: pu.dataset.cdrop.slice(3) } : null;
     }
     const u = e.target.closest('[data-cdrop^="u:"]');
     if (u) { const to = u.dataset.cdrop.slice(2); if (to && to !== md.unitId && S().T.byId.get(to)) return { act: md.kind === 'ws' ? 'wsmove' : 'pmove', el: u, unit: to }; }
@@ -21864,17 +21905,25 @@ Pages.cmMore = (o) => {
     }
     draw();
   };
+  /* إسقاط موظف على محطة لها موظف: مشاركتها معه، أو استبداله */
   const hold = async (userId, wsId) => {
     const w = wsOf(wsId); if (!w) return;
-    if (w.holderId && !(await UI.confirm(`«${o.wsName(w)}» مخصصة لـ«${Data.userName(w.holderId)}». استبداله بـ«${Data.userName(userId)}»؟`, { ok: 'استبدال' }))) return;
-    const prev = S().wsList.filter((x) => x.holderId === userId && x.id !== wsId);
-    for (const x of prev) await WS.patch(x.id, { holderId: '' });
-    await WS.patch(wsId, { holderId: userId }, `تخصيص محطة «${o.wsName(w)}» لـ${Data.userName(userId)}`);
-    UI.toast(`خُصصت «${o.wsName(w)}» لـ${Data.userName(userId)}${prev.length ? ` بدل «${o.wsName(prev[0])}»` : ''}`); draw();
+    const cur = WS.holders(w).filter((x) => x !== userId); let mode = 'add';
+    if (cur.length) {
+      mode = await UI.modal({ title: `«${o.wsName(w)}» لها موظف`, icon: 'users', size: 'sm',
+        body: html`<p style="margin-top:0">«${o.wsName(w)}» مخصصة لـ${cur.map((x) => `«${Data.userName(x)}»`).join(' و')}. ماذا تريد لـ«${Data.userName(userId)}»؟</p><p class="hint">${UI.icon('info')} المحطة المشتركة يستخدمها أكثر من موظف (مناوبات، استقبال، مكتب مشترك)، وتبقى عهدة أجهزتها على الموظف الأول.</p>`,
+        actions: [{ label: 'إلغاء', kind: 'ghost', value: '' }, { label: 'استبدال', kind: 'soft', icon: 'swap', value: 'replace' }, { label: 'مشاركة المحطة', kind: 'primary', icon: 'users', value: 'add' }] });
+      if (!mode) return;
+    }
+    const prev = S().wsList.filter((x) => x.id !== wsId && WS.has(x, userId));
+    for (const x of prev) await WS.patch(x.id, WS.without(x, userId));
+    const ids = mode === 'replace' ? [userId] : [...WS.holders(w), userId], shared = mode === 'add' && cur.length;
+    await WS.patch(wsId, WS.of(ids), shared ? `مشاركة ${Data.userName(userId)} في محطة «${o.wsName(w)}»` : `تخصيص محطة «${o.wsName(w)}» لـ${Data.userName(userId)}`);
+    UI.toast(shared ? `صارت المحطة مشتركة: ${[...new Set(ids)].map((x) => Data.userName(x)).join('، ')}` : `خُصصت «${o.wsName(w)}» لـ${Data.userName(userId)}${prev.length ? ` بدل «${o.wsName(prev[0])}»` : ''}`); draw();
   };
   const release = async (userId, unitId) => {
-    const list = S().wsList.filter((x) => x.unitId === unitId && x.holderId === userId); if (!list.length) return;
-    for (const x of list) await WS.patch(x.id, { holderId: '' }, `فك تخصيص محطة «${o.wsName(x)}» عن ${Data.userName(userId)}`);
+    const list = S().wsList.filter((x) => x.unitId === unitId && WS.has(x, userId)); if (!list.length) return;
+    for (const x of list) await WS.patch(x.id, WS.without(x, userId), `فك تخصيص محطة «${o.wsName(x)}» عن ${Data.userName(userId)}`);
     UI.toast(`لم تعد «${o.wsName(list[0])}» مخصصة لـ${Data.userName(userId)}`); draw();
   };
   /* الأزرار: تعديل المحطة (بالمعالج الحالي)، ونقلها، وحذفها، ومظهر الأجهزة المشتركة ونافذتها */
@@ -22205,6 +22254,164 @@ document.addEventListener('click', (e) => { const b = e.target.closest && e.targ
   Pages.dashManager = (ctx) => LB.load().then(() => dm0(ctx));
   Pages.dashTech = (ctx) => LB.load().then(() => dt0(ctx));
 }
+
+/* أيقونات إضافية */
+document.body.insertAdjacentHTML('beforeend', '<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol><symbol id="i-user-search" viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M3 20c0-3.5 3-6 7-6 1.2 0 2.3.2 3.2.6"/><circle cx="17.5" cy="16.5" r="3"/><path d="M19.7 18.7 22 21"/></symbol></svg>');
+
+/* ══════════ محطة العمل المشتركة: أكثر من موظف في محطة واحدة ══════════
+   holderId يبقى الموظف الأول (وعليه تُسجَّل عهدة أجهزة المحطة كما كانت)، وcoIds بقية من يشاركونه المحطة */
+WS.holders = (w) => [...new Set([w && w.holderId, ...((w && Array.isArray(w.coIds) && w.coIds) || [])].filter(Boolean))];
+WS.has = (w, uid) => !!uid && WS.holders(w).includes(uid);
+WS.of = (ids) => { const l = [...new Set(ids.filter(Boolean))]; return { holderId: l[0] || '', coIds: l.slice(1) }; };
+WS.without = (w, uid) => WS.of(WS.holders(w).filter((x) => x !== uid));
+WS.byUser = (list) => { const m = new Map(); (list || []).forEach((w) => WS.holders(w).forEach((id) => { if (!m.has(id)) m.set(id, w); })); return m; };
+/* اسم المحطة بلا اسم: «محطة علي»، أو «محطة علي وسارة»، أو «محطة علي و3 آخرين» */
+WS.label = (w) => {
+  const nm = String((w && w.name) || '').trim(); if (nm) return nm;
+  const hs = WS.holders(w); if (!hs.length) return 'محطة عمل';
+  if (hs.length === 1) return `محطة ${Data.userName(hs[0])}`;
+  const first = (id) => String(Data.userName(id) || '').trim().split(/\s+/)[0] || 'موظف';
+  return hs.length === 2 ? `محطة ${first(hs[0])} و${first(hs[1])}` : `محطة ${first(hs[0])} و${fmtNum(hs.length - 1)} آخرين`;
+};
+/* نقل الحساب إلى مكتب آخر يُخرجه من المحطات المشتركة في مكتبه القديم (وتبقى المحطة لشركائه) */
+{
+  const pp0 = WS.placePerson;
+  WS.placePerson = async (userId, unitId) => {
+    await pp0(userId, unitId);
+    try { for (const w of (await WS.all()).filter((x) => x.unitId !== unitId && WS.has(x, userId) && WS.holders(x).length > 1)) await WS.patch(w.id, WS.without(w, userId), `خروج ${Data.userName(userId)} من «${WS.label(w)}» بعد نقل حسابه`); } catch (_) { /* لا يُفسد النقل */ }
+  };
+}
+/* اختيار موظفي المحطة: مربعات مع بحث، والمحددون أولاً */
+WS.peoplePick = (people, sel, unit, units) => html`<div class="ws-ppl" data-wsppl>
+  <div class="ws-pplh"><b>${UI.icon('users')} الموظفون <small data-wspn>${sel.length ? `${fmtNum(sel.length)} محدد` : 'لا أحد'}</small></b><div class="search-box">${UI.icon('search')}<input type="search" data-wspq placeholder="ابحث بالاسم أو الرقم" aria-label="ابحث عن موظف"></div></div>
+  <div class="ws-plist">${[...people].sort((a, b) => (sel.indexOf(a.id) < 0) - (sel.indexOf(b.id) < 0) || (sel.indexOf(a.id) - sel.indexOf(b.id))).map((u) => html`<label class="ws-pp${sel.includes(u.id) ? ' on' : ''}" data-q="${normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`)}"><input type="checkbox" name="hold" value="${u.id}"${sel.includes(u.id) ? raw(' checked') : ''}>${UI.avatar(u, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${u.unitId === unit.id ? 'في هذا المكتب' : unitName(u.unitId, units) || Data.nameOf('departments', u.departmentId, '')}</small></span></label>`)}${people.length ? '' : html`<p class="hint">لا موظفون في هذه الإدارة</p>`}</div>
+  <small class="hint">${UI.icon('info')} حدد موظفاً أو أكثر: المحطة المشتركة يستخدمها أكثر من موظف (مناوبات، استقبال، مكتب مشترك). والموظف الأول تُسجَّل عليه عهدة أجهزتها.</small>
+</div>`;
+WS.bindPeoplePick = (form) => {
+  const box = $('[data-wsppl]', form); if (!box) return;
+  const cnt = () => { const n = $$('[name="hold"]:checked', box).length; $('[data-wspn]', box).textContent = n ? `${fmtNum(n)} محدد` : 'لا أحد'; };
+  box.addEventListener('change', (e) => { const l = e.target.closest('.ws-pp'); if (l) l.classList.toggle('on', e.target.checked); cnt(); });
+  box.addEventListener('input', (e) => { if (!e.target.matches('[data-wspq]')) return; const q = normalizeAr(e.target.value.trim()); $$('.ws-pp', box).forEach((l) => { l.hidden = !!q && !l.dataset.q.includes(q); }); });
+};
+WS.pickedHolders = (form, w) => { const hs = $$('[name="hold"]:checked', form).map((x) => x.value), cur = w ? WS.holders(w) : []; return WS.of([...cur.filter((id) => hs.includes(id)), ...hs.filter((id) => !cur.includes(id))]); };
+
+/* ══════════ البحث عن الحسابات ══════════
+   بالاسم أو اسم الدخول أو الرقم العسكري أو الهاتف أو البريد أو الرتبة أو الدور أو الإدارة والفرع، بعدة كلمات معاً.
+   كل نتيجة تُظهر موضع الحساب في الهيكل ومحطة عمله، ومنها: إظهاره في الهيكل، ونقله، وتعديله، وإيقافه، وحذفه */
+const AF = {
+  digits: (s) => String(s || '').replace(/[٠-٩]/g, (c) => String(c.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - 0x6f0)),
+  norm: (s) => normalizeAr(AF.digits(s)),
+  _key: '', _idx: null,
+  /* فهرس نصي لكل الحسابات يُبنى مرة ويُعاد عند تغيّر الحسابات أو الهيكل */
+  index(users, units) {
+    const key = `${users.length}|${units.length}|${users.reduce((m, u) => Math.max(m, u.updatedAt || 0), 0)}|${units.reduce((m, u) => Math.max(m, u.updatedAt || 0), 0)}`;
+    if (AF._key === key && AF._idx) return AF._idx;
+    const paths = new Map(); Data.list('departments').forEach((d) => orgUnitsFlat(units, d.id).forEach((f) => paths.set(f.u.id, f.path)));
+    const idx = new Map();
+    users.forEach((u) => { const place = [Data.nameOf('departments', u.departmentId, ''), u.unitId ? paths.get(u.unitId) || '' : ''].filter(Boolean).join(' / '); idx.set(u.id, { place, t: AF.norm([u.name, u.username, u.militaryNo, u.phone, u.email, Data.nameOf('ranks', u.rankId, ''), ROLES[u.role] || '', place].filter(Boolean).join(' ')) }); });
+    AF._key = key; AF._idx = idx; return idx;
+  },
+  find(q, users, units) {
+    const toks = AF.norm(q).split(' ').filter(Boolean); if (!toks.length) return [];
+    const idx = AF.index(users, units), q0 = toks.join(' ');
+    const rank = (u) => { const n = AF.norm(u.name), m = AF.norm(u.militaryNo), un = AF.norm(u.username); return m === q0 || un === q0 ? 0 : n.startsWith(q0) ? 1 : n.includes(q0) ? 2 : 3; };
+    return users.filter((u) => { const x = idx.get(u.id); return x && toks.every((k) => x.t.includes(k)); }).map((u) => [rank(u), u]).sort((a, b) => a[0] - b[0] || (b[1].active !== 0) - (a[1].active !== 0) || AR_COLL.compare(a[1].name || '', b[1].name || '')).map((x) => x[1]);
+  },
+  place: (u) => (AF._idx && AF._idx.get(u.id) ? AF._idx.get(u.id).place : '')
+};
+/* ما يحق للمستخدم الحالي على حساب: نقله في الهيكل، وتعديله وإيقافه وحذفه */
+AF.can = (u) => {
+  const me = Auth.user, sup = me.role === 'supervisor', priv = ['supervisor', 'support_manager'].includes(u.role) || isSysAccount(u);
+  const manage = canUser(me, 'users.manage') && u.id !== me.id && (sup || !priv);
+  return { move: (canAssign() || OrgScope.covers(u.departmentId, u.unitId)) && (sup || !priv), edit: canUser(me, 'users.manage'), toggle: manage && !isSysAccount(u), del: manage && !priv };
+};
+Pages.accountFinder = async ({ q = '' } = {}) => {
+  const st = { q, role: '', off: false, lim: 40 };
+  const ROLE_F = [['', 'الكل'], ['department', 'موظفون'], ['technician', 'فنيون'], ['support_manager', 'إداريون'], ['supervisor', 'مشرفون']];
+  let units = await DB.getAll('deptUnits'), ws = await WS.all(), wsBy = WS.byUser(ws), wsDeps = new Set(ws.map((w) => w.departmentId));
+  const reload = async () => { units = await DB.getAll('deptUnits'); ws = await WS.all(); wsBy = WS.byUser(ws); wsDeps = new Set(ws.map((w) => w.departmentId)); AF._key = ''; };
+  return UI.modal({
+    title: 'البحث عن حساب', icon: 'user-search', size: 'lg',
+    body: html`<div class="af-top"><div class="search-box af-q">${UI.icon('search')}<input type="search" data-afq value="${q}" placeholder="اسم، رقم عسكري، اسم دخول، هاتف، رتبة، إدارة أو قسم…" aria-label="ابحث عن حساب" autocomplete="off"></div>
+        <div class="af-f"><div class="seg sm" role="radiogroup" aria-label="نوع الحساب">${ROLE_F.map(([k, l]) => html`<label><input type="radio" name="afrole" value="${k}"${k === '' ? raw(' checked') : ''}><span>${l}</span></label>`)}</div><label class="chk"><input type="checkbox" data-afoff> يشمل الموقوفة</label></div></div>
+      <div class="af-sum" data-afsum></div><div class="af-list" data-aflist></div>`,
+    actions: [{ label: 'إغلاق', kind: 'ghost', value: null }],
+    onMount: (form, finish) => {
+      const list = $('[data-aflist]', form), sum = $('[data-afsum]', form), inp = $('[data-afq]', form);
+      const row = (u) => {
+        const c = AF.can(u), w = wsBy.get(u.id), place = AF.place(u), useWs = u.departmentId && wsDeps.has(u.departmentId), hs = w ? WS.holders(w) : [];
+        return html`<div class="af-row${u.active === 0 ? ' off' : ''}" data-afrow="${u.id}">${UI.avatar(u)}<div class="grow af-main">
+          <div class="af-name"><b>${u.name}</b><span class="chip tone-${{ supervisor: 'brass', support_manager: 'violet', technician: 'teal', monitor: 'slate' }[u.role] || 'sky'}">${ROLES[u.role] || u.role}</span>${u.active === 0 ? html`<span class="chip tone-red">${UI.icon('lock')} موقوف</span>` : ''}</div>
+          <div class="af-meta">${u.username ? html`<span title="اسم الدخول">${UI.icon('user')}<bdi>${u.username}</bdi></span>` : ''}${u.militaryNo ? html`<span title="الرقم العسكري">${UI.icon('hash')}<bdi>${u.militaryNo}</bdi></span>` : ''}${u.rankId ? html`<span>${UI.icon('shield')}${Data.nameOf('ranks', u.rankId, '')}</span>` : ''}${u.phone ? html`<span>${UI.icon('phone')}<bdi>${u.phone}</bdi></span>` : ''}</div>
+          <div class="af-place${u.departmentId ? '' : ' none'}">${UI.icon('building')}<span>${u.departmentId ? place : 'بلا إدارة — لم يُوزَّع على الهيكل بعد'}</span></div>
+          ${useWs ? html`<div class="af-ws${w ? '' : ' none'}">${UI.icon('monitor')}<span>${w ? html`${WS.label(w)}${hs.length > 1 ? html` <em>مشتركة مع ${hs.filter((x) => x !== u.id).map((x) => Data.userName(x)).join('، ')}</em>` : ''}` : 'بلا محطة عمل'}</span></div>` : ''}
+        </div><div class="af-acts">${u.departmentId ? html`<button type="button" class="btn btn-ghost btn-sm" data-afgo="${u.id}" title="إظهار موضعه في الهيكل">${UI.icon('target')} في الهيكل</button>` : ''}${c.move ? html`<button type="button" class="btn btn-soft btn-sm" data-afmove="${u.id}">${UI.icon('swap')} نقل</button>` : ''}${c.edit ? html`<button type="button" class="icon-btn" data-afedit="${u.id}" title="تعديل الحساب">${UI.icon('edit')}</button>` : ''}${c.toggle ? html`<button type="button" class="icon-btn" data-aftog="${u.id}" title="${u.active === 0 ? 'تفعيل الحساب' : 'إيقاف الحساب'}">${UI.icon(u.active === 0 ? 'refresh' : 'lock')}</button>` : ''}${c.del ? html`<button type="button" class="icon-btn danger" data-afdel="${u.id}" title="حذف الحساب">${UI.icon('trash')}</button>` : ''}</div></div>`;
+      };
+      const draw = () => {
+        const all = Data.list('users').filter((u) => u.role !== 'monitor' && (st.off || u.active !== 0) && (!st.role || u.role === st.role));
+        const qn = st.q.trim();
+        if (AF.norm(qn).length < 2) { sum.innerHTML = String(html`<span class="faint">${UI.icon('info')} اكتب حرفين على الأقل. يمكن الجمع بين كلمتين، مثل: «أحمد المالية» أو «سالم 5021».</span>`); list.innerHTML = ''; return; }
+        const res = AF.find(qn, all, units), shown = res.slice(0, st.lim);
+        const noDep = res.filter((u) => !u.departmentId).length;
+        sum.innerHTML = String(html`<b>${fmtNum(res.length)}</b> حساب${noDep ? html` · <span class="chip tone-amber">${fmtNum(noDep)} بلا إدارة</span>` : ''}`);
+        list.innerHTML = String(res.length ? html`${shown.map(row)}${res.length > shown.length ? html`<div class="af-more"><button type="button" class="btn btn-soft btn-sm" data-afmore>${UI.icon('chevron-down')} عرض المزيد (${fmtNum(res.length - shown.length)})</button></div>` : ''}` : UI.empty({ illu: 'user', title: 'لا حساب مطابق', text: 'جرّب جزءاً من الاسم، أو الرقم العسكري، أو اسم الدخول، أو فعّل «يشمل الموقوفة».' }));
+      };
+      const refresh = async () => { await reload(); draw(); };
+      inp.addEventListener('input', debounce(() => { st.q = inp.value; st.lim = 40; draw(); }, 160));
+      form.addEventListener('change', (e) => { if (e.target.name === 'afrole') { st.role = e.target.value; draw(); } if (e.target.matches('[data-afoff]')) { st.off = e.target.checked; draw(); } });
+      UI.on(form, 'click', '[data-afmore]', () => { st.lim += 40; draw(); });
+      UI.on(form, 'click', '[data-afgo]', (e, b) => { const u = Data.c.users.get(b.dataset.afgo); if (!u) return; finish(null); setTimeout(() => Router.go(`/org?focus=${encodeURIComponent(`${u.departmentId}|${u.unitId || ''}`)}&acc=${encodeURIComponent(u.id)}`), 60); });
+      UI.on(form, 'click', '[data-afmove]', async (e, b) => { try { if (await Pages.bulkUsers([b.dataset.afmove], 'place')) await refresh(); } catch (ex) { UI.error(ex); } });
+      UI.on(form, 'click', '[data-afedit]', async (e, b) => { try { if (await Pages.userModal(b.dataset.afedit)) await refresh(); } catch (ex) { UI.error(ex); } });
+      UI.on(form, 'click', '[data-aftog]', async (e, b) => { try { if (await Pages.userToggle(b.dataset.aftog)) await refresh(); } catch (ex) { UI.error(ex); } });
+      UI.on(form, 'click', '[data-afdel]', async (e, b) => { try { if (await Pages.userDelete(b.dataset.afdel)) await refresh(); } catch (ex) { UI.error(ex); } });
+      draw(); setTimeout(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }, 60);
+    }
+  });
+};
+/* إيقاف الحساب أو تفعيله (يُستعاد في أي وقت) */
+Pages.userToggle = async (id) => {
+  const u = await DB.get('users', id); if (!u) return false;
+  const c = AF.can(u); if (!c.toggle) throw new AppError('لا تملك صلاحية إيقاف هذا الحساب');
+  const off = u.active !== 0;
+  if (!(await UI.confirm(off ? `إيقاف حساب «${u.name}»؟ لن يستطيع الدخول حتى يُفعَّل، ويبقى سجله وموضعه كما هما.` : `تفعيل حساب «${u.name}»؟`, { ok: off ? 'إيقاف' : 'تفعيل', danger: off }))) return false;
+  await DB.put('users', { ...u, active: off ? 0 : 1, updatedAt: now() }); await Data.refresh('users');
+  await Data.log('update', 'user', id, `${off ? 'إيقاف' : 'تفعيل'} حساب ${u.name}`); Bus.emit('users');
+  UI.toast(off ? `أُوقف حساب «${u.name}»` : `فُعّل حساب «${u.name}»`); return true;
+};
+/* حذف الحساب: نهائياً إن لم يكن له أثر، وإلا يُقترح إيقافه (حتى لا تفقد البلاغات والعهد أصحابها) */
+Pages.userDelete = async (id) => {
+  const u = await DB.get('users', id); if (!u) return false;
+  const c = AF.can(u); if (!c.del) throw new AppError('حذف الحساب لمن يملك إدارة المستخدمين، ولا يُحذف حساب مشرف أو إداري أو حساب النظام');
+  const [tk, loans, lends, vch, wsl] = await Promise.all([DB.getAll('tickets'), DB.getAll('loans'), DB.getAll('deptLends'), DB.getAll('vouchers'), WS.all()]);
+  const refs = [[tk.filter((t) => t.requesterId === id || t.assigneeId === id).length, 'بلاغ'], [loans.filter((l) => l.borrowerId === id).length, 'عهدة أو إعارة'], [lends.filter((l) => l.holderId === id).length, 'استخدام مؤقت'], [vch.filter((v) => v.holderId === id).length, 'سند']].filter(([n]) => n);
+  const mine = wsl.filter((w) => WS.has(w, id));
+  const r = await UI.modal({
+    title: `حذف حساب «${u.name}»`, icon: 'trash', size: 'md',
+    body: html`<div class="af-delhead">${UI.avatar(u)}<div><b>${u.name}</b><small>${[u.militaryNo, ROLES[u.role], AF.place(u) || Data.nameOf('departments', u.departmentId, '')].filter(Boolean).join(' · ')}</small></div></div>
+      ${refs.length ? html`<div class="banner tone-amber mt">${UI.icon('alert')}<div class="grow"><b>للحساب أثر في النظام</b><div class="small">${refs.map(([n, l]) => `${fmtNum(n)} ${l}`).join('، ')}. حذفه يُبقي هذه السجلات بلا صاحب ظاهر؛ <b>الإيقاف</b> يمنع الدخول ويحفظ السجل كما هو، ويمكن التراجع عنه.</div></div></div>` : html`<p class="muted">لا بلاغات ولا عهد ولا سندات على هذا الحساب.</p>`}
+      ${mine.length ? html`<p class="hint">${UI.icon('monitor')} يُفك من ${mine.map((w) => `«${WS.label(w)}»`).join('، ')}.</p>` : ''}
+      ${refs.length ? html`<label class="chk mt"><input type="checkbox" name="sure"> أفهم ذلك وأريد الحذف النهائي رغم ذلك</label>` : ''}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, ...(c.toggle && u.active !== 0 ? [{ label: 'إيقاف بدلاً من الحذف', kind: refs.length ? 'primary' : 'soft', icon: 'lock', value: 'off' }] : []), { label: 'حذف نهائي', kind: 'danger', icon: 'trash', submit: true, handler: async (form) => {
+      if (refs.length && !form.querySelector('[name="sure"]').checked) throw new AppError('أكّد الحذف النهائي أو اختر الإيقاف');
+      for (const w of mine) await WS.patch(w.id, WS.without(w, id), `فك «${WS.label(w)}» عن ${u.name} (حُذف حسابه)`);
+      await DB.del('users', id); await Data.refresh('users');
+      await Data.log('delete', 'user', id, `حذف حساب ${u.name}${u.militaryNo ? ` (${u.militaryNo})` : ''}`); Bus.emit('users');
+      UI.toast(`حُذف حساب «${u.name}»`); return 'deleted';
+    } }]
+  });
+  if (r === 'off') { await DB.put('users', { ...u, active: 0, updatedAt: now() }); await Data.refresh('users'); await Data.log('update', 'user', id, `إيقاف حساب ${u.name}`); Bus.emit('users'); UI.toast(`أُوقف حساب «${u.name}»`); return true; }
+  return !!r;
+};
+
+/* ══════════ لوحة نماذج الأجهزة في «توزيع العهدة»: تصغير وإغلاق، وزر عائم لإعادتها ══════════ */
+CM.palFab = (open) => {
+  let fab = document.getElementById('cmPalFab');
+  if (!fab) { fab = document.createElement('button'); fab.type = 'button'; fab.id = 'cmPalFab'; fab.className = 'cm-palfab'; fab.innerHTML = String(html`${UI.icon('layers')}<span>نماذج الأجهزة</span>`); fab.title = 'إظهار لوحة نماذج الأجهزة'; document.body.appendChild(fab); fab.addEventListener('click', () => { if (CM.palOpen) CM.palOpen(); }); }
+  fab.hidden = !open; return fab;
+};
+
+{ const po = Pages.org; Pages.org = async (ctx) => { await po(ctx); orgAccOpen(ctx); }; }
 
 boot();
 })();
