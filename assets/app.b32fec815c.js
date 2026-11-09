@@ -2644,9 +2644,9 @@ Pages.items = async (ctx) => {
   UI.on(view, 'click', '[data-act="import"]', async () => {
     const ok = await UI.modal({ title: 'استيراد أصناف من ملف CSV', icon: 'upload', body: html`<p class="muted" style="line-height:1.9">الأعمدة المدعومة: <span class="ltr">name, sku, category, unit, minQty, qty, warehouse, brand, model, serial</span>. يمكن تصدير الأصناف الحالية واستخدام الملف قالباً.</p>`, actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'اختيار الملف', kind: 'primary', icon: 'upload', value: true, submit: true }] });
     if (!ok) return;
-    const [file] = await UI.pickFiles({ accept: '.csv,text/csv', multiple: false }); if (!file) return;
+    const [file] = await UI.pickFiles({ accept: '.xlsx,.csv,text/csv', multiple: false }); if (!file) return;
     try {
-      const rows = parseCSV(await readText(file)), catBy = new Map(Data.list('itemCategories').map((c) => [normalizeAr(c.name), c.id])), whBy = new Map(Data.list('warehouses').map((w) => [normalizeAr(w.name), w.id])), defWh = (Data.list('warehouses')[0] || {}).id; let n = 0, fail = 0;
+      const rows = /\.xlsx$/i.test(file.name) ? await XL.objRows(file) : parseCSV(await readText(file)), catBy = new Map(Data.list('itemCategories').map((c) => [normalizeAr(c.name), c.id])), whBy = new Map(Data.list('warehouses').map((w) => [normalizeAr(w.name), w.id])), defWh = (Data.list('warehouses')[0] || {}).id; let n = 0, fail = 0;
       for (const r of rows) { try { const it = await Data.inv.saveItem({ name: r.name, sku: r.sku, categoryId: catBy.get(normalizeAr(r.category)) || 'ic_other', unit: r.unit, minQty: r.minQty, brand: r.brand, model: r.model, serial: r.serial }); if (Number(r.qty) > 0) await Data.inv.move({ type: 'receive', itemId: it.id, warehouseId: whBy.get(normalizeAr(r.warehouse)) || defWh, qty: r.qty, note: 'استيراد من ملف' }); n++; } catch (_) { fail++; } }
       UI.toast(`تم استيراد ${fmtNum(n)} صنف${fail ? ` وتعذر ${fmtNum(fail)}` : ''}`, fail ? 'warn' : 'ok'); load();
     } catch (ex) { UI.error(ex); }
@@ -3506,23 +3506,154 @@ const XL = (() => {
     end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
     return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
+  /* ── الكتابة: جداول Excel مرتبة ومفهومة ──
+     يتعرّف على بنية الورقة: عنوان (سطر بخلية واحدة)، وسطور «بيان: قيمة»، ورأس الجدول، والإجمالي، والفواصل.
+     الأرقام والنسب والتواريخ تُكتب بأنواعها (تُجمع وتُرتب وتُصفّى في Excel)، والأعمدة النصية (التسلسلي، التاج، الهاتف، الرمز…)
+     تبقى نصاً. رأس ملوّن ومثبّت مع التصفية، وحدود، وتظليل متناوب، والتفاف للنص الطويل، وعرض أعمدة مناسب، وإعداد للطباعة. */
   function write(sheets) {
     const W = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', H = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
-    const files = [
-      { name: '[Content_Types].xml', data: `${H}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
-      { name: '_rels/.rels', data: `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
-      { name: 'xl/workbook.xml', data: `${H}<workbook xmlns="${W}" xmlns:r="${R}"><workbookPr/><sheets>${sheets.map((s, i) => `<sheet name="${xmlEsc(String(s.name).slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
-      { name: 'xl/_rels/workbook.xml.rels', data: `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="${R}/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="${R}/styles" Target="styles.xml"/></Relationships>` },
-      { name: 'xl/styles.xml', data: `${H}<styleSheet xmlns="${W}"><fonts count="2"><font><sz val="12"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B1B31"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` }
+    const S = { def: 0, head: 1, txt: 2, txtZ: 3, int: 4, intZ: 5, dec: 6, decZ: 7, pct: 8, pctZ: 9, date: 10, dateZ: 11, dt: 12, dtZ: 13, title: 14, sub: 15, kvL: 16, kvV: 17, tot: 18, totN: 19 };
+    const xf = (font, fill, border, numFmt, align) => `<xf numFmtId="${numFmt}" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0"${numFmt ? ' applyNumberFormat="1"' : ''}${font ? ' applyFont="1"' : ''}${fill ? ' applyFill="1"' : ''}${border ? ' applyBorder="1"' : ''} applyAlignment="1"><alignment ${align}/></xf>`;
+    const AL = { c: 'horizontal="center" vertical="center" wrapText="1"', r: 'vertical="center" wrapText="1"', n: 'horizontal="center" vertical="center"', t: 'vertical="center"' };
+    const cellXfs = [
+      xf(0, 0, 0, 0, AL.t), xf(1, 2, 1, 0, AL.c),
+      xf(0, 0, 1, 0, AL.r), xf(0, 3, 1, 0, AL.r),
+      xf(0, 0, 1, 3, AL.n), xf(0, 3, 1, 3, AL.n),
+      xf(0, 0, 1, 166, AL.n), xf(0, 3, 1, 166, AL.n),
+      xf(0, 0, 1, 9, AL.n), xf(0, 3, 1, 9, AL.n),
+      xf(0, 0, 1, 164, AL.n), xf(0, 3, 1, 164, AL.n),
+      xf(0, 0, 1, 165, AL.n), xf(0, 3, 1, 165, AL.n),
+      xf(2, 0, 0, 0, 'horizontal="center" vertical="center"'), xf(3, 0, 0, 0, 'horizontal="center" vertical="center" wrapText="1"'),
+      xf(4, 4, 1, 0, AL.r), xf(0, 0, 1, 0, AL.r),
+      xf(4, 4, 2, 0, AL.r), xf(4, 4, 2, 3, AL.n)
     ];
-    sheets.forEach((s, i) => {
-      const rows = s.rows || [], cols = Math.max(0, ...rows.map((r) => r.length)), header = s.header !== false;
+    const styles = `${H}<styleSheet xmlns="${W}"><numFmts count="3"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/><numFmt numFmtId="166" formatCode="#,##0.0#"/></numFmts>`
+      + '<fonts count="5"><font><sz val="11"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="15"/><color rgb="FF1F3A68"/><name val="Arial"/><family val="2"/></font><font><sz val="10"/><color rgb="FF5B6575"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF1F2A37"/><name val="Arial"/><family val="2"/></font></fonts>'
+      + '<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F3A68"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF3F6FA"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF6F2E8"/><bgColor indexed="64"/></patternFill></fill></fills>'
+      + '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD3D9E2"/></left><right style="thin"><color rgb="FFD3D9E2"/></right><top style="thin"><color rgb="FFD3D9E2"/></top><bottom style="thin"><color rgb="FFD3D9E2"/></bottom><diagonal/></border><border><left style="thin"><color rgb="FFD3D9E2"/></left><right style="thin"><color rgb="FFD3D9E2"/></right><top style="medium"><color rgb="FF8A6A22"/></top><bottom style="thin"><color rgb="FFD3D9E2"/></bottom><diagonal/></border></borders>'
+      + `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${cellXfs.length}">${cellXfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    const ne = (r) => (r || []).filter((v) => v !== '' && v != null).length;
+    const TXT = /تسلسل|serial|s\/n|تاج|\btag\b|رقم الأصل|هاتف|جوال|phone|mobile|رمز|sku|عسكري|اسم المستخدم|username|كلمة|password|host|الجهاز على الشبكة|المرجع|رقم السند|رقم البلاغ|number|رقم الطلب|^الرقم$/i;
+    const D0 = Date.UTC(1899, 11, 30);
+    const serial = (y, m, d, hh = 0, mm = 0) => (Date.UTC(y, m - 1, d) - D0) / 864e5 + (hh * 60 + mm) / 1440;
+    /* نوع الخلية وقيمتها: ['n', رقم, نوع التنسيق] أو ['s', نص] */
+    const typed = (v, forceText) => {
+      if (typeof v === 'number' && Number.isFinite(v)) return ['n', v, Number.isInteger(v) ? 'int' : 'dec'];
+      if (v instanceof Date && !Number.isNaN(v.getTime())) return ['n', serial(v.getFullYear(), v.getMonth() + 1, v.getDate(), v.getHours(), v.getMinutes()), 'dt'];
+      const s = String(v == null ? '' : v).trim();
+      if (forceText || !s) return ['s', s];
+      let m;
+      if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return ['n', serial(+m[3], +m[2], +m[1]), 'date'];
+      if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ،,]+(\d{1,2}):(\d{2})$/))) return ['n', serial(+m[3], +m[2], +m[1], +m[4], +m[5]), 'dt'];
+      if ((m = s.match(/^(\d{1,2}):(\d{2})[ ،,]+(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return ['n', serial(+m[5], +m[4], +m[3], +m[1], +m[2]), 'dt'];
+      if (/^-?(0|[1-9]\d{0,2}(,\d{3})+|[1-9]\d{0,8})(\.\d+)?$/.test(s) || /^-?0\.\d+$/.test(s)) { const n = Number(s.replace(/,/g, '')); return ['n', n, Number.isInteger(n) ? 'int' : 'dec']; }
+      if ((m = s.match(/^(-?\d{1,3}(?:\.\d+)?)\s*%$/))) return ['n', Number(m[1]) / 100, 'pct'];
+      return ['s', s];
+    };
+    /* أدوار الصفوف */
+    const classify = (s, rows, cols) => {
+      const role = new Array(rows.length).fill('body');
+      if (s.header === false) return role;
+      let i = 0;
+      if (Number.isInteger(s.head)) { for (let k = 0; k < s.head; k++) role[k] = ne(rows[k]) ? (k ? 'sub' : 'title') : 'blank'; role[s.head] = 'head'; for (let k = s.head + 1; k < rows.length; k++) role[k] = ne(rows[k]) ? 'body' : 'blank'; return role; }
+      if (cols > 1 && rows.length > 1 && ne(rows[0]) === 1 && rows[0][0] !== '' && rows[0][0] != null) { role[0] = 'title'; i = 1; if (rows.length > 2 && ne(rows[1]) === 1 && ne(rows[2]) !== 1 && typed(rows[1][0])[0] === 's' && ne(rows[2])) { role[1] = 'sub'; i = 2; } }
+      while (i < rows.length) {
+        if (!ne(rows[i])) { role[i] = 'blank'; i++; continue; }
+        let j = i; while (j < rows.length && ne(rows[j])) j++;
+        const blk = rows.slice(i, j);
+        if (cols > 2 && blk.every((r) => ne(r) <= 2 && (r[0] !== '' && r[0] != null))) { for (let k = i; k < j; k++) role[k] = 'kv'; }
+        else {
+          const allTxt = (r) => r.every((v) => v === '' || v == null || typed(v)[0] === 's');
+          let s0 = i;
+          if (ne(rows[i]) === 1 && j - i > 2 && ne(rows[i + 1]) >= 2 && allTxt(rows[i + 1])) { role[i] = 'sec'; s0 = i + 1; }
+          const h = rows[s0], hdr = ne(h) >= 2 && allTxt(h) && j - s0 > 1;
+          if (hdr || (s0 === 0 && ne(h) >= 1 && allTxt(h))) role[s0] = 'head';
+          for (let k = role[s0] === 'head' ? s0 + 1 : s0; k < j; k++) role[k] = 'body';
+          const last = rows[j - 1]; if (j - 1 > s0 && /^(الإجمالي|المجموع|الإجمالي العام|المجموع الكلي|الكل|إجمالي)$/.test(String(last[0] || '').trim())) role[j - 1] = 'total';
+        }
+        i = j;
+      }
+      return role;
+    };
+    const wbNames = [];
+    const files = [
+      { name: '[Content_Types].xml', data: `${H}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
+      { name: '_rels/.rels', data: `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+      null,
+      { name: 'xl/_rels/workbook.xml.rels', data: `${H}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="${R}/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="${R}/styles" Target="styles.xml"/></Relationships>` },
+      { name: 'xl/styles.xml', data: styles }
+    ];
+    const used = new Set();
+    const names = sheets.map((s, i) => { let n = String(s.name || `ورقة ${i + 1}`).replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || `ورقة ${i + 1}`; let k = 2; while (used.has(n)) n = `${n.slice(0, 28)} ${k++}`; used.add(n); return n; });
+    sheets.forEach((s, si) => {
+      const rows = (s.rows || []).map((r) => (Array.isArray(r) ? r : [])), cols = Math.max(1, ...rows.map((r) => r.length)), role = classify(s, rows, cols), L = colName(cols - 1);
+      const hi = role.indexOf('head'), hdr = hi >= 0 ? rows[hi] : [];
+      const forceTxt = Array.from({ length: cols }, (_, c) => (s.types && s.types[c] === 'text') || (hi >= 0 && TXT.test(String(hdr[c] || ''))));
+      /* عرض الأعمدة: المعطى، وإلا من المحتوى */
+      const len = (v) => { const t = String(v == null ? '' : v); return t.split('\n').reduce((m, l) => Math.max(m, l.length), 0) * (/[؀-ۿ]/.test(t) ? 1.1 : 1); };
+      const widths = Array.from({ length: cols }, (_, c) => {
+        const given = (s.widths || [])[c];
+        let w = 0; rows.forEach((r, ri) => { if (['body', 'head', 'total'].includes(role[ri]) && ri - hi < 400) w = Math.max(w, len(r[c]) + (role[ri] === 'head' ? 2 : 1)); });
+        const auto = Math.min(60, Math.max(9, Math.ceil(w)));
+        return given ? Math.max(given, Math.min(auto, 14)) : auto;
+      });
+      /* عمود البيانات «بيان: قيمة» يتسع لعناوينها */
+      const kvw = Math.max(0, ...rows.filter((r, ri) => role[ri] === 'kv').map((r) => len(r[0]) + 2));
+      if (kvw > widths[0]) widths[0] = Math.min(24, Math.ceil(kvw));
+      let z = 0, zi = -1;
+      const merges = [];
+      const xml = rows.map((r, ri) => {
+        const rl = role[ri], rn = ri + 1;
+        if (rl === 'blank' || !ne(r)) { z = 0; return ''; }
+        if (rl === 'head') z = 0;
+        if (rl === 'body') { zi++; z = zi % 2; } else zi = -1;
+        let lines = 1;
+        const cells = [];
+        if (rl === 'title' || rl === 'sub' || rl === 'sec') { merges.push(`A${rn}:${L}${rn}`); cells.push(`<c r="A${rn}" t="inlineStr" s="${rl === 'title' ? S.title : rl === 'sec' ? S.kvL : S.sub}"><is><t xml:space="preserve">${xmlEsc(r.find((v) => v !== '' && v != null))}</t></is></c>`); for (let c = 1; c < cols && rl === 'sec'; c++) cells.push(`<c r="${colName(c)}${rn}" s="${S.kvL}"/>`); return `<row r="${rn}" ht="${rl === 'title' ? 30 : 22}" customHeight="1">${cells.join('')}</row>`; }
+        if (rl === 'kv') {
+          const [a, ...rest] = r, b = rest.filter((v) => v !== '' && v != null).join(' — ');
+          if (cols > 2) merges.push(`B${rn}:${L}${rn}`);
+          const [tb, vb, kb] = typed(b);
+          cells.push(`<c r="A${rn}" t="inlineStr" s="${S.kvL}"><is><t xml:space="preserve">${xmlEsc(a)}</t></is></c>`);
+          cells.push(tb === 'n' ? `<c r="B${rn}" s="${S[kb] != null ? S[kb] : S.int}"><v>${vb}</v></c>` : `<c r="B${rn}" t="inlineStr" s="${S.kvV}"><is><t xml:space="preserve">${xmlEsc(b)}</t></is></c>`);
+          for (let c = 2; c < cols; c++) cells.push(`<c r="${colName(c)}${rn}" s="${S.kvV}"/>`);
+          lines = Math.min(5, Math.ceil(len(b) / Math.max(10, widths.slice(1).reduce((x, y) => x + y, 0)))) || 1;
+          return `<row r="${rn}"${lines > 1 ? ` ht="${16 * lines + 4}" customHeight="1"` : ''}>${cells.join('')}</row>`;
+        }
+        for (let c = 0; c < cols; c++) {
+          const v = r[c], ref = `${colName(c)}${rn}`;
+          if (rl === 'head') { cells.push(`<c r="${ref}" t="inlineStr" s="${S.head}"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`); lines = Math.max(lines, Math.ceil(len(v) / Math.max(6, widths[c]))); continue; }
+          if (v === '' || v == null) { cells.push(`<c r="${ref}" s="${rl === 'total' ? S.tot : z ? S.txtZ : S.txt}"/>`); continue; }
+          const [t, val, kind] = typed(v, forceTxt[c]);
+          if (t === 'n') { const st = rl === 'total' ? (kind === 'int' ? S.totN : S[kind]) : S[`${kind}${z ? 'Z' : ''}`]; cells.push(`<c r="${ref}" s="${st}"><v>${val}</v></c>`); continue; }
+          cells.push(`<c r="${ref}" t="inlineStr" s="${rl === 'total' ? S.tot : z ? S.txtZ : S.txt}"><is><t xml:space="preserve">${xmlEsc(val)}</t></is></c>`);
+          lines = Math.max(lines, Math.ceil(len(val) / Math.max(6, widths[c] - 1)));
+        }
+        lines = Math.min(rl === 'head' ? 3 : 6, lines);
+        return `<row r="${rn}"${rl === 'head' ? ` ht="${Math.max(24, 16 * lines + 6)}" customHeight="1"` : lines > 1 ? ` ht="${15 * lines + 4}" customHeight="1"` : ''}>${cells.join('')}</row>`;
+      }).join('');
+      /* نهاية الجدول الأول للتصفية */
+      let he = hi; if (hi >= 0) { he = hi; while (he + 1 < rows.length && ['body', 'total'].includes(role[he + 1])) he++; }
+      const filt = hi >= 0 && he > hi && hi <= 12 && s.filter !== false;
+      const sname = `'${names[si].replace(/'/g, "''")}'`;
+      if (filt) wbNames.push(`<definedName name="_xlnm._FilterDatabase" localSheetId="${si}" hidden="1">${sname}!$A$${hi + 1}:$${L}$${he + 1}</definedName>`);
+      if (hi >= 0) wbNames.push(`<definedName name="_xlnm.Print_Titles" localSheetId="${si}">${sname}!$${hi + 1}:$${hi + 1}</definedName>`);
       const dv = (s.validations || []).map((v) => `<dataValidation type="list" allowBlank="1" showErrorMessage="${v.strict ? 1 : 0}" sqref="${v.sqref}"><formula1>${xmlEsc(v.formula)}</formula1></dataValidation>`).join('');
-      files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: `${H}<worksheet xmlns="${W}" xmlns:r="${R}"><sheetViews><sheetView workbookViewId="0"${s.rtl === false ? '' : ' rightToLeft="1"'}>${header && rows.length > 1 ? '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' : ''}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/>${cols ? `<cols>${Array.from({ length: cols }, (_, c) => `<col min="${c + 1}" max="${c + 1}" width="${(s.widths || [])[c] || 18}" customWidth="1"/>`).join('')}</cols>` : ''}<sheetData>${rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => (v === '' || v == null ? '' : `<c r="${colName(ci)}${ri + 1}" t="inlineStr"${ri === 0 && header ? ' s="1"' : ''}><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`)).join('')}</row>`).join('')}</sheetData>${dv ? `<dataValidations count="${s.validations.length}">${dv}</dataValidations>` : ''}</worksheet>` });
+      const wide = cols > 6 || widths.reduce((x, y) => x + y, 0) > 110;
+      const frz = hi >= 0 && hi <= 12 && he > hi;
+      files.push({ name: `xl/worksheets/sheet${si + 1}.xml`, data: `${H}<worksheet xmlns="${W}" xmlns:r="${R}"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${L}${Math.max(1, rows.length)}"/><sheetViews><sheetView workbookViewId="0"${s.rtl === false ? '' : ' rightToLeft="1"'}${si === 0 ? ' tabSelected="1"' : ''} zoomScale="110" zoomScaleNormal="110">${frz ? `<pane ySplit="${hi + 1}" topLeftCell="A${hi + 2}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${hi + 2}" sqref="A${hi + 2}"/>` : ''}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="18" customHeight="1"/><cols>${widths.map((w, c) => `<col min="${c + 1}" max="${c + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${xml}</sheetData>${filt ? `<autoFilter ref="A${hi + 1}:${L}${he + 1}"/>` : ''}${merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}${dv ? `<dataValidations count="${s.validations.length}">${dv}</dataValidations>` : ''}<printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.25" footer="0.25"/><pageSetup paperSize="9" orientation="${wide ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;C&amp;P / &amp;N</oddFooter></headerFooter></worksheet>` });
     });
+    files[2] = { name: 'xl/workbook.xml', data: `${H}<workbook xmlns="${W}" xmlns:r="${R}"><workbookPr/><bookViews><workbookView activeTab="0"/></bookViews><sheets>${names.map((n, i) => `<sheet name="${xmlEsc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${wbNames.length ? `<definedNames>${wbNames.join('')}</definedNames>` : ''}</workbook>` };
     return zip(files);
   }
-  return { read, write };
+  /* صفوف ورقة Excel الأولى ككائنات بمفاتيح رأسها (لاستيراد ما صُدِّر) */
+  async function objRows(file) {
+    const sh = (await read(file))[0], rows = sh ? sh.rows : [], hi = rows.findIndex((r) => r.filter(Boolean).length >= 2);
+    if (hi < 0) return [];
+    const keys = rows[hi].map((k) => String(k || '').trim());
+    return rows.slice(hi + 1).filter((r) => r.some(Boolean)).map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] == null ? '' : String(r[i])])));
+  }
+  return { read, write, objRows };
 })();
 AR.user = ['مستخدم واحد', 'مستخدمين اثنين', 'مستخدمين', 'مستخدماً', 'مستخدم'];
 const headKey = (h) => normalizeAr(h).replace(/[\s_\-.:()/\\]/g, '');
@@ -13043,7 +13174,7 @@ Pages.surveyResults = async (ctx) => {
     ctx._svx = { s, rows, all, agg, marks, aud, st };
     const tabs = [['summary', 'الملخص', 'chart'], ['insights', 'التحليل والتوصيات', 'target'], ...(s.anonymous ? [] : [['people', `الإجابات الفردية (${fmtNum(all.length)})`, 'users']]), ['missing', `لم يشاركوا (${fmtNum(missing.length)})`, 'clock']];
     let k = 0;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title, illu: 'report', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${s.anonymous ? UI.chip('violet', 'مجهول الهوية', 'shield') : ''}${s.quiz ? UI.chip('sky', 'اختبار', 'target') : ''}${UI.chip('slate', Surveys.audText(s), 'users')}</span>`, actions: html`<button class="btn" data-act="svxlsx" title="ملف Excel بأوراق: الملخص، والإجابات، وحسب الإدارة">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="csv" title="ملف CSV للإجابات">CSV</button><button class="btn btn-primary" data-act="print" title="طباعة النتائج بالشكل الذي تراه، مع معاينة">${UI.icon('print')} طباعة التقرير</button><a class="btn btn-soft" href="#/surveys/${id}/edit">${UI.icon('edit')} تعديل</a>` })}
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs: html`<a href="#/surveys/manage">إدارة الاستبيانات</a>`, title: s.title, illu: 'report', sub: html`<span class="row" style="gap:6px;margin-top:6px">${Surveys.stateChip(s)}${s.anonymous ? UI.chip('violet', 'مجهول الهوية', 'shield') : ''}${s.quiz ? UI.chip('sky', 'اختبار', 'target') : ''}${UI.chip('slate', Surveys.audText(s), 'users')}</span>`, actions: html`<button class="btn" data-act="svxlsx" title="ملف Excel بأوراق: الملخص، والإجابات، وحسب الإدارة">${UI.icon('download')} تصدير Excel</button><button class="btn btn-primary" data-act="print" title="طباعة النتائج بالشكل الذي تراه، مع معاينة">${UI.icon('print')} طباعة التقرير</button><a class="btn btn-soft" href="#/surveys/${id}/edit">${UI.icon('edit')} تعديل</a>` })}
       <div class="kpis">${UI.kpi({ label: 'المشاركات', icon: 'users', tone: 'sky', value: marks.length, foot: `من ${fmtNum(aud.length)} مستهدف` })}${UI.kpi({ label: 'نسبة المشاركة', icon: 'chart', tone: rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red', value: rate, suffix: '%' })}${UI.kpi({ label: 'متوسط مدة الإجابة', icon: 'clock', tone: 'violet', ...(secs && secs < 60 ? { value: Math.round(secs), suffix: ' ث' } : { value: secs / 60, dec: 1, suffix: ' د' }) })}${quizAvg != null ? UI.kpi({ label: 'متوسط الدرجة', icon: 'target', tone: quizAvg >= 70 ? 'teal' : 'amber', value: quizAvg, suffix: '%' }) : html`<div class="kpi tone-brass"><div class="kpi-label"><span class="k-ic">${UI.icon('calendar')}</span>آخر مشاركة</div><b class="kpi-num" style="font-size:20px">${last ? timeAgo(last) : '—'}</b></div>`}</div>
       <div class="row mt" style="gap:10px;flex-wrap:wrap;align-items:center"><div class="tabs" style="margin:0">${tabs.map(([t, l, ic]) => html`<button class="tab ${st.tab === t ? 'active' : ''}" data-tab="${t}">${UI.icon(ic)}${l}</button>`)}</div>${!s.anonymous ? html`<span class="grow"></span><select id="svrDep" class="input" style="width:auto;height:38px" aria-label="الإدارة"><option value="">كل الإدارات</option>${UI.opts('departments').map((o) => html`<option value="${o.value}"${st.dep === o.value ? raw(' selected') : ''}>${o.label}</option>`)}</select><select id="svrRole" class="input" style="width:auto;height:38px" aria-label="نوع الحساب"><option value="">كل الحسابات</option>${SV_ROLES.map(([r, l]) => html`<option value="${r}"${st.role === r ? raw(' selected') : ''}>${l}</option>`)}</select>` : ''}</div>
       <div class="mt">${st.tab === 'summary' ? (rows.length ? SVX.summary(ctx._svx) : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: st.dep || st.role ? 'لا توجد مشاركات تطابق التصفية.' : 'ستظهر النتائج هنا لحظة وصول أول مشاركة.' }))
@@ -22871,12 +23002,12 @@ const SNE = {
         /* لصق عمود داخل خانة: يتوزع على الخانات التي تحتها ويزيد العدد عند الحاجة */
         tbox.addEventListener('paste', (e) => {
           const inp = e.target.closest('[data-ss], [data-st]'); if (!inp) return;
-          const txt = (e.clipboardData || window.clipboardData).getData('text'); if (!/[\n\t]/.test(txt)) return;
+          const txt = (e.clipboardData || window.clipboardData).getData('text'), pr0 = SNDist.split(txt); if (!SNDist.many(pr0)) return;
           e.preventDefault(); read();
           const i0 = Number(inp.closest('[data-sr]').dataset.sr), col = inp.matches('[data-ss]') ? 'serial' : 'tag';
-          const lines = txt.replace(/\r/g, '').split('\n').filter((l) => l.trim());
+          const lines = pr0;
           if (rows.length < i0 + lines.length) rows = rows.concat(Array.from({ length: i0 + lines.length - rows.length }, () => ({ serial: '', tag: '' })));
-          lines.forEach((l, j) => { const p = l.split('\t').map((x) => x.trim()); const r = rows[i0 + j]; if (col === 'serial') { r.serial = p[0] || ''; if (p[1]) r.tag = p[1]; } else r.tag = p[0] || ''; });
+          lines.forEach((p, j) => { const r = rows[i0 + j]; if (col === 'serial') { r.serial = p[0] || ''; if (p[1]) r.tag = p[1]; } else r.tag = p[0] || ''; });
           qi.value = rows.length; draw(); UI.toast(`وُزّع ${fmtNum(lines.length)} رقماً`);
         });
         UI.on(form, 'click', '[data-snep]', async (e, b) => {
@@ -24384,6 +24515,123 @@ const SVX = {
     UI.on(ctx.view, 'click', '[data-svxsavenotes]', async () => { const D = ctx._svx, t = ctx.view.querySelector('[data-svxnotes]'); if (!D || !t) return; try { await Surveys.patch(D.s.id, { report: { ...(D.s.report || {}), notes: t.value.trim().slice(0, 4000), at: now(), by: Auth.user.id } }, 'تحديث توصيات تقرير الاستبيان'); UI.toast('حُفظت التوصيات، وتظهر في التقرير المطبوع'); } catch (ex) { UI.error(ex); } });
     UI.on(ctx.view, 'click', '[data-act="svxlsx"]', () => { const D = ctx._svx; if (!D) return; if (!D.rows.length) { UI.toast('لا توجد مشاركات لتصديرها', 'info'); return; } SVX.xlsx(D); });
   }
+};
+
+/* ══════════ الجولة 21: لصق قوائم الأرقام التسلسلية وأرقام التاج ══════════
+   كان لصق قائمة أرقام في خانة الجهاز الأول (في الاستلام وإضافة الأجهزة) يضعها كلها في تلك الخانة، فيُحفظ جهاز واحد برقم طويل
+   وتبقى بقية الأجهزة فارغة. الآن تتوزع القائمة على الخانات التالية بالترتيب، والعمود الثاني (التاج) في خانات التاج،
+   ويزيد عدد الأجهزة تلقائياً إن كانت القائمة أطول. وكذلك قوائم الأسطر والفواصل في محرر S/N + TAG وحقول القوائم. */
+const SNDist = {
+  /* صفوف وأعمدة من النص الملصوق: أسطر (وأعمدة بعلامة Tab من Excel)، أو فواصل، أو مسافات بين أرقام */
+  split(txt) {
+    const t = String(txt || '').replace(/\r\n?/g, '\n').replace(/ /g, ' ').trim(); if (!t) return [];
+    let rows;
+    if (/[\n\t]/.test(t)) rows = t.split('\n').map((l) => l.split('\t'));
+    else if (/[,،;؛|]/.test(t)) rows = t.split(/\s*[,،;؛|]+\s*/).map((x) => [x]);
+    else { const w = t.split(/\s+/); rows = w.length > 1 && w.every((x) => x.length >= 3 && /\d/.test(x)) ? w.map((x) => [x]) : [[t]]; }
+    return rows.map((r) => r.map((x) => String(x || '').trim())).filter((r) => r.some(Boolean));
+  },
+  many: (rows) => rows.length > 1 || (rows[0] && rows[0].filter(Boolean).length > 1)
+};
+/* شبكة الأجهزة (الاستلام، وإضافة صنف برصيد افتتاحي، وغيرها) */
+document.addEventListener('paste', (e) => {
+  const inp = e.target.closest && e.target.closest('.serial-grid input[name^="sn_"], .serial-grid input[name^="tg_"], .serial-grid input[name^="hn_"]'); if (!inp) return;
+  const rows = SNDist.split((e.clipboardData || window.clipboardData).getData('text')); if (!SNDist.many(rows)) return;
+  e.preventDefault();
+  const form = inp.closest('form') || inp.closest('.serial-wrap').parentElement, [pre, iS] = inp.name.split('_'), i0 = Number(iS) || 0;
+  const cols = { sn: ['sn', 'tg', 'hn'], tg: ['tg', 'hn'], hn: ['hn'] }[pre] || [pre];
+  const need = i0 + rows.length, have = $$('input[name^="sn_"]', form).length;
+  if (need > have) {
+    const qi = form.querySelector('[name="qty"]') || form.querySelector('[name="openQty"]');
+    if (qi) { qi.value = Math.min(200, need); qi.dispatchEvent(new Event('input', { bubbles: true })); qi.dispatchEvent(new Event('change', { bubbles: true })); }
+  }
+  let put = 0, cut = 0;
+  rows.forEach((r, j) => cols.forEach((c, k) => {
+    const v = r[k]; if (v == null || v === '') return;
+    const el = form.querySelector(`[name="${c}_${i0 + j}"]`); if (!el) { cut++; return; }
+    el.value = v; put++;
+  }));
+  $$('input[name^="sn_"]', form).forEach((x) => x.dispatchEvent(new Event('input', { bubbles: true })));
+  UI.toast(cut ? `وُزّع ${fmtNum(put)} رقماً، وبقي ${fmtNum(cut)} لا خانات لها — زِد العدد ثم الصق الباقي` : `وُزّع ${fmtNum(put)} رقماً على ${fmtNum(rows.length)} جهازاً`, cut ? 'warn' : 'ok', 5000);
+}, true);
+/* حقول القوائم (سطر واحد بفواصل): الأسطر تصبح فواصل، والعمود الثاني يُحفظ رقم تاج لكل جهاز */
+document.addEventListener('paste', (e) => {
+  const inp = e.target.closest && e.target.closest('[data-bas], [data-bcs], [data-psn]'); if (!inp) return;
+  const raw0 = (e.clipboardData || window.clipboardData).getData('text'); if (!/[\n\t]/.test(String(raw0).trim())) return;
+  const rows = SNDist.split(raw0); if (!rows.length) return;
+  e.preventDefault();
+  const two = rows.some((r) => r[1]), list = rows.map((r) => r[0] || r[1]).filter(Boolean), joined = list.join('، ');
+  const s0 = inp.selectionStart != null ? inp.selectionStart : inp.value.length, s1 = inp.selectionEnd != null ? inp.selectionEnd : s0, before = inp.value.slice(0, s0).replace(/[\s،,]+$/, ''), after = inp.value.slice(s1).replace(/^[\s،,]+/, '');
+  inp.value = [before, joined, after].filter(Boolean).join('، ');
+  const row = inp.closest('[data-barow], [data-bcrow]');
+  if (two && row && !before && !after) {
+    const pairs = rows.map((r) => ({ serial: r[0] || r[1] || '', tag: r[0] ? r[1] || '' : '' })).filter((p) => p.serial);
+    row.dataset.pairs = JSON.stringify(pairs); row.dataset.pairsShown = inp.value;
+    const btn = row.querySelector('[data-basnp], [data-bcsne]'); if (btn) { const b = SNE.badge(pairs); btn.classList.toggle('on', !!b); const sp = btn.querySelector('span'); if (sp) sp.textContent = b || 'S/N + TAG'; }
+  }
+  const q = row && row.querySelector('[data-baq], [data-bcq]'); if (q && Number(q.value || 0) < list.length) { q.value = list.length; q.dispatchEvent(new Event('input', { bubbles: true })); q.dispatchEvent(new Event('change', { bubbles: true })); }
+  inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+  if (row && two) { row.dataset.pairsShown = inp.value; }
+  UI.toast(`لُصق ${fmtNum(list.length)} رقماً${two ? ' مع أرقام التاج' : ''}`, 'ok');
+}, true);
+
+/* ══════════ الجولة 21: تصدير Excel مرتب ══════════
+   ملفات CSV كانت تُفتح في Excel العربي بعمود واحد أو برموز غير مقروءة: كل تنزيل CSV يصبح ملف Excel منسقاً.
+   والسندات: صف لكل جهاز برقمه التسلسلي ورقم تاجه، تحت عنوان السند وبياناته. */
+const csvRows = (text) => {
+  const t = String(text || '').replace(/^﻿/, ''), first = t.split(/\r?\n/)[0] || '', d = first.includes(';') && !first.includes(',') ? ';' : ',';
+  const out = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (q) { if (ch === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; continue; }
+    if (ch === '"') q = true;
+    else if (ch === d) { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && t[i + 1] === '\n') i++; row.push(cell); out.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); out.push(row); }
+  return out.filter((r) => r.some((c) => String(c).trim()));
+};
+{
+  const db0 = downloadBlob;
+  downloadBlob = function (blob, name) {
+    const n = String(name || '');
+    if (!/\.csv$/i.test(n) || !(blob instanceof Blob)) return db0(blob, name);
+    blob.text().then((t) => {
+      const rows = csvRows(t), sheet = n.replace(/\.csv$/i, '').replace(/[-_ ]*\d{4}-\d{2}-\d{2}.*$/, '').replace(/[-_]+/g, ' ').trim() || 'البيانات';
+      db0(XL.write([{ name: sheet, rows }]), n.replace(/\.csv$/i, '.xlsx'));
+    }).catch(() => db0(blob, name));
+  };
+}
+/* سطور السند: صف لكل جهاز مسلسل، وصف واحد بالكمية لما لا رقم له */
+VC.devRows = async (vs) => {
+  const want = new Set(vs.flatMap((v) => (v.lines || []).flatMap((l) => (l.serials || []).map((s) => Data.assets.norm(s)))));
+  const tags = new Map(); if (want.size) (await DB.getAll('assets')).forEach((a) => { const k = Data.assets.norm(a.serial); if (k && want.has(k)) tags.set(k, a.tag || ''); });
+  return (v) => (v.lines || []).flatMap((l) => {
+    const base = [l.name || '', [l.brand, l.model].filter(Boolean).join(' '), l.sku || ''], where = [l.place, l.ws].filter(Boolean).join(' — ');
+    const sn = (l.serials || []).filter(Boolean);
+    if (!sn.length) return [[...base, '', '', Number(l.qty) || 0, l.unit || '', where]];
+    return sn.map((s) => [...base, s, tags.get(Data.assets.norm(s)) || '', 1, l.unit || 'جهاز', where]);
+  });
+};
+VC.xls = async (v) => {
+  const k = VC.kind(v), dev = await VC.devRows([v]), list = dev(v), old = v.type === 'replace' ? dev({ lines: v.oldLines || [] }) : [];
+  const head = ['م', 'الصنف', 'الماركة والموديل', 'رمز الصنف', 'الرقم التسلسلي', 'رقم الأصل (التاج)', 'الكمية', 'الوحدة', 'الموضع'];
+  const facts = [['نوع السند', k.label], ['التاريخ', fmtDateTime(v.at)], ['المستلم', v.holder], ['الإدارة', Data.nameOf('departments', v.departmentId, '')], ['القسم والمكتب', v.unitLabel], ['من', v.fromLabel], ['إلى', v.toLabel], ['المخزن', v.warehouseLabel], ['موعد الإرجاع', v.type === 'loan' && v.dueAt ? fmtDate(v.dueAt) : ''], ['السبب', v.reason], ['المرجع', v.ref], ['ملاحظة', v.note], ['أصدره', v.userId ? Data.userName(v.userId) : '']].filter(([, b]) => b);
+  const total = list.reduce((s, r) => s + (Number(r[5]) || 0), 0);
+  const rows = [[`${k.title} — ${v.number}`], ...facts, [], head, ...list.map((r, i) => [i + 1, ...r]), ['الإجمالي', '', '', '', '', '', total, '', '']];
+  if (old.length) rows.push([], ['الجهاز القديم (المستبدَل)'], head, ...old.map((r, i) => [i + 1, ...r]));
+  downloadBlob(XL.write([{ name: v.number, rows }]), `${v.number}.xlsx`);
+};
+VC.xlsAll = async (vs) => {
+  const dev = await VC.devRows(vs);
+  const sum = [['رقم السند', 'النوع', 'التاريخ', 'المستلم', 'الإدارة', 'الموضع', 'عدد الأصناف', 'القطع', 'أصدره', 'المرجع', 'ملاحظة'], ...vs.map((v) => [v.number, VC.kind(v).label, fmtDateTime(v.at), v.holder || '', Data.nameOf('departments', v.departmentId, ''), VC.place(v), (v.lines || []).length, VC.units(v), v.userId ? Data.userName(v.userId) : '', v.ref || '', v.note || ''])];
+  sum.push(['الإجمالي', '', '', '', '', '', vs.reduce((s, v) => s + (v.lines || []).length, 0), vs.reduce((s, v) => s + VC.units(v), 0), '', '', '']);
+  const det = [['رقم السند', 'النوع', 'التاريخ', 'الإدارة', 'المستلم', 'الصنف', 'الماركة والموديل', 'رمز الصنف', 'الرقم التسلسلي', 'رقم الأصل (التاج)', 'الكمية', 'الوحدة', 'الموضع']];
+  vs.forEach((v) => dev(v).forEach((r) => det.push([v.number, VC.kind(v).label, fmtDateTime(v.at), Data.nameOf('departments', v.departmentId, ''), v.holder || '', ...r])));
+  const byType = new Map(); vs.forEach((v) => { const t = VC.kind(v).label, e = byType.get(t) || [0, 0]; e[0]++; e[1] += VC.units(v); byType.set(t, e); });
+  const kinds = [['نوع السند', 'عدد السندات', 'القطع'], ...[...byType.entries()].map(([t, [n, u]]) => [t, n, u]), ['الإجمالي', vs.length, vs.reduce((s, v) => s + VC.units(v), 0)]];
+  downloadBlob(XL.write([{ name: 'السندات', rows: sum }, { name: 'الأجهزة والأصناف', rows: det }, { name: 'حسب النوع', rows: kinds }]), `السندات-${dateInput(now())}.xlsx`);
 };
 
 boot();
