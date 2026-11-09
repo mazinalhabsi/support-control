@@ -3056,7 +3056,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -15336,14 +15336,14 @@ const vlFix = (L) => { L.page = { ...VLS.page(), ...(L.page || {}) }; L.bands = 
 /* ── واجهة المحرر ── */
 const VLE_COLORS = ['#000000', '#111111', '#444444', '#888888', '#ffffff', '#8a6a22', '#1f3a68', '#0f4c5c', '#1d5c3f', '#7a1f2b', '#b45309', '#1d4ed8', '#f6f2e8', '#eef2f8', '#e8f1f3', '#fff7e6'];
 Pages.vleSample = (k, n) => { const d = Pages.vtdSample(k, n), T = VTPL.eff(k); d.title = String(T.title.text || '').trim() || d.kind.title; d.pledge = String(T.pledge.text || '').trim() || d.pledge || ''; return d; };
-Pages.vleImage = async (maxPx = 900) => {
+Pages.vleImage = async (maxPx = 1600) => {
   const [f] = await UI.pickFiles({ accept: 'image/png,image/jpeg,image/webp,image/svg+xml,image/gif', multiple: false }); if (!f) return null;
   const src = await blobToDataURL(f);
   const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new AppError('تعذر قراءة الصورة')); i.src = src; });
   const w0 = img.naturalWidth || 600, h0 = img.naturalHeight || 600, sc = Math.min(1, maxPx / Math.max(w0, h0)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w0 * sc)); c.height = Math.max(1, Math.round(h0 * sc));
   const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
-  let out = c.toDataURL('image/png'); if (out.length > 360000) { const g2 = document.createElement('canvas'); g2.width = c.width; g2.height = c.height; const x = g2.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(c, 0, 0); out = g2.toDataURL('image/jpeg', 0.85); }
-  if (out.length > 420000) throw new AppError('الصورة كبيرة جداً، استخدم صورة أصغر (حتى 300 كيلوبايت تقريباً)');
+  let out = c.toDataURL('image/png'); if (out.length > 760000) { const g2 = document.createElement('canvas'); g2.width = c.width; g2.height = c.height; const x = g2.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(c, 0, 0); out = g2.toDataURL('image/jpeg', 0.85); }
+  if (out.length > 900000) throw new AppError('الصورة كبيرة جداً، استخدم صورة أصغر (حتى 650 كيلوبايت تقريباً)');
   return { src: out, ar: c.height / c.width };
 };
 Pages.voucherDesigner = async (ctx) => {
@@ -15462,7 +15462,7 @@ Pages.voucherDesigner = async (ctx) => {
       const T = VL_EL_TYPES[e.t];
       body = html`<div class="vle-ih">${UI.icon(T[1])}<b>${T[0]}</b><span class="grow"></span><button type="button" class="icon-btn" data-rb="ar:dup" title="تكرار">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-rb="ar:del" title="حذف">${UI.icon('trash')}</button></div>
         ${e.t === 'text' ? sec('etext', 'النص', 'edit', html`<div class="vle-f"><label>المحتوى <small class="faint">(أو انقر مرتين على المربع للكتابة مباشرة)</small></label><textarea data-k="E.text" rows="4" dir="rtl">${e.text || ''}</textarea></div><div class="vle-fields">${VL_FIELDS.slice(0, 12).map(([k]) => html`<button type="button" class="vle-tokb" data-tok="${k}">[${k}]</button>`)}<button type="button" class="vle-tokb more" data-rb="menu:field">المزيد ▾</button></div>${fld('E.s.dir', 'اتجاه الكتابة', 'select', [['rtl', 'من اليمين (عربي)'], ['ltr', 'من اليسار (إنجليزي/أرقام)']])}${fld('E.s.lh', 'تباعد الأسطر', 'select', [['', 'افتراضي'], ['1.1', '1.1'], ['1.3', '1.3'], ['1.5', '1.5'], ['1.8', '1.8'], ['2.2', '2.2']])}${fld('E.s.ls', 'تباعد الأحرف', 'num', 0.2)}`, true) : ''}
-        ${e.t === 'image' ? sec('eimg', 'الصورة', 'photo', html`<div class="vle-imgp"><img src="${e.src && e.src !== 'logo' ? e.src : ASSETS.logo}" alt=""></div><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-soft" data-img="E">${UI.icon('upload')} استبدال الصورة</button><button type="button" class="btn btn-sm btn-ghost" data-logo="E">${UI.icon('refresh')} شعار النظام</button><button type="button" class="btn btn-sm btn-ghost" data-ratio>${UI.icon('scale')} النسبة الأصلية</button></div>${fld('E.fit', 'ملاءمة الصورة', 'select', [['contain', 'احتواء كامل'], ['cover', 'تعبئة المربع'], ['fill', 'تمديد']])}`, true) : ''}
+        ${e.t === 'image' ? sec('eimg', 'الصورة', 'photo', html`<div class="vle-imgp"><img src="${e.src && e.src !== 'logo' ? e.src : ASSETS.logo}" alt=""></div><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-soft" data-img="E">${UI.icon('upload')} استبدال الصورة</button><button type="button" class="btn btn-sm btn-ghost" data-logo="E">${UI.icon('refresh')} شعار النظام</button><button type="button" class="btn btn-sm btn-ghost" data-ratio>${UI.icon('scale')} النسبة الأصلية</button><button type="button" class="btn btn-sm btn-ghost" data-imgbg title="للترويسة أو الختم الممسوح: يجعل الأبيض شفافاً فتظهر الصورة فوق أي خلفية أو إطار">${UI.icon('sparkle')} إزالة الخلفية البيضاء</button></div>${fld('E.fit', 'ملاءمة الصورة', 'select', [['contain', 'احتواء كامل'], ['cover', 'تعبئة المربع'], ['fill', 'تمديد']])}`, true) : ''}
         ${e.t === 'line' ? sec('eline', 'الخط', 'list', html`${fld('E.dir', 'الاتجاه', 'select', [['h', 'أفقي'], ['v', 'عمودي']])}${fld('E.lw', 'السمك (مم)', 'num', 0.1)}${fld('E.ls', 'النمط', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}${fld('E.lc', 'اللون', 'color')}`, true) : ''}
         ${e.t === 'barcode' ? sec('ebc', 'الباركود', 'scan', html`${fld('E.value', 'القيمة المرمّزة', 'select', [['[رقم السند]', 'رقم السند'], ['[التاريخ]', 'التاريخ']])}${fld('E.showText', 'كتابة القيمة تحت الباركود', 'check')}`, true) : ''}
         ${e.t === 'table' ? sec('etbl', 'الجدول', 'list', html`<p class="faint small">انقر مرتين على أي خلية للكتابة فيها، وTab للانتقال للخلية التالية.${st.cell ? html` الخلية المحددة: صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)}` : ''}</p>
@@ -15781,6 +15781,7 @@ Pages.voucherDesigner = async (ctx) => {
     const dyb = t.closest('[data-dyn]'); if (dyb && !dyb.closest('.vle-zoom')) { const e = selE(); if (!e || e.t !== 'table') return; hist(true); if (dyb.dataset.dyn === 'off') delete e.tbl.dyn; else { const R = e.tbl.rows.length, r = st.cell ? st.cell[0] + 1 : R, lo = e.tbl.head && R > 1 ? 2 : 1, rr = Math.max(lo, r); e.tbl.dyn = { src: dyb.dataset.dyn === 'facts' ? 'facts' : 'items', r1: rr, r2: rr, per: 1, minRows: 0 }; } drawCanvas(); drawInsp(); return; }
     const tb = t.closest('[data-tb]'); if (tb) { const e0 = selE(), dn = e0 && e0.tbl && e0.tbl.dyn, ci0 = st.cell ? st.cell[0] + 1 : e0 && e0.tbl ? e0.tbl.rows.length : 0; tblOp(tb.dataset.tb); if (dn && e0.tbl.dyn) { VL.dynShift(e0.tbl.dyn, tb.dataset.tb, ci0, e0.tbl); drawCanvas(); drawInsp(); } return; }
     if (t.closest('[data-sig2tbl]')) { if (await UI.confirm('تحويل جدول التواقيع إلى جدول حر؟ ستتحكم في كل خلية، ويمكنك التراجع بـCtrl+Z.', { ok: 'تحويل', icon: 'list' })) sigsToFree(); return; }
+    const ib = t.closest('[data-imgbg]'); if (ib) { const e = selE(); if (!e || !e.src || e.src === 'logo') { UI.toast('ارفع صورة أولاً (شعار النظام شفاف أصلاً)', 'info'); return; } try { const r = await VFU.whiteToAlpha(e.src); hist(true); e.src = r; drawCanvas(); drawInsp(); UI.toast('أُزيلت الخلفية البيضاء من الصورة'); } catch (err) { UI.error(err); } return; }
     const im = t.closest('[data-img]'); if (im) { try { const r = await Pages.vleImage(); if (!r) return; hist(true); const e = selE(); e.src = r.src; e.h = Math.round(e.w * r.ar * 10) / 10; drawCanvas(); drawInsp(); } catch (err) { UI.error(err); } return; }
     if (t.closest('[data-logo]')) { hist(true); selE().src = 'logo'; drawCanvas(); drawInsp(); return; }
     if (t.closest('[data-ratio]')) { const e = selE(), n = elNode(e.id), img = n && n.querySelector('img'); if (img && img.naturalWidth) { hist(true); e.h = Math.round((e.w * img.naturalHeight / img.naturalWidth) * 10) / 10; drawCanvas(); drawInsp(); } return; }
@@ -23150,7 +23151,7 @@ const VTF = {
   },
   options(v, { empty = '' } = {}) {
     const opt = (x) => html`<option value="${x.f}"${v === x.f ? raw(' selected') : ''} style="font-family:${VTF.css(x.f)}">${x.l}${x.g === 'sys' && !VTF.has(x.f) ? ` — غير مثبت (يُطبع بـ ${VTF.label(x.fb)})` : ''}</option>`;
-    return html`${empty ? html`<option value="">${empty}</option>` : ''}${VTF.GROUPS.map((g) => html`<optgroup label="${g.t}">${g.fonts.map(([f]) => opt(VTF.get(f)))}</optgroup>`)}${v && !VTF.get(v) ? html`<option value="${v}" selected>${v}</option>` : ''}`;
+    return html`${empty ? html`<option value="">${empty}</option>` : ''}${VTF.GROUPS.filter((g) => g.fonts.length).map((g) => html`<optgroup label="${g.t}">${g.fonts.map(([f]) => opt(VTF.get(f)))}</optgroup>`)}${v && !VTF.get(v) ? html`<option value="${v}" selected>${v}</option>` : ''}`;
   },
   /* تحميل الخطوط قبل الرسم على اللوحة أو الطباعة */
   ready(fams) {
@@ -23180,7 +23181,7 @@ const VTF = {
   },
   bar(st) {
     return html`<div class="vtf-bar"><div class="search-box">${UI.icon('search')}<input type="search" data-vtfq placeholder="ابحث عن خط: رقعة، نسخ، كوفي، Simplified…" value="${st.q}"></div>
-      <div class="vtf-tabs" role="group" aria-label="المجموعة"><button type="button" class="vtf-tab${st.g ? '' : ' on'}" data-vtfg2="">الكل</button>${VTF.GROUPS.map((G) => html`<button type="button" class="vtf-tab${st.g === G.k ? ' on' : ''}" data-vtfg2="${G.k}">${UI.icon(G.icon)} ${G.t}</button>`)}</div>
+      <div class="vtf-tabs" role="group" aria-label="المجموعة"><button type="button" class="vtf-tab${st.g ? '' : ' on'}" data-vtfg2="">الكل</button>${VTF.GROUPS.filter((G) => G.fonts.length).map((G) => html`<button type="button" class="vtf-tab${st.g === G.k ? ' on' : ''}" data-vtfg2="${G.k}">${UI.icon(G.icon)} ${G.t}</button>`)}</div>
       <label class="vtf-sam">${UI.icon('edit')}<input type="text" data-vtfs placeholder="اكتب نصاً لمعاينته بكل الخطوط" value="${st.s}"></label></div>`;
   },
   bind(root, st, draw) {
@@ -24026,6 +24027,125 @@ Pages.ccVself = (ctx) => {
   const i = grp.findIndex((x) => x[0] === 'locks'); grp.splice(i >= 0 ? i + 1 : grp.length, 0, add); CC_ALL.push(add);
   CC_KEYS.vself = 'سند سندات الموظف موظفين سنداتي عرض اغلاق فتح';
   CCX.ILLU.vself = 'paper';
+}
+
+/* ══════════ الجولة 19: رفع خطوط خارجية إلى النظام ══════════
+   يُرفع ملف الخط (TTF / OTF / WOFF / WOFF2) مرة واحدة إلى الخادم، ويُحمَّل في كل جهاز يفتح النظام، فيظهر في قوائم الخطوط
+   ويُطبع به دون تثبيته على كل جهاز. إن كان اسمه مطابقاً لخط ويندوز في القائمة (مثل AL-Mohanad Bold) صار ذلك الخط متاحاً
+   في القوالب التي تستخدمه أصلاً. السجل في meta/vfonts، والملفات في مخزن ملفات الخادم. */
+VTF.GROUPS.unshift({ k: 'up', t: 'خطوطكم المرفوعة', d: 'خطوط رفعتموها إلى النظام: تعمل في المحرر والطباعة على كل الأجهزة دون تثبيت', icon: 'upload', fonts: [] });
+const VFU = {
+  ver: 0, urls: new Map(), _retry: 0,
+  USE: { head: 'للترويسة والعناوين', body: 'لنص الاستمارة', table: 'للجداول والأرقام' },
+  list: () => (((Data.c.vfonts || {}).list) || []).filter((x) => x && x.family && x.fileId),
+  has: (f) => VFU.list().some((x) => x.family === f),
+  can: () => !!Auth.user && ['settings', 'vouchers.design', 'forms.manage'].some((k) => canUser(Auth.user, k)),
+  css() { return VFU.list().map((x) => { const u = VFU.urls.get(x.fileId); return u ? `@font-face{font-family:'${VTF.clean(x.family)}';font-style:normal;font-weight:${Number(x.weight) === 700 ? 700 : 400};font-display:swap;src:url(${u})}` : ''; }).join(''); },
+  async fetch(fileId) {
+    if (VFU.urls.has(fileId)) return VFU.urls.get(fileId);
+    if (!Sync.on || !Sync.token) return '';
+    const res = await fetch(`${Sync.url}?a=file&id=${encodeURIComponent(fileId)}`, { headers: { 'X-Token': Sync.token } });
+    if (!res.ok) return '';
+    const u = URL.createObjectURL(await res.blob()); VFU.urls.set(fileId, u); return u;
+  },
+  /* تحميل الخطوط المسجلة وتحديث القوائم */
+  async apply() {
+    const L = VFU.list();
+    const got = await Promise.all(L.map((x) => VFU.fetch(x.fileId).catch(() => '')));
+    let st = document.getElementById('vf-custom'); if (!st) { st = document.createElement('style'); st.id = 'vf-custom'; document.head.appendChild(st); }
+    st.textContent = VFU.css();
+    const G = VTF.GROUPS.find((g) => g.k === 'up'), base = new Set(VTF.GROUPS.filter((g) => g.k !== 'up').flatMap((g) => g.fonts.map((f) => f[0])));
+    G.fonts = [...new Map(L.filter((x) => !base.has(x.family)).map((x) => [x.family, [x.family, x.label || x.family, `خط مرفوع ${VFU.USE[x.use] || ''}`.trim()]])).values()];
+    VTF._all = null; VTF._m = null; VFU.ver++;
+    VT_FONTS.splice(0, VT_FONTS.length, ...VTF.all().map((x) => [x.f, x.l]));
+    /* لم يكتمل تسجيل الدخول بعد: محاولة لاحقة */
+    if (L.length && got.some((u) => !u) && VFU._retry++ < 6) setTimeout(() => VFU.apply().catch(() => {}), 15000);
+  },
+  async save(list) { const v = { list }; await DB.put('meta', { key: 'vfonts', value: v }); Data.c.vfonts = v; await VFU.apply(); Bus.emit('settings', {}); },
+  nameOf(file) { return String(file.name || 'خط').replace(/\.(ttf|otf|woff2?|ttc)$/i, '').replace(/[_]+/g, ' ').replace(/\s*-\s*(regular|bold|normal|book|medium)$/i, '').trim(); },
+  async upload() {
+    if (!VFU.can()) { UI.toast('رفع الخطوط لمن يملك تصميم الاستمارات أو الإعدادات', 'warn'); return null; }
+    if (!Sync.on || !Sync.token) throw new AppError('رفع الخطوط يحتاج الاتصال بالخادم');
+    const [f] = await UI.pickFiles({ accept: '.ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2', multiple: false }); if (!f) return null;
+    if (!/\.(ttf|otf|woff2?)$/i.test(f.name)) throw new AppError('اختر ملف خط: TTF أو OTF أو WOFF أو WOFF2');
+    if (f.size > 15 * 1024 * 1024) throw new AppError('ملف الخط أكبر من 15 ميغابايت');
+    const buf = await f.arrayBuffer(), pv = `vfprev${Date.now() % 1e7}`;
+    try { const ff = new FontFace(pv, buf); await ff.load(); document.fonts.add(ff); } catch (_) { throw new AppError('تعذر قراءة الملف كخط. تأكد أنه ملف خط سليم (TTF أو OTF أو WOFF)'); }
+    const nm = VFU.nameOf(f), bold = /bold|black|heavy|عريض/i.test(f.name), ext = (f.name.match(/\.([a-z0-9]+)$/i) || [, 'ttf'])[1].toLowerCase();
+    const sys = VTF.all().filter((x) => x.g === 'sys').map((x) => x.f);
+    return UI.modal({
+      title: 'رفع خط إلى النظام', icon: 'upload', size: 'lg',
+      body: html`<div class="vfu-prev" style="font-family:'${pv}'"><p class="vfu-h">شرطة عُمان السلطانية</p><p class="vfu-b">أكاديمية السلطان قابوس لعلوم الشرطة — سند صرف عهدة ١٢٣٤ 1234</p></div>
+        <div class="form-grid mt">
+          <div class="field"><label>اسم الخط (كما يُستخدم في القوالب)</label><input class="input ltr" name="family" value="${nm}" list="vfu-sys" required maxlength="60"><datalist id="vfu-sys">${sys.map((s) => html`<option value="${s}">`)}</datalist></div>
+          <div class="field"><label>الاسم الظاهر بالعربية</label><input class="input" name="label" value="" placeholder="${nm}" maxlength="60"></div>
+          <div class="field"><label>الاستخدام</label><select name="use">${Object.entries(VFU.USE).map(([k, l]) => html`<option value="${k}">${l}</option>`)}</select></div>
+          <div class="field"><label>الوزن</label><select name="weight"><option value="400"${bold ? '' : raw(' selected')}>عادي</option><option value="700"${bold ? raw(' selected') : ''}>عريض</option></select></div>
+        </div>
+        <p class="hint">${UI.icon('info')} لتعمل القوالب التي اختير فيها خط من خطوط ويندوز (مثل <b class="ltr">AL-Mohanad Bold</b>) اكتب الاسم مطابقاً له تماماً، فيُستخدم الملف المرفوع بدل البديل. ولخط بوزنين ارفع الملفين بالاسم نفسه: مرة «عادي» ومرة «عريض».</p>
+        <label class="chk vfu-lic"><input type="checkbox" name="lic" required> أقرّ بأن لجهتنا حق استخدام هذا الخط (الخطوط التجارية تحتاج ترخيصاً يسمح باستخدامها داخل الجهة)</label>
+        <p class="faint small">${f.name} · ${fmtNum(Math.round(f.size / 1024))} كيلوبايت</p>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'رفع الخط', kind: 'primary', icon: 'upload', submit: true, handler: async (form) => {
+        const v = UI.formValues(form), family = VTF.clean(v.family).slice(0, 60);
+        if (!family) throw new AppError('اكتب اسم الخط');
+        if (!form.querySelector('[name="lic"]').checked) throw new AppError('أكّد حق استخدام الخط');
+        const weight = Number(v.weight) === 700 ? 700 : 400, list = VFU.list();
+        if (list.some((x) => x.family === family && Number(x.weight) === weight)) throw new AppError(`يوجد خط مرفوع بالاسم «${family}» والوزن نفسه. احذفه أولاً لاستبداله`);
+        const fileId = uid('vf'), type = { ttf: 'font/ttf', otf: 'font/otf', woff: 'font/woff', woff2: 'font/woff2' }[ext] || 'application/octet-stream';
+        await Sync.uploadBlob(fileId, f, f.name, type);
+        await VFU.save([...list, { id: uid('vfr'), family, label: String(v.label || '').trim().slice(0, 60) || family, use: VFU.USE[v.use] ? v.use : 'head', weight, fileId, size: f.size, name: f.name, by: Auth.user.id, at: now() }]);
+        await Data.log('create', 'settings', 'vfonts', `رفع الخط «${family}» (${weight === 700 ? 'عريض' : 'عادي'})`);
+        UI.toast(`رُفع الخط «${family}» — صار متاحاً في قوائم الخطوط على كل الأجهزة`, 'ok', 6000); return family;
+      } }]
+    });
+  },
+  async remove(id) {
+    const list = VFU.list(), x = list.find((r) => r.id === id); if (!x) return false;
+    if (!(await UI.confirm(`حذف الخط المرفوع «${x.family}» (${Number(x.weight) === 700 ? 'عريض' : 'عادي'})؟ القوالب التي تستخدمه تُطبع ببديله.`, { danger: true, ok: 'حذف' }))) return false;
+    await VFU.save(list.filter((r) => r.id !== id));
+    await Data.log('delete', 'settings', 'vfonts', `حذف الخط المرفوع «${x.family}»`);
+    UI.toast('حُذف الخط'); return true;
+  },
+  /* تحويل الأبيض إلى شفاف (لصور الترويسة والأختام الممسوحة)، مع حواف متدرجة */
+  async whiteToAlpha(src, hi = 228, lo = 120) {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new AppError('تعذر قراءة الصورة')); i.src = src; });
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const l = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2], a = l >= hi ? 0 : l <= lo ? 255 : Math.round(((hi - l) / (hi - lo)) * 255);
+      p[i + 3] = Math.min(p[i + 3], a);
+    }
+    g.putImageData(d, 0, 0);
+    return c.toDataURL('image/png');
+  }
+};
+VTF.has = ((h0) => (f) => VFU.has(f) || h0(f))(VTF.has);
+VTF.status = ((s0) => (x) => (VFU.has(x.f) ? ['violet', 'مرفوع للنظام — يعمل على كل الأجهزة', 'upload'] : s0(x)))(VTF.status);
+{ const sd0 = VPV.srcdoc; VPV.srcdoc = (h, P) => sd0(h, P).replace('</head>', `<style>${VFU.css()}</style></head>`); }
+{ const xl4 = XCFG.load.bind(XCFG); XCFG.load = async function () { await xl4(); try { const r = await DB.get('meta', 'vfonts'); Data.c.vfonts = (r && r.value) || {}; } catch (_) { Data.c.vfonts = {}; } VFU.apply().catch(() => {}); }; }
+
+/* صفحة «خطوط الاستمارات»: الخطوط المرفوعة، وطريقة تثبيت خطوط ويندوز */
+{
+  const cf0 = Pages.ccFonts;
+  Pages.ccFonts = async (ctx) => {
+    await VFU.apply().catch(() => {});
+    cf0(ctx);
+    const ed = VFU.can();
+    const card = (x) => html`<article class="vfu-card"><div class="vfu-s" style="font-family:${VTF.css(x.family)};font-weight:${x.weight}"><b>شرطة عُمان السلطانية</b><span>أكاديمية السلطان قابوس لعلوم الشرطة</span></div><div class="vfu-m"><b>${x.label}</b><small class="ltr">${x.family} · ${Number(x.weight) === 700 ? 'Bold' : 'Regular'}</small><small>${VFU.USE[x.use] || ''} · ${fmtNum(Math.round((x.size || 0) / 1024))} ك.ب · ${x.by ? Data.userName(x.by) : ''} ${x.at ? fmtDate(x.at) : ''}</small></div>${ed ? html`<button type="button" class="icon-btn danger" data-vfdel="${x.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</article>`;
+    const panel = () => { const L = VFU.list(); return UI.panel({ title: `خطوطكم المرفوعة (${fmtNum(L.length)})`, icon: 'upload', sub: 'ارفع ملف الخط مرة واحدة فيعمل في المحرر والطباعة والتعبئة الفورية على كل الأجهزة، دون تثبيته على كل جهاز', tools: ed ? html`<button type="button" class="btn btn-primary btn-sm" data-vfup>${UI.icon('upload')} رفع خط</button>` : '', body: L.length ? html`<div class="vfu-grid">${L.map(card)}</div>` : html`<p class="hint">${UI.icon('info')} لا خطوط مرفوعة بعد. ارفع ملف الخط (TTF أو OTF أو WOFF) الذي تستخدمونه في استماراتكم، مثل المهند أو خط الترويسة.</p>` }); };
+    const help = html`<details class="panel vfu-help"><summary>${UI.icon('monitor')} <b>تثبيت خط على جهاز ويندوز</b><span class="faint small">— لخطوط ويندوز التي تظهر «غير مثبت»</span></summary><div class="panel-body">
+      <ol><li>احصل على ملف الخط (امتداده <b class="ltr">.ttf</b> أو <b class="ltr">.otf</b>) من جهاز مثبت عليه: افتح <b class="ltr">C:\\Windows\\Fonts</b> وانسخ الخط، أو من مصدره المرخّص.</li>
+      <li>على الجهاز الذي يطبع: انقر الملف بالزر الأيمن ← <b>تثبيت لجميع المستخدمين</b> (Install for all users). يحتاج صلاحية مسؤول الجهاز.</li>
+      <li>أغلق المتصفح كله وافتحه من جديد، ثم افتح هذه الصفحة: يتحول الخط إلى «مثبت على هذا الجهاز».</li>
+      <li>كرر ذلك على كل جهاز يطبع الاستمارات — <b>أو ارفع الخط هنا مرة واحدة</b> فيعمل على كل الأجهزة دون تثبيت.</li></ol>
+      <p class="hint">${UI.icon('alert')} الخطوط التجارية (مثل خطوط ديكوتايب) تحتاج ترخيصاً يسمح باستخدامها؛ رفعها إلى النظام يجعلها تُحمَّل في متصفحات أجهزة الجهة فقط.</p></div></details>`;
+    const at = ctx.view.querySelector('.vtf-kpis');
+    if (at) at.insertAdjacentHTML('afterend', String(html`<div data-vfpanel>${panel()}</div>${help}`));
+    const redraw = () => { const b = ctx.view.querySelector('[data-vfpanel]'); if (b) b.innerHTML = String(panel()); const q = ctx.view.querySelector('[data-vtfq]'); if (q) q.dispatchEvent(new Event('input', { bubbles: true })); };
+    UI.on(ctx.view, 'click', '[data-vfup]', async () => { try { if (await VFU.upload()) redraw(); } catch (ex) { UI.error(ex); } });
+    UI.on(ctx.view, 'click', '[data-vfdel]', async (e, b) => { try { if (await VFU.remove(b.dataset.vfdel)) redraw(); } catch (ex) { UI.error(ex); } });
+  };
 }
 
 boot();

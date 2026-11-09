@@ -6305,3 +6305,17 @@ button.cch-st:hover{border-color:rgba(var(--g),.5)}
 .mv-row .vc-cic{flex:none}
 .mv-row>.ic{width:16px;height:16px;color:var(--ink-3)}
 article.vc-card2[data-vpv]{cursor:pointer}
+
+/* ══════════ الجولة 19: الخطوط المرفوعة ══════════ */
+.vfu-prev{background:#fff;color:#111;border-radius:12px;padding:14px 16px;border:1px solid var(--line-2);text-align:center;direction:rtl}
+.vfu-prev p{margin:0}.vfu-h{font-size:34px;line-height:1.6}.vfu-b{font-size:17px;line-height:1.8;color:#333}
+.vfu-lic{margin-top:6px;font-size:13px;font-weight:700}
+.vfu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.vfu-card{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;border:1px solid rgba(124,58,237,.35);background:linear-gradient(160deg,rgba(124,58,237,.08),transparent 70%),var(--surface-solid);position:relative}
+.vfu-card .icon-btn{position:absolute;top:8px;inset-inline-start:8px}
+.vfu-s{background:#fff;color:#111;border-radius:10px;padding:10px 12px;text-align:center;direction:rtl;border:1px solid rgba(0,0,0,.08)}
+.vfu-s b{display:block;font-size:24px;line-height:1.6;font-weight:inherit}.vfu-s span{display:block;font-size:14px;color:#333;line-height:1.7}
+.vfu-m b{display:block;font-size:13.5px}.vfu-m small{display:block;font-size:11.5px;color:var(--ink-3)}
+.vfu-help{margin-top:14px}
+.vfu-help summary{display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;flex-wrap:wrap}
+.vfu-help ol{margin:0 0 8px;padding-inline-start:22px;line-height:2;font-size:13.5px}

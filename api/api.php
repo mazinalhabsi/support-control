@@ -602,6 +602,14 @@ function file_visible(array $u, string $fid, array $row): bool {
   return false;
 }
 
+/** ملف خط مسجل في meta/vfonts: يُحمَّل في كل جهاز (منها أجهزة الموظفين لمعاينة سنداتهم) */
+function vfont_file(string $fid): bool {
+  $r = doc_get('meta', 'vfonts'); if (!$r || (int) $r['deleted']) return false;
+  $d = json_decode((string) $r['data'], true); $list = is_array($d['value']['list'] ?? null) ? $d['value']['list'] : [];
+  foreach ($list as $x) if (is_array($x) && (string) ($x['fileId'] ?? '') === $fid) return true;
+  return false;
+}
+
 function doc_get(string $store, string $id): ?array {
   $st = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE store = ? AND doc_id = ?");
   $st->execute([$store, $id]);
@@ -998,6 +1006,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'mdlcfg' || $key === 'mdlbuild:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* إظهار السندات للموظفين: يفتحه المشرف ويغلقه وحده */
       if ($key === 'vselfcfg') return is_sup($user) ? $new : null;
+      /* سجل الخطوط المرفوعة: من يصمم الاستمارات أو يدير الإعدادات */
+      if ($key === 'vfonts') return can_any($user, ['settings', 'vouchers.design', 'forms.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
@@ -1771,7 +1781,7 @@ case 'file': {
   $path = rtrim($CONFIG['files_dir'], '/\\') . DIRECTORY_SEPARATOR . $id . '.bin';
   if (!$row || !is_file($path)) fail('الملف غير موجود', 404);
   /* الموظف ينزّل مرفقاته ومرفقات بلاغاته فقط؛ معرّف الملف وحده لم يعد يكفي لتنزيل مرفقات الآخرين */
-  if (is_self_scope(sync_scope($user)) && empty(pull_full($user)['attachments']) && !file_visible($user, $id, $row)) fail('الملف غير موجود', 404);
+  if (is_self_scope(sync_scope($user)) && empty(pull_full($user)['attachments']) && !file_visible($user, $id, $row) && !vfont_file($id)) fail('الملف غير موجود', 404);
   /* تُعرض داخل المتصفح الأنواع الآمنة فقط؛ HTML وSVG وغيرها تُنزّل كملف ولا تُنفّذ داخل نطاق النظام (حماية من XSS) */
   $type = strtolower(trim(explode(';', (string) $row['type'])[0]));
   $inline = in_array($type, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf', 'video/mp4', 'audio/mpeg'], true);
