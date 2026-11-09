@@ -480,20 +480,26 @@ function notes_maintain(): void {
 const STAFF_ROLES = ['supervisor', 'support_manager', 'technician'];
 /** المتواجدون الآن. الموظف لا يحتاج إلا تواجد الفنيين والإداريين (حالة من يتابع بلاغه)، ولا يرى الصفحة التي يتصفحها غيره.
     كان كل جهاز يستلم قائمة كل المتواجدين مع كل نبضة: مع 1000 متصل يصبح ذلك 1000×1000 سجل كل 45 ثانية */
+/* من يرى من في «المتواجدون»: الموظف لا شيء إطلاقاً، الفني الموظفين، الإداري الموظفين والفنيين، المشرف الجميع، وشاشة العرض الفريق.
+   ومن لا يظهر في قائمة الفني أو الإداري من الفريق يصله نشاطه على البلاغات وحده (h=1 بلا صفحة)، ليبقى قفل «يعمل عليه الآن» دون أن يُعد أو يُعرض */
 function presence_list(array $user): array {
-  /* الفنيون والإداريون والمشرف، ومن يدير الحسابات: يرون كل المتواجدين */
-  $staff = in_array($user['role'] ?? '', STAFF_ROLES, true) || can($user, 'users.manage');
-  $st = db()->prepare("SELECT data FROM presence WHERE at > ?" . ($staff ? '' : " AND role IN ('supervisor', 'support_manager', 'technician')"));
+  $role = (string) ($user['role'] ?? '');
+  $sees = ['supervisor' => null, 'support_manager' => ['department', 'technician'], 'technician' => ['department'], 'monitor' => STAFF_ROLES];
+  if (!array_key_exists($role, $sees)) return [];
+  $show = $sees[$role];
+  $st = db()->prepare("SELECT data FROM presence WHERE at > ?");
   $st->execute([now_ms() - PRESENCE_TTL]);
   $out = [];
   foreach ($st->fetchAll() as $row) {
     $v = json_decode($row['data'], true);
     if (!is_array($v)) continue;
-    if (!$staff) { if (!in_array($v['role'] ?? '', STAFF_ROLES, true)) continue; unset($v['page']); }
-    $out[] = $v;
+    $r = (string) ($v['role'] ?? '');
+    if ($show === null || in_array($r, $show, true)) { if ($role === 'monitor') unset($v['page']); $out[] = $v; continue; }
+    if ($role !== 'monitor' && in_array($r, STAFF_ROLES, true)) $out[] = ['userId' => (string) ($v['userId'] ?? ''), 'role' => $r, 'at' => (int) ($v['at'] ?? 0), 'act' => (int) ($v['act'] ?? 0), 'h' => 1];
   }
   return $out;
 }
+function presence_count(array $user): int { $n = 0; foreach (presence_list($user) as $v) if (empty($v['h'])) $n++; return $n; }
 
 function bump_rev(int $n = 1): int {
   $pdo = db();
@@ -626,8 +632,8 @@ const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work
 function role_perms(string $role): array {
   switch ($role) {
     case 'department': return ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'];
-    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage', 'maint.work']);
-    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work']);
+    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage', 'maint.work', 'leaderboard']);
+    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work', 'leaderboard']);
     case 'supervisor': return ['*'];
     case 'monitor': return ['monitor'];
   }
@@ -1891,7 +1897,7 @@ case 'diag': {
     ['syspw', 'كلمات مرور الحسابات الأساسية' . ($sd ? ': ' . implode('، ', $sd) . ' بالكلمة الافتراضية' : ''), !$sd, 'غيّرها من صفحة «كلمات المرور»: الكلمة الافتراضية معروفة لكل من لديه نسخة من النظام'],
     ['dupuser', 'أسماء دخول مكررة' . ($dups ? ': ' . implode('، ', array_slice($dups, 0, 8)) : ''), !$dups, 'من قبل فرض التفرد: عدّل اسم الدخول لأحد الحسابين أو أوقفه من صفحة المستخدمين'],
   ];
-  out(['php' => PHP_VERSION, 'mysql' => (string) $g('version'), 'connect_ms' => $connect, 'query_ms' => $query, 'pull_ms' => $pullq, 'status' => $status, 'db_bytes' => $size, 'docs' => (int) db()->query('SELECT COUNT(*) FROM docs')->fetchColumn(), 'online' => count(presence_list($user)),
+  out(['php' => PHP_VERSION, 'mysql' => (string) $g('version'), 'connect_ms' => $connect, 'query_ms' => $query, 'pull_ms' => $pullq, 'status' => $status, 'db_bytes' => $size, 'docs' => (int) db()->query('SELECT COUNT(*) FROM docs')->fetchColumn(), 'online' => presence_count($user),
     'checks' => array_map(fn($c) => ['key' => $c[0], 'label' => $c[1], 'ok' => (bool) $c[2], 'fix' => $c[3]], $checks)]);
 }
 
