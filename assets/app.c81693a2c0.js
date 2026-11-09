@@ -1796,7 +1796,7 @@ const Shell = {
     Presence.start();
     setTimeout(() => { if (Auth.user) VAULT.cleanLocal().catch(() => {}); }, 4000);
     $('#userPop').addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); this.closePops(); if (!b) return; if (b.dataset.act === 'logout') this.logout(); else UI.palette(); });
-    this._doc = (e) => { if (!e.target.closest('.pop-wrap')) this.closePops(); };
+    this._doc = (e) => { if (e.target.isConnected && !e.target.closest('.pop-wrap')) this.closePops(); };
     document.addEventListener('click', this._doc);
     this.offs.push(Bus.on('noteseen', debounce(() => this.refreshBadges(), 200)), Bus.on('tickets', debounce(() => this.refreshBadges(), 600)), Bus.on('inventory', debounce(() => this.refreshBadges(), 600)), Bus.on('notifications', () => this.refreshBell()));
   },
@@ -4256,12 +4256,13 @@ Data.assets = {
 /* حقول الأرقام التسلسلية */
 UI.bindSerials = (form, getQty) => {
   const redraw = (vals) => { const box = form.querySelector('.serial-wrap'); if (!box) return; const q = clamp(getQty(), 0, 200); box.outerHTML = String(UI.serialBox(q, vals)); };
-  form.addEventListener('input', (e) => { if (e.target.name === 'qty') redraw(UI.serialValues(form)); });
+  form.addEventListener('input', (e) => { if (e.target.name === 'qty') redraw(SNP.cur(form)); });
   UI.on(form, 'click', '[data-sn]', async (e, el) => {
     const q = clamp(getQty(), 0, 200);
     if (el.dataset.sn === 'paste') {
-      const r = await UI.modal({ title: 'لصق الأرقام التسلسلية', icon: 'clip', body: html`<p class="muted" style="margin-bottom:10px">الصق الأرقام، كل رقم في سطر (أو مفصولة بفاصلة).</p>${UI.field({ name: 'bulk', label: `الأرقام (${fmtNum(q)})`, type: 'textarea', rows: 8, dir: 'ltr' })}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تعبئة', kind: 'primary', icon: 'check', submit: true, handler: (f) => f.querySelector('textarea').value }] });
-      if (r) { const list = String(r).split(/[\n,;\t]+/).map((x) => x.trim()).filter(Boolean); redraw(list.slice(0, q)); UI.toast(`تمت تعبئة ${arCount(Math.min(list.length, q), AR.item)}`); }
+      const qi = form.querySelector('[name="qty"]') || form.querySelector('[name="openQty"]');
+      const r = await SNP.open({ need: q, current: SNP.cur(form), allowQty: !!qi });
+      if (r) { if (qi && r.qty !== q) qi.value = r.qty; redraw(r.rows); UI.toast(`عُبّئ ${fmtNum(r.filled)} ${SNP.FIELDS[r.mode][0]}`); }
     } else {
       const r = await UI.modal({ title: 'ترقيم تلقائي', icon: 'refresh', size: 'sm', body: html`${UI.fields([{ name: 'prefix', label: 'البادئة', placeholder: 'مثال: SQ-DELL-', dir: 'ltr', wide: true }, { name: 'start', label: 'يبدأ من', type: 'number', min: 1, value: 1, wide: true }])}`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'توليد', kind: 'primary', icon: 'check', submit: true, handler: (f) => UI.formValues(f) }] });
       if (r) { const start = Number(r.start) || 1; redraw(Array.from({ length: q }, (_, i) => `${r.prefix || ''}${pad(start + i, 4)}`)); }
@@ -4317,7 +4318,8 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
       const holder = form.querySelector('[name="holderId"]');
       if (holder) holder.addEventListener('change', () => { const u = Data.c.users.get(holder.value); const dep = form.querySelector('[name="departmentId"]'); if (u && u.departmentId && dep) { dep.value = u.departmentId; fillUnits(); } });
       UI.bindSerials(form, () => Number(form.querySelector('[name="qty"]').value) || 0);
-      Pages.bindPicker(form, info); info();
+      Pages.bindPicker(form, async (...x) => { await info(...x); if (form._dn) form._dn(); }); info();
+      DevNote.attach(form, () => (item ? item.id : (form.querySelector('[name="itemId"]') || {}).value));
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: meta[3], kind: meta[2], icon: 'check', submit: true, handler: async (form) => {
       const v = UI.formValues(form), id = item ? item.id : v.itemId; if (!id) throw new AppError('اختر الصنف من القائمة');
@@ -4378,7 +4380,8 @@ Pages.loanModal = async (itemId) => {
       bId.addEventListener('change', () => { const u = Data.c.users.get(bId.value); if (!u) return; const dep = form.querySelector('[name="departmentId"]'); if (u.departmentId && dep) dep.value = u.departmentId; form.querySelector('[name="borrower"]').value = ''; });
       const refresh = async () => { const w = form.querySelector('[name="warehouseId"]').value, id = item ? item.id : (form.querySelector('[name="itemId"]') || {}).value; if (!id) return; const it = item || (await DB.get('items', id)); if (!isSerialItem(it)) return; avail = await Data.assets.available(id, w); form.querySelector('[data-serials]').innerHTML = avail.length ? String(UI.serialPick(avail, Number(form.querySelector('[name="qty"]').value) || 1)) : ''; };
       form.querySelector('[name="warehouseId"]').addEventListener('change', refresh);
-      Pages.bindPicker(form, refresh);
+      Pages.bindPicker(form, async (...x) => { await refresh(...x); if (form._dn) form._dn(); });
+      DevNote.attach(form, () => itemId || (form.querySelector('[name="itemId"]') || {}).value);
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تسليم وطباعة السند', kind: 'primary', icon: 'print', submit: true, handler: async (form) => {
       const v = UI.formValues(form), id = item ? item.id : v.itemId; if (!id) throw new AppError('اختر الصنف من القائمة');
@@ -4408,13 +4411,13 @@ Pages.browse = async (ctx) => {
     const mv = Auth.can('inventory.move'), ln = Auth.can('loans.manage');
     const crumbs = html`<a href="#/inventory/browse">المخزن</a>${IC.chain(st.cat).map((c) => html`${UI.icon('chevron-left')}<a href="#/inventory/browse?cat=${c.id}">${c.name}</a>`)}${st.brand ? html`${UI.icon('chevron-left')}<span>${st.brand}</span>` : ''}`;
     const live = (list) => list.filter((i) => !i.archived);
-    const folderTiles = IC.kids(st.cat).map((c) => { const sub = IC.subtree(c.id), items = live(all.filter((i) => sub.has(i.categoryId))), units = items.reduce((s, i) => s + Math.max(0, i.onHand), 0), nk = IC.kids(c.id).length; return html`<a class="tile tilt folder-tile" href="#/inventory/browse?cat=${c.id}"><span class="count">${fmtNum(units)}</span>${man ? html`<button type="button" class="tile-edit" data-icedit="${c.id}" title="تعديل المجلد أو حذفه">${UI.icon('edit')}</button>` : ''}<span class="folder-badge">${UI.icon('layers')}</span>${UI.illu(c.illustration)}<b>${c.name}</b><small>${nk ? `${fmtNum(nk)} مجلد · ` : ''}${arCount(items.length, AR.item)}</small></a>`; });
+    const folderTiles = IC.kids(st.cat).map((c) => { const sub = IC.subtree(c.id), items = live(all.filter((i) => sub.has(i.categoryId))), units = items.reduce((s, i) => s + Math.max(0, i.onHand), 0), nk = IC.kids(c.id).length; return html`<a class="tile tilt folder-tile${c.tone ? ` tone-${c.tone}` : ''}" href="#/inventory/browse?cat=${c.id}"><span class="count">${fmtNum(units)}</span>${man ? html`<button type="button" class="tile-edit" data-icedit="${c.id}" title="تعديل المجلد أو حذفه">${UI.icon('edit')}</button>` : ''}<span class="folder-badge">${UI.icon('layers')}</span>${UI.illu(c.illustration)}<b>${c.name}</b><small>${nk ? `${fmtNum(nk)} مجلد · ` : ''}${arCount(items.length, AR.item)}</small></a>`; });
     const body = !st.cat
       ? html`<div class="tiles stagger">${folderTiles}${man ? html`<button type="button" class="tile tile-add" data-icnew="">${UI.icon('plus')}<b>مجلد جديد</b><small>في المستوى الرئيسي</small></button>` : ''}</div>`
       : !st.brand
         ? html`<div class="tiles stagger">${folderTiles}${man ? html`<button type="button" class="tile tile-add" data-icnew="${st.cat}">${UI.icon('plus')}<b>مجلد فرعي</b><small>داخل «${Data.nameOf('itemCategories', st.cat)}»</small></button>` : ''}${brands.map((b) => { const items = inCat.filter((i) => (i.brand || 'غير محدد') === b), units = items.reduce((s, i) => s + Math.max(0, i.onHand), 0); return html`<a class="tile tilt" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}"><span class="count">${fmtNum(units)}</span>${Auth.can('inventory.manage') ? html`<button type="button" class="tile-edit" data-bicon="${b}" title="تغيير أيقونة الماركة">${UI.icon('edit')}</button>` : ''}${UI.illu(bIcons.get(`${st.cat}|${b}`) || (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box')}<b>${b}</b><small>${arCount(items.length, AR.item)}</small></a>`; })}</div>`
-        : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>` : ''}` })}${body}`);
+        : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>` : ''}` })}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
     UI.hydrate(ctx.view); UI.tilt(ctx.view);
     const s = $('#bq', ctx.view); s.addEventListener('input', debounce(async (e) => {
       st.q = e.target.value.trim();
@@ -4485,7 +4488,8 @@ UI.cartBtn = (itemId, cls = 'btn btn-sm btn-soft') => html`<button class="${cls}
 Pages.cartModal = (mode = 'issue') => {
   Cart.load();
   const state = { mode: mode === 'loan' ? 'loan' : 'issue' };
-  const render = async (form) => {
+  const render = async (form) => { await render0(form); try { await DevNote.cart(form); } catch (_) { /* التنبيه إضافة */ } };
+  const render0 = async (form) => {
     const box = $('[data-cart-body]', form); if (!box) return;
     const stocks = await Promise.all(Cart.lines.map((l) => DB.get('stock', [l.warehouseId, l.itemId])));
     const people = Data.list('users').filter((u) => u.active && u.role !== 'monitor');
@@ -5305,6 +5309,7 @@ Pages.deviceModal = async (itemId, scope = {}) => {
   const res = await UI.modal({
     title: it.name, icon: 'box', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
+      ${DevNote.html(it, mine)}
       <div class="kpis mt" style="border-radius:14px">
         ${UI.kpi({ label: 'في المخازن', icon: 'warehouse', tone: 'teal', value: it.onHand })}
         ${scope.departmentId ? UI.kpi({ label: `بعهدة ${Data.nameOf('departments', scope.departmentId)}`, icon: 'building', tone: 'violet', value: inDept }) : scope.store ? UI.kpi({ label: 'خارج المخزن', icon: 'pin', tone: 'violet', value: outside }) : UI.kpi({ label: 'بعهدة الإدارات', icon: 'building', tone: 'violet', value: deptRows.reduce((s, d) => s + d.qty, 0) })}
@@ -5918,7 +5923,7 @@ Data.assets.add = async ({ itemId, warehouseId, serials = [], note = '' }) => {
   return { added: rows.length, dupes: [] };
 };
 /* تصفية المتواجدين الآن حسب نوع الحساب (للمشرف) */
-document.addEventListener('click', (e) => { if (e.target.closest('#presPop [data-presretry]')) { e.preventDefault(); e.stopPropagation(); if (Presence.refresh) Presence.refresh(); return; } const f = e.target.closest('[data-presf]'); if (!f || !f.closest('#presPop')) return; e.preventDefault(); e.stopPropagation(); const r = f.dataset.presf; Presence.flt = Presence.flt === r ? '' : r; Presence.fill(); });
+document.addEventListener('click', (e) => { if (e.target.closest('#presPop [data-presretry]')) { e.preventDefault(); e.stopPropagation(); if (Presence.refresh) Presence.refresh(); return; } const f = e.target.closest('[data-presf]'); if (!f || !f.closest('#presPop')) return; e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); const r = f.dataset.presf; Presence.flt = Presence.flt === r ? '' : r; Presence.fill(); });
 /* البحث بالرقم التسلسلي يشمل رقم الأصل واسم الجهاز على الشبكة */
 { const bs = Data.assets.bySerial; Data.assets.bySerial = async (v) => { const a = await bs(v); if (a) return a; const k = Data.assets.norm(v); if (!k) return null; return (await DB.getAll('assets')).find((x) => [x.serial, x.tag, x.host].some((y) => Data.assets.norm(y) === k)) || null; }; }
 /* تنبيه فوري على الخانة المكررة أثناء الكتابة */
@@ -11780,6 +11785,7 @@ Pages.assetDetail = async (assetId) => {
   const where = a.status === 'in_store' ? `${Data.nameOf('warehouses', a.warehouseId)}` : a.status === 'issued' ? `${Data.nameOf('departments', a.departmentId, '—')}${a.holder ? ` — المستلم: ${a.holder}` : ''}` : a.status === 'loaned' ? `${a.holder || '—'}${loan ? ` — سند ${loan.number}${loan.dueAt ? ` حتى ${fmtDate(loan.dueAt)}` : ''}` : ''}` : a.status === 'maintenance' ? 'في الصيانة الآن' : 'خارج الخدمة';
   return UI.modal({ title: `تفاصيل ${it.name}`, icon: 'info', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 6px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip(S.tone, S.label, S.icon)}${UI.chip('sky', IC.label(it.categoryId) || 'بدون تصنيف', 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}</div></div></div>
+      ${DevNote.html(it, [a], 'ملاحظة على هذا الجهاز')}
       <div class="kpis mt" style="border-radius:14px">${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maint.length ? 'amber' : 'teal', value: maint.length })}${UI.kpi({ label: 'السندات المرتبطة', icon: 'file', tone: 'sky', value: vs.length })}${UI.kpi({ label: 'عمر التسجيل', icon: 'clock', tone: 'violet', value: Math.max(0, Math.floor((now() - (a.addedAt || now())) / DAY)), foot: html`<span class="faint small">يوم</span>` })}</div>
       <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
       ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
@@ -11810,7 +11816,7 @@ Data.icats = {
     if (rec.id && rec.parentId && IC.subtree(rec.id).has(rec.parentId)) throw new AppError('لا يمكن نقل المجلد إلى داخل نفسه أو أحد مجلداته الفرعية');
     if (Data.list('itemCategories').some((c) => c.id !== rec.id && (c.parentId || '') === (rec.parentId || '') && normalizeAr(c.name) === normalizeAr(name))) throw new AppError('يوجد مجلد بالاسم نفسه في المكان نفسه');
     const cur = rec.id ? Data.c.itemCategories.get(rec.id) || {} : {};
-    const out = await Data.saveRecord('itemCategories', { ...cur, id: rec.id || undefined, name, parentId: rec.parentId || '', illustration: rec.illustration || cur.illustration || 'box', order: rec.order != null && rec.order !== '' ? Number(rec.order) : cur.order }, 'مجلد مخزن');
+    const out = await Data.saveRecord('itemCategories', { ...cur, id: rec.id || undefined, name, parentId: rec.parentId || '', illustration: rec.illustration || cur.illustration || 'box', tone: rec.tone !== undefined ? (IC_TONES.includes(rec.tone) ? rec.tone : '') : cur.tone || '', order: rec.order != null && rec.order !== '' ? Number(rec.order) : cur.order }, 'مجلد مخزن');
     Bus.emit('inventory', {}); return out;
   },
   /* الحذف: ينقل الأصناف والمجلدات الفرعية المباشرة إلى مجلد آخر ثم يحذف */
@@ -11835,7 +11841,7 @@ Pages.icFolderModal = async (id = '', parentId = '') => {
   return UI.modal({ title: id ? `تعديل المجلد: ${rec.name}` : 'مجلد جديد في المخزن', icon: 'layers', size: 'lg',
     body: html`${UI.fields([{ name: 'name', label: 'اسم المجلد', required: true, placeholder: 'مثال: شاشات الاجتماعات' }, { name: 'parentId', label: 'داخل المجلد', type: 'select', placeholder: '— المستوى الرئيسي —', options: folders }, { name: 'order', label: 'الترتيب', type: 'number', min: 0 }], rec)}
       ${id ? html`<p class="hint">يحتوي على ${arCount(nItems, AR.item)} و${fmtNum(nKids)} مجلد فرعي.</p>` : ''}
-      <div class="field mt"><label>الرسمة</label><div class="tiles sm cat-pick">${Iso.names.map((k) => html`<label><input type="radio" name="illustration" value="${k}"${(rec.illustration || 'box') === k ? raw(' checked') : ''}><span class="tile">${UI.illu(k)}<b>${ILLU_LABELS[k] || k}</b></span></label>`)}</div></div>`,
+      <div class="field mt"><label>الرسمة</label><div class="tiles sm cat-pick">${Iso.names.map((k) => html`<label><input type="radio" name="illustration" value="${k}"${(rec.illustration || 'box') === k ? raw(' checked') : ''}><span class="tile">${UI.illu(k)}<b>${ILLU_LABELS[k] || k}</b></span></label>`)}</div></div>${IC.tonePick(rec.tone)}`,
     actions: [{ label: 'إلغاء', kind: 'ghost' }, ...(id ? [{ label: 'حذف المجلد', kind: 'danger', icon: 'trash', handler: async () => (await Pages.icDeleteModal(id)) ? 'deleted' : false }] : []), { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: async (f) => { const v = UI.formValues(f); const r = await Data.icats.save({ ...rec, ...v, id: id || undefined }); UI.toast(id ? 'حُفظ المجلد' : `أُنشئ المجلد «${r.name}»`); return r; } }] });
 };
 Pages.icDeleteModal = async (id) => {
@@ -19342,7 +19348,7 @@ Pages.bulkAddModal = async (preset = {}) => {
     <span class="ba-ic" data-baic>${r.m ? UI.illu(itemIllu(r.m), 'mini') : UI.icon('box')}</span>
     <div class="ba-nm"><input class="input" data-ban list="baModels" placeholder="اسم الجهاز أو النموذج" value="${r.m ? r.m.name : r.name || ''}" autocomplete="off"><small class="ba-meta" data-bameta></small><div class="ba-new" hidden>${UI.icon('sparkle')} نموذج جديد من نوع <select data-bat>${typeOpts()}</select></div></div>
     <input class="input ba-q" type="number" min="1" max="9999" data-baq value="${r.qty || 1}" title="الكمية" aria-label="الكمية">
-    <input class="input ltr ba-s" data-bas placeholder="الأرقام التسلسلية (اختياري)" value="${r.sn || ''}" aria-label="الأرقام التسلسلية">
+    <span class="ba-sw"><input class="input ltr ba-s" data-bas placeholder="الأرقام التسلسلية (اختياري)" value="${r.sn || ''}" aria-label="الأرقام التسلسلية"><button type="button" class="icon-btn ba-snp" data-basnp title="لصق قائمة أرقام تسلسلية أو أرقام أصل (تاج)">${UI.icon('clip')}</button></span>
     <select class="ba-u" data-bau aria-label="المكتب" ${mode === 'dept' ? '' : raw('hidden')}><option value="">— نفس الموضع —</option></select>
     <input class="input ba-note" data-banote placeholder="ملاحظة" value="${r.note || ''}">
     <span class="ba-acts"><button type="button" class="icon-btn" data-baedit title="تعديل النموذج (يسري على النموذج)">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-bavar title="نسخة معدّلة لهذا السطر فقط">${UI.icon('copy')}</button><button type="button" class="icon-btn danger" data-bax title="حذف السطر">${UI.icon('x')}</button></span></div>`;
@@ -19455,11 +19461,11 @@ Pages.bulkAddModal = async (preset = {}) => {
 };
 Pages.bulkAddSave = async (form, print) => {
   const mode = form._mode(), v = UI.formValues(form), N = Data.assets.norm;
-  const lines = $$('[data-barow]', form).map((r) => ({ name: $('[data-ban]', r).value.trim(), itemId: r.dataset.item || '', type: ($('[data-bat]', r) || {}).value || 'ic_other', qty: Math.floor(Number($('[data-baq]', r).value) || 0), sns: snSplit($('[data-bas]', r).value), unitId: mode === 'dept' ? $('[data-bau]', r).value || '' : '', note: $('[data-banote]', r).value.trim() })).filter((l) => l.name);
+  const lines = $$('[data-barow]', form).map((r) => ({ name: $('[data-ban]', r).value.trim(), itemId: r.dataset.item || '', type: ($('[data-bat]', r) || {}).value || 'ic_other', qty: Math.floor(Number($('[data-baq]', r).value) || 0), ...BAP.read(r), unitId: mode === 'dept' ? $('[data-bau]', r).value || '' : '', note: $('[data-banote]', r).value.trim() })).filter((l) => l.name);
   if (!lines.length) throw new AppError('أضف جهازاً واحداً على الأقل');
   lines.forEach((l) => { l.qty = Math.max(l.qty, l.sns.length); if (!(l.qty > 0)) throw new AppError(`أدخل كمية صحيحة للجهاز «${l.name}»`); });
   const all = lines.flatMap((l) => l.sns).map(N), twice = all.find((s, i) => all.indexOf(s) !== i); if (twice) throw new AppError(`الرقم التسلسلي ${twice} مكرر في القائمة`);
-  const pairs = lines.flatMap((l) => l.sns.map((s) => ({ serial: s, tag: '' }))); if (pairs.length) await Data.assets.check(pairs);
+  const pairs = lines.flatMap((l) => l.pairs); if (pairs.length) await Data.assets.check(pairs);
   let depId = '', unId = '', whId = '';
   if (mode === 'store') { whId = v.warehouseId; if (!Data.c.warehouses.get(whId)) throw new AppError('اختر المخزن'); }
   else { depId = v.departmentId; unId = v.unitId || ''; if (!depId) throw new AppError('اختر الإدارة'); if (!(await Custody.allowed())) throw new AppError('الإضافة المباشرة لعهدة الإدارات مغلقة؛ اطلب فتحها ثم أعد الحفظ'); }
@@ -19469,9 +19475,9 @@ Pages.bulkAddSave = async (form, print) => {
     if (!it) { const ex = (await DB.getAll('items')).find((x) => !x.archived && normalizeAr(x.name) === normalizeAr(l.name)); it = ex || (await Data.inv.saveItem({ name: l.name, categoryId: l.type, unit: isSerialItem({ categoryId: l.type }) ? 'جهاز' : 'قطعة' })); if (!ex) made.push(it.name); }
     if (mode === 'store') {
       await Data.inv.move({ type: 'receive', itemId: it.id, warehouseId: whId, qty: l.qty, note: l.note || 'إضافة دفعة واحدة', ref: v.ref || '', party: v.party || '' });
-      if (l.sns.length) await Data.assets.add({ itemId: it.id, warehouseId: whId, serials: l.sns.map((s) => ({ serial: s, tag: '' })), note: l.note });
+      if (l.sns.length) await Data.assets.add({ itemId: it.id, warehouseId: whId, serials: l.pairs, note: l.note });
     } else {
-      await Data.dept.addDirect({ departmentId: depId, unitId: l.unitId || unId, itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note || 'إضافة دفعة واحدة', serials: l.sns.map((s) => ({ serial: s, tag: '' })) });
+      await Data.dept.addDirect({ departmentId: depId, unitId: l.unitId || unId, itemId: it.id, qty: l.qty, holderId: v.holderId || '', note: l.note || 'إضافة دفعة واحدة', serials: l.pairs });
     }
     l.item = it; units += l.qty;
   }
@@ -19515,7 +19521,7 @@ Pages.models = async (ctx) => {
     const box = $('[data-mselbar]', ctx.view); if (!box) return;
     const n = st.sel.size, all = rowsNow.length && rowsNow.every((m) => st.sel.has(m.id));
     box.hidden = !MDL.canEdit() || !rowsNow.length;
-    box.innerHTML = String(html`<label class="chk mdl-all"><input type="checkbox" data-mall${all ? raw(' checked') : ''}> تحديد الكل <small>(${fmtNum(rowsNow.length)})</small></label>${n ? html`<b class="mdl-seln">${UI.icon('check')} ${fmtNum(n)} محدد</b>${st.arch ? html`<button type="button" class="btn btn-soft btn-sm" data-mbulk="restore">${UI.icon('undo')} استعادة المحدد</button>` : html`<button type="button" class="btn btn-danger btn-sm" data-mbulk="del">${UI.icon('trash')} حذف المحدد</button>`}<button type="button" class="btn btn-ghost btn-sm" data-mclear>${UI.icon('x')} إلغاء التحديد</button>` : html`<span class="faint small">${st.arch ? 'حدّد نماذج لاستعادتها دفعة واحدة' : 'حدّد نماذج لحذفها دفعة واحدة، أو احذف أي نموذج من زر الحذف عليه'}</span>`}`);
+    box.innerHTML = String(html`<label class="chk mdl-all"><input type="checkbox" data-mall${all ? raw(' checked') : ''}> تحديد الكل <small>(${fmtNum(rowsNow.length)})</small></label>${n ? html`<b class="mdl-seln">${UI.icon('check')} ${fmtNum(n)} محدد</b>${st.arch ? html`<button type="button" class="btn btn-soft btn-sm" data-mbulk="restore">${UI.icon('undo')} استعادة المحدد</button>` : html`<button type="button" class="btn btn-soft btn-sm" data-mbulkmove>${UI.icon('swap')} نقل المحدد إلى مجلد</button><button type="button" class="btn btn-danger btn-sm" data-mbulk="del">${UI.icon('trash')} حذف المحدد</button>`}<button type="button" class="btn btn-ghost btn-sm" data-mclear>${UI.icon('x')} إلغاء التحديد</button>` : html`<span class="faint small">${st.arch ? 'حدّد نماذج لاستعادتها دفعة واحدة' : 'حدّد نماذج لحذفها دفعة واحدة، أو احذف أي نموذج من زر الحذف عليه'}</span>`}`);
     box.classList.toggle('on', n > 0);
   };
   const draw = async () => {
@@ -19530,12 +19536,12 @@ Pages.models = async (ctx) => {
       <header>${ed ? html`<label class="mdl-pick" title="تحديد"><input type="checkbox" data-mpick="${m.id}"${on ? raw(' checked') : ''} aria-label="تحديد ${m.name}"></label>` : ''}${UI.illu(itemIllu(m), 'mini')}<div class="grow" style="min-width:0"><b>${m.name}</b><small>${[MDL.sub(m), Data.nameOf('itemCategories', m.categoryId, '')].filter(Boolean).join(' · ')}</small></div>${m.archived ? html`<span class="chip tone-red" title="مؤرشف: مخفي من المخزن والقوائم، وسجله باقٍ">${UI.icon('archive')} مؤرشف</span>` : isSerialItem(m) ? html`<span class="chip tone-slate" title="يُتابع برقمه التسلسلي">${UI.icon('hash')}</span>` : ''}</header>
       ${sp.length ? html`<dl class="mdl-sp">${sp.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>` : html`<p class="mdl-empty">${UI.icon('info')} لم تُعبّأ مواصفاته بعد${ed && !m.archived ? ' — اضغط تعديل' : ''}</p>`}
       <div class="mdl-cnt"><span title="في المخازن">${UI.icon('warehouse')} ${fmtNum(s)}</span><span title="في عهدة الإدارات">${UI.icon('building')} ${fmtNum(d)}</span><a class="mdl-more" href="#/inventory/items/${m.id}">${UI.icon('external')} الصنف</a></div>
-      <footer>${m.archived ? html`${ed ? html`<button type="button" class="btn btn-soft btn-xs" data-mrestore="${m.id}">${UI.icon('undo')} استعادة</button>` : ''}<span class="grow"></span>` : html`${MDL.canStore() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="store" data-item="${m.id}">${UI.icon('warehouse')} للمخزن</button>` : ''}${MDL.canDept() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="dept" data-item="${m.id}">${UI.icon('building')} لإدارة / مكتب</button>` : ''}<span class="grow"></span>${ed ? html`<button type="button" class="icon-btn" data-mdupe="${m.id}" title="نسخة معدّلة">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-medit="${m.id}" title="تعديل النموذج">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-mdel="${m.id}" title="حذف النموذج">${UI.icon('trash')}</button>` : ''}`}</footer></article>`; };
+      <footer>${m.archived ? html`${ed ? html`<button type="button" class="btn btn-soft btn-xs" data-mrestore="${m.id}">${UI.icon('undo')} استعادة</button>` : ''}<span class="grow"></span>` : html`${MDL.canStore() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="store" data-item="${m.id}">${UI.icon('warehouse')} للمخزن</button>` : ''}${MDL.canDept() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="dept" data-item="${m.id}">${UI.icon('building')} لإدارة / مكتب</button>` : ''}<span class="grow"></span>${ed ? html`<button type="button" class="icon-btn" data-mdupe="${m.id}" title="نسخة معدّلة">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-imove="${m.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button type="button" class="icon-btn" data-medit="${m.id}" title="تعديل النموذج">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-mdel="${m.id}" title="حذف النموذج">${UI.icon('trash')}</button>` : ''}`}</footer></article>`; };
     const addTile = ed && !st.arch && !qn ? html`<button type="button" class="mdl-card mdl-add" data-act="new"><span class="mdl-addic">${UI.icon('plus')}</span><b>نموذج جديد</b><small>${st.type ? `في «${Data.nameOf('itemCategories', st.type, '')}»` : 'حاسب، شاشة، طابعة، ملحق…'}</small></button>` : '';
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'نماذج الأجهزة', sub: 'نموذج لكل جهاز بمواصفاته يُكتب مرة واحدة، ثم يُضاف إلى المخزن أو إلى الإدارات والأقسام والمكاتب باسمه فقط — عدة أنواع في خطوة واحدة', illu: 'laptop',
       actions: html`${ed ? html`<button class="btn btn-ghost" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button><button class="btn btn-ghost" data-act="kits">${UI.icon('box')} الحزم <b class="tab-n">${fmtNum(MDL.kits().length)}</b></button>` : ''}${MDL.canStore() || MDL.canDept() ? html`<button class="btn btn-soft" data-bulkadd="${MDL.canStore() ? 'store' : 'dept'}">${UI.icon('layers')} إضافة أجهزة دفعة واحدة</button>` : ''}${ed ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}` })}
       <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="mdq" type="search" placeholder="ابحث بالاسم أو الماركة أو الموديل أو أي مواصفة" value="${st.q}"></div></div>
-        <div class="tabs mdl-tabs"><button type="button" class="tab${st.type || st.arch ? '' : ' active'}" data-mtype="">${UI.icon('grid')} الكل <b class="tab-n">${fmtNum(live.length)}</b></button>${types.map((c) => { const n = live.filter((m) => MDL.typeOf(m) === c.id).length; return html`<button type="button" class="tab${!st.arch && st.type === c.id ? ' active' : ''}" data-mtype="${c.id}">${c.name} <b class="tab-n">${fmtNum(n)}</b></button>`; })}${ed && archived.length ? html`<button type="button" class="tab mdl-archtab${st.arch ? ' active' : ''}" data-march>${UI.icon('archive')} المؤرشفة <b class="tab-n">${fmtNum(archived.length)}</b></button>` : ''}</div>
+        <div class="tabs mdl-tabs"><button type="button" class="tab${st.type || st.arch ? '' : ' active'}" data-mtype="">${UI.icon('grid')} الكل <b class="tab-n">${fmtNum(live.length)}</b></button>${types.map((c) => { const n = live.filter((m) => MDL.typeOf(m) === c.id).length; return html`<button type="button" class="tab${!st.arch && st.type === c.id ? ' active' : ''}${c.tone ? ` tone-${c.tone} tab-tone` : ''}" data-mtype="${c.id}">${c.name} <b class="tab-n">${fmtNum(n)}</b></button>`; })}${ed && archived.length ? html`<button type="button" class="tab mdl-archtab${st.arch ? ' active' : ''}" data-march>${UI.icon('archive')} المؤرشفة <b class="tab-n">${fmtNum(archived.length)}</b></button>` : ''}</div>
         <div class="mdl-selbar" data-mselbar></div>
         <div class="panel-body">${rows.length || addTile ? html`<div class="mdl-grid">${addTile}${rows.map(card)}</div>` : UI.empty({ illu: 'laptop', title: all.length ? 'لا نماذج هنا' : 'لا توجد نماذج بعد', text: ed ? 'أضف نموذجاً لكل جهاز تستخدمونه (حاسب، شاشة، طابعة، ملحقات…) بمواصفاته، أو ابدأ من «نماذج مقترحة».' : 'يضيف النماذج من يملك صلاحية إدارة الأصناف.', action: ed && !all.length ? html`<button class="btn btn-primary" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button>` : '' })}</div></section>`);
     selBar();
@@ -20258,13 +20264,13 @@ Pages.custodyMap = async (ctx) => {
     if (kits.length) out.push({ k: 'k', name: 'الحزم', ic: UI.illu('box', 'mini'), n: kits.length, body: () => kits.map(kitCard) });
     const po = st.dep ? pool(st.dep) : new Map(), pl = [...po].filter(([id]) => items.get(id) && (!qn || normalizeAr(items.get(id).name).includes(qn)));
     if (pl.length) out.push({ k: 'a', name: 'العهدة العامة', hot: true, ic: UI.illu('archive', 'mini'), n: pl.reduce((s2, [, q]) => s2 + q, 0), body: () => pl.map(([id, q]) => card(items.get(id), `في العهدة العامة: ${fmtNum(q)}`, `a:${id}`)) });
-    treeData().forEach(({ k, c, list }) => { const l = [...list].sort((a, b) => AR_COLL.compare(brandOf(a), brandOf(b)) || AR_COLL.compare(a.name || '', b.name || '')); out.push({ k, name: c.name, ic: UI.illu(c.illustration || 'box', 'mini'), n: l.length, body: () => l.map((i) => card(i)) }); });
+    treeData().forEach(({ k, c, list }) => { const l = [...list].sort((a, b) => AR_COLL.compare(brandOf(a), brandOf(b)) || AR_COLL.compare(a.name || '', b.name || '')); out.push({ k, name: c.name, tone: c.tone || '', ic: UI.illu(c.illustration || 'box', 'mini'), n: l.length, body: () => l.map((i) => card(i)) }); });
     return out;
   };
   const palAlt = (pv) => {
     const secs = palSections(); let cur = CM.get('pcat', ''); if (cur && !secs.some((x) => x.k === cur)) cur = '';
     const wide = palWide(), shown = cur ? secs.filter((x) => x.k === cur) : secs;
-    const chips = pv === 'cols' || !secs.length ? '' : html`<div class="cm-pcats" role="tablist" aria-label="الفئات"><button type="button" class="cm-pcat${cur ? '' : ' on'}" data-pcat="" role="tab" aria-selected="${cur ? 'false' : 'true'}">${UI.icon('grid')}<b>الكل</b><small>${fmtNum(secs.reduce((s2, x) => s2 + (x.k === 'a' ? 0 : x.n), 0))}</small></button>${secs.map((x) => html`<button type="button" class="cm-pcat${cur === x.k ? ' on' : ''}${x.hot ? ' hot' : ''}" data-pcat="${x.k}" role="tab" aria-selected="${cur === x.k ? 'true' : 'false'}">${x.ic}<b>${x.name}</b><small>${fmtNum(x.n)}</small></button>`)}</div>`;
+    const chips = pv === 'cols' || !secs.length ? '' : html`<div class="cm-pcats" role="tablist" aria-label="الفئات"><button type="button" class="cm-pcat${cur ? '' : ' on'}" data-pcat="" role="tab" aria-selected="${cur ? 'false' : 'true'}">${UI.icon('grid')}<b>الكل</b><small>${fmtNum(secs.reduce((s2, x) => s2 + (x.k === 'a' ? 0 : x.n), 0))}</small></button>${secs.map((x) => html`<button type="button" class="cm-pcat${cur === x.k ? ' on' : ''}${x.hot ? ' hot' : ''}${x.tone ? ` tone-${x.tone} tinted` : ''}" data-pcat="${x.k}" role="tab" aria-selected="${cur === x.k ? 'true' : 'false'}">${x.ic}<b>${x.name}</b><small>${fmtNum(x.n)}</small></button>`)}</div>`;
     /* اللوحة العريضة: البحث والفئات وطريقة العرض في سطر واحد، فيبقى ارتفاعها للأجهزة */
     const tools = wide ? html`<div class="cm-paltools wide">${palSearch()}${chips}${pvSeg(pv)}</div>` : html`<div class="cm-paltools">${palSearch()}${pvSeg(pv)}</div>${chips}`;
     if (!secs.length) return html`${tools}<p class="hint">${st.q.trim() ? 'لا نماذج بهذا الاسم.' : 'لا نماذج بعد.'} <a href="#/inventory/models">أضف نماذج الأجهزة</a> مرة واحدة ثم وزّعها من هنا.</p>`;
@@ -20290,9 +20296,9 @@ Pages.custodyMap = async (ctx) => {
   const minis = (lines, n = 6) => { const ls = lines.filter(([, q]) => q > 0); return ls.length ? html`<span class="cm-minis">${ls.slice(0, n).map(([id, q]) => { const it = items.get(id); return it ? html`<i title="${it.name}${q > 1 ? ` ×${q}` : ''}">${UI.illu(cmIllu(it), 'mini')}${q > 1 ? html`<em>${fmtNum(q)}</em>` : ''}</i>` : ''; })}${ls.length > n ? html`<b>+${fmtNum(ls.length - n)}</b>` : ''}</span>` : ''; };
   const wsLines = (w) => (w.lines || []).map((l) => [l.itemId, l.qty]);
   const nodeBox = (u) => { const n = T.total(u.id), here = T.uQty.get(u.id) || 0, ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="oc-box cm-node tone-${u.tone || UT(u).tone}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="oc-ic">${UI.icon(u.icon || UT(u).icon)}</span><em>${UT(u).label}</em><b>${u.name}</b><span class="cm-n${n ? '' : ' zero'}" title="العهدة هنا ومع ما يتبعه">${UI.icon('box')} ${fmtNum(n)}${here && here !== n ? html` <small>(هنا ${fmtNum(here)})</small>` : ''}</span>${tmpBadge(u.id)}${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}${p ? html`<span class="cm-pend" title="في قائمة التوزيع">+${fmtNum(p)}</span>` : ''}</div>`; };
-  const cnode = (u) => { const kids = T.kids(st.dep, u.id); return html`<li>${nodeBox(u)}${kids.length ? html`<ul>${kids.map(cnode)}</ul>` : ''}</li>`; };
+  const cnode = (u) => { const kids = T.kids(st.dep, u.id), f = kids.length > 0 && CMF.is(st.dep, u.id); return html`<li${f ? raw(' class="cm-fold"') : ''}>${raw(String(nodeBox(u)).replace(/<\/div>$/, `${kids.length ? String(CMF.btn(u.id, f, CMF.count(T, st.dep, u.id))) : ''}</div>`))}${kids.length && !f ? html`<ul>${kids.map(cnode)}</ul>` : ''}</li>`; };
   const genBox = (d) => { const n = poolN(d.id), tl = live().filter((l) => l.departmentId === d.id), tn = tl.reduce((s, l) => s + l.qty, 0), p = pendAt(`d:${d.id}`); return html`<div class="oc-box cm-node cm-gen tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0" title="أجهزة الإدارة كلها، غير مخصصة لقسم أو مكتب"><span class="oc-ic">${UI.icon('o3d:warehouse')}</span><em>عهدة عامة</em><b>للإدارة كلها</b><span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${tn ? html`<span class="cm-tmp${tl.some(DL.late) ? ' late' : ''}">${UI.icon('clock')} ${fmtNum(tn)} مستخدمة مؤقتاً</span>` : ''}${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>`; };
-  const trow = (u, depth) => { const kids = T.kids(st.dep, u.id), n = T.total(u.id), ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="cm-row tone-${u.tone || UT(u).tone}" style="--d:${depth}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="cm-ric">${UI.icon(u.icon || UT(u).icon)}</span><div class="grow"><b>${u.name}</b><small>${UT(u).label}</small>${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}</div>${tmpBadge(u.id)}<span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}</div>${kids.map((k) => trow(k, depth + 1))}`; };
+  const trow = (u, depth) => { const kids = T.kids(st.dep, u.id), n = T.total(u.id), ws = wsList.filter((w) => w.unitId === u.id), p = pendAt(`u:${u.id}`); return html`<div class="cm-row tone-${u.tone || UT(u).tone}" style="--d:${depth}" data-cdrop="u:${u.id}" data-cnode="u:${u.id}" tabindex="0"><span class="cm-ric">${UI.icon(u.icon || UT(u).icon)}</span><div class="grow"><b>${u.name}</b><small>${UT(u).label}</small>${ws.length ? html`<div class="cm-wsrow">${ws.map(wsChip)}</div>` : ''}</div>${tmpBadge(u.id)}<span class="cm-n${n ? '' : ' zero'}">${UI.icon('box')} ${fmtNum(n)}</span>${p ? html`<span class="cm-pend">+${fmtNum(p)}</span>` : ''}${kids.length ? CMF.btn(u.id, CMF.is(st.dep, u.id), CMF.count(T, st.dep, u.id)) : ''}</div>${kids.length && !CMF.is(st.dep, u.id) ? kids.map((k) => trow(k, depth + 1)) : ''}`; };
   const seg = (name, cur, opts) => html`<div class="seg sm">${opts.map(([v, l, ic]) => html`<label><input type="radio" name="${name}" value="${v}"${cur === v ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`;
   const crumbs = () => {
     const d = depOf(st.dep), [k, id] = st.at.split(':'), w = k === 'w' ? wsOf(id) : null, u = k === 'u' ? unitOf(id) : w ? unitOf(w.unitId) : null, parts = [st.at ? html`<button type="button" data-cmat="">${UI.icon(d.icon || 'building')} ${d.name}</button>` : html`<b>${UI.icon(d.icon || 'building')} ${d.name}</b>`];
@@ -20317,9 +20323,9 @@ Pages.custodyMap = async (ctx) => {
   const lendRows = (list) => (list.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>لدى</th><th>العدد</th><th>منذ</th><th>حتى</th><th></th></tr></thead><tbody>${list.map((l) => { const it = items.get(l.itemId) || { name: 'صنف' }; return html`<tr class="${DL.late(l) ? 'late' : ''}"><td>${it.name}</td><td>${l.unitId ? orgLabel(l.departmentId, l.unitId, T.units) : ''}${l.holderId ? html`${l.unitId ? ' — ' : ''}${Data.userName(l.holderId)}` : ''}${l.note ? html`<div class="t-sub">${l.note}</div>` : ''}</td><td><b>${fmtNum(l.qty)}</b></td><td>${fmtDate(l.at)}</td><td>${l.dueAt ? (DL.late(l) ? UI.chip('red', `${fmtDate(l.dueAt)} — متأخر`, 'alert') : fmtDate(l.dueAt)) : html`<span class="faint">—</span>`}</td><td>${DL.can() ? html`<button type="button" class="btn btn-soft btn-sm" data-dlret="${l.id}">${UI.icon('undo')} إرجاع للعهدة العامة</button>` : ''}</td></tr>`; })}</tbody></table></div>` : '');
   /* الإدارة: مخطط أو شجرة، وأول فروعها «العهدة العامة» */
   const depView = () => {
-    const d = depOf(st.dep), top = T.kids(d.id, '');
+    const d = depOf(st.dep), top = T.kids(d.id, ''); CMF.prep(st.dep, T);
     if (st.view === 'tree') return html`<div class="cm-tree"><div class="cm-row dep tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0"><span class="cm-ric">${UI.icon(d.icon || 'building')}</span><div class="grow"><b>${d.name}</b><small>إدارة · العهدة العامة ${fmtNum(poolN(d.id))}</small></div><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span>${pendAt(`d:${d.id}`) ? html`<span class="cm-pend">+${fmtNum(pendAt(`d:${d.id}`))}</span>` : ''}</div>${top.map((u) => trow(u, 1))}</div>`;
-    return html`<div class="oc-wrap cm-wrap ${st.dir}"><div class="oc ${st.dir}"><ul><li><div class="oc-box oc-dep cm-node tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة</em><b>${d.name}</b><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span></div><ul><li>${genBox(d)}</li>${top.map(cnode)}</ul></li></ul></div></div>${top.length ? '' : html`<p class="hint mt">لا فروع في هذه الإدارة بعد. ${OrgScope.covers(d.id) ? html`<button type="button" class="btn btn-ghost btn-sm" data-cmaddunit="${d.id}">${UI.icon('plus')} أضف أقسامها ومكاتبها</button>` : ''}</p>`}`;
+    return html`<div class="oc-wrap cm-wrap ${st.dir}"><div class="oc ${st.dir}"><ul><li><div class="oc-box oc-dep cm-node tone-${d.tone || 'brass'}" data-cdrop="d:${d.id}" data-cnode="g" tabindex="0"><span class="oc-ic">${UI.icon(d.icon || 'building')}</span><em>إدارة</em><b>${d.name}</b><span class="cm-n">${UI.icon('box')} ${fmtNum(T.depQty.get(d.id) || 0)}</span>${top.length ? CMF.btn('__root', CMF.is(st.dep, '__root'), CMF.count(T, st.dep, '')) : ''}</div>${CMF.is(st.dep, '__root') && top.length ? '' : html`<ul><li>${genBox(d)}</li>${top.map(cnode)}</ul>`}</li></ul></div></div>${top.length ? '' : html`<p class="hint mt">لا فروع في هذه الإدارة بعد. ${OrgScope.covers(d.id) ? html`<button type="button" class="btn btn-ghost btn-sm" data-cmaddunit="${d.id}">${UI.icon('plus')} أضف أقسامها ومكاتبها</button>` : ''}</p>`}`;
   };
   /* العهدة العامة: أجهزتها، وما خرج منها مؤقتاً */
   const genView = () => {
@@ -20379,7 +20385,7 @@ Pages.custodyMap = async (ctx) => {
     if (!st.dep) return html`<div class="panel-body">${UI.empty({ illu: 'building', title: 'اختر إدارة', text: 'اضغط إحدى الإدارات أعلاه فيظهر هيكلها بأقسامه ووحداته ومكاتبه ومحطات العمل فيها. ويمكنك إفلات النماذج على الإدارة نفسها مباشرة فتصير عهدة عامة لها.' })}</div>`;
     const [k, id] = st.at.split(':');
     let tools = '', body = '';
-    if (!st.at) { tools = html`${seg('cmview', st.view, [['chart', 'مخطط', 'layers'], ['tree', 'شجرة', 'menu']])}${st.view === 'chart' ? seg('cmdir', st.dir, [['down', 'عمودي', 'chevron-down'], ['side', 'أفقي', 'chevron-left']]) : ''}`; body = depView(); }
+    if (!st.at) { tools = html`${seg('cmview', st.view, [['chart', 'مخطط', 'layers'], ['tree', 'شجرة', 'menu']])}${st.view === 'chart' ? seg('cmdir', st.dir, [['down', 'عمودي', 'chevron-down'], ['side', 'أفقي', 'chevron-left']]) : ''}${CMF.tools(st.view === 'chart')}`; body = depView(); }
     else if (k === 'g') { tools = seg('cmgview', st.gview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = genView(); }
     else if (k === 'u') { tools = html`${st.uview === 'grid' ? seg('cmdview', CM.get('dview', 'scene'), [['scene', 'مشهد المكتب', 'monitor'], ['tiles', 'الأجهزة', 'grid']]) : ''}${seg('cmuview', st.uview, [['struct', 'هيكل', 'layers'], ['grid', 'بطاقات', 'grid'], ['list', 'قائمة', 'menu']])}`; body = unitView(unitOf(id)); }
     else if (k === 'w') { tools = seg('cmwview', st.wview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = wsView(wsOf(id)); }
@@ -22446,6 +22452,308 @@ CM.palFab = (open) => {
 };
 
 { const po = Pages.org; Pages.org = async (ctx) => { await po(ctx); orgAccOpen(ctx); }; }
+
+/* ══════════ لصق الأرقام التسلسلية وأرقام الأصل دفعة واحدة ══════════
+   تختار ما تلصقه (الرقم التسلسلي، أو رقم الأصل/التاج، أو اسم الجهاز، أو عمودين من Excel)، ثم تلصق القائمة بترتيب الأجهزة:
+   معاينة فورية بالعدد، والمكرر في القائمة، والمسجل من قبل في النظام، وضبط الكمية على عدد الأرقام */
+const SNP = {
+  FIELDS: { serial: ['الرقم التسلسلي', 'S/N'], tag: ['رقم الأصل (التاج)', 'TAG'], host: ['اسم الجهاز على الشبكة', 'HOST'], pair: ['عمودان: تسلسلي ثم تاج', 'S/N + TAG'] },
+  /* صفوف الحقول الحالية بمواضعها (تشمل الفارغة) */
+  cur(root) { return $$('[name^="sn_"]', root).map((inp) => { const i = inp.name.slice(3), v = (k) => String((root.querySelector(`[name="${k}_${i}"]`) || {}).value || '').trim(); return { serial: String(inp.value || '').trim(), tag: v('tg'), host: v('hn') }; }); },
+  parse(text, mode) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n').map((x) => x.trim()).filter(Boolean);
+    if (mode === 'pair') return lines.map((l) => { const p = l.split(/\t|\s*[,;،|]\s*|\s{2,}/).map((x) => x.trim()).filter(Boolean); return { serial: p[0] || '', tag: p[1] || '' }; });
+    /* سطر واحد بفواصل يُقسَّم أيضاً */
+    const flat = lines.length === 1 ? lines[0].split(/\t|[,;،]+/).map((x) => x.trim()).filter(Boolean) : lines.map((l) => l.split('\t')[0].trim());
+    return flat.map((v) => ({ [mode]: v }));
+  },
+  open({ need = 0, current = [], allowQty = true, fields = ['serial', 'tag', 'host', 'pair'], max = 200 } = {}) {
+    const st = { mode: fields[0], start: 1, text: '', dedupe: true, setQty: true };
+    const firstEmpty = (mode) => { const k = mode === 'pair' ? 'serial' : mode, i = current.findIndex((r) => !r || !r[k]); return i < 0 ? Math.min(current.length + 1, Math.max(1, need)) : i + 1; };
+    st.start = firstEmpty(st.mode);
+    return UI.modal({
+      title: 'لصق أرقام الأجهزة دفعة واحدة', icon: 'clip', size: 'lg',
+      body: html`<div class="snp">
+        <div class="field"><label>ما الذي تلصقه؟</label><div class="snp-modes" role="radiogroup">${fields.map((k) => html`<label class="snp-mode"><input type="radio" name="snpmode" value="${k}"${k === st.mode ? raw(' checked') : ''}><span><b>${SNP.FIELDS[k][0]}</b><small dir="ltr">${SNP.FIELDS[k][1]}</small></span></label>`)}</div></div>
+        <div class="snp-grid">
+          <div class="field"><label>الصق القائمة <small class="faint">— رقم في كل سطر بترتيب الأجهزة، أو انسخ عموداً من Excel</small></label><textarea class="input snp-ta" name="snptext" rows="10" dir="ltr" spellcheck="false" placeholder="5CD1234ABC&#10;5CD1234ABD&#10;5CD1234ABE"></textarea>
+            <div class="snp-opts"><label>يبدأ من الجهاز رقم <input class="input snp-start" type="number" name="snpstart" min="1" value="${st.start}"></label><label class="chk"><input type="checkbox" name="snpdedupe" checked> حذف المكرر من القائمة</label>${allowQty ? html`<label class="chk" data-snpqty hidden><input type="checkbox" name="snpsetqty" checked> <span></span></label>` : ''}</div></div>
+          <div class="snp-prev"><div class="snp-sum" data-snpsum><span class="faint">${UI.icon('info')} ستظهر هنا معاينة الأرقام قبل التعبئة.</span></div><div class="snp-list" data-snplist></div></div>
+        </div></div>`,
+      onMount: (form) => {
+        const sum = $('[data-snpsum]', form), list = $('[data-snplist]', form), qtyBox = $('[data-snpqty]', form);
+        let seq = 0;
+        const compute = () => {
+          let rows = SNP.parse(st.text, st.mode); const N = Data.assets.norm, seen = new Set(), dups = new Set();
+          rows.forEach((r) => [r.serial, r.tag, r.host].forEach((v) => { const k = N(v); if (!k) return; if (seen.has(k)) dups.add(k); seen.add(k); }));
+          if (st.dedupe) { const s2 = new Set(); rows = rows.filter((r) => { const k = N(r.serial || r.tag || r.host); if (s2.has(k)) return false; s2.add(k); return true; }); }
+          return { rows, dups };
+        };
+        const draw = async () => {
+          const my = ++seq, { rows, dups } = compute(), end = st.start - 1 + rows.length;
+          if (!rows.length) { sum.innerHTML = String(html`<span class="faint">${UI.icon('info')} ستظهر هنا معاينة الأرقام قبل التعبئة.</span>`); list.innerHTML = ''; if (qtyBox) qtyBox.hidden = true; return; }
+          if (qtyBox) { qtyBox.hidden = end === need; $('span', qtyBox).textContent = end > need ? `زيادة الكمية من ${fmtNum(need)} إلى ${fmtNum(Math.min(end, max))}` : `إنقاص الكمية من ${fmtNum(need)} إلى ${fmtNum(end)}`; }
+          /* المسجل من قبل في النظام */
+          const exist = new Set(); for (const r of rows.slice(0, 300)) for (const v of [r.serial, r.tag]) { if (v && (await Data.assets.bySerial(v))) exist.add(Data.assets.norm(v)); }
+          if (my !== seq) return;
+          const N = Data.assets.norm, bad = (v) => (v && exist.has(N(v)) ? ' bad' : v && dups.has(N(v)) && !st.dedupe ? ' dup' : '');
+          sum.innerHTML = String(html`<b>${fmtNum(rows.length)}</b> رقم · الأجهزة ${fmtNum(st.start)}–${fmtNum(end)}${dups.size ? html` · <span class="chip tone-amber">${fmtNum(dups.size)} مكرر${st.dedupe ? ' حُذف' : ''}</span>` : ''}${exist.size ? html` · <span class="chip tone-red">${fmtNum(exist.size)} مسجل من قبل</span>` : ''}${end > max ? html` · <span class="chip tone-red">الحد ${fmtNum(max)} جهازاً</span>` : ''}`);
+          list.innerHTML = String(html`<table class="table snp-t"><thead><tr><th>#</th>${st.mode === 'pair' ? html`<th>S/N</th><th>TAG</th>` : html`<th>${SNP.FIELDS[st.mode][1]}</th>`}</tr></thead><tbody>${rows.slice(0, 200).map((r, i) => html`<tr><td class="faint">${fmtNum(st.start + i)}</td>${st.mode === 'pair' ? html`<td class="ltr${bad(r.serial)}">${r.serial}</td><td class="ltr${bad(r.tag)}">${r.tag || '—'}</td>` : html`<td class="ltr${bad(r[st.mode])}">${r[st.mode]}</td>`}</tr>`)}</tbody></table>`);
+        };
+        const run = debounce(draw, 180);
+        form.addEventListener('input', (e) => { if (e.target.name === 'snptext') { st.text = e.target.value; run(); } if (e.target.name === 'snpstart') { st.start = Math.max(1, Math.floor(Number(e.target.value) || 1)); run(); } });
+        form.addEventListener('change', (e) => { if (e.target.name === 'snpmode') { st.mode = e.target.value; const s = $('[name="snpstart"]', form); st.start = firstEmpty(st.mode); s.value = st.start; run(); } if (e.target.name === 'snpdedupe') { st.dedupe = e.target.checked; run(); } if (e.target.name === 'snpsetqty') st.setQty = e.target.checked; });
+        setTimeout(() => { const t = $('[name="snptext"]', form); if (t) t.focus(); }, 60);
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تعبئة', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+        const text = $('[name="snptext"]', form).value, mode = (form.querySelector('[name="snpmode"]:checked') || {}).value || 'serial', start = Math.max(1, Math.floor(Number($('[name="snpstart"]', form).value) || 1));
+        let rows = SNP.parse(text, mode); if (!rows.length) throw new AppError('الصق قائمة الأرقام أولاً');
+        if ($('[name="snpdedupe"]', form).checked) { const s2 = new Set(), N = Data.assets.norm; rows = rows.filter((r) => { const k = N(r.serial || r.tag || r.host); if (s2.has(k)) return false; s2.add(k); return true; }); }
+        const end = Math.min(start - 1 + rows.length, max), setQty = allowQty && ($('[name="snpsetqty"]', form) || {}).checked;
+        const qty = setQty ? end : need, out = Array.from({ length: Math.max(qty, current.length) }, (_, i) => ({ serial: '', tag: '', host: '', ...(current[i] || {}) }));
+        rows.slice(0, Math.max(0, qty - start + 1)).forEach((r, i) => { const o = out[start - 1 + i]; if (!o) return; if (mode === 'pair') { o.serial = r.serial; if (r.tag) o.tag = r.tag; } else o[mode] = r[mode]; });
+        return { rows: out.slice(0, qty), qty, filled: Math.min(rows.length, Math.max(0, qty - start + 1)), mode };
+      } }]
+    });
+  }
+};
+/* صفوف «إضافة أجهزة دفعة واحدة»: الأرقام الملصوقة (تسلسلي وتاج معاً) تُحفظ مع السطر */
+const BAP = {
+  read(r) {
+    const inp = $('[data-bas]', r), pr = r.dataset.pairs && inp && inp.value === r.dataset.pairsShown ? JSON.parse(r.dataset.pairs) : null;
+    if (pr) return { sns: pr.map((p) => p.serial || p.tag), pairs: pr.map((p) => ({ serial: p.serial || p.tag, tag: p.serial ? p.tag || '' : '' })) };
+    const sns = snSplit(inp ? inp.value : ''); return { sns, pairs: sns.map((s) => ({ serial: s, tag: '' })) };
+  }
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-basnp]'); if (!b) return;
+  e.preventDefault(); const r = b.closest('[data-barow]'); if (!r) return;
+  const inp = $('[data-bas]', r), q = $('[data-baq]', r), cur = r.dataset.pairs && inp.value === r.dataset.pairsShown ? JSON.parse(r.dataset.pairs) : snSplit(inp.value).map((s) => ({ serial: s, tag: '' }));
+  const res = await SNP.open({ need: Math.max(Number(q.value) || 0, cur.length), current: cur, fields: ['serial', 'tag', 'pair'], max: 9999 }); if (!res) return;
+  const pairs = res.rows.filter((p) => p.serial || p.tag), shown = pairs.map((p) => p.serial || p.tag).join('، ');
+  r.dataset.pairs = JSON.stringify(pairs); r.dataset.pairsShown = shown; inp.value = shown; if (res.qty > (Number(q.value) || 0) || res.qty !== Number(q.value)) q.value = Math.max(res.qty, pairs.length);
+  inp.title = pairs.map((p, i) => `${i + 1}. ${p.serial || '—'}${p.tag ? ` · TAG ${p.tag}` : ''}`).join('\n');
+  UI.toast(`عُبّئ ${fmtNum(pairs.length)} جهازاً${pairs.some((p) => p.tag) ? ' بأرقامها التسلسلية وأرقام الأصل' : ''}`);
+});
+
+/* ══════════ ملاحظة الجهاز: تنبيه في التفاصيل وعند الصرف والإعارة والنقل ══════════
+   ملاحظة الصنف (حقل الملاحظات في النموذج) وملاحظة الوحدة المسلسلة نفسها */
+const DevNote = {
+  item: (it) => String((it && it.notes) || '').trim(),
+  unit: (a) => String((a && a.note) || '').trim(),
+  html(it, units = [], ctx = '') {
+    const n = DevNote.item(it), us = units.filter((a) => DevNote.unit(a)); if (!n && !us.length) return '';
+    return html`<div class="devnote" role="alert"><span class="dn-ic">${UI.icon('alert')}</span><div class="grow"><b>${ctx || 'تنبيه: على هذا الجهاز ملاحظة'}</b>${n ? html`<p>${n}</p>` : ''}${us.length ? html`<ul>${us.slice(0, 8).map((a) => html`<li><bdi class="ltr">${a.serial}${a.tag ? ` · ${a.tag}` : ''}</bdi> — ${DevNote.unit(a)}</li>`)}${us.length > 8 ? html`<li class="faint">و${fmtNum(us.length - 8)} وحدة أخرى</li>` : ''}</ul>` : ''}</div></div>`;
+  },
+  box(form) {
+    let b = $('[data-devnote]', form); if (b) return b;
+    b = document.createElement('div'); b.setAttribute('data-devnote', '');
+    const ch = $('.chosen', form) || $('[data-picker]', form); if (ch) ch.insertAdjacentElement('afterend', b); else { const body = $('.modal-body', form) || form; body.insertAdjacentElement('afterbegin', b); }
+    return b;
+  },
+  async refresh(form, itemId = '') {
+    if (!form || !form.isConnected) return;
+    const picks = $$('[data-pick]:checked', form).map((x) => x.dataset.pick);
+    const [it, units] = await Promise.all([itemId ? DB.get('items', itemId) : null, Promise.all(picks.map((id) => DB.get('assets', id)))]);
+    const h = DevNote.html(it, units.filter(Boolean), 'تنبيه قبل التنفيذ: على الجهاز ملاحظة');
+    form._dnSeen = form._dnSeen || new Set(); units.filter((a) => a && DevNote.unit(a) && !form._dnSeen.has(a.id)).forEach((a) => { form._dnSeen.add(a.id); UI.toast(`تنبيه — ${a.serial}: ${DevNote.unit(a)}`, 'warn', 6000); });
+    const b = $('[data-devnote]', form); if (!h && !b) return;
+    DevNote.box(form).innerHTML = String(h);
+  },
+  attach(form, getId) {
+    const run = debounce(() => DevNote.refresh(form, getId() || ''), 120);
+    form.addEventListener('change', (e) => { if (e.target.matches && e.target.matches('[data-pick], [name="itemId"], [name="warehouseId"]')) run(); });
+    run(); form._dn = run; return run;
+  },
+  /* سلة الصرف: تنبيه تحت كل سطر عليه ملاحظة */
+  async cart(form) {
+    const lines = $$('.cart-line', form); if (!lines.length) return;
+    for (let i = 0; i < lines.length; i++) {
+      const l = Cart.lines[i]; if (!l) continue;
+      const [it, us] = await Promise.all([DB.get('items', l.itemId), Promise.all((l.serials || []).map((s) => (s.id || s.assetId ? DB.get('assets', s.id || s.assetId) : null)))]);
+      const n = DevNote.item(it), un = us.filter((a) => a && DevNote.unit(a)); if (!n && !un.length) continue;
+      const main = $('.cl-main', lines[i]); if (!main || $('.dn-inline', main)) continue;
+      main.insertAdjacentHTML('beforeend', String(html`<div class="dn-inline">${UI.icon('alert')}<span>${[n, ...un.map((a) => `${a.serial}: ${DevNote.unit(a)}`)].filter(Boolean).join(' — ')}</span></div>`));
+    }
+  }
+};
+/* اختيار الوحدات: الوحدة التي عليها ملاحظة تظهر بعلامة وملاحظتها عند المرور */
+UI.serialPick = (assets, need) => html`<div class="field"><label class="row" style="justify-content:space-between"><span>اختر الوحدات <span class="faint small">(المطلوب ${fmtNum(need)} من ${fmtNum(assets.length)})</span></span><button type="button" class="btn btn-ghost btn-sm" data-scanfor="pick">${UI.icon('search')} مسح رمز</button></label><div class="chip-pick serial-pick">${assets.map((a) => html`<label class="${DevNote.unit(a) ? 'sp-note' : ''}"${DevNote.unit(a) ? raw(` title="${esc(`ملاحظة: ${DevNote.unit(a)}`)}"`) : ''}><input type="checkbox" data-pick="${a.id}"><span>${UI.icon(DevNote.unit(a) ? 'alert' : 'tag')}${a.serial}${a.tag ? ` (${a.tag})` : ''}</span></label>`)}</div><small class="hint">اختر الأجهزة بأرقامها ليُسجَّل خروجها من المخزن.${assets.some((a) => DevNote.unit(a)) ? html` <b class="dn-hint">${UI.icon('alert')} الوحدات بعلامة التنبيه عليها ملاحظة.</b>` : ''}</small></div>`;
+/* أي نافذة فيها اختيار وحدات (إرجاع، نقل، استبدال…): تنبيه بملاحظات الوحدات المختارة */
+document.addEventListener('change', (e) => { const p = e.target.closest && e.target.closest('[data-pick]'); if (!p) return; const form = p.closest('form'); if (form && !form._dn && form.closest('dialog')) DevNote.refresh(form, ''); });
+
+/* ══════════ الطباعة بلا رابط الصفحة أسفلها ══════════
+   الرابط والتاريخ يطبعهما المتصفح في هامش الصفحة. يُصفَّر هامش الصفحة ويُعوَّض داخل المستند بمسافات
+   تتكرر في رأس كل صفحة وذيلها (فيبقى الشكل كما هو في كل الصفحات) */
+const PrintFix = {
+  parse(css) { let m = null; String(css || '').replace(/@page\s*{([^}]*)}/g, (_, body) => { const x = /margin\s*:\s*([^;}]+)/.exec(body); if (x) m = x[1].trim(); return _; }); return m; },
+  sides(v) { const p = String(v || '10mm').replace(/!important/, '').trim().split(/\s+/); const [t, r = t, b = t, l = r] = p; return { t, r, b, l }; },
+  apply() {
+    const root = $('#print-root'), on = document.body.classList.contains('printing') && root && root.children.length;
+    const st = document.createElement('style'); st.className = 'pf-style';
+    if (!on) { st.textContent = '@page{margin:0!important}@media print{body{padding:10mm!important}}'; document.head.appendChild(st); return () => st.remove(); }
+    let m = null; $$('style', root).forEach((s) => { const x = PrintFix.parse(s.textContent); if (x) m = x; });
+    const S = PrintFix.sides(m || '10mm');
+    st.textContent = '@page{margin:0!important}';
+    const kids = [...root.childNodes].filter((n) => !(n.nodeType === 1 && n.tagName === 'STYLE'));
+    const tb = document.createElement('table'); tb.className = 'pf-frame';
+    tb.innerHTML = `<thead><tr><td><div style="height:${S.t}"></div></td></tr></thead><tfoot><tr><td><div style="height:${S.b}"></div></td></tr></tfoot><tbody><tr><td class="pf-cell" style="padding:0 ${S.r} 0 ${S.l}"></td></tr></tbody>`;
+    const cell = $('.pf-cell', tb); kids.forEach((n) => cell.appendChild(n)); root.appendChild(tb); root.appendChild(st);
+    return () => { if (!tb.isConnected) { st.remove(); return; } [...cell.childNodes].forEach((n) => root.insertBefore(n, tb)); tb.remove(); st.remove(); };
+  }
+};
+{ const wp = window.print.bind(window); window.print = () => { let undo = null; try { undo = PrintFix.apply(); } catch (_) { /* تبقى الطباعة كما كانت */ } try { wp(); } finally { if (undo) setTimeout(undo, 0); } }; }
+
+/* ══════════ المخزن: نقل الأصناف بين المجلدات، وألوان المجلدات، وعرض الموديلات داخل المجلد ══════════ */
+Data.inv.moveToFolder = async (ids, catId) => {
+  if (!canUser(Auth.user, 'inventory.manage')) throw new AppError('نقل الأصناف بين المجلدات لمن يملك صلاحية إدارة الأصناف');
+  if (!Data.c.itemCategories.get(catId)) throw new AppError('اختر المجلد');
+  const t = now(), moved = [];
+  for (const id of ids) { const it = await DB.get('items', id); if (!it || it.categoryId === catId) continue; await DB.put('items', { ...it, categoryId: catId, updatedAt: t }); moved.push(it); }
+  if (moved.length) { await Data.log('update', 'inventory', moved.length === 1 ? moved[0].id : '', moved.length === 1 ? `نقل الصنف ${moved[0].name} إلى «${IC.label(catId)}»` : `نقل ${fmtNum(moved.length)} صنف إلى «${IC.label(catId)}»`); Bus.emit('inventory', {}); }
+  return moved.length;
+};
+Pages.moveToFolderModal = async (ids) => {
+  if (!canUser(Auth.user, 'inventory.manage')) { UI.toast('نقل الأصناف بين المجلدات لمن يملك صلاحية إدارة الأصناف', 'warn'); return false; }
+  const its = (await Promise.all(ids.map((id) => DB.get('items', id)))).filter(Boolean); if (!its.length) return false;
+  const rootOf = (id) => (IC.chain(id)[0] || {}).id || '', r0 = rootOf(its[0].categoryId), same = its.every((i) => rootOf(i.categoryId) === r0), cur = its.length === 1 ? its[0].categoryId : '';
+  const st = { all: !r0 || !same, to: '' };
+  const counts = new Map(); (await DB.getAll('items')).forEach((i) => { if (!i.archived) counts.set(i.categoryId, (counts.get(i.categoryId) || 0) + 1); });
+  const kidsOf = (pid) => IC.kids(pid).sort((a, b) => (a.order || 0) - (b.order || 0) || AR_COLL.compare(a.name || '', b.name || ''));
+  const row = (c, d) => html`<label class="mf-row${cur === c.id ? ' cur' : ''}${c.tone ? ` tone-${c.tone}` : ''}" style="--d:${d}"><input type="radio" name="mfto" value="${c.id}"${cur === c.id ? raw(' disabled') : ''}${st.to === c.id ? raw(' checked') : ''}><span class="mf-ic">${UI.illu(c.illustration || 'box', 'mini')}</span><span class="grow"><b>${c.name}</b><small>${d ? 'مجلد فرعي' : 'مجلد أساسي'} · ${arCount(counts.get(c.id) || 0, AR.item)}</small></span>${cur === c.id ? html`<em>المجلد الحالي</em>` : ''}</label>${kidsOf(c.id).map((k) => row(k, d + 1))}`;
+  return UI.modal({
+    title: its.length === 1 ? `نقل «${its[0].name}» إلى مجلد` : `نقل ${fmtNum(its.length)} أصناف إلى مجلد`, icon: 'swap', size: 'md',
+    body: html`<p class="muted" style="margin-top:0">${its.length === 1 ? html`من «${IC.label(its[0].categoryId) || '—'}». ` : ''}ينتقل الصنف بكامله: أرصدته في المخازن وعهده ووحداته المسلسلة وسجله كما هي، ويتغير مجلده فقط.</p>
+      <div class="mf-tools"><label class="chk"><input type="checkbox" data-mfall${st.all ? raw(' checked') : ''}${!r0 || !same ? raw(' disabled') : ''}> عرض كل الفئات</label><span class="grow"></span><button type="button" class="btn btn-ghost btn-sm" data-mfnew>${UI.icon('plus')} مجلد فرعي جديد هنا</button></div>
+      <div class="mf-list" data-mflist></div>`,
+    onMount: (form) => {
+      const box = $('[data-mflist]', form);
+      const draw = () => { const roots = st.all ? kidsOf('') : [Data.c.itemCategories.get(r0)].filter(Boolean); box.innerHTML = String(html`${roots.map((c) => row(c, 0))}`); };
+      form.addEventListener('change', (e) => { if (e.target.matches('[data-mfall]')) { st.all = e.target.checked; draw(); } if (e.target.name === 'mfto') st.to = e.target.value; });
+      UI.on(form, 'click', '[data-mfnew]', async () => {
+        const parent = st.to || r0; if (!parent) { UI.toast('اختر المجلد الذي يُنشأ داخله', 'info'); return; }
+        const name = await UI.modal({ title: `مجلد فرعي داخل «${Data.nameOf('itemCategories', parent)}»`, icon: 'layers', size: 'sm', body: UI.field({ name: 'n', label: 'اسم المجلد', required: true }), actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'إنشاء', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const v = f.querySelector('[name="n"]').value.trim(); if (!v) throw new AppError('اكتب اسم المجلد'); return v; } }] });
+        if (!name) return;
+        try { const c = await Data.icats.save({ name, parentId: parent, illustration: (Data.c.itemCategories.get(parent) || {}).illustration }); await Data.refresh('itemCategories'); st.to = c.id; draw(); } catch (ex) { UI.error(ex); }
+      });
+      draw();
+    },
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'نقل', kind: 'primary', icon: 'swap', submit: true, handler: async (form) => {
+      const to = (form.querySelector('[name="mfto"]:checked') || {}).value; if (!to) throw new AppError('اختر المجلد');
+      const n = await Data.inv.moveToFolder(its.map((i) => i.id), to);
+      UI.toast(n ? `نُقل ${n === 1 ? `«${its[0].name}»` : arCount(n, AR.item)} إلى «${IC.label(to)}»` : 'الأصناف في هذا المجلد أصلاً'); return true;
+    } }]
+  });
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-imove], [data-mbulkmove]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const ids = b.matches('[data-mbulkmove]') ? $$('[data-mpick]:checked').map((x) => x.dataset.mpick) : String(b.dataset.imove || '').split(',').filter(Boolean);
+  if (!ids.length) { UI.toast('حدد صنفاً واحداً على الأقل', 'info'); return; }
+  try { await Pages.moveToFolderModal(ids); } catch (ex) { UI.error(ex); }
+});
+/* السحب إلى مجلد في «تصفح المخزن»: اسحب بطاقة الموديل إلى مجلد فرعي أو إلى مجلد أعلى في المسار */
+{
+  const catOf = (el) => { const a = el.closest('.folder-tile, .crumbs a'); if (!a) return ''; const m = /[?&]cat=([^&]+)/.exec(a.getAttribute('href') || ''); return m ? decodeURIComponent(m[1]) : ''; };
+  let dragId = '';
+  document.addEventListener('dragstart', (e) => { const c = e.target.closest && e.target.closest('[data-idrag]'); if (!c) return; dragId = c.dataset.idrag; try { e.dataTransfer.setData('text/plain', `item:${dragId}`); e.dataTransfer.effectAllowed = 'move'; } catch (_) { /* تجاهل */ } document.body.classList.add('brw-dragging'); });
+  document.addEventListener('dragend', () => { dragId = ''; document.body.classList.remove('brw-dragging'); $$('.brw-over').forEach((x) => x.classList.remove('brw-over')); });
+  document.addEventListener('dragover', (e) => { if (!dragId) return; const c = catOf(e.target); if (!c) return; e.preventDefault(); const t = e.target.closest('.folder-tile, .crumbs a'); $$('.brw-over').forEach((x) => { if (x !== t) x.classList.remove('brw-over'); }); t.classList.add('brw-over'); });
+  document.addEventListener('drop', async (e) => { if (!dragId) return; const c = catOf(e.target); if (!c) return; e.preventDefault(); const id = dragId; dragId = ''; $$('.brw-over').forEach((x) => x.classList.remove('brw-over')); try { const n = await Data.inv.moveToFolder([id], c); UI.toast(n ? `نُقل الصنف إلى «${IC.label(c)}»` : 'الصنف في هذا المجلد أصلاً'); } catch (ex) { UI.error(ex); } });
+}
+/* داخل المجلد: الموديلات ظاهرة مباشرة تحت ماركاتها (بدل خانة لكل ماركة)، أو الماركات كما كانت */
+const BRW = {
+  mode() { try { return localStorage.getItem('sq_brw_mode') || 'models'; } catch (_) { return 'models'; } },
+  seg() { const m = BRW.mode(); return html`<div class="seg sm brw-seg" role="radiogroup" aria-label="عرض المجلد">${[['models', 'الموديلات', 'grid'], ['brands', 'الماركات', 'layers']].map(([k, l, ic]) => html`<label><input type="radio" name="brwmode" value="${k}"${m === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`; },
+  card(i, o) {
+    const tone = i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal', note = DevNote.item(i);
+    return html`<div class="brw-card tone-${tone}${i.archived ? ' x-off' : ''}"${o.man ? raw(` draggable="true" data-idrag="${esc(i.id)}" title="اسحبه إلى مجلد لنقله"`) : ''}>
+      <button type="button" class="brw-main" data-device="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${i.model || i.name}</b><small>${i.name}</small></span><span class="brw-n" title="في المخزن">${fmtNum(i.onHand)}</span></button>
+      ${note ? html`<div class="dn-inline" title="${note}">${UI.icon('alert')}<span>${note}</span></div>` : ''}
+      <div class="brw-acts">${o.mv ? html`<button type="button" class="icon-btn" data-move="receive" data-item="${i.id}" title="استلام">${UI.icon('download')}</button><button type="button" class="icon-btn" data-move="issue" data-item="${i.id}" title="صرف"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')}</button>` : ''}${o.ln ? html`<button type="button" class="icon-btn" data-act="lend" data-item="${i.id}" title="إعارة"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')}</button>` : ''}${o.mv ? html`<button type="button" class="icon-btn" data-cart-add="${i.id}" title="أضف إلى السلة">${UI.icon('cart')}</button>` : ''}<span class="grow"></span>${o.man ? html`<button type="button" class="icon-btn" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button type="button" class="icon-btn" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}</div></div>`;
+  },
+  body(st, o) {
+    if (!st.cat || st.brand || BRW.mode() !== 'models') return o.body;
+    const cat = Data.c.itemCategories.get(st.cat) || {}, groups = o.brands.map((b) => [b, o.inCat.filter((i) => (i.brand || 'غير محدد') === b)]).filter(([, l]) => l.length);
+    const tiles = o.folderTiles.length || o.man ? html`<div class="tiles stagger">${o.folderTiles}${o.man ? html`<button type="button" class="tile tile-add" data-icnew="${st.cat}">${UI.icon('plus')}<b>مجلد فرعي</b><small>داخل «${cat.name || ''}»</small></button>` : ''}</div>` : '';
+    return html`${tiles}${groups.length ? html`<div class="brw-secs">${groups.map(([b, list]) => html`<section class="brw-sec${cat.tone ? ` tone-${cat.tone}` : ''}"><header class="brw-h"><span class="brw-logo">${UI.illu(o.bIcons.get(`${st.cat}|${b}`) || cat.illustration || 'box', 'mini')}</span><b>${b}</b><small>${arCount(list.length, AR.item)} · ${fmtNum(list.reduce((s, i) => s + Math.max(0, i.onHand), 0))} في المخزن</small><span class="grow"></span>${o.man && list.length > 1 ? html`<button type="button" class="btn btn-ghost btn-sm" data-imove="${list.map((i) => i.id).join(',')}">${UI.icon('swap')} نقل الماركة إلى مجلد</button>` : ''}<a class="btn btn-ghost btn-sm" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}">${UI.icon('external')} صفحة الماركة</a></header><div class="brw-grid">${list.map((i) => BRW.card(i, o))}</div></section>`)}</div>${o.man ? html`<p class="hint mt">${UI.icon('info')} اسحب بطاقة أي موديل إلى مجلد فرعي (أو إلى مجلد أعلى في المسار) لنقله، أو استخدم زر النقل عليه.</p>` : ''}` : o.folderTiles.length ? '' : UI.empty({ illu: cat.illustration || 'box', title: 'لا أصناف في هذا المجلد', text: 'أضف صنفاً جديداً أو انقل أصنافاً إليه.' })}`;
+  }
+};
+document.addEventListener('change', (e) => { if (e.target.name !== 'brwmode') return; try { localStorage.setItem('sq_brw_mode', e.target.value); } catch (_) { /* تجاهل */ } Router.resolve(); });
+
+/* ══════════ توزيع العهدة: تكبير وتصغير، وتحريك المخطط بالسحب، وطي الفروع وإظهارها ══════════ */
+const CMF = {
+  _d: '', _s: null,
+  set(dep) { if (CMF._d !== dep || !CMF._s) { CMF._d = dep; const v = CM.json(`fold:${dep}`, null); CMF._s = new Set(Array.isArray(v) ? v : []); CMF._fresh = !Array.isArray(v); } return CMF._s; },
+  is: (dep, id) => CMF.set(dep).has(id),
+  save(dep) { CM.set(`fold:${dep}`, [...CMF.set(dep)]); CMF._fresh = false; },
+  toggle(dep, id) { const s = CMF.set(dep); if (s.has(id)) s.delete(id); else s.add(id); CMF.save(dep); },
+  /* الإدارة الكبيرة (أكثر من 60 فرعاً) تُفتح أول مرة بفروع المستوى الثاني مطوية */
+  prep(dep, T) {
+    const s = CMF.set(dep); if (!CMF._fresh) return;
+    let n = 0; const walk = (pid, d, out) => T.kids(dep, pid).forEach((u) => { n++; const k = T.kids(dep, u.id); if (k.length && d >= 2) out.push(u.id); walk(u.id, d + 1, out); });
+    const out = []; walk('', 1, out); if (n > 60) out.forEach((id) => s.add(id)); CMF._fresh = false;
+  },
+  count(T, dep, id) { let n = 0; const w = (pid) => T.kids(dep, pid).forEach((u) => { n++; w(u.id); }); w(id); return n; },
+  btn: (id, f, n) => html`<button type="button" class="cm-ftog${f ? ' folded' : ''}" data-cmftog="${id}" title="${f ? `إظهار ${fmtNum(n)} فرع` : 'طي الفروع'}" aria-expanded="${f ? 'false' : 'true'}">${f ? `+${fmtNum(n)}` : '−'}</button>`,
+  all(dep, T, fold) { const s = CMF.set(dep); s.clear(); if (fold) { const w = (pid) => T.kids(dep, pid).forEach((u) => { if (T.kids(dep, u.id).length) s.add(u.id); w(u.id); }); w(''); } CMF.save(dep); },
+  tools: (chart) => html`<span class="cm-zf">${chart ? html`<span class="cm-zoom" role="group" aria-label="التكبير"><button type="button" class="icon-btn" data-cmzoom="-" title="تصغير (Ctrl + عجلة الفأرة)">${UI.icon('minus')}</button><button type="button" class="cm-zl" data-cmzoom="fit" title="ملاءمة المخطط للشاشة">100%</button><button type="button" class="icon-btn" data-cmzoom="+" title="تكبير">${UI.icon('plus')}</button></span>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-cmfold="1" title="طي كل الفروع">${UI.icon('chevron-up')} طي الكل</button><button type="button" class="btn btn-ghost btn-sm" data-cmfold="0" title="إظهار كل الفروع">${UI.icon('chevron-down')} إظهار الكل</button></span>`
+};
+{
+  const cm1 = Pages.cmMore;
+  Pages.cmMore = (o) => {
+    if (cm1) cm1(o);
+    const { ctx, st, draw } = o, V = ctx.view;
+    let z = clamp(Number(CM.get('zoom', 1)) || 1, 0.3, 2);
+    const ocs = () => $$('.cm-wrap > .oc', V), lab = () => { const l = $('.cm-zl', V), t = `${Math.round(z * 100)}%`; if (l && l.textContent !== t) l.textContent = t; };
+    const apply = () => { ocs().forEach((oc) => { if (Number(oc.style.zoom || 1) !== z) oc.style.zoom = z; }); lab(); };
+    const setZ = (nz, ax, ay) => {
+      nz = clamp(Math.round(nz * 100) / 100, 0.3, 2); const w = $('.cm-wrap', V); if (!w) { z = nz; CM.set('zoom', String(z)); return; }
+      const r = w.getBoundingClientRect(), px = ax != null ? ax - r.left : r.width / 2, py = ay != null ? ay - r.top : r.height / 2, k = nz / z;
+      const sx = w.scrollLeft, sy = w.scrollTop; z = nz; apply(); w.scrollLeft = (sx + px) * k - px; w.scrollTop = (sy + py) * k - py; CM.set('zoom', String(z));
+    };
+    const fit = () => { const w = $('.cm-wrap', V), oc = $('.cm-wrap > .oc', V); if (!w || !oc) return; oc.style.zoom = 1; const nz = clamp(Math.min(1, (w.clientWidth - 24) / Math.max(1, oc.scrollWidth), (w.clientHeight - 24) / Math.max(1, oc.scrollHeight)), 0.3, 1); z = nz; apply(); w.scrollLeft = 0; w.scrollTop = 0; CM.set('zoom', String(z)); };
+    UI.on(V, 'click', '[data-cmzoom]', (e, b) => { const k = b.dataset.cmzoom; if (k === 'fit') { if (Math.abs(z - 1) > 0.01) setZ(1); else fit(); } else setZ(z + (k === '+' ? 0.1 : -0.1)); });
+    UI.on(V, 'click', '[data-cmftog]', (e, b) => { e.stopPropagation(); CMF.toggle(st.dep, b.dataset.cmftog); draw(); });
+    UI.on(V, 'click', '[data-cmfold]', (e, b) => { const T = o.get().T; if (!T) return; CMF.all(st.dep, T, b.dataset.cmfold === '1'); draw(); });
+    /* Ctrl + العجلة (أو قرص اللوحة اللمسية) للتكبير حول المؤشر */
+    V.addEventListener('wheel', (e) => { const w = e.target.closest && e.target.closest('.cm-wrap'); if (!w || !(e.ctrlKey || e.metaKey)) return; e.preventDefault(); setZ(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX, e.clientY); }, { passive: false });
+    /* السحب على الخلفية يحرك المخطط (لا يمس الصناديق ولا الأزرار ولا السحب والإفلات) */
+    let pan = null;
+    V.addEventListener('pointerdown', (e) => {
+      const w = e.target.closest && e.target.closest('.cm-wrap'); if (!w || e.button !== 0 || e.pointerType !== 'mouse') return;
+      if (e.target.closest('.oc-box, button, a, input, select, label, [draggable="true"], .cm-ws')) return;
+      pan = { w, x: e.clientX, y: e.clientY, sx: w.scrollLeft, sy: w.scrollTop, id: e.pointerId, moved: false };
+    });
+    window.addEventListener('pointermove', (e) => { if (!pan || e.pointerId !== pan.id) return; const dx = e.clientX - pan.x, dy = e.clientY - pan.y; if (!pan.moved && Math.hypot(dx, dy) < 4) return; if (!pan.moved) { pan.moved = true; pan.w.classList.add('panning'); } pan.w.scrollLeft = pan.sx - dx; pan.w.scrollTop = pan.sy - dy; });
+    const endPan = () => { if (!pan) return; pan.w.classList.remove('panning'); pan = null; };
+    window.addEventListener('pointerup', endPan); window.addEventListener('pointercancel', endPan);
+    ctx.onCleanup(() => { window.removeEventListener('pointerup', endPan); window.removeEventListener('pointercancel', endPan); });
+    const main = $('[data-cmmain]', V);
+    if (main) { const mo = new MutationObserver(apply); mo.observe(main, { childList: true, subtree: true }); ctx.onCleanup(() => mo.disconnect()); }
+    apply();
+  };
+}
+
+/* ══════════ ألوان مجلدات المخزن ══════════ */
+const IC_TONES = ['', ...ORG_TONES, 'indigo', 'coral', 'mint'].filter((t, i, a) => a.indexOf(t) === i);
+IC.tonePick = (cur) => html`<div class="field mt"><label>لون المجلد</label><div class="ic-tones" role="radiogroup" aria-label="لون المجلد">${IC_TONES.map((t) => html`<label class="ic-tone ${t ? `tone-${t}` : 'none'}" title="${t ? t : 'بلا لون'}"><input type="radio" name="tone" value="${t}"${(cur || '') === t ? raw(' checked') : ''}><span>${t ? '' : UI.icon('x')}</span></label>`)}</div><small class="hint">يظهر لون المجلد في «تصفح المخزن» وأزرار الفئات ولوحة النماذج.</small></div>`;
+
+/* ══════════ المتواجدون: بحث داخل القائمة (يبقى بعد كل تحديث) ══════════ */
+{
+  const f0 = Presence.fill.bind(Presence);
+  Presence.fill = async function () {
+    await f0();
+    const p = $('#presPop'); if (!p || p.hidden) return;
+    const rows = $$('.pres-row', p); if (rows.length < 6 && !Presence.q) return;
+    let box = $('.pres-q', p);
+    if (!box) { const list = $('.pres-list', p); if (!list) return; list.insertAdjacentHTML('beforebegin', String(html`<div class="search-box pres-q">${UI.icon('search')}<input type="search" placeholder="ابحث في المتواجدين" aria-label="ابحث في المتواجدين"></div>`)); box = $('.pres-q', p); }
+    const inp = $('input', box); if (inp.value !== (Presence.q || '')) inp.value = Presence.q || '';
+    const flt = () => { const q = normalizeAr(Presence.q || ''); $$('.pres-row', p).forEach((r) => { r.hidden = !!q && !normalizeAr(r.textContent).includes(q); }); };
+    if (!inp._b) { inp._b = 1; inp.addEventListener('input', () => { Presence.q = inp.value; flt(); }); inp.addEventListener('click', (e) => e.stopPropagation()); }
+    flt();
+  };
+}
 
 boot();
 })();
