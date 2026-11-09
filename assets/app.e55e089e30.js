@@ -3056,7 +3056,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -4341,7 +4341,7 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
           const unitSel = form.querySelector('[name="unitId"]'), unitLabel = unitSel && unitSel.value ? unitSel.options[unitSel.selectedIndex].textContent : '';
           const rec = item || (await DB.get('items', id));
           const voucher = await Pages.saveVoucher({ type: 'issue', holder: holderUser ? holderUser.name : v.party || '', holderId: v.holderId || '', departmentId: v.departmentId || '', unitLabel, ref: v.ref || '', note: v.note || '', lines: [{ itemId: id, name: rec.name, sku: rec.sku, brand: rec.brand, model: rec.model, unit: rec.unit, qty: n, serials }] });
-          setTimeout(() => Pages.printVoucher(voucher), 350);
+          setTimeout(() => Pages.afterVoucher(voucher), 350);
           UI.toast(`تم الصرف وإصدار السند ${voucher.number}`);
         } catch (_) { /* السند اختياري */ }
       }
@@ -4550,7 +4550,7 @@ Pages.cartModal = (mode = 'issue') => {
       const dueAt = state.mode === 'loan' && Number(v.days) > 0 ? now() + Number(v.days) * DAY : 0;
       const voucher = await Pages.checkoutCart({ mode: state.mode, holder: name, holderId: v.holderId || '', departmentId, unitId: v.unitId || '', dueAt, ref: v.ref, note: v.note });
       UI.confetti(); UI.toast(`تم إصدار السند ${voucher.number}`);
-      setTimeout(() => Pages.printVoucher(voucher), 350);
+      setTimeout(() => Pages.afterVoucher(voucher), 350);
       return voucher;
     } }]
   });
@@ -5393,7 +5393,7 @@ Pages.transferModal = async ({ itemId, departmentId, unitId = '' }) => {
         toLabel = Data.nameOf('departments', toDept);
       }
       const voucher = await Pages.saveVoucher({ type: 'transfer', holder: '', holderId: '', departmentId: toDept, unitLabel: toLabel, fromLabel, toLabel, ref: '', note: v.note, lines: [{ itemId, name: it.name, sku: it.sku, brand: it.brand, model: it.model, unit: it.unit, qty: n, serials }] });
-      UI.toast(`تم النقل وإصدار السند ${voucher.number}`); setTimeout(() => Pages.printVoucher(voucher), 300); return voucher;
+      UI.toast(`تم النقل وإصدار السند ${voucher.number}`); setTimeout(() => Pages.afterVoucher(voucher), 300); return voucher;
     } }]
   });
 };
@@ -5447,7 +5447,7 @@ Pages.replaceModal = async ({ itemId, departmentId, unitId = '' }) => {
       const voucher = await Pages.saveVoucher({ type: 'replace', holder, holderId: v.holderId || '', departmentId, unitLabel: (offices.find((o) => o.value === v.unitId) || {}).label || '', reason: v.reason, oldFate: v.oldFate, note: v.note,
         lines: [{ itemId: v.newItemId, name: newItem.name, sku: newItem.sku, brand: newItem.brand, model: newItem.model, unit: newItem.unit, qty: n, serials: newSerials }],
         oldLines: [{ itemId, name: oldItem.name, sku: oldItem.sku, brand: oldItem.brand, model: oldItem.model, unit: oldItem.unit, qty: n, serials: oldSerials }] });
-      UI.toast(`تم الاستبدال وإصدار السند ${voucher.number}`); UI.sound('success'); setTimeout(() => Pages.printVoucher(voucher), 300); return voucher;
+      UI.toast(`تم الاستبدال وإصدار السند ${voucher.number}`); UI.sound('success'); setTimeout(() => Pages.afterVoucher(voucher), 300); return voucher;
     } }]
   });
 };
@@ -5643,7 +5643,7 @@ Pages.bulkTransferModal = async (departmentId, itemIds) => {
       }
       if (!lines.length) throw new AppError('حدد كمية واحدة على الأقل');
       const voucher = await Pages.saveVoucher({ type: 'transfer', holder: '', holderId: '', departmentId: toDept, unitLabel: toLabel, fromLabel, toLabel, reason: v.note, note: v.note, lines });
-      UI.toast(`تم نقل ${arCount(lines.length, AR.item)} وإصدار السند ${voucher.number}`); setTimeout(() => Pages.printVoucher(voucher), 300); return voucher;
+      UI.toast(`تم نقل ${arCount(lines.length, AR.item)} وإصدار السند ${voucher.number}`); setTimeout(() => Pages.afterVoucher(voucher), 300); return voucher;
     } }]
   });
 };
@@ -5670,7 +5670,7 @@ Pages.deptReturnModal = async (departmentId, itemId = '') => {
       const serials = picks.map((id) => (all.find((a) => a.id === id) || {}).serial).filter(Boolean);
       if (picks.length) await Data.assets.assign(picks, { status: v.condition === 'يحتاج صيانة' ? 'maintenance' : v.condition === 'تالف' ? 'retired' : 'in_store', departmentId: '', holder: '', holderId: '', warehouseId: v.warehouseId });
       const voucher = await Pages.saveVoucher({ type: 'return', holder: v.party || '', holderId: '', departmentId, condition: v.condition, reason: v.reason, warehouseLabel: Data.nameOf('warehouses', v.warehouseId), note: v.note, lines: [{ itemId: v.itemId, name: it.name, sku: it.sku, brand: it.brand, model: it.model, unit: it.unit, qty: n, serials }] });
-      UI.toast(`تم الإرجاع وإصدار السند ${voucher.number}`); setTimeout(() => Pages.printVoucher(voucher), 300); return voucher;
+      UI.toast(`تم الإرجاع وإصدار السند ${voucher.number}`); setTimeout(() => Pages.afterVoucher(voucher), 300); return voucher;
     } }]
   });
 };
@@ -6942,7 +6942,7 @@ Pages.maintDeviceCard = async (q) => {
       <dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial}</dd>${a.tag ? html`<dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag}</dd>` : ''}${a.host ? html`<dt>اسم الجهاز في الشبكة</dt><dd class="ltr" style="text-align:start">${a.host}</dd>` : ''}<dt>الصنف</dt><dd>${IC.label(it.categoryId) || '—'}</dd>${a.addedAt ? html`<dt>سُجّل في</dt><dd>${fmtDate(a.addedAt)}</dd>` : ''}${a.note ? html`<dt>ملاحظة</dt><dd>${a.note}</dd>` : ''}</dl>
       <dl class="kv"><dt>${UI.icon('building')} الإدارة والقسم</dt><dd>${place || (a.status === 'in_store' ? `المخزن: ${Data.nameOf('warehouses', a.warehouseId)}` : '—')}</dd><dt>${UI.icon('user')} الحائز</dt><dd>${hu ? html`<span class="row nowrap" style="gap:6px">${UI.avatar(hu, 'av-sm')}${hu.name}</span>` : a.holder || '—'}</dd>${hu && hu.phone ? html`<dt>${UI.icon('phone')} هاتفه</dt><dd class="ltr" style="text-align:start">${hu.phone}</dd>` : ''}${hu && hu.unitId ? html`<dt>${UI.icon('layers')} موضعه</dt><dd>${orgLabel(hu.departmentId, hu.unitId, Data.list('deptUnits'))}</dd>` : ''}${loan ? html`<dt>${UI.icon('clipboard')} إعارة</dt><dd>${loan.borrower || a.holder || '—'}${loan.dueAt ? ` حتى ${fmtDate(loan.dueAt)}` : ''}</dd>` : ''}</dl>
     </div>
-    ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl></div>` : ''}
+    ${specs.length ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات</h3><dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}${a && a.specs && String(a.specs[k] == null ? '' : a.specs[k]).trim() ? html` <span class="chip tone-violet mdb-own" title="عُدِّلت لهذا الجهاز وحده">لهذا الجهاز</span>` : ''}</dd>`)}</dl></div>` : ''}
     ${Pages.maintAdds(hist)}
     ${tks.length ? html`<div class="u-sec mt"><h3>${UI.icon('ticket')} بلاغات مفتوحة لحائز الجهاز</h3><div class="list">${tks.map((t) => html`<a class="list-row" href="#/tickets/${t.id}"><span class="ltr faint small">${t.number}</span><b class="grow ellipsis">${t.title}</b>${UI.status(t.status)}</a>`)}</div></div>` : ''}
     <div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة${hist.length ? ` (${fmtNum(hist.length)})` : ''}</h3>${hist.length ? html`${Pages.maintSummary(hist)}${Pages.maintTimeline(hist)}` : html`<p class="faint small" style="margin:0">لم يدخل الصيانة من قبل.</p>`}</div>
@@ -11788,14 +11788,14 @@ Pages.assetDetail = async (assetId) => {
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 6px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip(S.tone, S.label, S.icon)}${UI.chip('sky', IC.label(it.categoryId) || 'بدون تصنيف', 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}</div></div></div>
       ${DevNote.html(it, [a], 'ملاحظة على هذا الجهاز')}
       <div class="kpis mt" style="border-radius:14px">${UI.kpi({ label: 'مرات الصيانة', icon: 'tools', tone: maint.length ? 'amber' : 'teal', value: maint.length })}${UI.kpi({ label: 'السندات المرتبطة', icon: 'file', tone: 'sky', value: vs.length })}${UI.kpi({ label: 'عمر التسجيل', icon: 'clock', tone: 'violet', value: Math.max(0, Math.floor((now() - (a.addedAt || now())) / DAY)), foot: html`<span class="faint small">يوم</span>` })}</div>
-      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
-      ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${v}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
+      <div class="u-sec mt"><h3>${UI.icon('tag')} بيانات الوحدة</h3>${Auth.can('inventory.move') || Auth.can('inventory.manage') ? html`<div class="as-tools"><button type="button" class="btn btn-soft btn-sm" data-asedit="${a.id}">${UI.icon('edit')} تعديل الرقم التسلسلي والبيانات</button><button type="button" class="btn btn-soft btn-sm" data-asspec="${a.id}">${UI.icon('tag')} مواصفات هذا الجهاز</button>${a.status === 'in_store' && Auth.can('inventory.manage') ? html`<button type="button" class="btn btn-ghost btn-sm" data-asdel="${a.id}">${UI.icon('trash')} حذف (سُجلت بالخطأ)</button>` : ''}</div>` : ''}<dl class="kv"><dt>الرقم التسلسلي</dt><dd class="ltr" style="text-align:start">${a.serial || '—'}</dd><dt>رقم الأصل</dt><dd class="ltr" style="text-align:start">${a.tag || '—'}</dd><dt>اسم الجهاز على الشبكة</dt><dd class="ltr" style="text-align:start">${a.host || '—'}</dd><dt>الموقع الحالي</dt><dd>${where}</dd><dt>رمز الصنف</dt><dd class="ltr" style="text-align:start">${it.sku || '—'}</dd><dt>تاريخ التسجيل</dt><dd>${a.addedAt ? fmtDateTime(a.addedAt) : '—'}</dd><dt>آخر تحديث</dt><dd>${a.updatedAt ? fmtDateTime(a.updatedAt) : '—'}</dd>${a.note ? html`<dt>ملاحظات الوحدة</dt><dd>${a.note}</dd>` : ''}</dl></div>
+      ${specs.length || it.notes ? html`<div class="u-sec mt"><h3>${UI.icon('info')} المواصفات والملاحظات</h3>${specs.length ? html`<dl class="kv">${specs.map(([k, v]) => html`<dt>${lab(k)}</dt><dd>${Array.isArray(v) ? v.join('، ') : v}${a && a.specs && String(a.specs[k] == null ? '' : a.specs[k]).trim() ? html` <span class="chip tone-violet mdb-own" title="عُدِّلت لهذا الجهاز وحده">لهذا الجهاز</span>` : ''}</dd>`)}</dl>` : ''}${it.notes ? html`<p class="muted small" style="margin:8px 0 0;white-space:pre-wrap">${it.notes}</p>` : ''}</div>` : ''}
       ${a.status === 'retired' ? html`<div class="u-sec mt"><h3>${UI.icon('x')} الخروج من الخدمة</h3><dl class="kv"><dt>السبب</dt><dd>${a.retireReason || '—'}</dd><dt>كان في</dt><dd>${Data.nameOf('departments', a.retiredFrom, '—')}</dd><dt>التاريخ</dt><dd>${a.retiredAt ? fmtDate(a.retiredAt) : '—'}</dd>${a.replacedBy ? html`<dt>البديل</dt><dd class="ltr" style="text-align:start">${a.replacedBy}</dd>` : ''}</dl></div>` : ''}
       ${maint.length ? html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3>${Pages.maintSummary(maint)}${Pages.maintTimeline(maint)}</div>` : html`<div class="u-sec mt"><h3>${UI.icon('tools')} سجل الصيانة</h3><p class="faint small" style="margin:0">لم تدخل هذه الوحدة الصيانة من قبل.</p></div>`}
       ${vs.length ? html`<div class="u-sec mt"><h3>${UI.icon('file')} السندات</h3><div class="list">${vs.slice(0, 20).map((v) => html`<button type="button" class="list-row unit-item" data-vprint="${v.id}"><div class="grow ellipsis"><b>${(VOUCHER_KIND[v.type] || {}).label || 'سند'} ${v.number}</b><div class="t-sub">${fmtDateTime(v.at)} — ${v.holder || Data.nameOf('departments', v.departmentId, '')}</div></div>${UI.icon('print')}</button>`)}</div></div>` : ''}`,
     onMount: (form, finish) => {
       UI.hydrate(form);
-      UI.on(form, 'click', '[data-vprint]', (e, el) => { const v = vs.find((x) => x.id === el.dataset.vprint); if (v) Pages.printVoucher(v); });
+      UI.on(form, 'click', '[data-vprint]', (e, el) => { const v = vs.find((x) => x.id === el.dataset.vprint); if (v) VPV.open(v); });
       UI.on(form, 'click', '[data-closemodal]', () => finish(null));
     },
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(a.status === 'retired' ? [] : [{ label: 'صفحة الصنف', kind: 'soft', icon: 'eye', value: 'page' }])] }).then((r) => { if (r === 'page') Router.go(`/inventory/items/${a.itemId}`); return r; });
@@ -13670,7 +13670,7 @@ const VD = {
   },
   style(T) {
     const C = T.color, F = T.font;
-    return `--vd-acc:${C.accent};--vd-ink:${C.ink};--vd-soft:${C.soft};--vd-line:${C.line};--vd-fs:${Number(F.size) || 12.5}px;--vd-ts:${Number(F.title) || 22}px;--vd-hs:${Number(F.head) || 15}px;font-family:'${String(F.family).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif`;
+    return `--vd-acc:${C.accent};--vd-ink:${C.ink};--vd-soft:${C.soft};--vd-line:${C.line};--vd-fs:${Number(F.size) || 12.5}px;--vd-ts:${Number(F.title) || 22}px;--vd-hs:${Number(F.head) || 15}px;font-family:${VTF.css(F.family)}`;
   },
   /* d: { kindKey, kind, number, barcode, at, facts, lines, oldLines, note, pledge, parties, returnHolder } */
   render(d, T = VTPL.eff(d.kindKey)) {
@@ -14790,7 +14790,7 @@ const FF = {
       if (a.t === 'text' || a.t === 'field') {
         const txt = a.t === 'field' ? FF.value(a.key) || a.text || '' : a.text || ''; if (!txt.trim()) continue;
         const fs = a.s * W, lh = fs * 1.4, rtl = (a.dir || 'rtl') === 'rtl';
-        g.font = `${a.bold ? 700 : 500} ${fs}px "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif`; g.fillStyle = color; g.textBaseline = 'middle';
+        g.font = `${a.bold ? 700 : 500} ${fs}px ${VTF.canvas(a.font)}`; g.fillStyle = color; g.textBaseline = 'middle';
         try { g.direction = rtl ? 'rtl' : 'ltr'; } catch (_) { /* متصفح قديم */ }
         g.textAlign = rtl ? 'right' : 'left';
         const x = a.x * W + (rtl ? -fs * 0.15 : fs * 0.15);
@@ -14861,7 +14861,7 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
   if (!FF.on()) { UI.toast('التعبئة الفورية موقوفة حالياً', 'warn'); return null; }
   if (!FF.fillable(file)) { UI.toast('هذا النوع من الملفات لا يدعم التعبئة الفورية (المدعوم: PDF والصور)', 'warn'); return null; }
   let pages = null;
-  const st = { tool: 'text', size: 0.016, color: FF_COLORS[0][0], bold: false, zoom: 1, sel: '', anns: [], undo: [] };
+  const st = { tool: 'text', size: 0.016, color: FF_COLORS[0][0], bold: false, font: VTF.lastFF(), zoom: 1, sel: '', anns: [], undo: [] };
   const draft = key ? FF.loadDraft(key) : null;
   if (draft && draft.length) st.anns = draft;
   else if (tpl && tpl.length) st.anns = tpl.map((a) => ({ ...a, id: uid('fa') }));
@@ -14873,7 +14873,7 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
       <div class="ff-bar">
         <div class="ff-grp">${toolBtn('move', 'تحريك', UI.icon('swap'))}${toolBtn('text', 'نص', raw('<b class="ff-T">ع</b>'))}${toolBtn('check', 'صح', markSvg('check'))}${toolBtn('x', 'خطأ', markSvg('x'))}${toolBtn('dot', 'نقطة', markSvg('dot'))}${FF.signOn() ? toolBtn('sign', 'توقيع', UI.icon('edit')) : ''}</div>
         <div class="ff-grp ff-mine"><span class="ff-lbl">${UI.icon('user')} بياناتي</span>${FF_FIELDS.filter(([k]) => FF.value(k)).map(([k, l]) => html`<button type="button" class="ff-chip${st.tool === `field:${k}` ? ' on' : ''}" data-tool="field:${k}" title="${FF.value(k)}">${l}</button>`)}</div>
-        <div class="ff-grp"><button type="button" class="ff-tb sm" data-fs="-1" title="تصغير الخط">A−</button><button type="button" class="ff-tb sm" data-fs="1" title="تكبير الخط">A+</button><button type="button" class="ff-tb sm${st.bold ? ' on' : ''}" data-bold title="خط عريض"><b>B</b></button>${FF_COLORS.map(([c, l]) => html`<button type="button" class="ff-color${st.color === c ? ' on' : ''}" data-color="${c}" title="${l}" style="--c:${c}"></button>`)}</div>
+        <div class="ff-grp"><button type="button" class="ff-tb sm" data-fs="-1" title="تصغير الخط">A−</button><button type="button" class="ff-tb sm" data-fs="1" title="تكبير الخط">A+</button><button type="button" class="ff-tb sm${st.bold ? ' on' : ''}" data-bold title="خط عريض"><b>B</b></button><span class="ff-fsel"><select class="ff-font" data-ffont title="نوع الخط" aria-label="نوع الخط">${VTF.options(st.font, { empty: 'الخط الافتراضي' })}</select><button type="button" class="ff-tb sm" data-vtfg title="معرض الخطوط مع المعاينة">Aa</button></span>${FF_COLORS.map(([c, l]) => html`<button type="button" class="ff-color${st.color === c ? ' on' : ''}" data-color="${c}" title="${l}" style="--c:${c}"></button>`)}</div>
         <div class="ff-grp"><button type="button" class="ff-tb sm" data-zoom="-1" title="تصغير">−</button><span class="ff-zoom" data-zv>100%</span><button type="button" class="ff-tb sm" data-zoom="1" title="تكبير">+</button><button type="button" class="ff-tb sm" data-undo title="تراجع (Ctrl+Z)">${UI.icon('undo')}</button><button type="button" class="ff-tb sm" data-del title="حذف المحدد (Delete)">${UI.icon('trash')}</button><button type="button" class="ff-tb sm" data-clearall title="مسح كل ما أضفته">${UI.icon('refresh')}</button></div>
       </div>
       <div class="ff-hint">${UI.icon('info')}<span data-hint>اختر أداة ثم انقر على المكان المطلوب في الاستمارة. اسحب أي عنصر لتحريكه، وانقر على النص لتعديله.</span><span class="grow"></span><span class="ff-saved" data-saved></span></div>
@@ -14890,8 +14890,8 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
         const sel = st.sel === a.id ? ' sel' : '';
         const pos = a.t === 'text' || a.t === 'field' ? ((a.dir || 'rtl') === 'rtl' ? `right:${((1 - a.x) * 100).toFixed(3)}%;` : `left:${(a.x * 100).toFixed(3)}%;`) : `left:${(a.x * 100).toFixed(3)}%;`;
         const base = `${pos}top:${(a.y * 100).toFixed(3)}%;color:${a.color || FF_COLORS[0][0]};`;
-        if (a.t === 'text') return html`<div class="ff-a ff-text${sel}${a.bold ? ' b' : ''}" data-a="${a.id}" dir="${a.dir || 'rtl'}" style="${base}font-size:calc(var(--pw) * ${a.s})"><span class="ff-grip" title="اسحب للتحريك">${UI.icon('swap')}</span><div class="ff-ed" contenteditable="true" spellcheck="false">${a.text || ''}</div></div>`;
-        if (a.t === 'field') return html`<div class="ff-a ff-text ff-field${sel}${a.bold ? ' b' : ''}" data-a="${a.id}" dir="${a.dir || 'rtl'}" style="${base}font-size:calc(var(--pw) * ${a.s})" title="${(FF_FIELDS.find((f) => f[0] === a.key) || [])[1] || ''} — يُعبّأ تلقائياً"><span class="ff-grip">${UI.icon('swap')}</span><div class="ff-ed">${FF.value(a.key) || a.text || '—'}</div></div>`;
+        if (a.t === 'text') return html`<div class="ff-a ff-text${sel}${a.bold ? ' b' : ''}" data-a="${a.id}" dir="${a.dir || 'rtl'}" style="${base}font-size:calc(var(--pw) * ${a.s})${a.font ? `;font-family:${VTF.css(a.font)}` : ''}"><span class="ff-grip" title="اسحب للتحريك">${UI.icon('swap')}</span><div class="ff-ed" contenteditable="true" spellcheck="false">${a.text || ''}</div></div>`;
+        if (a.t === 'field') return html`<div class="ff-a ff-text ff-field${sel}${a.bold ? ' b' : ''}" data-a="${a.id}" dir="${a.dir || 'rtl'}" style="${base}font-size:calc(var(--pw) * ${a.s})${a.font ? `;font-family:${VTF.css(a.font)}` : ''}" title="${(FF_FIELDS.find((f) => f[0] === a.key) || [])[1] || ''} — يُعبّأ تلقائياً"><span class="ff-grip">${UI.icon('swap')}</span><div class="ff-ed">${FF.value(a.key) || a.text || '—'}</div></div>`;
         if (a.t === 'mark') return html`<div class="ff-a ff-mark${sel}" data-a="${a.id}" style="${base}width:calc(var(--pw) * ${a.m});height:calc(var(--pw) * ${a.m})">${markSvg(a.mark)}</div>`;
         if (a.t === 'sign') return html`<div class="ff-a ff-sign${sel}" data-a="${a.id}" style="${base}width:calc(var(--pw) * ${a.w})"><img src="${a.img}" alt="توقيع"><span class="ff-rs" data-rs title="اسحب لتغيير الحجم"></span></div>`;
         return '';
@@ -14899,7 +14899,7 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
       const drawLayer = (i) => { const layer = box.querySelector(`.ff-page[data-p="${i}"] .ff-layer`); if (layer) layer.innerHTML = String(html`${st.anns.filter((a) => a.p === i).map(annEl)}`); };
       const drawAll = () => { if (!pages) return; pages.forEach((_, i) => drawLayer(i)); };
       const find = (id) => st.anns.find((a) => a.id === id);
-      const select = (id) => { st.sel = id; $$('.ff-a', box).forEach((el) => el.classList.toggle('sel', el.dataset.a === id)); };
+      const select = (id) => { st.sel = id; $$('.ff-a', box).forEach((el) => el.classList.toggle('sel', el.dataset.a === id)); const a = id && find(id); if (a && (a.t === 'text' || a.t === 'field')) { st.font = a.font || ''; const fsl = form.querySelector('[data-ffont]'); if (fsl) fsl.value = st.font; } };
       const setTool = (t) => {
         st.tool = t; $$('[data-tool]', form).forEach((b) => b.classList.toggle('on', b.dataset.tool === t));
         box.dataset.tool = t.split(':')[0];
@@ -14937,8 +14937,8 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
         const [x, y] = pagePt(pageEl, e), p = Number(pageEl.dataset.p), t = st.tool;
         if (t === 'move') { select(''); return; }
         e.preventDefault();
-        if (t === 'text') { const a = add({ id: uid('fa'), p, t: 'text', x: x + 0.004, y: y - st.size * (pages[p].w / pages[p].h) * 0.7, s: st.size, text: '', color: st.color, bold: st.bold, dir: 'rtl' }); setTimeout(() => { const ed = box.querySelector(`[data-a="${a.id}"] .ff-ed`); if (ed) ed.focus(); }, 0); return; }
-        if (t.startsWith('field:')) { const k = t.slice(6); add({ id: uid('fa'), p, t: 'field', key: k, text: FF.value(k), x: x + 0.004, y: y - st.size * (pages[p].w / pages[p].h) * 0.7, s: st.size, color: st.color, bold: st.bold, dir: /^(militaryNo|phone|username)$/.test(k) ? 'ltr' : 'rtl' }); if (/^(militaryNo|phone|username)$/.test(k)) { const a = st.anns[st.anns.length - 1]; a.x = x - 0.004; drawLayer(p); } return; }
+        if (t === 'text') { const a = add({ id: uid('fa'), p, t: 'text', x: x + 0.004, y: y - st.size * (pages[p].w / pages[p].h) * 0.7, s: st.size, text: '', color: st.color, bold: st.bold, font: st.font, dir: 'rtl' }); setTimeout(() => { const ed = box.querySelector(`[data-a="${a.id}"] .ff-ed`); if (ed) ed.focus(); }, 0); return; }
+        if (t.startsWith('field:')) { const k = t.slice(6); add({ id: uid('fa'), p, t: 'field', key: k, text: FF.value(k), x: x + 0.004, y: y - st.size * (pages[p].w / pages[p].h) * 0.7, s: st.size, color: st.color, bold: st.bold, font: st.font, dir: /^(militaryNo|phone|username)$/.test(k) ? 'ltr' : 'rtl' }); if (/^(militaryNo|phone|username)$/.test(k)) { const a = st.anns[st.anns.length - 1]; a.x = x - 0.004; drawLayer(p); } return; }
         if (['check', 'x', 'dot'].includes(t)) { const m = st.size * 1.5; add({ id: uid('fa'), p, t: 'mark', mark: t, x: x - m / 2, y: y - (m / 2) * (pages[p].w / pages[p].h), m, color: st.color }); return; }
         if (t === 'sign') { const s = await Pages.signPad(); if (s) add({ id: uid('fa'), p, t: 'sign', img: s.img, ar: s.ar, x: x - 0.09, y: y - 0.02, w: 0.18 }); }
       });
@@ -14957,6 +14957,7 @@ Pages.formFill = async (file, { title = 'تعبئة فورية', key = '', tpl =
       }, true);
       UI.on(form, 'click', '[data-tool]', (e, el) => setTool(el.dataset.tool));
       UI.on(form, 'click', '[data-fs]', (e, el) => { const d = Number(el.dataset.fs); const a = find(st.sel); if (a && (a.t === 'text' || a.t === 'field')) { snap(); a.s = clamp(a.s * (d > 0 ? 1.15 : 0.87), 0.006, 0.08); st.size = a.s; drawLayer(a.p); select(a.id); persist(); } else if (a && a.t === 'mark') { snap(); a.m = clamp(a.m * (d > 0 ? 1.15 : 0.87), 0.008, 0.12); drawLayer(a.p); select(a.id); persist(); } else st.size = clamp(st.size * (d > 0 ? 1.15 : 0.87), 0.006, 0.08); UI.toast(`حجم الخط ${Math.round(st.size * 1000)}`, 'ok', 900); });
+      UI.on(form, 'change', '[data-ffont]', (e, el) => { st.font = el.value; VTF.setLastFF(st.font); const a = find(st.sel); if (a && (a.t === 'text' || a.t === 'field')) { snap(); a.font = st.font; drawLayer(a.p); select(a.id); persist(); VTF.ready([st.font]).then(() => { drawLayer(a.p); select(a.id); }); } });
       UI.on(form, 'click', '[data-bold]', (e, el) => { st.bold = !st.bold; el.classList.toggle('on', st.bold); const a = find(st.sel); if (a && (a.t === 'text' || a.t === 'field')) { snap(); a.bold = st.bold; drawLayer(a.p); select(a.id); persist(); } });
       UI.on(form, 'click', '[data-color]', (e, el) => { st.color = el.dataset.color; $$('[data-color]', form).forEach((b) => b.classList.toggle('on', b === el)); const a = find(st.sel); if (a && a.t !== 'sign') { snap(); a.color = st.color; drawLayer(a.p); select(a.id); persist(); } });
       UI.on(form, 'click', '[data-zoom]', (e, el) => zoom(Number(el.dataset.zoom)));
@@ -15113,7 +15114,7 @@ const VL = {
   },
   font(s = {}, base = {}) {
     const o = [];
-    if (s.font) o.push(`font-family:'${String(s.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif`);
+    if (s.font) o.push(`font-family:${VTF.css(s.font)}`);
     if (s.size) o.push(`font-size:${s.size}pt`);
     if (s.color) o.push(`color:${s.color}`);
     if (s.bold) o.push('font-weight:700');
@@ -15164,7 +15165,7 @@ const VL = {
     const td = (k, l, i) => ({ no: fmtNum(i + 1), name: `<b>${esc(l.name)}</b>${c.skuUnder !== 0 && l.sku && !cols.some((x) => x.k === 'sku') ? `<div class="vl-sku">${esc(l.sku)}</div>` : ''}`, brand: esc([l.brand, l.model].filter(Boolean).join(' ') || '—'), serials: `<span class="ltr vl-sn">${esc((l.serials || []).length ? l.serials.join('، ') : '—')}</span>`, info: esc(l.info || ''), qty: fmtNum(l.qty), unit: esc(l.unit || 'قطعة'), sku: `<span class="ltr">${esc(l.sku || '')}</span>` })[k];
     const center = new Set(['no', 'qty', 'unit']), padN = Math.max(0, (Number(c.minRows) || 0) - lines.length), total = lines.reduce((s, l) => s + (Number(l.qty) || 0), 0), qi = cols.findIndex((x) => x.k === 'qty');
     const cell = (x, inner, i, tag = 'td') => `<${tag} style="border:${bw}mm ${bs} ${bc};${pd}${alOf(x)}${c.zebra && i % 2 ? 'background:rgba(0,0,0,.035);' : ''}${c.rowH ? `height:${c.rowH}mm;` : ''}">${inner}</${tag}>`;
-    return `<table class="vl-items" style="font-size:${c.fs || 10}pt;${c.font ? `font-family:'${String(c.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif;` : ''}"><colgroup>${cols.map((x) => `<col style="width:${((Number(x.w) || 10) / tw) * 100}%">`).join('')}</colgroup>
+    return `<table class="vl-items" style="font-size:${c.fs || 10}pt;${c.font ? `font-family:${VTF.css(c.font)};` : ''}"><colgroup>${cols.map((x) => `<col style="width:${((Number(x.w) || 10) / tw) * 100}%">`).join('')}</colgroup>
       <thead><tr>${cols.map((x) => `<th style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};color:${c.hc || '#111'};${c.hal ? `text-align:${c.hal};` : alOf(x)}${c.hb === 0 ? 'font-weight:400;' : ''}">${esc(x.l)}</th>`).join('')}</tr></thead>
       <tbody>${lines.map((l, i) => `<tr>${cols.map((x) => cell(x, td(x.k, l, i), i)).join('')}</tr>`).join('')}${Array.from({ length: padN }, (_, j) => `<tr>${cols.map((x) => cell(x, x.k === 'no' ? fmtNum(lines.length + j + 1) : '&nbsp;', lines.length + j)).join('')}</tr>`).join('')}</tbody>
       ${c.total !== 0 && qi >= 0 && !opt.noTotal ? `<tfoot><tr>${qi ? `<td colspan="${qi}" style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};font-weight:700">الإجمالي</td>` : ''}<td style="border:${bw}mm ${bs} ${bc};${pd}background:${c.hbg || '#f6f2e8'};font-weight:700;text-align:center">${fmtNum(total)}</td>${cols.slice(qi + 1).map(() => `<td style="border:${bw}mm ${bs} ${bc};background:${c.hbg || '#f6f2e8'}"></td>`).join('')}</tr></tfoot>` : ''}</table>`;
@@ -15185,7 +15186,7 @@ const VL = {
     list = list.concat(extra);
     const bdr = `border:${bw}mm ${bs} ${bc}`, bd = `${bdr};padding:${pad}mm`;
     const hatch = c.hatch === 0 ? '' : 'background:repeating-linear-gradient(-45deg,#fff 0 1.6mm,#efebe1 1.6mm 1.9mm)';
-    const fnt = `font-size:${c.fs || 10}pt;${c.font ? `font-family:'${String(c.font).replace(/'/g, '')}','IBM Plex Sans Arabic',Tahoma,sans-serif;` : ''}`;
+    const fnt = `font-size:${c.fs || 10}pt;${c.font ? `font-family:${VTF.css(c.font)};` : ''}`;
     const hst = `${bd};background:${c.hbg || '#f6f2e8'};color:${c.hcol || '#111'};text-align:${c.hal || 'center'};${c.hb === 0 ? 'font-weight:400;' : ''}`;
     const rst = `${bd};background:${c.rbg || '#faf8f3'};text-align:${c.ral || 'right'};${c.rb === 0 ? 'font-weight:400;' : ''}`;
     const roleOn = c.roleOn !== 0, head = c.head !== 0;
@@ -15412,7 +15413,7 @@ Pages.voucherDesigner = async (ctx) => {
       <div class="vle-g"><span class="vle-gl">إدراج</span><div class="vle-gb">
         ${tb('ins:text', UI.icon('edit'), 'مربع نص', false, false, raw('<span>نص</span>'))}${tb('ins:image', UI.icon('photo'), 'صورة أو شعار', false, false, raw('<span>صورة</span>'))}${tb('menu:table', UI.icon('list'), 'جدول', false, false, raw('<span>جدول ▾</span>'))}${tb('ins:line', raw('<i class="vle-ic-line"></i>'), 'خط')}${tb('ins:rect', raw('<i class="vle-ic-rect"></i>'), 'إطار أو مستطيل')}${tb('ins:barcode', UI.icon('scan'), 'باركود')}${tb('menu:field', raw('<b class="vle-ic-f">[ ]</b>'), 'إدراج حقل تلقائي', false, false, raw('<span>حقل ▾</span>'))}${tb('menu:band', UI.icon('plus'), 'إضافة قسم', false, false, raw('<span>قسم ▾</span>'))}</div></div>
       <div class="vle-g"><span class="vle-gl">الخط</span><div class="vle-gb">
-        <select data-rs="font" ${txt ? '' : raw('disabled')} title="نوع الخط" class="vle-font"><option value="">خط الصفحة</option>${VT_FONTS.map(([f, l]) => html`<option value="${f}"${s.font === f ? raw(' selected') : ''} style="font-family:'${f}'">${l}</option>`)}</select>
+        <select data-rs="font" ${txt ? '' : raw('disabled')} title="نوع الخط" class="vle-font"><option value="">خط الصفحة</option>${VTF.options(s.font)}</select><button type="button" class="vle-b vtf-btn" data-vtfg title="معرض الخطوط مع المعاينة"${txt ? '' : raw(' disabled')}><span>Aa</span></button>
         <select data-rs="size" ${txt ? '' : raw('disabled')} title="حجم الخط" class="vle-size"><option value="">—</option>${[7, 8, 8.5, 9, 9.5, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48].map((n) => html`<option value="${n}"${Number(s.size) === n ? raw(' selected') : ''}>${n}</option>`)}</select>
         ${tb('st:bold', raw('<b>B</b>'), 'عريض (Ctrl+B)', !!s.bold, !txt)}${tb('st:italic', raw('<i style="font-family:serif">I</i>'), 'مائل (Ctrl+I)', !!s.italic, !txt)}${tb('st:underline', raw('<u>U</u>'), 'تسطير (Ctrl+U)', !!s.underline, !txt)}
         <label class="vle-col" title="لون الخط"><span style="border-bottom:3px solid ${s.color || '#111'}">A</span><input type="color" data-rs="color" value="${s.color || '#111111'}"${txt ? '' : raw(' disabled')}></label>
@@ -15447,7 +15448,7 @@ Pages.voucherDesigner = async (ctx) => {
     if (type === 'check') return html`<label class="vle-chk"><input type="checkbox" data-k="${path}" data-t="b"${v ? raw(' checked') : ''}><span>${label}</span></label>`;
     if (type === 'num') return html`<div class="vle-f sm"><label>${label}</label><input type="number" data-k="${path}" data-t="n" value="${v == null ? '' : v}" step="${opt || 0.5}"></div>`;
     if (type === 'area') return html`<div class="vle-f"><label>${label}</label><textarea data-k="${path}" rows="3">${v || ''}</textarea></div>`;
-    if (type === 'font') return html`<div class="vle-f"><label>${label}</label><select data-k="${path}"><option value="">—</option>${VT_FONTS.map(([f, l]) => html`<option value="${f}"${v === f ? raw(' selected') : ''}>${l}</option>`)}</select></div>`;
+    if (type === 'font') return html`<div class="vle-f"><label>${label}</label><span class="vtf-sel"><select data-k="${path}"><option value="">—</option>${VTF.options(v)}</select><button type="button" class="icon-btn vtf-btn" data-vtfg title="معرض الخطوط مع المعاينة">Aa</button></span></div>`;
     return html`<div class="vle-f"><label>${label}</label><input data-k="${path}" value="${v == null ? '' : v}"></div>`;
   };
   const sec = (id, title, icon, body, open = false) => html`<details class="vle-sec" data-sec="${id}"${st.openSec[id] != null ? (st.openSec[id] ? raw(' open') : '') : open ? raw(' open') : ''}><summary>${UI.icon(icon)} ${title}</summary><div class="vle-sb">${body}</div></details>`;
@@ -16028,10 +16029,11 @@ Pages.controlCenter = async (ctx) => {
   ctx.view.innerHTML = String(html`<div class="cc"><aside class="cc-nav"><div class="cc-head"><span class="cc-hi">${UI.icon('sliders')}</span><div><b>الإعدادات</b><small>مركز التحكم بالنظام</small></div><button type="button" class="icon-btn cc-fold" data-ccfold title="طي القائمة">${UI.icon('menu')}</button></div>
       <div class="search-box cc-q">${UI.icon('search')}<input type="search" placeholder="ابحث في الإعدادات" data-ccq></div>
       <button type="button" class="cc-item" data-cc="home">${UI.icon('grid')}<span>نظرة عامة</span></button>
-      ${groups.map(([g, , items]) => html`<div class="cc-grp"><span class="cc-gl">${g}</span>${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-item" data-cc="${k}" title="${dsc}" data-ccs="${normalizeAr(`${l} ${dsc} ${CC_KEYS[k] || ''}`)}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`)}<p class="cc-none faint small" hidden>لا يوجد إعداد بهذا الاسم</p></aside>
+      ${groups.map(([g, , items]) => html`<div class="cc-grp" style="--g:${CCX.meta(g).c}"><span class="cc-gl"><i class="cc-gdot"></i>${g}</span>${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-item" data-cc="${k}" title="${dsc}" data-ccs="${normalizeAr(`${l} ${dsc} ${CC_KEYS[k] || ''}`)}">${UI.icon(ic)}<span>${l}</span></button>`)}</div>`)}<p class="cc-none faint small" hidden>لا يوجد إعداد بهذا الاسم</p></aside>
     <main class="cc-main"></main></div>`);
   const main = $('.cc-main', ctx.view), nav = $('.cc-nav', ctx.view);
-  const home = () => html`${UI.pageHead({ title: 'الإعدادات ومركز التحكم', sub: 'كل التعديلات والإضافات في مكان واحد — يظهر لك ما تملك صلاحيته فقط', illu: 'ups' })}
+  const home = () => CCX.home(groups, allowed);
+  const home0 = () => html`${UI.pageHead({ title: 'الإعدادات ومركز التحكم', sub: 'كل التعديلات والإضافات في مكان واحد — يظهر لك ما تملك صلاحيته فقط', illu: 'ups' })}
     <div class="cc-status">${[['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0, 'ratings'], ['طلب التقييم', Ratings.cfg().on, 'ratings'], ['الإسناد التلقائي', (Data.c.settings.autoAssign || {}).on !== 0, 'handling'], ['الإغلاق التلقائي', Data.c.settings.autoClose !== 0, 'handling'], ['التعبئة الفورية', FF.on(), 'forms'], [XM.name(), XM.on(), 'extmaint'], ['الملاحظات', VAULT.on(), 'vault'], ['قوالب الاستمارات', !!(VL.data().tpls || []).length, 'vouchers']].map(([l, on, k]) => (allowed.some((x) => x[0] === k) ? html`<button type="button" class="cc-st ${on ? 'on' : 'off'}" data-cc="${k}" title="فتح الإعداد"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</button>` : html`<span class="cc-st ${on ? 'on' : 'off'}"><i></i>${l}: ${on ? 'مفعّل' : 'موقوف'}</span>`))}</div>
     ${groups.map(([g, gi, items]) => html`<section class="cc-sec"><h3>${UI.icon(gi)} ${g}</h3><div class="cc-tiles">${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cc-tile" data-cc="${k}"><span class="cc-ti">${UI.icon(ic)}</span><b>${l}</b><small>${dsc}</small></button>`)}</div></section>`)}`;
   const open = async (s) => {
@@ -16043,7 +16045,9 @@ Pages.controlCenter = async (ctx) => {
     try { history.replaceState(history.state, '', `#/settings${s === 'home' ? '' : `?s=${s}`}`); } catch (_) { /* تجاهل */ }
     const pane = document.createElement('div'); pane.className = 'cc-pane'; pane.tabIndex = -1;
     main.replaceChildren ? main.replaceChildren(pane) : (main.innerHTML = '', main.appendChild(pane));
-    if (!sec) { pane.innerHTML = String(home()); UI.hydrate(pane); document.title = `الإعدادات | ${Data.c.settings.systemName}`; return; }
+    main.style.setProperty('--g', sec ? CCX.meta(CCX.groupOf(sec[0])).c : '');
+    if (sec) { main.insertBefore(CCX.crumb(sec), pane); CCX.touch(sec[0]); }
+    if (!sec) { pane.innerHTML = String(home()); UI.hydrate(pane); CCX.bind(pane); document.title = `الإعدادات | ${Data.c.settings.systemName}`; return; }
     pane.innerHTML = '<div class="page-loading"><div class="skel" style="height:96px"></div><div class="skel" style="height:340px"></div></div>';
     const sub = { params: {}, query: { ...ctx.query, s }, view: pane, alive: () => ctx.alive() && st.token === tok, onCleanup: (fn) => st.cleanups.push(fn) };
     if (sec[5] && VIEW_MODES[sec[5]]) { UI._vkey = sec[5]; pane.classList.add('vm-' + UI.vmode(sec[5], VIEW_MODES[sec[5]])); } else UI._vkey = '';
@@ -19516,7 +19520,7 @@ document.addEventListener('click', (e) => {
 /* ── صفحة نماذج الأجهزة ── */
 Pages.models = async (ctx) => {
   /* sel: النماذج المحددة للحذف الجماعي، arch: عرض المؤرشفة */
-  const st = { q: '', type: ctx.query.type || '', arch: ctx.query.arch === '1', sel: new Set() };
+  const st = { q: '', type: ctx.query.type || '', arch: ctx.query.arch === '1', sel: new Set(), linked: false };
   let rowsNow = [];
   const selBar = () => {
     const box = $('[data-mselbar]', ctx.view); if (!box) return;
@@ -19530,19 +19534,20 @@ Pages.models = async (ctx) => {
     const archived = every.filter((i) => i.archived).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
     if (st.arch && !archived.length) st.arch = false;
     const all = st.arch ? archived : live, ed = MDL.canEdit();
-    const qn = normalizeAr(st.q), types = MDL.types();
-    const rows = all.filter((m) => (st.arch || !st.type || MDL.typeOf(m) === st.type) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn)));
+    const qn = normalizeAr(st.q), types = MDL.types(), fam = MDB.fam(live);
+    const rows = all.filter((m) => (st.arch || !st.type || MDL.typeOf(m) === st.type) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn)) && (st.arch || qn || st.linked || !fam.linked.has(m.id)));
     rowsNow = rows; const ids = new Set(rows.map((m) => m.id)); [...st.sel].forEach((id) => { if (!ids.has(id)) st.sel.delete(id); });
-    const card = (m) => { const sp = MDL.specs(m, 5), s = cnt.st.get(m.id) || 0, d = cnt.dp.get(m.id) || 0, on = st.sel.has(m.id); return html`<article class="mdl-card${on ? ' sel' : ''}${m.archived ? ' arch' : ''}" data-mcard="${m.id}">
+    const card = (m) => { const fm = st.arch ? [m] : [m, ...(fam.of.get(m.id) || [])], sp = MDL.specs(m, 5), s = fm.reduce((t, x) => t + (cnt.st.get(x.id) || 0), 0), d = fm.reduce((t, x) => t + (cnt.dp.get(x.id) || 0), 0), on = st.sel.has(m.id); return html`<article class="mdl-card${on ? ' sel' : ''}${m.archived ? ' arch' : ''}" data-mcard="${m.id}">
       <header>${ed ? html`<label class="mdl-pick" title="تحديد"><input type="checkbox" data-mpick="${m.id}"${on ? raw(' checked') : ''} aria-label="تحديد ${m.name}"></label>` : ''}${UI.illu(itemIllu(m), 'mini')}<div class="grow" style="min-width:0"><b>${m.name}</b><small>${[MDL.sub(m), Data.nameOf('itemCategories', m.categoryId, '')].filter(Boolean).join(' · ')}</small></div>${m.archived ? html`<span class="chip tone-red" title="مؤرشف: مخفي من المخزن والقوائم، وسجله باقٍ">${UI.icon('archive')} مؤرشف</span>` : isSerialItem(m) ? html`<span class="chip tone-slate" title="يُتابع برقمه التسلسلي">${UI.icon('hash')}</span>` : ''}</header>
-      ${sp.length ? html`<dl class="mdl-sp">${sp.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>` : html`<p class="mdl-empty">${UI.icon('info')} لم تُعبّأ مواصفاته بعد${ed && !m.archived ? ' — اضغط تعديل' : ''}</p>`}
+      ${st.arch ? '' : MDB.badge(m, fam)}${sp.length ? html`<dl class="mdl-sp">${sp.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>` : html`<p class="mdl-empty">${UI.icon('info')} لم تُعبّأ مواصفاته بعد${ed && !m.archived ? ' — اضغط تعديل' : ''}</p>`}
       <div class="mdl-cnt"><span title="في المخازن">${UI.icon('warehouse')} ${fmtNum(s)}</span><span title="في عهدة الإدارات">${UI.icon('building')} ${fmtNum(d)}</span><a class="mdl-more" href="#/inventory/items/${m.id}">${UI.icon('external')} الصنف</a></div>
       <footer>${m.archived ? html`${ed ? html`<button type="button" class="btn btn-soft btn-xs" data-mrestore="${m.id}">${UI.icon('undo')} استعادة</button>` : ''}<span class="grow"></span>` : html`${MDL.canStore() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="store" data-item="${m.id}">${UI.icon('warehouse')} للمخزن</button>` : ''}${MDL.canDept() ? html`<button type="button" class="btn btn-soft btn-xs" data-bulkadd="dept" data-item="${m.id}">${UI.icon('building')} لإدارة / مكتب</button>` : ''}<span class="grow"></span>${ed ? html`<button type="button" class="btn btn-soft btn-xs map-btn${m.approved ? ' on' : ''}" data-mapply="${m.id}" title="${m.approved ? 'نموذج معتمد — إعادة تطبيقه على الأجهزة' : 'اعتماد النموذج وتطبيق مواصفاته على الأجهزة المسجلة'}">${UI.icon('check')} ${m.approved ? 'معتمد' : 'اعتماد'}</button><button type="button" class="icon-btn" data-mdupe="${m.id}" title="نسخة معدّلة">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-imove="${m.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button type="button" class="icon-btn" data-medit="${m.id}" title="تعديل النموذج">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-mdel="${m.id}" title="حذف النموذج">${UI.icon('trash')}</button>` : ''}`}</footer></article>`; };
     const addTile = ed && !st.arch && !qn ? html`<button type="button" class="mdl-card mdl-add" data-act="new"><span class="mdl-addic">${UI.icon('plus')}</span><b>نموذج جديد</b><small>${st.type ? `في «${Data.nameOf('itemCategories', st.type, '')}»` : 'حاسب، شاشة، طابعة، ملحق…'}</small></button>` : '';
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'نماذج الأجهزة', sub: 'نموذج لكل جهاز بمواصفاته يُكتب مرة واحدة، ثم يُضاف إلى المخزن أو إلى الإدارات والأقسام والمكاتب باسمه فقط — عدة أنواع في خطوة واحدة', illu: 'laptop',
-      actions: html`${ed ? html`<button class="btn btn-ghost" data-mundo title="إرجاع الأجهزة إلى ما كانت عليه قبل آخر اعتماد">${UI.icon('undo')} تراجع عن آخر اعتماد</button>` : ''}${ed ? html`<button class="btn btn-ghost" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button><button class="btn btn-ghost" data-act="kits">${UI.icon('box')} الحزم <b class="tab-n">${fmtNum(MDL.kits().length)}</b></button>` : ''}${MDL.canStore() || MDL.canDept() ? html`<button class="btn btn-soft" data-bulkadd="${MDL.canStore() ? 'store' : 'dept'}">${UI.icon('layers')} إضافة أجهزة دفعة واحدة</button>` : ''}${ed ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}` })}
-      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="mdq" type="search" placeholder="ابحث بالاسم أو الماركة أو الموديل أو أي مواصفة" value="${st.q}"></div></div>
-        <div class="tabs mdl-tabs"><button type="button" class="tab${st.type || st.arch ? '' : ' active'}" data-mtype="">${UI.icon('grid')} الكل <b class="tab-n">${fmtNum(live.length)}</b></button>${types.map((c) => { const n = live.filter((m) => MDL.typeOf(m) === c.id).length; return html`<button type="button" class="tab${!st.arch && st.type === c.id ? ' active' : ''}${c.tone ? ` tone-${c.tone} tab-tone` : ''}" data-mtype="${c.id}">${c.name} <b class="tab-n">${fmtNum(n)}</b></button>`; })}${ed && archived.length ? html`<button type="button" class="tab mdl-archtab${st.arch ? ' active' : ''}" data-march>${UI.icon('archive')} المؤرشفة <b class="tab-n">${fmtNum(archived.length)}</b></button>` : ''}</div>
+      actions: html`${ed ? html`<button class="btn btn-ghost" data-mundo title="إرجاع الأجهزة إلى ما كانت عليه قبل آخر اعتماد">${UI.icon('undo')} تراجع عن آخر اعتماد</button>` : ''}${ed ? html`<button class="btn btn-soft mdb-btn" data-act="mdb" title="يبني نموذجاً لكل موديل من الأجهزة الموزعة في الإدارات والمخازن">${UI.icon('layers')} بناء النماذج من الأجهزة</button>` : ''}${ed ? html`<button class="btn btn-ghost" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button><button class="btn btn-ghost" data-act="kits">${UI.icon('box')} الحزم <b class="tab-n">${fmtNum(MDL.kits().length)}</b></button>` : ''}${MDL.canStore() || MDL.canDept() ? html`<button class="btn btn-soft" data-bulkadd="${MDL.canStore() ? 'store' : 'dept'}">${UI.icon('layers')} إضافة أجهزة دفعة واحدة</button>` : ''}${ed ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}` })}
+      ${ed && !st.arch ? MDB.banner(live, fam, cnt) : ''}
+      <section class="panel"><div class="toolbar"><div class="search-box">${UI.icon('search')}<input id="mdq" type="search" placeholder="ابحث بالاسم أو الماركة أو الموديل أو أي مواصفة" value="${st.q}"></div>${fam.linked.size && !st.arch ? html`<label class="chk mdb-tg"><input type="checkbox" data-mlinked${st.linked ? raw(' checked') : ''}> إظهار الأصناف المرتبطة بنماذجها (${fmtNum(fam.linked.size)})</label>` : ''}</div>
+        <div class="tabs mdl-tabs"><button type="button" class="tab${st.type || st.arch ? '' : ' active'}" data-mtype="">${UI.icon('grid')} الكل <b class="tab-n">${fmtNum(live.length - fam.linked.size)}</b></button>${types.map((c) => { const n = live.filter((m) => MDL.typeOf(m) === c.id && !fam.linked.has(m.id)).length; return html`<button type="button" class="tab${!st.arch && st.type === c.id ? ' active' : ''}${c.tone ? ` tone-${c.tone} tab-tone` : ''}" data-mtype="${c.id}">${c.name} <b class="tab-n">${fmtNum(n)}</b></button>`; })}${ed && archived.length ? html`<button type="button" class="tab mdl-archtab${st.arch ? ' active' : ''}" data-march>${UI.icon('archive')} المؤرشفة <b class="tab-n">${fmtNum(archived.length)}</b></button>` : ''}</div>
         <div class="mdl-selbar" data-mselbar></div>
         <div class="panel-body">${rows.length || addTile ? html`<div class="mdl-grid">${addTile}${rows.map(card)}</div>` : UI.empty({ illu: 'laptop', title: all.length ? 'لا نماذج هنا' : 'لا توجد نماذج بعد', text: ed ? 'أضف نموذجاً لكل جهاز تستخدمونه (حاسب، شاشة، طابعة، ملحقات…) بمواصفاته، أو ابدأ من «نماذج مقترحة».' : 'يضيف النماذج من يملك صلاحية إدارة الأصناف.', action: ed && !all.length ? html`<button class="btn btn-primary" data-act="sug">${UI.icon('sparkle')} نماذج مقترحة</button>` : '' })}</div></section>`);
     selBar();
@@ -19553,6 +19558,9 @@ Pages.models = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="new"]', async () => { if (await Pages.modelEdit('', st.type ? { categoryId: st.type } : {})) draw(); });
   UI.on(ctx.view, 'click', '[data-act="sug"]', async () => { if (await Pages.modelSuggest()) draw(); });
   UI.on(ctx.view, 'click', '[data-act="kits"]', async () => { if (await Pages.kitsModal()) draw(); });
+  UI.on(ctx.view, 'click', '[data-act="mdb"]', async () => { const r = await Pages.mdbBuild(); if (!r) return; await draw(); if (r.ids && r.ids.length && await UI.confirm(`أكمل الآن مواصفات النماذج المبنية (${fmtNum(r.ids.length)})؟ تسري على كل أجهزتها في الإدارات والمخازن.`, { ok: 'إكمال المواصفات', icon: 'edit' })) { await Pages.mdbSpecs(r.ids); draw(); } });
+  UI.on(ctx.view, 'click', '[data-act="mdbspecs"]', async () => { await Pages.mdbSpecs(); draw(); });
+  UI.on(ctx.view, 'change', '[data-mlinked]', (e, el) => { st.linked = el.checked; draw(); });
   UI.on(ctx.view, 'click', '[data-medit]', async (e, b) => { if (await Pages.modelEdit(b.dataset.medit)) draw(); });
   UI.on(ctx.view, 'click', '[data-mdupe]', async (e, b) => { const s = await DB.get('items', b.dataset.mdupe); if (!s) return; if (await Pages.modelEdit('', { categoryId: s.categoryId, brand: s.brand, model: s.model, name: `${s.name} (نسخة)`, specs: { ...(s.specs || {}) }, unit: s.unit, serialized: isSerialItem(s) ? 1 : 0, notes: s.notes })) draw(); });
   /* الحذف: نموذج واحد بخياراته (حذف أو أرشفة أو حذف نهائي)، أو المحدد دفعة واحدة */
@@ -20705,7 +20713,7 @@ Pages.issueHistory = async (itemId, scope = {}) => {
     ${last ? html`<div class="ih-last">${UI.icon('user')}<div class="grow"><small>آخر من استلمه</small>${person(last)}</div><div><small>${(ISSUE_KIND[last.kind] || [''])[0]}</small><b>${fmtDate(last.at)}</b></div><div><small>الجهة</small><b>${place(last)}</b></div></div>` : ''}
     <div class="table-wrap"><table class="table ih-t"><thead><tr><th>التاريخ</th><th>الحركة</th><th>المستلم</th><th>الجهة</th><th>العدد</th><th>الأرقام التسلسلية</th><th>بواسطة</th><th>السند</th></tr></thead><tbody>${mine.slice(0, 60).map((r) => { const k = ISSUE_KIND[r.kind]; return html`<tr><td class="nowrap">${fmtDate(r.at)}</td><td>${UI.chip(k[2], k[0], k[1])}${r.due ? html`<div class="t-sub">${r.back ? `أُعيد ${fmtDate(r.back)}` : `حتى ${fmtDate(r.due)}`}</div>` : ''}</td><td>${person(r)}</td><td>${place(r)}</td><td><b>${fmtNum(r.qty)}</b></td><td class="ltr small">${r.sns.join('، ') || '—'}</td><td>${r.by ? Data.userName(r.by) : '—'}</td><td>${r.vid ? html`<button type="button" class="btn btn-ghost btn-sm" data-ihv="${r.vid}">${UI.icon('print')} ${r.ref}</button>` : r.ref || '—'}</td></tr>`; })}</tbody></table></div>${mine.length > 60 ? html`<p class="hint">يُعرض أحدث 60 حركة من ${fmtNum(mine.length)}.</p>` : ''}</div>`;
 };
-document.addEventListener('click', async (e) => { const b = e.target.closest && e.target.closest('[data-ihv]'); if (!b) return; e.preventDefault(); const v = await DB.get('vouchers', b.dataset.ihv); if (v) Pages.printVoucher(v); });
+document.addEventListener('click', async (e) => { const b = e.target.closest && e.target.closest('[data-ihv]'); if (!b) return; e.preventDefault(); const v = await DB.get('vouchers', b.dataset.ihv); if (v) VPV.open(v); });
 { const w0 = Pages.whereHTML; Pages.whereHTML = async (itemId, scope = {}) => html`${await w0(itemId, scope)}${await Pages.issueHistory(itemId, scope)}`; }
 
 /* ══════════ مركز التقارير: كل أعمال القسم في تقرير واحد ══════════
@@ -22195,7 +22203,7 @@ Pages.vouchers = async (ctx) => {
   if (!VC.PERIODS.some(([k]) => k === st.per)) st.per = 'all';
   const canCart = Auth.can('inventory.move') || Auth.can('loans.manage');
   let rows = [], its = new Map();
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'السندات', sub: 'أرشيف كل السندات: الصرف والإعارة والنقل والاستبدال والإرجاع وكشوف توزيع العهدة. ابحث في أي شيء داخل السند، وصفِّ بالنوع والإدارة والمدة، ثم اعرض السند أو أعد طباعته', illu: 'card', actions: html`<button class="btn btn-ghost" data-vcx>${UI.icon('download')} تصدير النتائج</button>${canCart ? html`<button class="btn btn-primary" data-act="cart">${UI.icon('cart')} سلة جديدة</button>` : ''}` })}
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'السندات', sub: 'اضغط أي سند لمعاينته كما سيُطبع مع بياناته. أرشيف كل السندات: الصرف والإعارة والنقل والاستبدال والإرجاع وكشوف توزيع العهدة. ابحث في أي شيء داخل السند، وصفِّ بالنوع والإدارة والمدة، ثم اعرض السند أو أعد طباعته', illu: 'card', actions: html`<button class="btn btn-ghost" data-vcx>${UI.icon('download')} تصدير النتائج</button>${canCart ? html`<button class="btn btn-primary" data-act="cart">${UI.icon('cart')} سلة جديدة</button>` : ''}` })}
     <div class="vc-types" data-vtypes></div>
     <section class="panel vc-panel">
       <div class="vc-filters">
@@ -22208,7 +22216,7 @@ Pages.vouchers = async (ctx) => {
   const icons = (v, n = 3) => html`<span class="vc-its">${(v.lines || []).slice(0, n).map((l) => html`<i title="${l.name}${Number(l.qty) > 1 ? ` ×${l.qty}` : ''}">${UI.illu(itemIllu(its.get(l.itemId) || l), 'mini')}</i>`)}${(v.lines || []).length > n ? html`<b>+${fmtNum(v.lines.length - n)}</b>` : ''}</span>`;
   const names = (v) => { const l = v.lines || []; return l.slice(0, 2).map((x) => `${x.name}${Number(x.qty) > 1 ? ` ×${fmtNum(x.qty)}` : ''}`).join('، ') + (l.length > 2 ? ` و${fmtNum(l.length - 2)} أخرى` : ''); };
   const hits = (v, qn) => (qn ? (v.lines || []).flatMap((l) => l.serials || []).filter((s) => normalizeAr(s).includes(qn)).slice(0, 2) : []);
-  const acts = (v) => html`<button type="button" class="icon-btn" data-vprint="${v.id}" title="طباعة السند">${UI.icon('print')}</button><button type="button" class="icon-btn" data-vxls="${v.id}" title="تنزيل Excel">${UI.icon('download')}</button>`;
+  const acts = (v) => html`<button type="button" class="icon-btn" data-vpv="${v.id}" title="معاينة السند">${UI.icon('eye')}</button><button type="button" class="icon-btn" data-vprint="${v.id}" title="طباعة السند">${UI.icon('print')}</button><button type="button" class="icon-btn" data-vxls="${v.id}" title="تنزيل Excel">${UI.icon('download')}</button>`;
   const load = async () => {
     const [all, il] = await Promise.all([DB.getAll('vouchers'), DB.getAll('items')]); if (!ctx.alive()) return;
     all.sort((a, b) => b.at - a.at); its = new Map(il.map((i) => [i.id, i]));
@@ -22221,8 +22229,8 @@ Pages.vouchers = async (ctx) => {
     const grid = UI.vmode('/inventory/vouchers', 'list') === 'grid', shown = rows.slice(0, st.lim);
     const perL = (VC.PERIODS.find(([k]) => k === st.per) || [])[1];
     const sum = html`<div class="vc-sum">${UI.icon('file')}<span><b>${fmtNum(rows.length)}</b> سند · <b>${fmtNum(rows.reduce((s, v) => s + VC.units(v), 0))}</b> قطعة</span>${st.per !== 'all' ? html`<span class="chip tone-sky">${UI.icon('calendar')} ${st.per === 'custom' ? `${st.from ? fmtDate(fromDateInput(st.from)) : '…'} ← ${st.to ? fmtDate(fromDateInput(st.to)) : 'اليوم'}` : perL}</span>` : ''}${st.dep ? html`<span class="chip tone-violet">${UI.icon('building')} ${Data.nameOf('departments', st.dep, '')}</span>` : ''}${qn ? html`<span class="chip tone-amber">${UI.icon('search')} ${st.q}</span>` : ''}${st.per !== 'all' || st.dep || qn || st.type ? html`<button type="button" class="btn btn-ghost btn-sm" data-vreset>${UI.icon('x')} مسح التصفية</button>` : ''}</div>`;
-    const list = () => html`<div class="table-wrap"><table class="table vc-table"><thead><tr><th>السند</th><th>المستلم والموضع</th><th>الأصناف</th><th style="width:70px">القطع</th><th>التاريخ</th><th></th></tr></thead><tbody>${shown.map((v) => { const k = VC.kind(v), h = hits(v, qn); return html`<tr data-vopen="${v.id}" tabindex="0" class="tone-${k.tone}"><td><div class="vc-num"><span class="vc-cic">${UI.icon(k.icon)}</span><div><b class="ltr">${v.number}</b><small>${k.label}</small></div></div></td><td><div>${v.holder || (v.type === 'custody' ? 'كشف توزيع' : '—')}</div><div class="t-sub">${[Data.nameOf('departments', v.departmentId, ''), VC.place(v)].filter(Boolean).join(' — ')}</div></td><td><div class="vc-itl">${icons(v)}<span class="t-sub">${names(v)}</span></div>${h.length ? html`<div class="vc-hits">${h.map((s) => html`<code>${s}</code>`)}</div>` : ''}</td><td><b>${fmtNum(VC.units(v))}</b></td><td class="nowrap"><div>${fmtDate(v.at)}</div><div class="t-sub">${v.userId ? Data.userName(v.userId) : ''}</div></td><td class="nowrap">${acts(v)}</td></tr>`; })}</tbody></table></div>`;
-    const cards = () => html`<div class="vc-cards">${shown.map((v) => { const k = VC.kind(v), h = hits(v, qn); return html`<article class="vc-card tone-${k.tone}" data-vopen="${v.id}" tabindex="0"><header><span class="vc-cic">${UI.icon(k.icon)}</span><div class="grow"><b class="ltr">${v.number}</b><small>${k.label}</small></div><time title="${fmtDateTime(v.at)}">${fmtDate(v.at)}</time></header><div class="vc-who">${UI.icon(v.type === 'custody' ? 'network' : 'user')} <span>${v.holder || (v.type === 'custody' ? 'كشف توزيع' : '—')}</span></div><div class="vc-dep">${UI.icon('building')} <span>${[Data.nameOf('departments', v.departmentId, ''), VC.place(v)].filter(Boolean).join(' — ') || '—'}</span></div><div class="vc-itl">${icons(v, 4)}<span class="t-sub">${names(v)}</span></div>${h.length ? html`<div class="vc-hits">${h.map((s) => html`<code>${s}</code>`)}</div>` : ''}<footer><span class="vc-u"><b>${fmtNum(VC.units(v))}</b> قطعة</span><span class="faint small">${v.userId ? Data.userName(v.userId) : ''}</span><span class="grow"></span>${acts(v)}</footer></article>`; })}</div>`;
+    const list = () => html`<div class="table-wrap"><table class="table vc-table"><thead><tr><th>السند</th><th>الغرض والمستلم</th><th>الأصناف</th><th style="width:70px">القطع</th><th>التاريخ</th><th></th></tr></thead><tbody>${shown.map((v) => { const k = VC.kind(v), h = hits(v, qn); return html`<tr data-vopen="${v.id}" tabindex="0" class="tone-${k.tone}"><td><div class="vc-num"><span class="vc-cic">${UI.icon(k.icon)}</span><div><b class="ltr">${v.number}</b><small>${k.label}</small></div></div></td><td><div class="vc-pl">${VC.purpose(v)}</div>${v.ref || v.reason ? html`<div class="t-sub">${[v.ref ? `المرجع: ${v.ref}` : '', v.reason || ''].filter(Boolean).join(' — ')}</div>` : ''}</td><td><div class="vc-itl">${icons(v)}<span class="t-sub">${names(v)}</span></div>${h.length ? html`<div class="vc-hits">${h.map((s) => html`<code>${s}</code>`)}</div>` : ''}</td><td><b>${fmtNum(VC.units(v))}</b></td><td class="nowrap"><div>${fmtDate(v.at)}</div><div class="t-sub">${v.userId ? Data.userName(v.userId) : ''}</div></td><td class="nowrap">${acts(v)}</td></tr>`; })}</tbody></table></div>`;
+    const cards = () => html`<div class="vc-cards vc-cards2">${shown.map((v) => { const k = VC.kind(v), h = hits(v, qn), ls = v.lines || [], l0 = ls[0] || {}, sn0 = ls.flatMap((l) => l.serials || []); return html`<article class="vc-card vc-card2 tone-${k.tone}" data-vopen="${v.id}" tabindex="0"><button type="button" class="vc-paper" data-vpv="${v.id}" title="معاينة السند كما سيُطبع"><span class="vcp-sheet"><span class="vcp-band"></span><span class="vcp-t">${k.title}</span><span class="vcp-no">${v.number}</span><span class="vcp-rows">${ls.slice(0, 4).map((l) => html`<i><b>${l.name}</b><em>${fmtNum(l.qty || 0)}</em></i>`)}${ls.length > 4 ? html`<i class="vcp-more"><b>+${fmtNum(ls.length - 4)} أصناف</b></i>` : ''}</span><span class="vcp-sig"><i></i><i></i><i></i></span></span><span class="vcp-eye">${UI.icon('eye')} معاينة</span></button><header><span class="vc-cic">${UI.icon(k.icon)}</span><div class="grow"><b class="ltr">${v.number}</b><small>${k.label}</small></div><time title="${fmtDateTime(v.at)}">${fmtDate(v.at)}</time></header><p class="vc-purpose">${VC.purpose(v)}</p><div class="vc-itl">${icons(v, 4)}<span class="t-sub">${names(v)}</span></div>${l0.brand || l0.model || sn0.length ? html`<div class="vc-spec">${l0.brand || l0.model ? html`<span>${UI.icon('tag')} ${[l0.brand, l0.model].filter(Boolean).join(' ')}</span>` : ''}${sn0.slice(0, 2).map((x) => html`<code>${x}</code>`)}${sn0.length > 2 ? html`<span class="faint">+${fmtNum(sn0.length - 2)}</span>` : ''}</div>` : ''}${h.length ? html`<div class="vc-hits">${h.map((x) => html`<code>${x}</code>`)}</div>` : ''}<footer><span class="vc-u"><b>${fmtNum(VC.units(v))}</b> قطعة</span><span class="faint small">${v.userId ? Data.userName(v.userId) : ''}</span><span class="grow"></span>${acts(v)}</footer></article>`; })}</div>`;
     $('#vbody', ctx.view).innerHTML = String(html`${sum}${rows.length ? html`${grid ? cards() : list()}${rows.length > shown.length ? html`<div class="vc-more"><button type="button" class="btn btn-soft" data-vmore>${UI.icon('chevron-down')} عرض المزيد (${fmtNum(rows.length - shown.length)} متبقٍ)</button></div>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'card', title: all.length ? 'لا سندات مطابقة' : 'لا سندات بعد', text: all.length ? 'غيّر البحث أو المدة أو النوع.' : 'كل صرف أو إعارة أو نقل أو استبدال أو إرجاع أو توزيع عهدة يُحفظ هنا سنداً تلقائياً.' })}</div>`}`);
   };
   const reload = () => { st.lim = 60; load(); };
@@ -23056,6 +23064,744 @@ document.addEventListener('click', async (e) => {
 });
 /* مواصفات الوحدة: الخاصة بها فوق مواصفات صنفها */
 MAP.specsOf = (a, it) => ({ ...((it && it.specs) || {}), ...((a && a.specs) || {}) });
+
+/* ══════════ الجولة 17: خطوط الاستمارات الرسمية ══════════
+   مجموعات: الترويسة والعناوين، ونص الاستمارة (نسخ)، والجداول والأرقام (حديث)، وخطوط ويندوز وأوفيس.
+   المضمّنة تُطبع على أي جهاز. خطوط ويندوز تُستخدم إن كانت مثبتة على جهاز الطباعة، وإلا يُطبع بديلها المضمّن الأقرب شكلاً. */
+const VTF = {
+  GROUPS: [
+    { k: 'head', t: 'الترويسة والعناوين', d: 'لاسم الجهة وعنوان الاستمارة: رقعة وكوفي وعناوين عريضة', icon: 'star', fonts: [
+      ['Aref Ruqaa', 'عارف رقعة', 'خط الرقعة — للترويسة وأسماء الجهات'],
+      ['Reem Kufi', 'ريم كوفي', 'كوفي هندسي للعناوين الرسمية'],
+      ['El Messiri', 'المسيري', 'عناوين أنيقة واضحة'],
+      ['Kufam', 'كوفام', 'كوفي حديث للعناوين والشعارات'],
+      ['Rakkas', 'ركّاس', 'عنوان عريض بارز'],
+      ['Lalezar', 'لاله زار', 'عنوان ثقيل للافتات — بديل PT Bold Heading'],
+      ['Noto Kufi Arabic', 'نوتو كوفي', 'كوفي واضح للعناوين الفرعية'],
+      ['Changa', 'تشانغا', 'عناوين مضغوطة'],
+      ['Ruwudu', 'رودو', 'نسخ أفريقي مزخرف للعناوين القصيرة']
+    ] },
+    { k: 'naskh', t: 'نص الاستمارة — نسخ رسمي', d: 'للمحتوى والتعهدات والخطابات: الأقرب إلى المطبوعات الحكومية', icon: 'file', fonts: [
+      ['Amiri', 'أميري', 'نسخ كلاسيكي — بديل Traditional Arabic'],
+      ['Noto Naskh Arabic', 'نوتو نسخ', 'نسخ واضح — بديل Simplified Arabic والمهند'],
+      ['Scheherazade New', 'شهرزاد', 'نسخ تقليدي واسع — بديل Sakkal Majalla'],
+      ['Lateef', 'لطيف', 'نسخ مريح بالأحجام الصغيرة'],
+      ['Mirza', 'ميرزا', 'نسخ بلمسة تقليدية'],
+      ['Markazi Text', 'مركزي', 'نسخ حديث للنصوص الطويلة'],
+      ['Harmattan', 'هرمتان', 'نسخ بسيط واضح']
+    ] },
+    { k: 'sans', t: 'الجداول والأرقام — حديث', d: 'خطوط واضحة لجداول الأصناف والأرقام التسلسلية', icon: 'list', fonts: [
+      ['IBM Plex Sans Arabic', 'بلكس العربي (الافتراضي)', 'خط النظام — واضح في كل الأحجام'],
+      ['Noto Sans Arabic', 'نوتو سانس', 'بديل Tahoma وArial'],
+      ['Cairo', 'القاهرة', 'حديث مستدير'],
+      ['Tajawal', 'تجوّل', 'خفيف أنيق'],
+      ['Almarai', 'المراعي', 'واضح للأرقام والجداول'],
+      ['Readex Pro', 'ريدكس', 'بديل Dubai — واسع مقروء'],
+      ['Alexandria', 'الإسكندرية', 'هندسي حديث'],
+      ['Vazirmatn', 'وزير متن', 'متوازن للنصوص والجداول']
+    ] },
+    { k: 'sys', t: 'خطوط ويندوز وأوفيس', d: 'خطوط الاستمارات المصممة في وورد. تُطبع بها إن كانت مثبتة على جهاز الطباعة، وإلا بالبديل المذكور', icon: 'monitor', fonts: [
+      ['AL-Mohanad Bold', 'المهند العريض', 'الشائع في ترويسة الاستمارات الحكومية ومحتواها', 'Noto Naskh Arabic'],
+      ['AL-Mohanad', 'المهند', 'نص الاستمارات والخطابات', 'Noto Naskh Arabic'],
+      ['Simplified Arabic', 'Simplified Arabic', 'نص الخطابات الرسمية', 'Noto Naskh Arabic'],
+      ['Traditional Arabic', 'Traditional Arabic', 'نسخ تقليدي للخطابات', 'Amiri'],
+      ['Sakkal Majalla', 'سكّال مجلة', 'نسخ أوفيس الحديث', 'Scheherazade New'],
+      ['Arabic Typesetting', 'Arabic Typesetting', 'نسخ مُنضَّد', 'Amiri'],
+      ['PT Bold Heading', 'PT Bold Heading', 'عناوين ثقيلة', 'Lalezar'],
+      ['DecoType Thuluth', 'ديكوتايب ثلث', 'ثلث للترويسة', 'Aref Ruqaa'],
+      ['Diwani Letter', 'ديواني', 'ديواني للترويسة والشهادات', 'Aref Ruqaa'],
+      ['DecoType Naskh', 'ديكوتايب نسخ', 'نسخ مزخرف', 'Amiri'],
+      ['Monotype Koufi', 'مونوتايب كوفي', 'كوفي للعناوين', 'Reem Kufi'],
+      ['Andalus', 'أندلس', 'عناوين فرعية', 'Markazi Text'],
+      ['Aldhabi', 'الذهبي', 'مغربي للعناوين', 'Amiri'],
+      ['Urdu Typesetting', 'Urdu Typesetting', 'نسخ منضّد', 'Lateef'],
+      ['Microsoft Uighur', 'Microsoft Uighur', 'نسخ بسيط', 'Harmattan'],
+      ['Dubai', 'دبي', 'حديث للجداول', 'Readex Pro'],
+      ['Times New Roman', 'Times New Roman', 'للنصوص اللاتينية', 'Amiri'],
+      ['Tahoma', 'Tahoma', 'للجداول', 'Noto Sans Arabic'],
+      ['Arial', 'Arial', 'للجداول', 'Noto Sans Arabic']
+    ] }
+  ],
+  /* أطقم مقترحة: ترويسة + نص + جداول */
+  SETS: [
+    ['classic', 'رسمي تقليدي', 'Aref Ruqaa', 'Amiri', 'Noto Naskh Arabic', 'ترويسة بالرقعة ونص بالنسخ الكلاسيكي — أقرب للخطابات الحكومية'],
+    ['office', 'مطابق لاستمارات وورد', 'AL-Mohanad Bold', 'AL-Mohanad', 'Simplified Arabic', 'خطوط الاستمارات الحالية نفسها (تلزم على جهاز الطباعة، وإلا تُطبع ببدائلها)'],
+    ['modern', 'حكومي حديث', 'Reem Kufi', 'Noto Naskh Arabic', 'IBM Plex Sans Arabic', 'ترويسة كوفية ونص واضح وجداول حديثة'],
+    ['bold', 'عناوين بارزة', 'Lalezar', 'Lateef', 'Readex Pro', 'عناوين عريضة للتعاميم والإعلانات الداخلية']
+  ],
+  SAMPLE: { h: 'سند صرف عهدة — قسم تقنية المعلومات', b: 'أقر أنا الموقع أدناه باستلام الأجهزة المبينة أعلاه بحالة سليمة وأتعهد بالمحافظة عليها.' },
+  all() { return VTF._all || (VTF._all = VTF.GROUPS.flatMap((g) => g.fonts.map(([f, l, d, fb]) => ({ f, l, d: d || '', fb: fb || '', g: g.k })))); },
+  get(f) { if (!VTF._m) VTF._m = new Map(VTF.all().map((x) => [x.f, x])); return VTF._m.get(f); },
+  clean: (f) => String(f || '').replace(/['"`;<>{}()\\]/g, '').trim(),
+  label(f) { const x = VTF.get(f); return x ? x.l : f; },
+  /* قائمة CSS: الخط ثم بديله ثم خط النظام */
+  css(f) { f = VTF.clean(f); if (!f) return "'IBM Plex Sans Arabic',Tahoma,sans-serif"; const x = VTF.get(f), fb = x && x.fb; return `'${f}',${fb ? `'${fb}',` : ''}'IBM Plex Sans Arabic',Tahoma,sans-serif`; },
+  canvas(f) { f = VTF.clean(f); const x = f && VTF.get(f), fb = x && x.fb; return `${f ? `"${f}", ` : ''}${fb ? `"${fb}", ` : ''}"IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif`; },
+  /* هل الخط مثبت على هذا الجهاز؟ (لخطوط ويندوز فقط؛ المضمّنة متاحة دائماً) */
+  has(f) {
+    const x = VTF.get(f); if (x && x.g !== 'sys') return true;
+    VTF._h = VTF._h || new Map(); if (VTF._h.has(f)) return VTF._h.get(f);
+    let ok = false;
+    try {
+      const g = (VTF._c = VTF._c || document.createElement('canvas').getContext('2d')), s = 'أقر باستلام الأجهزة ١٢٣ abcXYZ 123', n = VTF.clean(f);
+      ok = ['monospace', 'serif'].some((b) => { g.font = `40px ${b}`; const w0 = g.measureText(s).width; g.font = `40px "${n}", ${b}`; return Math.abs(g.measureText(s).width - w0) > 0.5; });
+    } catch (_) { ok = false; }
+    VTF._h.set(f, ok); return ok;
+  },
+  options(v, { empty = '' } = {}) {
+    const opt = (x) => html`<option value="${x.f}"${v === x.f ? raw(' selected') : ''} style="font-family:${VTF.css(x.f)}">${x.l}${x.g === 'sys' && !VTF.has(x.f) ? ` — غير مثبت (يُطبع بـ ${VTF.label(x.fb)})` : ''}</option>`;
+    return html`${empty ? html`<option value="">${empty}</option>` : ''}${VTF.GROUPS.map((g) => html`<optgroup label="${g.t}">${g.fonts.map(([f]) => opt(VTF.get(f)))}</optgroup>`)}${v && !VTF.get(v) ? html`<option value="${v}" selected>${v}</option>` : ''}`;
+  },
+  /* تحميل الخطوط قبل الرسم على اللوحة أو الطباعة */
+  ready(fams) {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    const list = [...new Set(fams.filter(Boolean).flatMap((f) => { const x = VTF.get(f); return [VTF.clean(f), x && x.fb].filter(Boolean); }))];
+    if (!list.length) return Promise.resolve();
+    return Promise.race([Promise.all(list.flatMap((f) => [document.fonts.load(`400 24px "${f}"`, 'عربي'), document.fonts.load(`700 24px "${f}"`, 'عربي')])), new Promise((r) => setTimeout(r, 2500))]).catch(() => {});
+  },
+  lastFF() { try { return localStorage.getItem('sq_ff_font') || ''; } catch (_) { return ''; } },
+  setLastFF(v) { try { localStorage.setItem('sq_ff_font', v || ''); } catch (_) { /* تجاهل */ } },
+  status(x) {
+    if (x.g !== 'sys') return ['sky', 'مضمّن مع النظام', 'check'];
+    return VTF.has(x.f) ? ['teal', 'مثبت على هذا الجهاز', 'check'] : ['amber', `غير مثبت — يُطبع بـ «${VTF.label(x.fb)}»`, 'alert'];
+  },
+  card(x, sample, cur) {
+    const s = VTF.status(x);
+    return html`<article class="vtf-card${cur === x.f ? ' on' : ''}${s[0] === 'amber' ? ' miss' : ''}" data-vtf="${x.f}" tabindex="0">
+      <header><b>${x.l}</b><span class="chip tone-${s[0]}">${UI.icon(s[2])} ${s[1]}</span></header>
+      <div class="vtf-s" style="font-family:${VTF.css(x.f)}"><p class="vtf-h">${sample.h}</p><p class="vtf-b">${sample.b}</p><p class="vtf-n">١٢٣٤٥٦٧٨٩٠ · 1234567890 · VCH-2026-00042</p></div>
+      <footer><code class="ltr">${x.f}</code><small>${x.d}</small>${cur != null ? html`<span class="vtf-use">${cur === x.f ? html`${UI.icon('check')} المستخدم حالياً` : html`${UI.icon('check')} استخدم هذا الخط`}</span>` : ''}</footer>
+    </article>`;
+  },
+  list({ q = '', g = '', sample = VTF.SAMPLE, cur = null } = {}) {
+    const qn = normalizeAr(q.trim()), xs = VTF.all().filter((x) => (!g || x.g === g) && (!qn || normalizeAr(`${x.f} ${x.l} ${x.d} ${x.fb}`).includes(qn)));
+    if (!xs.length) return html`<p class="vtf-none">${UI.icon('search')} لا يوجد خط بهذا الاسم</p>`;
+    return html`${VTF.GROUPS.filter((G) => xs.some((x) => x.g === G.k)).map((G) => html`<section class="vtf-grp vtf-${G.k}"><h4>${UI.icon(G.icon)} ${G.t}<small>${G.d}</small></h4><div class="vtf-grid">${xs.filter((x) => x.g === G.k).map((x) => VTF.card(x, sample, cur))}</div></section>`)}`;
+  },
+  bar(st) {
+    return html`<div class="vtf-bar"><div class="search-box">${UI.icon('search')}<input type="search" data-vtfq placeholder="ابحث عن خط: رقعة، نسخ، كوفي، Simplified…" value="${st.q}"></div>
+      <div class="vtf-tabs" role="group" aria-label="المجموعة"><button type="button" class="vtf-tab${st.g ? '' : ' on'}" data-vtfg2="">الكل</button>${VTF.GROUPS.map((G) => html`<button type="button" class="vtf-tab${st.g === G.k ? ' on' : ''}" data-vtfg2="${G.k}">${UI.icon(G.icon)} ${G.t}</button>`)}</div>
+      <label class="vtf-sam">${UI.icon('edit')}<input type="text" data-vtfs placeholder="اكتب نصاً لمعاينته بكل الخطوط" value="${st.s}"></label></div>`;
+  },
+  bind(root, st, draw) {
+    root.addEventListener('input', (e) => {
+      if (e.target.matches('[data-vtfq]')) { st.q = e.target.value; draw(); }
+      if (e.target.matches('[data-vtfs]')) { st.s = e.target.value; draw(); }
+    });
+    UI.on(root, 'click', '[data-vtfg2]', (e, b) => { st.g = b.dataset.vtfg2; $$('[data-vtfg2]', root).forEach((x) => x.classList.toggle('on', x === b)); draw(); });
+  },
+  sample(st) { const s = String(st.s || '').trim(); return s ? { h: s, b: s } : VTF.SAMPLE; },
+  /* معرض الخطوط مع المعاينة: يُرجع الخط المختار أو null */
+  pick(cur = '', { title = 'معرض الخطوط' } = {}) {
+    const st = { q: '', g: '', s: '' };
+    return UI.modal({
+      title, icon: 'edit', size: 'xl vtf-modal',
+      body: html`<div class="vtf">${VTF.bar(st)}<div class="vtf-list" data-vtfl></div></div>`,
+      onMount: (form, finish) => {
+        const box = form.querySelector('[data-vtfl]');
+        const draw = () => { box.innerHTML = String(VTF.list({ q: st.q, g: st.g, sample: VTF.sample(st), cur: cur || '' })); };
+        VTF.bind(form, st, draw); draw();
+        const use = (el) => finish(el.dataset.vtf);
+        UI.on(form, 'click', '[data-vtf]', (e, el) => use(el));
+        form.addEventListener('keydown', (e) => { const el = e.target.closest && e.target.closest('[data-vtf]'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); use(el); } });
+        const on = box.querySelector('.vtf-card.on'); if (on) setTimeout(() => on.scrollIntoView({ block: 'center' }), 60);
+      },
+      actions: [{ label: 'استخدام خط الصفحة', kind: 'ghost', value: '' }, { label: 'إغلاق', kind: 'ghost', value: null }]
+    });
+  }
+};
+VT_FONTS.splice(0, VT_FONTS.length, ...VTF.all().map((x) => [x.f, x.l]));
+/* زر «Aa» بجانب أي قائمة خطوط: يفتح المعرض ويضع الاختيار في القائمة كأن المستخدم اختاره */
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-vtfg]'); if (!b || b.disabled) return;
+  e.preventDefault();
+  const sel = b.parentElement && b.parentElement.querySelector('select'); if (!sel || sel.disabled) return;
+  const f = await VTF.pick(sel.value); if (f == null || !sel.isConnected) return;
+  if (f && ![...sel.options].some((o) => o.value === f)) sel.add(new Option(VTF.label(f), f));
+  sel.value = f; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true }));
+});
+/* التعبئة الفورية: تُحمَّل خطوط النصوص قبل رسمها في الملف النهائي */
+{
+  const d0 = FF.draw.bind(FF);
+  FF.draw = async (page, anns) => { await VTF.ready(anns.map((a) => a.font)); return d0(page, anns); };
+}
+/* صفحة «خطوط الاستمارات» في الإعدادات */
+Pages.ccFonts = (ctx) => {
+  const st = { q: '', g: '', s: '' };
+  const set = ([k, l, h, b, t, d]) => html`<article class="vtf-set">
+      <div class="vtf-sheet"><div class="vtf-sh-h" style="font-family:${VTF.css(h)}"><b>${Data.c.settings.orgName || 'اسم الجهة'}</b><span>قسم تقنية المعلومات</span></div><div class="vtf-sh-t" style="font-family:${VTF.css(h)}">سند صرف عهدة</div>
+        <p style="font-family:${VTF.css(b)}">أقر أنا الموقع أدناه باستلام الأجهزة المبينة أدناه بحالة سليمة وأتعهد بالمحافظة عليها.</p>
+        <table style="font-family:${VTF.css(t)}"><tr><th>الصنف</th><th>الرقم التسلسلي</th><th>الكمية</th></tr><tr><td>حاسب محمول</td><td class="ltr">5CD3241XQ7</td><td>١</td></tr><tr><td>شاشة ٢٤ بوصة</td><td class="ltr">CN4211Z8KD</td><td>٢</td></tr></table></div>
+      <div class="vtf-set-b"><b>${l}</b><small>${d}</small><ul><li><i>الترويسة</i>${VTF.label(h)}</li><li><i>النص</i>${VTF.label(b)}</li><li><i>الجداول</i>${VTF.label(t)}</li></ul></div>
+    </article>`;
+  const sys = VTF.all().filter((x) => x.g === 'sys'), inst = sys.filter((x) => VTF.has(x.f));
+  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'خطوط الاستمارات الرسمية', sub: 'الخطوط المتاحة في محرر الاستمارات والسندات والتعبئة الفورية، مع معاينة كل خط وبديله عند الطباعة', illu: 'paper' })}
+    <div class="vtf-kpis">${UI.kpi({ label: 'خطوط مضمّنة تُطبع على أي جهاز', icon: 'check', tone: 'sky', value: VTF.all().filter((x) => x.g !== 'sys').length })}${UI.kpi({ label: 'خطوط ويندوز مثبتة على هذا الجهاز', icon: 'monitor', tone: 'teal', value: inst.length })}${UI.kpi({ label: 'خطوط ويندوز غير مثبتة (تُطبع ببديل)', icon: 'alert', tone: 'amber', value: sys.length - inst.length })}</div>
+    ${UI.panel({ title: 'أطقم مقترحة للاستمارات الرسمية', icon: 'star', sub: 'ترويسة + نص + جداول. اخترها في المحرر: «الخط الأساسي» للصفحة، و«نوع الخط» لكل عنصر أو جدول', body: html`<div class="vtf-sets">${VTF.SETS.map(set)}</div>` })}
+    ${UI.panel({ title: 'كل الخطوط', icon: 'edit', body: html`<div class="vtf">${VTF.bar(st)}<div class="vtf-list" data-vtfl></div></div>` })}
+    <p class="hint">${UI.icon('info')} الخطوط المضمّنة مرخّصة ترخيصاً مفتوحاً (OFL) وتُحمَّل مع النظام. خطوط ويندوز وأوفيس (كالمهند وSimplified Arabic) لا يجوز توزيعها مع النظام، فتُطبع بها الاستمارة إن كانت مثبتة على جهاز الطباعة، وإلا يُطبع البديل المذكور تحت كل خط.</p>`);
+  const box = $('[data-vtfl]', ctx.view);
+  const draw = () => { box.innerHTML = String(VTF.list({ q: st.q, g: st.g, sample: VTF.sample(st) })); };
+  VTF.bind(ctx.view, st, draw); draw();
+};
+{
+  const grp = (CC_GROUPS.find((g) => g[0] === 'النماذج والملاحظات') || CC_GROUPS[0])[2];
+  const add = ['fonts', 'خطوط الاستمارات', 'edit', 'vouchers.design|forms.manage|formfill.manage|settings', 'خطوط الترويسة والمحتوى والجداول، ومعاينتها، وأطقم مقترحة', '', (c) => Pages.ccFonts(c)];
+  const i = grp.findIndex((x) => x[0] === 'vouchers'); grp.splice(i >= 0 ? i + 1 : grp.length, 0, add); CC_ALL.push(add);
+  CC_KEYS.fonts = 'خط خطوط ترويسة نسخ رقعة كوفي ديواني ثلث المهند simplified traditional طباعة';
+}
+
+/* ══════════ الجولة 17: معاينة السندات داخل النظام ══════════
+   تُلتقط صفحة الطباعة نفسها (بالقالب المعتمد وخطوطه) دون فتح نافذة الطباعة، وتُعرض على ورقة بمقاسها الحقيقي
+   بجانب البيانات الأساسية للسند: الغرض، والمستلم، والأصناف بأرقامها التسلسلية وأرقام التاج. */
+VC.purpose = (v) => {
+  const n = VC.units(v), dep = Data.nameOf('departments', v.departmentId, ''), to = [v.holder, dep].filter(Boolean).join(' — '), q = arCount(n, ['قطعة واحدة', 'قطعتين', 'قطع', 'قطعة', 'قطعة']);
+  const nm = (ls) => (ls || []).slice(0, 2).map((l) => l.name).filter(Boolean).join('، ') + ((ls || []).length > 2 ? ` و${fmtNum(ls.length - 2)} أخرى` : '');
+  switch (v.type) {
+    case 'issue': return `صرف ${q} عهدةً${to ? ` إلى ${to}` : ''}${v.unitLabel ? ` (${v.unitLabel})` : ''}`;
+    case 'loan': return `إعارة ${q}${to ? ` إلى ${to}` : ''}${v.dueAt ? ` حتى ${fmtDate(v.dueAt)}` : ' — عهدة دائمة'}`;
+    case 'transfer': return `نقل ${q}${v.fromLabel ? ` من ${v.fromLabel}` : ''}${v.toLabel || dep ? ` إلى ${v.toLabel || dep}` : ''}`;
+    case 'replace': return `استبدال ${nm(v.oldLines) || 'جهاز'} بـ ${nm(v.lines) || 'جهاز جديد'}${dep ? ` في ${dep}` : ''}`;
+    case 'return': return `إرجاع ${q}${dep ? ` من ${dep}` : ''}${v.warehouseLabel ? ` إلى ${v.warehouseLabel}` : ''}`;
+    case 'custody': { const p = new Set((v.lines || []).map((l) => l.place).filter(Boolean)).size; return `توزيع ${q}${p ? ` على ${arCount(p, ['موضع واحد', 'موضعين', 'مواضع', 'موضعاً', 'موضع'])}` : ''}${dep ? ` في ${dep}` : ''}`; }
+    default: return `${VC.kind(v).label} — ${q}`;
+  }
+};
+const VPV = {
+  PAPER: { A3: [297, 420], A4: [210, 297], A5: [148, 210], LETTER: [216, 279], LEGAL: [216, 356] },
+  pref() { try { return localStorage.getItem('sq_vpv_after') || 'preview'; } catch (_) { return 'preview'; } },
+  setPref(v) { try { localStorage.setItem('sq_vpv_after', v); } catch (_) { /* تجاهل */ } },
+  _cap: null,
+  /* يشغّل fn (دالة طباعة) ويلتقط ما كانت ستطبعه بدل فتح نافذة الطباعة */
+  capture(fn) {
+    return new Promise((res) => {
+      const root = $('#print-root'); let done = false, t = 0;
+      const end = (h) => { if (done) return; done = true; clearTimeout(t); if (VPV._cap === grab) VPV._cap = null; res(h); };
+      const grab = () => { const h = root ? root.innerHTML : ''; document.body.classList.remove('printing'); if (root) root.innerHTML = ''; end(h); };
+      t = setTimeout(() => end(null), 8000);
+      VPV._cap = grab;
+      try { const r = fn(); if (r && typeof r.catch === 'function') r.catch(() => end(null)); } catch (_) { end(null); }
+    });
+  },
+  page(h) {
+    let size = 'A4', land = false, w = 0, hh = 0;
+    String(h).replace(/@page\s*{([^}]*)}/g, (m, b) => {
+      const s = /size\s*:\s*([^;}]+)/.exec(b); if (!s) return m;
+      const v = s[1].replace(/!important/, '').trim(), mm = /([\d.]+)mm\s+([\d.]+)mm/.exec(v);
+      if (mm) { w = Number(mm[1]); hh = Number(mm[2]); } else { size = (v.split(/\s+/)[0] || 'A4').toUpperCase(); land = /landscape/i.test(v); }
+      return m;
+    });
+    if (!w) { const d = VPV.PAPER[size] || VPV.PAPER.A4; [w, hh] = land ? [d[1], d[0]] : d; }
+    return { w, h: hh, m: PrintFix.sides(PrintFix.parse(h) || '10mm'), name: w === 210 && hh === 297 ? 'A4' : w === 148 && hh === 210 ? 'A5' : w === 297 && hh === 210 ? 'A4 أفقي' : `${fmtNum(w)}×${fmtNum(hh)} مم` };
+  },
+  srcdoc(h, P) {
+    const css = $$('link[rel="stylesheet"]').map((l) => l.href).filter(Boolean);
+    const body = String(h).replace(/html\s*,\s*body\s*{\s*background/g, '.vpv-sheet{background');
+    return `<!doctype html><html lang="ar" dir="rtl" data-theme="light"><head><meta charset="utf-8">${css.map((u) => `<link rel="stylesheet" href="${esc(u)}">`).join('')}<style>html,body{background:#d9d5cc!important;margin:0!important;padding:0!important;min-height:0!important;height:auto!important;overflow:auto!important;color:#000}body{padding:22px 12px 34px!important}body::before,body::after{display:none!important}.vpv-sheet{width:${P.w}mm;min-height:${P.h}mm;margin:0 auto;background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.06);padding:${P.m.t} ${P.m.r} ${P.m.b} ${P.m.l};box-sizing:border-box;position:relative;color:#000;overflow:hidden}.vpv-sheet .print-doc{margin:0}a{pointer-events:none}</style></head><body><div class="vpv-sheet">${body}</div></body></html>`;
+  },
+  async open(v, { fresh = false } = {}) {
+    if (typeof v === 'string') v = await DB.get('vouchers', v);
+    if (!v) { UI.toast('السند غير موجود أو لا تملك صلاحية رؤيته', 'warn'); return; }
+    const k = VC.kind(v), lines = v.lines || [], old = v.type === 'replace' ? v.oldLines || [] : [];
+    const want = new Set([...lines, ...old].flatMap((l) => (l.serials || []).map((s) => normalizeAr(s))));
+    const [il, al] = await Promise.all([DB.getAll('items'), want.size ? DB.getAll('assets') : Promise.resolve([])]);
+    const its = new Map(il.map((i) => [i.id, i])), bySn = new Map(); al.forEach((a) => { const n = normalizeAr(a.serial || ''); if (n && want.has(n)) bySn.set(n, a); });
+    const dept = Data.nameOf('departments', v.departmentId, ''), cust = v.type === 'custody';
+    const facts = [['الإدارة', dept], ['المستلم', v.holder], ['القسم والمكتب', cust ? '' : v.unitLabel], ['من', v.fromLabel], ['إلى', v.toLabel], ['المخزن', v.warehouseLabel], ['موعد الإرجاع', v.type === 'loan' ? (v.dueAt ? fmtDate(v.dueAt) : 'عهدة دائمة') : ''], ['حالة الصنف', v.condition], ['السبب', v.reason], ['مصير الجهاز القديم', v.oldFate], ['المرجع', v.ref], ['أصدره', v.userId ? Data.userName(v.userId) : '']].filter(([, b]) => b);
+    const sns = lines.reduce((s, l) => s + (l.serials || []).length, 0);
+    const item = (l) => {
+      const it = its.get(l.itemId) || l, sub = [[l.brand, l.model].filter(Boolean).join(' '), l.sku].filter(Boolean).join(' · ');
+      return html`<div class="vpv-it">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b>${l.name || '—'}</b>${sub ? html`<small class="ltr-num">${sub}</small>` : ''}${cust && (l.place || l.ws) ? html`<small>${UI.icon('building')} ${[l.place, l.ws].filter(Boolean).join(' — ')}</small>` : ''}
+        ${(l.serials || []).length ? html`<div class="vpv-sns">${l.serials.slice(0, 12).map((s) => { const a = bySn.get(normalizeAr(s)); return html`<button type="button" class="vpv-sn"${a ? raw(` data-vpas="${esc(a.id)}" title="تفاصيل الجهاز"`) : raw(' disabled')}><code>${s}</code>${a && a.tag ? html`<i>TAG ${a.tag}</i>` : ''}</button>`; })}${l.serials.length > 12 ? html`<span class="faint small">+${fmtNum(l.serials.length - 12)}</span>` : ''}</div>` : ''}</div>
+        <em><b>${fmtNum(l.qty || 0)}</b>${l.unit || 'قطعة'}</em></div>`;
+    };
+    const st = { z: 0, P: null, cap: null };
+    return UI.modal({
+      title: `${k.title} ${v.number}`, icon: k.icon, size: 'xl vpv-modal',
+      body: html`<div class="vpv">
+        <aside class="vpv-side">
+          <div class="vpv-hero tone-${k.tone}"><span class="vpv-hic">${UI.icon(k.icon)}</span><div class="grow"><small>${k.title}</small><b class="ltr">${v.number}</b><span>${fmtDateTime(v.at)} · ${timeAgo(v.at)}</span></div></div>
+          ${fresh ? html`<div class="vpv-fresh">${UI.icon('check')}<div><b>صدر السند وحُفظ في أرشيف السندات</b><label class="check"><input type="checkbox" data-vpvpref${VPV.pref() === 'print' ? raw(' checked') : ''}><span>في المرات القادمة: اطبع مباشرة بعد الإصدار دون معاينة</span></label></div></div>` : ''}
+          <p class="vpv-purpose">${VC.purpose(v)}</p>
+          <div class="vpv-kpis"><span><b>${fmtNum(lines.length)}</b>صنف</span><span><b>${fmtNum(VC.units(v))}</b>قطعة</span><span><b>${fmtNum(sns)}</b>رقم تسلسلي</span></div>
+          ${facts.length ? html`<dl class="vpv-facts">${facts.map(([a, b]) => html`<div><dt>${a}</dt><dd>${b}</dd></div>`)}</dl>` : ''}
+          <h4 class="vpv-h">${UI.icon('box')} ${cust ? 'الأجهزة الموزعة' : v.type === 'replace' ? 'الجهاز الجديد' : 'الأصناف'}</h4>
+          <div class="vpv-items">${lines.length ? lines.map(item) : html`<p class="faint small">لا أصناف</p>`}</div>
+          ${old.length ? html`<h4 class="vpv-h">${UI.icon('refresh')} الجهاز القديم</h4><div class="vpv-items">${old.map(item)}</div>` : ''}
+          ${v.note ? html`<p class="vpv-note">${UI.icon('info')} ${v.note}</p>` : ''}
+        </aside>
+        <section class="vpv-doc">
+          <div class="vpv-tb"><span class="vpv-tt">${UI.icon('file')} المستند كما سيُطبع</span><span class="chip tone-slate" data-vpvsz hidden></span><span class="grow"></span>
+            <button type="button" class="icon-btn" data-vz="-1" title="تصغير">−</button><button type="button" class="btn btn-ghost btn-xs" data-vz="fit" title="ملاءمة العرض"><span data-vzv>ملاءمة</span></button><button type="button" class="icon-btn" data-vz="1" title="تكبير">+</button></div>
+          <div class="vpv-stage"><iframe class="vpv-frame" title="معاينة ${k.title} ${v.number}" sandbox="allow-same-origin"></iframe><div class="vpv-load" data-vpvload><div class="spinner"></div><b>جارٍ تجهيز المعاينة بالقالب المعتمد…</b></div></div>
+        </section>
+      </div>`,
+      onMount: async (form) => {
+        const fr = form.querySelector('.vpv-frame'), stage = form.querySelector('.vpv-stage'), ld = form.querySelector('[data-vpvload]'), zv = form.querySelector('[data-vzv]');
+        UI.on(form, 'click', '[data-vpas]', (e, el) => Pages.assetDetail(el.dataset.vpas));
+        UI.on(form, 'change', '[data-vpvpref]', (e, el) => { VPV.setPref(el.checked ? 'print' : 'preview'); UI.toast(el.checked ? 'ستُطبع السندات مباشرة بعد إصدارها' : 'ستُعرض السندات للمعاينة بعد إصدارها', 'info'); });
+        const fit = () => { if (!st.P) return 1; const px = st.P.w * 3.7795 + 30; return clamp((stage.clientWidth - 8) / px, 0.3, 1.6); };
+        const zoom = () => { const d = fr.contentDocument; if (!d || !d.body) return; const z = st.z || fit(); d.body.style.zoom = String(z); zv.textContent = st.z ? `${Math.round(z * 100)}%` : `ملاءمة (${Math.round(z * 100)}%)`; };
+        UI.on(form, 'click', '[data-vz]', (e, b) => { const d = b.dataset.vz; if (d === 'fit') st.z = 0; else st.z = clamp(Math.round(((st.z || fit()) + (Number(d) > 0 ? 0.1 : -0.1)) * 10) / 10, 0.3, 2.5); zoom(); });
+        const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (!st.z) zoom(); }) : null; if (ro) ro.observe(stage);
+        const dlg = form.closest('dialog'); if (dlg && ro) dlg.addEventListener('close', () => ro.disconnect(), { once: true });
+        st.cap = VPV.capture(() => Pages.printVoucher(v)); const h = await st.cap; st.cap = null;
+        if (!form.isConnected) return;
+        if (!h) { ld.innerHTML = String(html`${UI.icon('alert')}<b>تعذّرت المعاينة. يمكنك الطباعة مباشرة.</b>`); return; }
+        st.P = VPV.page(h);
+        const sz = form.querySelector('[data-vpvsz]'); if (sz) { sz.hidden = false; sz.textContent = st.P.name; }
+        fr.addEventListener('load', () => { zoom(); const fams = [...new Set($$('[style*="font-family"]', fr.contentDocument).map((e) => (e.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim()).filter(Boolean))]; const go = () => { ld.hidden = true; }; if (fr.contentDocument.fonts && fams.length) Promise.race([Promise.all(fams.map((f) => fr.contentDocument.fonts.load(`400 16px "${f}"`))), new Promise((r) => setTimeout(r, 1200))]).then(go, go); else go(); }, { once: true });
+        fr.srcdoc = VPV.srcdoc(h, st.P);
+      },
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: false }, { label: 'Excel', kind: 'soft', icon: 'download', handler: () => { VC.xls(v); return false; } }, { label: 'طباعة', kind: 'primary', icon: 'print', handler: async () => { if (st.cap) await st.cap; Pages.printVoucher(v); return false; } }]
+    });
+  }
+};
+VC.open = (v) => VPV.open(v);
+/* الالتقاط يسبق كل أغلفة الطباعة الأخرى */
+{
+  const wp = window.print;
+  window.print = function () { if (VPV._cap) { VPV._cap(); return; } return wp.apply(this, arguments); };
+}
+/* بعد إصدار سند: معاينة أولاً (أو طباعة مباشرة لمن اختارها) */
+Pages.afterVoucher = (v) => (VPV.pref() === 'print' ? Pages.printVoucher(v) : VPV.open(v, { fresh: true }));
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-vpv]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation(); VPV.open(b.dataset.vpv);
+}, true);
+
+/* ══════════ الجولة 17: مركز الإعدادات بمجالات ملوّنة وصور ثلاثية الأبعاد ══════════ */
+const CCX = {
+  META: {
+    'النظام': { c: '79,70,229', illu: 'server', d: 'هوية الجهة، وأيقونة المتصفح، والأصوات، وما يظهر في القائمة' },
+    'الحسابات والصلاحيات': { c: '124,58,237', illu: 'fingerprint', d: 'الحسابات وصلاحياتها وكلمات المرور والدخول الآمن' },
+    'الهيكل التنظيمي': { c: '13,148,136', illu: 'network', d: 'الإدارات والأقسام والشعب والمكاتب والرتب' },
+    'البلاغات والخدمة': { c: '217,119,6', illu: 'headset', d: 'الفئات والإسناد ومستوى الخدمة والردود والتقييم' },
+    'النماذج والملاحظات': { c: '219,39,119', illu: 'stamp', d: 'الاستمارات وتصميم السندات وخطوطها والملاحظات' },
+    'المخازن والعهد': { c: '2,132,199', illu: 'shelf', d: 'المخازن والتصنيفات والطابعات والصيانة والأقفال' },
+    'البيانات': { c: '5,150,105', illu: 'drive', d: 'النسخ الاحتياطي والاستعادة وصيانة قاعدة البيانات' }
+  },
+  ILLU: { info: 'server', favicon: 'display', sounds: 'speaker', nav: 'report', users: 'smartcard', perms: 'key', passwords: 'fingerprint', security: 'cctv', org: 'network', orglists: 'card', tickets: 'mailIn', handling: 'netswitch', sla: 'calendar', replies: 'envelope', ratings: 'bell', surveys: 'tablet', forms: 'paper', vouchers: 'printer', fonts: 'stamp', vault: 'archive', invlists: 'shelf', printers: 'toner', extmaint: 'tools', mtrack: 'barcode', locks: 'key', backup: 'drive', data: 'ups' },
+  meta(g) { return CCX.META[g] || { c: '100,116,139', illu: 'box', d: '' }; },
+  groupOf(k) { const g = CC_GROUPS.find(([, , items]) => items.some((x) => x[0] === k)); return g ? g[0] : ''; },
+  recent() { try { const r = JSON.parse(localStorage.getItem('sq_cc_recent') || '[]'); return Array.isArray(r) ? r : []; } catch (_) { return []; } },
+  touch(k) { try { localStorage.setItem('sq_cc_recent', JSON.stringify([k, ...CCX.recent().filter((x) => x !== k)].slice(0, 6))); } catch (_) { /* تجاهل */ } },
+  status(allowed) {
+    const rows = [['مركز التقييم', (Data.c.ratingCfg || {}).center !== 0, 'ratings', 'star'], ['طلب التقييم', Ratings.cfg().on, 'ratings', 'message'], ['الإسناد التلقائي', (Data.c.settings.autoAssign || {}).on !== 0, 'handling', 'swap'], ['الإغلاق التلقائي', Data.c.settings.autoClose !== 0, 'handling', 'clock'], ['التعبئة الفورية', FF.on(), 'forms', 'edit'], [XM.name(), XM.on(), 'extmaint', 'tools'], ['الملاحظات', VAULT.on(), 'vault', 'key'], ['قوالب الاستمارات', !!(VL.data().tpls || []).length, 'vouchers', 'print']];
+    return html`<div class="cch-status">${rows.map(([l, on, k, ic]) => { const g = CCX.meta(CCX.groupOf(k)).c, inner = html`<span class="cch-sti">${UI.icon(ic)}</span><span class="grow"><b>${l}</b><small>${on ? 'مفعّل' : 'موقوف'}</small></span><i class="cch-led"></i>`; return allowed.some((x) => x[0] === k) ? html`<button type="button" class="cch-st ${on ? 'on' : 'off'}" style="--g:${g}" data-cc="${k}" title="فتح الإعداد">${inner}</button>` : html`<span class="cch-st ${on ? 'on' : 'off'}" style="--g:${g}">${inner}</span>`; })}</div>`;
+  },
+  home(groups, allowed) {
+    const rec = CCX.recent().map((k) => allowed.find((x) => x[0] === k)).filter(Boolean);
+    return html`<div class="cch">
+      <section class="cch-hero">
+        <div class="cch-ht"><span class="cch-kick">${UI.icon('sliders')} مركز التحكم</span><h1>الإعدادات</h1><p>كل التعديلات والإضافات في مكان واحد، مقسّمة حسب المجال — يظهر لك ما تملك صلاحيته فقط.</p>
+          <div class="search-box cch-q">${UI.icon('search')}<input type="search" data-cchq placeholder="ابحث عن أي إعداد: كلمة المرور، الإسناد التلقائي، الطابعات، الخطوط…" aria-label="بحث في الإعدادات"></div>
+          <div class="cch-nums"><span>الأقسام المتاحة لك <b>${fmtNum(allowed.length)}</b></span><span>المجالات <b>${fmtNum(groups.length)}</b></span></div></div>
+        <div class="cch-art" aria-hidden="true">${groups.slice(0, 4).map(([g], i) => html`<span class="cch-a cch-a${i}" style="--g:${CCX.meta(g).c}">${UI.illu(CCX.meta(g).illu)}</span>`)}</div>
+      </section>
+      <nav class="cch-cats" aria-label="المجالات">${groups.map(([g, , items], i) => { const m = CCX.meta(g); return html`<button type="button" class="cch-cat" style="--g:${m.c}" data-ccgo="${i}"><span class="cch-cart">${UI.illu(m.illu)}</span><span class="cch-ct"><b>${g}</b><small>${m.d}</small></span><em>${fmtNum(items.length)}</em></button>`; })}</nav>
+      ${rec.length ? html`<div class="cch-rec"><span class="cch-rl">${UI.icon('clock')} آخر ما فتحته</span>${rec.map(([k, l]) => { const m = CCX.meta(CCX.groupOf(k)); return html`<button type="button" class="cch-rc" style="--g:${m.c}" data-cc="${k}">${UI.illu(CCX.ILLU[k] || m.illu, 'mini')}<span>${l}</span></button>`; })}</div>` : ''}
+      <h3 class="cch-lbl">${UI.icon('pulse')} حالة الخصائص</h3>
+      ${CCX.status(allowed)}
+      ${groups.map(([g, gi, items], i) => { const m = CCX.meta(g); return html`<section class="cch-sec" id="cch-g${i}" style="--g:${m.c}" data-ccsec>
+        <header class="cch-sh"><span class="cch-sart">${UI.illu(m.illu)}</span><div class="grow"><h3>${UI.icon(gi)} ${g}</h3><p>${m.d}</p></div><em title="عدد الأقسام">${fmtNum(items.length)}</em></header>
+        <div class="cch-tiles">${items.map(([k, l, ic, , dsc]) => html`<button type="button" class="cch-tile" data-cc="${k}" data-ccs="${normalizeAr(`${l} ${dsc} ${CC_KEYS[k] || ''} ${g}`)}"><span class="cch-tic">${UI.illu(CCX.ILLU[k] || m.illu)}</span><span class="cch-tt"><b>${l}</b><small>${dsc}</small></span><span class="cch-go">${UI.icon(ic)}</span></button>`)}</div>
+      </section>`; })}
+      <p class="cch-none" hidden>${UI.icon('search')} لا يوجد إعداد بهذا الاسم. جرّب كلمة أخرى.</p>
+    </div>`;
+  },
+  bind(pane) {
+    const q = pane.querySelector('[data-cchq]'); if (!q) return;
+    q.addEventListener('input', () => {
+      const ws = normalizeAr(q.value.trim()).split(/\s+/).filter(Boolean).map((w) => (w.length > 3 ? w.replace(/^ال/, '') : w));
+      $$('.cch-tile', pane).forEach((b) => { b.hidden = ws.length > 0 && !ws.every((w) => b.dataset.ccs.includes(w)); });
+      $$('[data-ccsec]', pane).forEach((s) => { s.hidden = !$$('.cch-tile:not([hidden])', s).length; });
+      pane.classList.toggle('cch-searching', ws.length > 0);
+      const none = pane.querySelector('.cch-none'); if (none) none.hidden = !ws.length || !!$$('.cch-tile:not([hidden])', pane).length;
+    });
+    q.addEventListener('keydown', (e) => { if (e.key !== 'Enter') return; const b = $('.cch-tile:not([hidden])', pane); if (b) { e.preventDefault(); b.click(); } });
+    UI.on(pane, 'click', '[data-ccgo]', (e, b) => { const s = pane.querySelector(`#cch-g${b.dataset.ccgo}`); if (!s) return; s.scrollIntoView({ behavior: 'smooth', block: 'start' }); s.classList.remove('flash'); void s.offsetWidth; s.classList.add('flash'); });
+  },
+  crumb(sec) {
+    const g = CCX.groupOf(sec[0]), m = CCX.meta(g), d = document.createElement('div');
+    d.className = 'cc-crumb'; d.style.setProperty('--g', m.c);
+    d.innerHTML = String(html`<button type="button" data-cc="home">${UI.icon('sliders')} الإعدادات</button><i class="cc-cs">‹</i>${g ? html`<span class="cc-cg">${UI.illu(m.illu, 'mini')}${g}</span><i class="cc-cs">‹</i>` : ''}<b>${sec[1]}</b>`);
+    return d;
+  }
+};
+
+/* ══════════ الجولة 17: بناء نماذج الأجهزة من الأجهزة الموزعة، والربط الحي بمواصفاتها ══════════
+   - يقرأ كل الأصناف في المخازن والإدارات، ويستخرج الماركة والموديل من حقولها أو من اسمها («حاسب Dell 7090»)
+   - يجمع ما يتطابق موديله في نموذج واحد داخل فئته (حواسيب، طابعات، ماسحات…): الصنف الأساسي يصبح النموذج،
+     والبقية تُربط به (modelRef) دون دمج أرصدتها أو تغيير أسمائها وأرقامها التسلسلية
+   - مواصفات النموذج تسري حيّةً على كل صنف مرتبط، إلا ما عُدِّل يدوياً في الصنف أو في جهاز بعينه داخل موقعه
+   - الأصناف الجديدة التي تُضاف عند الاستلام أو التوزيع تُربط بنموذجها تلقائياً (يمكن إيقافه) */
+const MDB = {
+  BRANDS: [['Dell', 'dell|ديل'], ['HP', 'hp|hewlett packard|hewlett-packard|اتش بي|إتش بي'], ['HPE', 'hpe'], ['Lenovo', 'lenovo|لينوفو'], ['Canon', 'canon|كانون'], ['Epson', 'epson|ابسون|إبسون'], ['Brother', 'brother|براذر'], ['Kyocera', 'kyocera|كيوسيرا'], ['Xerox', 'xerox|زيروكس'], ['Ricoh', 'ricoh|ريكو'], ['Sharp', 'sharp|شارب'], ['Toshiba', 'toshiba|توشيبا'], ['Konica Minolta', 'konica minolta|konica|كونيكا'], ['Samsung', 'samsung|سامسونج|سامسونغ'], ['LG', 'lg|ال جي'], ['Acer', 'acer|ايسر|أيسر'], ['Asus', 'asus|اسوس|أسوس'], ['Apple', 'apple|ابل|آبل'], ['Microsoft', 'microsoft|مايكروسوفت'], ['Logitech', 'logitech|لوجيتك|لوجيتيك'], ['Fujitsu', 'fujitsu|فوجيتسو'], ['Avision', 'avision'], ['Plustek', 'plustek'], ['Zebra', 'zebra|زيبرا'], ['Honeywell', 'honeywell'], ['Cisco', 'cisco|سيسكو'], ['TP-Link', 'tp-link|tplink|tp link'], ['D-Link', 'd-link|dlink'], ['Ubiquiti', 'ubiquiti'], ['MikroTik', 'mikrotik'], ['Huawei', 'huawei|هواوي'], ['Aruba', 'aruba'], ['APC', 'apc'], ['Eaton', 'eaton'], ['ViewSonic', 'viewsonic'], ['BenQ', 'benq'], ['Philips', 'philips|فيليبس'], ['AOC', 'aoc'], ['Panasonic', 'panasonic|باناسونيك'], ['Sony', 'sony|سوني'], ['Hikvision', 'hikvision|هيكفيجن'], ['Dahua', 'dahua'], ['Optoma', 'optoma'], ['Jabra', 'jabra'], ['Poly', 'poly|polycom|plantronics'], ['Yealink', 'yealink'], ['Grandstream', 'grandstream'], ['Avaya', 'avaya'], ['Synology', 'synology'], ['QNAP', 'qnap'], ['Seagate', 'seagate'], ['WD', 'wd|western digital'], ['Kingston', 'kingston'], ['SanDisk', 'sandisk'], ['Genius', 'genius'], ['A4Tech', 'a4tech|a4 tech'], ['Pantum', 'pantum'], ['OKI', 'oki'], ['Lexmark', 'lexmark'], ['ZKTeco', 'zkteco|zk teco'], ['Datalogic', 'datalogic'], ['Kodak', 'kodak'], ['Gigabyte', 'gigabyte'], ['MSI', 'msi'], ['Xiaomi', 'xiaomi|شاومي'], ['Netgear', 'netgear'], ['Tenda', 'tenda'], ['Intel', 'intel'], ['JBL', 'jbl'], ['Edifier', 'edifier'], ['Anker', 'anker'], ['Ugreen', 'ugreen'], ['Belkin', 'belkin'], ['Targus', 'targus'], ['Riso', 'riso']],
+  _al: null,
+  aliases() {
+    if (MDB._al) return MDB._al;
+    const out = [];
+    MDB.BRANDS.forEach(([canon, al]) => al.split('|').forEach((a) => { const lat = /^[a-z0-9 \-]+$/i.test(a); out.push({ canon, a, lat, re: lat ? new RegExp(`(^|[^a-z0-9])${a.replace(/[-]/g, '\\-').replace(/ /g, '[\\s\\-]?')}(?=$|[^a-z0-9])`, 'i') : null, ar: lat ? '' : normalizeAr(a) }); }));
+    return (MDB._al = out.sort((x, y) => y.a.length - x.a.length));
+  },
+  canonBrand(b) { const s = String(b || '').trim(); if (!s) return ''; const hit = MDB.aliases().find((x) => (x.lat ? x.re.test(s) && s.length <= x.a.length + 2 : normalizeAr(s) === x.ar)); return hit ? hit.canon : s; },
+  brandIn(text) {
+    const s = String(text || ''), n = ` ${normalizeAr(s)} `;
+    for (const x of MDB.aliases()) { if (x.lat ? x.re.test(s) : n.includes(` ${x.ar} `)) return x; }
+    return null;
+  },
+  digits: (s) => String(s || '').replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)),
+  /* مفتاح المطابقة: أحرف وأرقام لاتينية فقط بلا مسافات أو شرطات */
+  mk: (m) => MDB.digits(m).toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, ''),
+  toks: (m) => MDB.digits(m).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean),
+  bk: (b) => String(b || '').toLowerCase().replace(/[^a-z0-9]+/g, ''),
+  /* الماركة والموديل: من الحقول أولاً، وإلا من الاسم («طابعة HP LaserJet M404dn» ← HP / LaserJet M404dn) */
+  parse(it) {
+    const fb = String(it.brand || '').trim(), fm = String(it.model || '').trim();
+    let brand = fb ? MDB.canonBrand(fb) : '', model = fm, src = fm ? 'field' : '';
+    if (!brand) { const h = MDB.brandIn(it.name); if (h) brand = h.canon; }
+    if (!model) {
+      const runs = MDB.digits(String(it.name || '')).replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').split(/[\u0600-\u06FF]+/);
+      const tk = (x) => (x.match(/[A-Za-z0-9][A-Za-z0-9\-+.\/]*/g) || []).map((t) => t.replace(/[-.\/]+$/, '')).filter(Boolean);
+      const strip = (x) => { let y = x; MDB.aliases().forEach((a) => { if (a.lat) y = y.replace(new RegExp(a.re.source, 'gi'), ' '); }); return y; };
+      let keep = [];
+      for (const run of runs) { const hit = MDB.aliases().find((a) => a.lat && a.re.test(run)); if (!hit) continue; const m = hit.re.exec(run); keep = tk(strip(run.slice(m.index + m[0].length))); if (keep.length) break; }
+      if (!keep.length) { const run = runs.find((x) => /[a-z]/i.test(strip(x))); if (run) { const t = tk(strip(run)), first = t.findIndex((x) => /[a-z]/i.test(x)); keep = first < 0 ? [] : t.slice(first); } }
+      model = keep.join(' ').trim();
+      if (model) src = 'name';
+    }
+    return { brand, model, src, mk: model ? MDB.mk(model) : '' };
+  },
+  cfg() { return Data.c.mdlCfg || {}; },
+  on() { return MDB.cfg().auto !== 0; },
+  async setCfg(v) { const val = { ...MDB.cfg(), ...v }; await DB.put('meta', { key: 'mdlcfg', value: val }); Data.c.mdlCfg = val; },
+  /* أسرة كل نموذج: الأصناف المرتبطة به (مع تتبّع السلسلة إن وُجدت) */
+  root(x, byId) { let c = x, g = 0; while (c && c.modelRef && c.modelRef !== c.id && byId.has(c.modelRef) && g++ < 6) c = byId.get(c.modelRef); return c; },
+  fam(live) {
+    const byId = new Map(live.map((i) => [i.id, i])), of = new Map(), linked = new Set();
+    live.forEach((x) => { if (!x.modelRef || !byId.has(x.modelRef) || x.modelRef === x.id) return; const r = MDB.root(x, byId); if (!r || r.id === x.id) return; linked.add(x.id); if (!of.has(r.id)) of.set(r.id, []); of.get(r.id).push(x); });
+    return { of, linked, byId };
+  },
+  badge(m, fam) {
+    const kids = fam.of.get(m.id) || [];
+    if (fam.linked.has(m.id)) { const r = MDB.root(m, fam.byId); return html`<div class="mdb-fam kid">${UI.icon('external')} يتبع مواصفات النموذج <b>${r ? r.name : ''}</b></div>`; }
+    return kids.length ? html`<div class="mdb-fam" title="${kids.map((k) => k.name).join('\n')}">${UI.icon('layers')} نموذج يجمع <b>${arCount(kids.length + 1, ['صنفاً واحداً', 'صنفين', 'أصناف', 'صنفاً', 'صنف'])}</b> بالموديل نفسه — مواصفاته تسري عليها</div>` : '';
+  },
+  /* القراءة: الأصناف الحية وكمياتها ومواقعها */
+  async load() {
+    const [items, stock, dstock, assets] = await Promise.all([DB.getAll('items'), DB.getAll('stock'), DB.getAll('deptStock'), DB.getAll('assets')]);
+    const live = items.filter((i) => !i.archived), q = new Map(), pl = new Map(), un = new Map();
+    const add = (id, n, k) => { q.set(id, (q.get(id) || 0) + n); if (!pl.has(id)) pl.set(id, new Set()); pl.get(id).add(k); };
+    stock.forEach((s) => { if (s.qty > 0) add(s.itemId, s.qty, `w:${s.warehouseId}`); });
+    dstock.forEach((d) => { if (d.qty > 0) add(d.itemId, d.qty, `d:${d.departmentId}`); });
+    assets.forEach((a) => { if (a.status !== 'retired') un.set(a.itemId, (un.get(a.itemId) || 0) + 1); });
+    return { live, q, pl, un };
+  },
+  /* الخطة: مجموعات (نموذج لكل موديل) مع حالتها والتغييرات المطلوبة. ov: تعديلات الماركة والموديل قبل البناء */
+  plan(D, ov = new Map()) {
+    const fam = MDB.fam(D.live), none = [], byM = new Map();
+    const rows = D.live.map((it) => { const o = ov.get(it.id), p = MDB.parse(o ? { ...it, brand: o.brand, model: o.model } : it); return { it, ...p, q: D.q.get(it.id) || 0, pl: D.pl.get(it.id) || new Set(), kids: (fam.of.get(it.id) || []).length, ov: !!o }; });
+    rows.forEach((r) => { if (!r.mk) { none.push(r); return; } if (!byM.has(r.mk)) byM.set(r.mk, []); byM.get(r.mk).push(r); });
+    const groups = [];
+    byM.forEach((rs, mk) => {
+      const bs = new Map(); rs.forEach((r) => { const b = MDB.bk(r.brand); if (b) { if (!bs.has(b)) bs.set(b, []); bs.get(b).push(r); } });
+      if (bs.size <= 1) groups.push({ mk, rows: rs });
+      else [...bs.entries()].sort((a, b) => b[1].length - a[1].length).forEach(([b, list], i) => groups.push({ mk: `${b}|${mk}`, rows: i === 0 ? list.concat(rs.filter((r) => !MDB.bk(r.brand))) : list }));
+    });
+    groups.forEach((g) => {
+      const R = g.rows, score = (r) => (r.it.approved ? 8 : 0) + (r.it.model0 ? 4 : 0) + (r.kids ? 2 : 0);
+      const canon = [...R].sort((a, b) => score(b) - score(a) || b.q - a.q || (a.it.createdAt || 0) - (b.it.createdAt || 0))[0];
+      g.key = `${MDB.bk(canon.brand)}|${g.mk}`; g.canon = canon; g.existing = !!(canon.it.approved || canon.it.model0 || canon.kids);
+      g.brand = canon.brand || (R.find((r) => r.brand) || {}).brand || ''; g.model = canon.model || R[0].model;
+      const cats = new Map(); R.forEach((r) => { const c = r.it.categoryId; if (c && c !== 'ic_other') cats.set(c, (cats.get(c) || 0) + r.q + 1); });
+      g.cat = canon.it.categoryId && canon.it.categoryId !== 'ic_other' ? canon.it.categoryId : ([...cats.entries()].sort((a, b) => b[1] - a[1])[0] || [canon.it.categoryId || 'ic_other'])[0];
+      g.type = MDL.typeOf({ categoryId: g.cat }); g.q = R.reduce((s, r) => s + r.q, 0); g.pl = new Set(R.flatMap((r) => [...r.pl]));
+      g.toLink = R.filter((r) => r !== canon && MDB.root(r.it, fam.byId) !== canon.it && r.it.modelRef !== canon.it.id).length;
+      g.toFill = R.filter((r) => (!String(r.it.brand || '').trim() && (r.brand || g.brand)) || (!String(r.it.model || '').trim() && (r.model || g.model)) || r.ov).length;
+      g.status = !g.existing ? 'new' : g.toLink || g.toFill ? 'link' : 'ready';
+    });
+    /* مطابقة تقريبية: «Dell 7090» يُقترح دمجه مع «Dell OptiPlex 7090» */
+    const fit = (a, b) => { const A = MDB.toks(a.model), B = MDB.toks(b.model); if (!A.length || !B.length || !A.concat(B).some((t) => /\d/.test(t))) return false; const sub = (X, Y) => X.every((t) => Y.some((y) => y === t || (/\d/.test(t) && t.length >= 3 && y.startsWith(t)))); return sub(A, B) || sub(B, A); };
+    groups.forEach((g) => {
+      if (g.existing) return;
+      const nt = (x) => MDB.toks(x.model).length, ahead = (h) => h.existing || nt(h) > nt(g) || (nt(h) === nt(g) && (h.q > g.q || (h.q === g.q && h.key < g.key)));
+      const cands = groups.filter((h) => h !== g && (!MDB.bk(g.brand) || !MDB.bk(h.brand) || MDB.bk(g.brand) === MDB.bk(h.brand)) && fit(g, h) && ahead(h)).sort((a, b) => Number(b.existing) - Number(a.existing) || nt(b) - nt(a) || b.q - a.q);
+      g.cands = cands.map((h) => h.key);
+      const best = cands.filter((h) => h.existing); g.into = best.length === 1 ? best[0].key : cands.length === 1 ? cands[0].key : '';
+    });
+    const byKey = new Map(groups.map((g) => [g.key, g]));
+    groups.forEach((g) => { let t = g.into, n = 0; while (t && byKey.get(t) && byKey.get(t).into && n++ < 4) t = byKey.get(t).into; if (t === g.key) t = ''; g.into = t || ''; });
+    return { groups, none: none.filter((r) => r.q > 0 || r.it.model0), byKey, fam };
+  },
+  /* تسري مواصفات النموذج على الأصناف المرتبطة، ما عدا ما عُدِّل يدوياً فيها */
+  async propagate(m, prev = {}) {
+    if (!m || !m.id) return 0;
+    const kids = (await DB.getAll('items')).filter((x) => x.modelRef === m.id && x.id !== m.id && !x.archived);
+    const S = (v) => String(v == null ? '' : Array.isArray(v) ? v.join('، ') : v).trim();
+    let n = 0; const T0 = now();
+    for (const x of kids) {
+      const sp = { ...(x.specs || {}) }, inh = { ...(x.specsInh || {}) }, ms = m.specs || {};
+      let ch = false;
+      new Set([...Object.keys(ms), ...Object.keys(prev || {}), ...Object.keys(inh)]).forEach((k) => {
+        const nv = ms[k], cur = S(sp[k]), was = inh[k] !== undefined ? S(inh[k]) : null, old = prev && prev[k] != null ? S(prev[k]) : null;
+        const follows = cur === '' || (was !== null && cur === was) || (old !== null && cur === old);
+        if (!follows) return;
+        if (S(nv)) { if (cur !== S(nv)) ch = true; sp[k] = nv; inh[k] = nv; } else { if (cur) ch = true; delete sp[k]; delete inh[k]; }
+      });
+      if (!ch) continue;
+      const nx = { ...x, specs: sp, specsInh: inh, updatedAt: T0 }; nx.search = Data.inv.searchOf(nx) + ' ' + normalizeAr(Object.values(sp).join(' '));
+      await DB.put('items', nx); n++;
+    }
+    if (n) Bus.emit('inventory', {});
+    return n;
+  },
+  /* ربط صنف بنموذج: يأخذ الماركة والموديل والمجلد الناقصة، ويرث المواصفات */
+  linkRec(x, m, { brand = '', model = '', fill = true } = {}) {
+    const nx = { ...x, modelRef: m.id };
+    if (fill && !String(nx.brand || '').trim() && (brand || m.brand)) nx.brand = brand || m.brand;
+    if (fill && !String(nx.model || '').trim() && (model || m.model)) nx.model = model || m.model;
+    if ((!nx.categoryId || nx.categoryId === 'ic_other') && m.categoryId && m.categoryId !== 'ic_other') nx.categoryId = m.categoryId;
+    const sp = { ...(nx.specs || {}) }, inh = { ...(nx.specsInh || {}) };
+    Object.entries(m.specs || {}).forEach(([k, v]) => { if (String(v == null ? '' : v).trim() && !String(sp[k] == null ? '' : sp[k]).trim()) { sp[k] = v; inh[k] = v; } });
+    nx.specs = sp; nx.specsInh = inh;
+    nx.search = Data.inv.searchOf(nx) + ' ' + normalizeAr(Object.values(sp).join(' '));
+    return nx;
+  },
+  KEEP: ['brand', 'model', 'categoryId', 'modelRef', 'specs', 'specsInh', 'model0', 'mdlBuilt'],
+  snap(x) { const o = {}; MDB.KEEP.forEach((k) => { o[k] = x[k] === undefined ? null : JSON.parse(JSON.stringify(x[k])); }); return o; },
+  async apply(P, st) {
+    if (!MDL.canEdit()) throw new AppError('بناء النماذج لمن يملك صلاحية إدارة الأصناف');
+    const T0 = now(), undo = { at: T0, by: Auth.user.id, items: [] }, seen = new Set(), fams = new Map();
+    for (const g of P.groups) {
+      if (st.excl.has(g.key)) continue;
+      const tk = st.into.has(g.key) ? st.into.get(g.key) : g.into, t = (tk && P.byKey.get(tk)) || g;
+      if (t === g && g.status === 'ready') continue;
+      if (!fams.has(t.key)) fams.set(t.key, { t, rows: [] });
+      fams.get(t.key).rows.push(...g.rows);
+    }
+    let models = 0, linked = 0, filled = 0; const ids = [];
+    const put = async (cur, nx) => { if (!seen.has(cur.id)) { seen.add(cur.id); undo.items.push({ id: cur.id, prev: MDB.snap(cur) }); } nx.updatedAt = T0; await DB.put('items', nx); };
+    for (const { t, rows } of fams.values()) {
+      const c0 = await DB.get('items', t.canon.it.id); if (!c0) continue;
+      const ov = st.ov.get(c0.id), cn = { ...c0, model0: 1, mdlBuilt: T0 };
+      delete cn.modelRef;
+      if (ov) { cn.brand = ov.brand; cn.model = ov.model; } else if (st.fill) { if (!String(cn.brand || '').trim() && t.brand) cn.brand = t.brand; if (!String(cn.model || '').trim() && t.model) cn.model = t.model; }
+      if ((!cn.categoryId || cn.categoryId === 'ic_other') && t.cat) cn.categoryId = t.cat;
+      cn.search = Data.inv.searchOf(cn) + ' ' + normalizeAr(Object.values(cn.specs || {}).join(' '));
+      if (!c0.model0 || c0.modelRef || cn.brand !== c0.brand || cn.model !== c0.model || cn.categoryId !== c0.categoryId) { await put(c0, cn); models++; }
+      ids.push(cn.id);
+      for (const r of rows) {
+        if (r.it.id === cn.id) continue;
+        const cur = await DB.get('items', r.it.id); if (!cur) continue;
+        const o = st.ov.get(cur.id), nx = MDB.linkRec(o ? { ...cur, brand: o.brand, model: o.model } : cur, cn, { fill: st.fill });
+        if (cur.modelRef !== cn.id) linked++; else filled++;
+        if (JSON.stringify(MDB.snap(nx)) !== JSON.stringify(MDB.snap(cur))) await put(cur, nx);
+      }
+    }
+    if (st.auto !== MDB.on()) await MDB.setCfg({ auto: st.auto ? 1 : 0 });
+    if (!undo.items.length) throw new AppError('لا تغيير: كل الأجهزة المختارة مبنية ومرتبطة بنماذجها');
+    await DB.put('meta', { key: 'mdlbuild:last', value: undo });
+    await Data.log('update', 'inventory', '', `بناء نماذج الأجهزة: ${fmtNum(fams.size)} نموذج، وربط ${arCount(linked, AR.item)} بها`);
+    Bus.emit('inventory', {});
+    return { models: fams.size, linked, ids, changed: undo.items.length };
+  },
+  async undo() {
+    const r = await DB.get('meta', 'mdlbuild:last'), u = r && r.value;
+    if (!u || !(u.items || []).length) { UI.toast('لا يوجد بناء سابق للتراجع عنه', 'info'); return false; }
+    if (!(await UI.confirm(`إرجاع ${arCount(u.items.length, AR.item)} إلى ما كانت عليه قبل آخر بناء للنماذج (${fmtDateTime(u.at)})؟ لا تتأثر الكميات ولا الأرقام التسلسلية.`, { ok: 'تراجع', danger: true }))) return false;
+    const T0 = now();
+    for (const x of u.items) {
+      const cur = await DB.get('items', x.id); if (!cur) continue;
+      const nx = { ...cur, updatedAt: T0 }; Object.entries(x.prev || {}).forEach(([k, v]) => { if (v === null) delete nx[k]; else nx[k] = v; });
+      nx.search = Data.inv.searchOf(nx) + ' ' + normalizeAr(Object.values(nx.specs || {}).join(' '));
+      await DB.put('items', nx);
+    }
+    await DB.put('meta', { key: 'mdlbuild:last', value: null });
+    await Data.log('update', 'inventory', '', `تراجع عن آخر بناء للنماذج (${arCount(u.items.length, AR.item)})`);
+    Bus.emit('inventory', {}); UI.toast('أُرجعت الأصناف إلى ما قبل آخر بناء'); return true;
+  },
+  /* الربط التلقائي عند إضافة صنف جديد (الاستلام، الإضافة دفعة واحدة، التوزيع) */
+  _skip: 0, _auto: [],
+  async match(input) {
+    const p = MDB.parse(input); if (!p.mk) return { p, m: null };
+    const live = (await DB.getAll('items')).filter((i) => !i.archived), fam = MDB.fam(live);
+    const same = live.filter((x) => { const q = MDB.parse(x); return q.mk === p.mk && (!MDB.bk(p.brand) || !MDB.bk(q.brand) || MDB.bk(p.brand) === MDB.bk(q.brand)); }).map((x) => MDB.root(x, fam.byId));
+    const sc = (x) => (x.approved ? 8 : 0) + (x.model0 ? 4 : 0) + ((fam.of.get(x.id) || []).length ? 2 : 0);
+    const m = [...new Set(same)].sort((a, b) => sc(b) - sc(a))[0] || null;
+    return { p, m };
+  },
+  note(name, model) { MDB._auto.push([name, model]); clearTimeout(MDB._at); MDB._at = setTimeout(() => { const a = MDB._auto.splice(0); if (!a.length) return; UI.toast(a.length === 1 ? `رُبط «${a[0][0]}» بنموذج «${a[0][1]}» — تسري عليه مواصفاته` : `رُبطت ${arCount(a.length, AR.item)} جديدة بنماذجها: ${a.slice(0, 3).map((x) => x[1]).join('، ')}${a.length > 3 ? '…' : ''}`, 'info', 6500); }, 900); }
+};
+/* إعداد البناء التلقائي يُحمَّل مع الإعدادات */
+{ const xl2 = XCFG.load.bind(XCFG); XCFG.load = async function () { await xl2(); try { const r = await DB.get('meta', 'mdlcfg'); Data.c.mdlCfg = (r && r.value) || {}; } catch (_) { Data.c.mdlCfg = {}; } }; }
+/* الصنف الجديد يُبنى في نموذجه: تُعبّأ ماركته وموديله، ويُربط بالنموذج المطابق إن وُجد */
+{
+  const s0 = Data.inv.saveItem;
+  Data.inv.saveItem = async function (input) {
+    let hit = null;
+    if (!input.id && !MDB._skip && MDB.on()) {
+      try {
+        hit = await MDB.match(input);
+        if (hit.p.brand && !String(input.brand || '').trim()) input = { ...input, brand: hit.p.brand };
+        if (hit.p.model && !String(input.model || '').trim()) input = { ...input, model: hit.p.model };
+        if (hit.m && (!input.categoryId || input.categoryId === 'ic_other') && hit.m.categoryId) input = { ...input, categoryId: hit.m.categoryId };
+      } catch (_) { hit = null; }
+    }
+    const it = await s0.call(this, input);
+    if (hit && hit.m && it && hit.m.id !== it.id) {
+      try { const cur = await DB.get('items', it.id); await DB.put('items', { ...MDB.linkRec(cur, hit.m), updatedAt: now() }); MDB.note(it.name, hit.m.name); Object.assign(it, { modelRef: hit.m.id }); } catch (_) { /* يبقى الصنف دون ربط */ }
+    }
+    return it;
+  };
+}
+/* حفظ النموذج من محرره: تسري مواصفاته الجديدة على الأصناف المرتبطة */
+{
+  const ms0 = MDL.save.bind(MDL);
+  MDL.save = async (rec, id = '') => {
+    const prev = id ? await DB.get('items', id) : null; MDB._skip++;
+    let it; try { it = await ms0(rec, id); } finally { MDB._skip--; }
+    try { const n = await MDB.propagate(it, prev ? prev.specs || {} : {}); if (n) UI.toast(`سرت المواصفات على ${arCount(n, AR.item)} مرتبطة بالنموذج`, 'info', 5000); } catch (e) { console.warn(e); }
+    return it;
+  };
+}
+
+/* ── نافذة البناء ── */
+Pages.mdbBuild = async () => {
+  if (!MDL.canEdit()) { UI.toast('بناء النماذج لمن يملك صلاحية إدارة الأصناف', 'warn'); return null; }
+  const D = await MDB.load(), lastU = await DB.get('meta', 'mdlbuild:last');
+  const st = { ov: new Map(), excl: new Set(), into: new Map(), fill: true, auto: MDB.on(), q: '', f: 'need', open: new Set() };
+  let P = MDB.plan(D, st.ov);
+  const placeN = (s) => { const d = [...s].filter((k) => k.startsWith('d:')).length, w = s.size - d; return [d ? arCount(d, ['إدارة واحدة', 'إدارتين', 'إدارات', 'إدارة', 'إدارة']) : '', w ? arCount(w, ['مخزن واحد', 'مخزنين', 'مخازن', 'مخزناً', 'مخزن']) : ''].filter(Boolean).join(' و'); };
+  const target = (g) => { const tk = st.into.has(g.key) ? st.into.get(g.key) : g.into; return tk && P.byKey.get(tk) ? P.byKey.get(tk) : null; };
+  const stats = () => {
+    let models = 0, link = 0, q = 0; const pl = new Set(), fams = new Set();
+    P.groups.forEach((g) => { if (st.excl.has(g.key)) return; const t = target(g); if (!t && g.status === 'ready') return; fams.add((t || g).key); if (!t && !g.existing) models++; link += t ? g.rows.length : g.toLink; q += g.q; g.pl.forEach((k) => pl.add(k)); });
+    return { models, link, q, pl: pl.size, fams: fams.size };
+  };
+  const row = (g) => {
+    const t = target(g), off = st.excl.has(g.key), names = g.rows.filter((r) => r !== g.canon).map((r) => r.it.name);
+    const chip = t ? html`<span class="chip tone-violet">${UI.icon('layers')} يُدمج في «${t.brand} ${t.model}»</span>` : g.status === 'new' ? html`<span class="chip tone-teal">${UI.icon('plus')} نموذج جديد</span>` : g.status === 'link' ? html`<span class="chip tone-sky">${UI.icon('swap')} ${g.toLink ? `ربط ${arCount(g.toLink, AR.item)}` : 'إكمال الماركة والموديل'}</span>` : html`<span class="chip tone-slate">${UI.icon('check')} جاهز</span>`;
+    const nsp = Object.values(g.canon.it.specs || {}).filter((v) => String(v || '').trim()).length;
+    return html`<div class="mdb-row st-${g.status}${off ? ' off' : ''}" data-mdbrow="${g.key}">
+      <label class="mdb-x" title="${off ? 'مستبعد' : 'مشمول'}"><input type="checkbox" data-mdbx="${g.key}"${off ? '' : raw(' checked')}${g.status === 'ready' && !t ? raw(' disabled') : ''}></label>
+      ${UI.illu(itemIllu({ ...g.canon.it, categoryId: g.cat }), 'mini')}
+      <div class="mdb-id"><div class="mdb-bm"><input class="input" data-mdbb="${g.key}" value="${g.brand}" placeholder="الماركة" aria-label="الماركة"><input class="input ltr" data-mdbm="${g.key}" value="${g.model}" placeholder="الموديل" aria-label="الموديل"></div>
+        <small><b>${g.canon.it.name}</b>${names.length ? html` · يضم: ${names.slice(0, 3).join('، ')}${names.length > 3 ? ` و${fmtNum(names.length - 3)} أخرى` : ''}` : ''}</small>
+        ${g.cands && g.cands.length ? html`<label class="mdb-into">${UI.icon('layers')} مطابقة تقريبية:<select data-mdbi="${g.key}"><option value="">نموذج مستقل</option>${g.cands.map((k) => { const h = P.byKey.get(k); return html`<option value="${k}"${(t && t.key === k) ? raw(' selected') : ''}>دمج في ${h.brand} ${h.model}${h.existing ? ' (نموذج قائم)' : ''}</option>`; })}</select></label>` : ''}</div>
+      <div class="mdb-q"><b>${fmtNum(g.q)}</b><span>جهاز</span>${g.pl.size ? html`<small>في ${placeN(g.pl)}</small>` : html`<small>بلا كمية</small>`}</div>
+      <div class="mdb-st">${chip}<small>${nsp ? `${fmtNum(nsp)} مواصفات` : 'بلا مواصفات بعد'}</small></div>
+    </div>`;
+  };
+  const draw = (form) => {
+    const qn = normalizeAr(st.q), s = stats();
+    const vis = P.groups.filter((g) => (st.f === 'all' || (st.f === 'need' ? g.status !== 'ready' || target(g) : g.status === 'ready' && !target(g))) && (!qn || normalizeAr(`${g.brand} ${g.model} ${g.rows.map((r) => r.it.name).join(' ')}`).includes(qn)));
+    const types = new Map(); vis.forEach((g) => { if (!types.has(g.type)) types.set(g.type, []); types.get(g.type).push(g); });
+    const order = MDL.types().map((c) => c.id);
+    const secs = [...types.entries()].sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99));
+    $('[data-mdbk]', form).innerHTML = String(html`<span class="mdb-k tone-teal"><b>${fmtNum(s.models)}</b>نماذج جديدة</span><span class="mdb-k tone-sky"><b>${fmtNum(s.link)}</b>أصناف تُربط بنماذجها</span><span class="mdb-k tone-violet"><b>${fmtNum(s.q)}</b>أجهزة مشمولة</span><span class="mdb-k tone-amber"><b>${fmtNum(s.pl)}</b>مواقع (إدارات ومخازن)</span>`);
+    $('[data-mdbl]', form).innerHTML = String(html`${secs.length ? secs.map(([ty, gs]) => html`<section class="mdb-cat"><header>${UI.illu(itemIllu({ categoryId: ty }), 'mini')}<b>${Data.nameOf('itemCategories', ty, 'أخرى')}</b><span>${arCount(gs.length, ['نموذج واحد', 'نموذجان', 'نماذج', 'نموذجاً', 'نموذج'])} · ${fmtNum(gs.reduce((t, g) => t + g.q, 0))} جهاز</span></header><div class="mdb-rows">${gs.map(row)}</div></section>`) : html`<p class="mdb-empty">${UI.icon('check')} ${st.f === 'need' ? 'كل الأجهزة مبنية في نماذجها ومرتبطة بها.' : 'لا نتائج.'}</p>`}
+      ${P.none.length ? html`<details class="mdb-none"${st.open.has('none') ? raw(' open') : ''} data-mdbnone><summary>${UI.icon('info')} أصناف بلا ماركة أو موديل واضح (${fmtNum(P.none.length)}) — اكتب الموديل ليُبنى لها نموذج</summary><div class="mdb-rows">${P.none.map((r) => html`<div class="mdb-row st-none">${UI.illu(itemIllu(r.it), 'mini')}<div class="mdb-id"><b>${r.it.name}</b><div class="mdb-bm"><input class="input" data-mdbub="${r.it.id}" value="${r.brand}" placeholder="الماركة"><input class="input ltr" data-mdbum="${r.it.id}" value="" placeholder="الموديل"></div></div><div class="mdb-q"><b>${fmtNum(r.q)}</b><span>جهاز</span></div></div>`)}</div></details>` : ''}`);
+    const btn = form.closest('dialog').querySelector('.modal-foot .btn-primary'); if (btn) { btn.disabled = !s.fams; btn.innerHTML = String(html`${UI.icon('check')} ${s.fams ? `بناء ${arCount(s.fams, ['نموذج واحد', 'نموذجين', 'نماذج', 'نموذجاً', 'نموذج'])}` : 'لا شيء لبنائه'}`); }
+    $$('[data-mdbf]', form).forEach((b) => b.classList.toggle('on', b.dataset.mdbf === st.f));
+  };
+  const regroup = (form) => { P = MDB.plan(D, st.ov); draw(form); };
+  const setOv = (g, brand, model) => { g.rows.forEach((r) => st.ov.set(r.it.id, { brand, model })); };
+  return UI.modal({
+    title: 'بناء النماذج من الأجهزة الموزعة', icon: 'layers', size: 'xl mdb-modal',
+    body: html`<div class="mdb">
+      <div class="mdb-hero"><div class="mdb-art">${UI.illu('computer')}${UI.illu('printer')}${UI.illu('scanner')}</div><div class="grow"><b>نموذج واحد لكل موديل، داخل فئته</b><p>يجمع النظام الأجهزة المسجلة في المخازن والإدارات حسب الماركة والموديل — من الحقول أو من اسم الجهاز — ويبني لكل موديل نموذجاً في «نماذج الأجهزة». بعدها تكتب مواصفات النموذج مرة واحدة فتسري على كل أجهزته، ويبقى تعديل أي جهاز في موقعه ممكناً.</p><p class="mdb-keep">${UI.icon('lock')} لا يتغير: أسماء الأصناف، والكميات، والأرقام التسلسلية وأرقام التاج، والملاحظات.</p></div></div>
+      <div class="mdb-kpis" data-mdbk></div>
+      <div class="mdb-tools"><div class="search-box">${UI.icon('search')}<input type="search" data-mdbq placeholder="ابحث بالماركة أو الموديل أو اسم الصنف"></div>
+        <div class="seg sm mdb-f"><button type="button" class="vtf-tab" data-mdbf="need">يحتاج بناء أو ربط</button><button type="button" class="vtf-tab" data-mdbf="ready">جاهز</button><button type="button" class="vtf-tab" data-mdbf="all">الكل</button></div></div>
+      <div class="mdb-opts"><label class="chk"><input type="checkbox" data-mdbo="fill" checked> تعبئة الماركة والموديل الناقصة في الأصناف</label><label class="chk"><input type="checkbox" data-mdbo="auto"${st.auto ? raw(' checked') : ''}> ربط الأجهزة الجديدة بنماذجها تلقائياً عند الاستلام والتوزيع</label></div>
+      <div class="mdb-list" data-mdbl></div>
+    </div>`,
+    onMount: (form) => {
+      draw(form);
+      form.addEventListener('input', debounce((e) => { if (e.target.matches('[data-mdbq]')) { st.q = e.target.value.trim(); draw(form); } }, 200));
+      form.addEventListener('change', (e) => {
+        const x = e.target;
+        if (x.matches('[data-mdbx]')) { if (x.checked) st.excl.delete(x.dataset.mdbx); else st.excl.add(x.dataset.mdbx); draw(form); }
+        else if (x.matches('[data-mdbi]')) { st.into.set(x.dataset.mdbi, x.value); draw(form); }
+        else if (x.matches('[data-mdbb],[data-mdbm]')) { const k = x.dataset.mdbb || x.dataset.mdbm, g = P.byKey.get(k), row2 = x.closest('.mdb-row'); if (!g) return; setOv(g, $('[data-mdbb]', row2).value.trim(), $('[data-mdbm]', row2).value.trim()); regroup(form); }
+        else if (x.matches('[data-mdbub],[data-mdbum]')) { const id = x.dataset.mdbub || x.dataset.mdbum, row2 = x.closest('.mdb-row'); const m = $('[data-mdbum]', row2).value.trim(); if (!m) return; st.ov.set(id, { brand: $('[data-mdbub]', row2).value.trim(), model: m }); st.open.add('none'); regroup(form); }
+        else if (x.matches('[data-mdbo]')) { st[x.dataset.mdbo] = x.checked; }
+      });
+      form.addEventListener('toggle', (e) => { if (e.target.matches && e.target.matches('[data-mdbnone]')) { if (e.target.open) st.open.add('none'); else st.open.delete('none'); } }, true);
+      UI.on(form, 'click', '[data-mdbf]', (e, b) => { st.f = b.dataset.mdbf; draw(form); });
+    },
+    actions: [...(lastU && lastU.value && (lastU.value.items || []).length ? [{ label: 'تراجع عن آخر بناء', kind: 'ghost', icon: 'undo', handler: async () => { const r = await MDB.undo(); return r ? { undone: true } : false; } }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'بناء النماذج', kind: 'primary', icon: 'check', handler: async () => {
+      const s = stats(); if (!s.fams) throw new AppError('لا شيء لبنائه');
+      if (!(await UI.confirm(`بناء ${arCount(s.fams, ['نموذج واحد', 'نموذجين', 'نماذج', 'نموذجاً', 'نموذج'])} وربط ${arCount(s.link, AR.item)} بها؟ يمكن التراجع عن آخر بناء.`, { ok: 'بناء وربط', icon: 'layers' }))) return false;
+      const r = await MDB.apply(P, st);
+      UI.toast(`بُني ${fmtNum(r.models)} نموذج ورُبط ${arCount(r.linked, AR.item)} — أكمل مواصفاتها لتظهر في كل الأجهزة`, 'ok', 7000);
+      return r;
+    } }]
+  });
+};
+
+/* ── قائمة إكمال المواصفات: كل نموذج بأسرته وأجهزته ونسبة ما عُبّئ من مواصفاته ── */
+Pages.mdbSpecs = async (only = null) => {
+  const D = await MDB.load(), fam = MDB.fam(D.live);
+  const famQ = (m) => [m, ...(fam.of.get(m.id) || [])].reduce((t, x) => t + (D.q.get(x.id) || 0), 0);
+  const fill = (m) => { const defs = specsOf(m.categoryId), sp = m.specs || {}, n = defs.filter((d) => String(sp[d.k] == null ? '' : sp[d.k]).trim()).length; return { n, t: defs.length || Object.keys(sp).length || 1, any: Object.values(sp).some((v) => String(v || '').trim()) }; };
+  const pick = () => D.live.filter((m) => !fam.linked.has(m.id) && (only ? only.includes(m.id) : (m.model0 || fam.of.has(m.id)) && famQ(m) > 0)).sort((a, b) => fill(a).n / fill(a).t - fill(b).n / fill(b).t || famQ(b) - famQ(a));
+  let list = pick();
+  if (!list.length) { UI.toast('لا نماذج لها أجهزة مسجلة بعد', 'info'); return null; }
+  const rowH = (m) => { const f = fill(m), k = (fam.of.get(m.id) || []).length, pc = Math.round((f.n / f.t) * 100); return html`<div class="mdbs-row${pc >= 100 ? ' done' : ''}" data-mdbsr="${m.id}">${UI.illu(itemIllu(m), 'mini')}<div class="grow"><b>${m.name}</b><small>${[MDL.sub(m), Data.nameOf('itemCategories', m.categoryId, '')].filter(Boolean).join(' · ')}${k ? ` · يتبعه ${arCount(k, AR.item)}` : ''} · ${fmtNum(famQ(m))} جهاز</small><div class="mdbs-bar"><i style="width:${pc}%"></i></div></div><em>${fmtNum(f.n)}/${fmtNum(f.t)}</em><button type="button" class="btn btn-sm ${pc >= 100 ? 'btn-ghost' : 'btn-soft'}" data-mdbse="${m.id}">${UI.icon('edit')} ${pc >= 100 ? 'تعديل' : 'أكمل المواصفات'}</button></div>`; };
+  return UI.modal({
+    title: 'إكمال مواصفات النماذج', icon: 'edit', size: 'lg',
+    body: html`<p class="hint">${UI.icon('info')} اكتب مواصفات كل نموذج مرة واحدة (المعالج، الذاكرة، نوع الطابعة، المنافذ…) فتظهر في كل أجهزته في الإدارات والمخازن. ما عُدِّل يدوياً في جهاز بعينه يبقى كما هو.</p><div class="mdbs" data-mdbs>${list.map(rowH)}</div>`,
+    onMount: (form) => {
+      UI.on(form, 'click', '[data-mdbse]', async (e, b) => {
+        const r = await Pages.modelEdit(b.dataset.mdbse); if (!r) return;
+        const fresh = await DB.get('items', b.dataset.mdbse); if (!fresh) return;
+        const i = D.live.findIndex((x) => x.id === fresh.id); if (i >= 0) D.live[i] = fresh;
+        const el = form.querySelector(`[data-mdbsr="${fresh.id}"]`); if (el) el.outerHTML = String(rowH(fresh));
+      });
+    },
+    actions: [{ label: 'تم', kind: 'primary', value: true }]
+  });
+};
+
+/* ── تعديل مواصفات جهاز واحد داخل موقعه: يبقى مرتبطاً بنموذجه، والحقل الفارغ يتبع النموذج ── */
+Pages.unitSpecs = async (assetId) => {
+  const a = await DB.get('assets', assetId); if (!a) return null;
+  const it = await DB.get('items', a.itemId); if (!it) return null;
+  const base = it.specs || {}, own = a.specs || {}, defs = specsOf(it.categoryId), keys = [...new Set([...defs.map((d) => d.k), ...Object.keys(base), ...Object.keys(own)])];
+  const S = (v) => String(v == null ? '' : Array.isArray(v) ? v.join('، ') : v).trim();
+  const model = it.modelRef ? await DB.get('items', it.modelRef) : null;
+  return UI.modal({
+    title: `مواصفات هذا الجهاز: ${a.serial || it.name}`, icon: 'edit', size: 'lg',
+    body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b>${it.name}</b><div class="t-sub ltr">${a.serial || ''}${a.tag ? ` · TAG ${a.tag}` : ''}</div></div>${model || it.model0 ? html`<span class="chip tone-violet">${UI.icon('layers')} ${model ? `يتبع «${model.name}»` : 'نموذج'}</span>` : ''}</div>
+      <p class="hint mt">${UI.icon('info')} اكتب ما يختلف في هذا الجهاز وحده (مثلاً ذاكرة مُرقّاة). اترك الحقل فارغاً ليتبع مواصفات النموذج — المكتوبة باهتة داخله.</p>
+      <div class="form-grid mdbu">${keys.map((k) => { const d = defs.find((x) => x.k === k) || { k, l: k }, lid = `mdbu-${k}`; return html`<label class="field${S(own[k]) ? ' mdbu-own' : ''}"><span>${String(d.l || k).replace(/\s*\(.*\)\s*$/, '')}${S(own[k]) ? html` <i class="chip tone-violet">لهذا الجهاز</i>` : ''}</span><input class="input" data-mdbu="${k}" value="${S(own[k])}" placeholder="${S(base[k]) || '—'}"${d.o ? raw(` list="${lid}"`) : ''}>${d.o ? html`<datalist id="${lid}">${d.o.map((o) => html`<option value="${o}">`)}</datalist>` : ''}</label>`; })}</div>`,
+    actions: [{ label: 'إرجاع الكل للنموذج', kind: 'ghost', icon: 'undo', handler: async () => { const cur = await DB.get('assets', a.id); const nx = { ...cur, updatedAt: now() }; delete nx.specs; await DB.put('assets', nx); Bus.emit('inventory', {}); UI.toast('صار الجهاز يتبع مواصفات النموذج كاملة'); return true; } }, { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', handler: async (form) => {
+      const o = {}; $$('[data-mdbu]', form).forEach((x) => { const v = x.value.trim(); if (v && v !== S(base[x.dataset.mdbu])) o[x.dataset.mdbu] = v; });
+      const cur = await DB.get('assets', a.id); const nx = { ...cur, updatedAt: now() }; if (Object.keys(o).length) nx.specs = o; else delete nx.specs;
+      await DB.put('assets', nx); await Data.log('update', 'inventory', a.id, `تعديل مواصفات الجهاز ${a.serial || it.name} وحده`); Bus.emit('inventory', {});
+      UI.toast(Object.keys(o).length ? `حُفظت ${fmtNum(Object.keys(o).length)} مواصفات خاصة بهذا الجهاز` : 'يتبع الجهاز مواصفات النموذج كاملة'); return true;
+    } }]
+  });
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-asspec]'); if (!b) return;
+  e.preventDefault(); const id = b.dataset.asspec, dlg = b.closest('dialog');
+  const r = await Pages.unitSpecs(id); if (!r) return;
+  if (dlg) { const x = dlg.querySelector('[data-x]'); if (x) x.click(); }
+  Pages.assetDetail(id);
+});
+
+MDB.banner = (live, fam, cnt) => {
+  const q = new Map(); live.forEach((i) => q.set(i.id, (cnt.st.get(i.id) || 0) + (cnt.dp.get(i.id) || 0)));
+  const P = MDB.plan({ live, q, pl: new Map() });
+  const need0 = P.groups.filter((g) => g.status !== 'ready' && g.q > 0), need = [...new Set(need0.map((g) => g.into || g.key))];
+  const noSpec = live.filter((m) => !fam.linked.has(m.id) && (m.model0 || fam.of.has(m.id)) && [m, ...(fam.of.get(m.id) || [])].some((x) => (q.get(x.id) || 0) > 0) && !Object.values(m.specs || {}).some((v) => String(v || '').trim())).length;
+  if (!need.length && !noSpec) return '';
+  const N = ['نموذج واحد', 'نموذجان', 'نماذج', 'نموذجاً', 'نموذج'];
+  return html`<div class="mdb-banner"><span class="mdb-bart">${UI.illu('computer')}${UI.illu('printer')}</span><div class="grow"><b>${need.length ? `${arCount(need.length, N)} يمكن بناؤها من أجهزتكم الموزعة` : 'أجهزتكم مبنية في نماذجها'}</b><span>${need.length ? 'تُجمع الأجهزة حسب الماركة والموديل داخل فئتها، ثم تُكتب مواصفات كل نموذج مرة واحدة فتسري على كل أجهزته.' : ''}${noSpec ? ` ${arCount(noSpec, N)} لها أجهزة مسجلة بلا مواصفات بعد.` : ''}</span></div>${need.length ? html`<button type="button" class="btn btn-primary btn-sm" data-act="mdb">${UI.icon('layers')} بناء النماذج</button>` : ''}${noSpec ? html`<button type="button" class="btn btn-soft btn-sm" data-act="mdbspecs">${UI.icon('edit')} إكمال المواصفات</button>` : ''}</div>`;
+};
 
 boot();
 })();

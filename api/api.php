@@ -975,6 +975,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'invkits') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* آخر اعتماد لنموذج أجهزة: نسخة ما قبله للتراجع */
       if ($key === 'mdlapply:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
+      /* بناء النماذج من الأجهزة الموزعة: إعداد الربط التلقائي، وآخر بناء للتراجع عنه */
+      if ($key === 'mdlcfg' || $key === 'mdlbuild:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
       if ($key === 'vtpl' || $key === 'vlay') return can_any($user, ['settings', 'vouchers.design']) ? $new : null;
       if ($key === 'vaultcfg') return can_any($user, ['settings', 'vault.manage']) ? $new : null;
