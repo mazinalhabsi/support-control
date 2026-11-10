@@ -3056,7 +3056,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -4304,7 +4304,7 @@ Pages.invReport = async (ctx) => {
         ${UI.kpi({ label: 'وحدات بعهدة الإدارات', icon: 'building', tone: 'violet', value: r.dept })}
         ${UI.kpi({ label: 'الإجمالي الكلي', icon: 'layers', tone: 'brass', value: r.store + r.dept })}
       </div>
-      ${r.rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th><th>التصنيف</th><th>المخازن</th>${wide ? cols.map((c) => html`<th>${Data.nameOf('departments', c, 'غير محدد')}</th>`) : st.scope !== 'store' ? html`<th>عهدة الإدارات</th>` : ''}<th>الإجمالي</th></tr></thead><tbody class="stagger">${r.rows.slice(0, 300).map((row) => html`<tr><td><div class="t-title">${UI.illu(itemIllu(row.item))}<div><div>${row.item.name}</div><div class="t-sub ltr" style="text-align:start">${row.item.sku}</div></div></div></td><td class="small">${Data.nameOf('itemCategories', row.item.categoryId)}</td><td><b>${fmtNum(row.store)}</b></td>${wide ? cols.map((c) => html`<td>${row.depts[c] ? fmtNum(row.depts[c]) : html`<span class="faint">—</span>`}</td>`) : st.scope !== 'store' ? html`<td>${row.deptTotal ? fmtNum(row.deptTotal) : html`<span class="faint">—</span>`}</td>` : ''}<td><b style="color:rgb(var(--accent-ink))">${fmtNum(row.total)}</b></td></tr>`)}</tbody></table></div>${r.rows.length > 300 ? html`<p class="hint" style="padding:10px 16px">يُعرض أول 300 صنف من ${fmtNum(r.rows.length)}. استخدم البحث أو التصنيف لتضييق النتائج.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد بيانات مطابقة', text: 'غيّر النطاق أو التصنيف أو البحث.' })}</div>`}`);
+      ${r.rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th><th>التصنيف</th><th>المخازن</th>${wide ? cols.map((c) => html`<th>${Data.nameOf('departments', c, 'غير محدد')}</th>`) : st.scope !== 'store' ? html`<th>عهدة الإدارات</th>` : ''}<th>الإجمالي</th></tr></thead><tbody class="stagger">${r.rows.slice(0, 300).map((row) => html`<tr><td><div class="t-title">${UI.illu(itemIllu(row.item))}<div><div>${row.item.name}</div><div class="t-sub" style="text-align:start">${[INVT.of(row.item).brand, row.item.sku].filter(Boolean).join(' · ')}</div></div></div></td><td class="small">${INVT.of(row.item).type}</td><td><b>${fmtNum(row.store)}</b></td>${wide ? cols.map((c) => html`<td>${row.depts[c] ? fmtNum(row.depts[c]) : html`<span class="faint">—</span>`}</td>`) : st.scope !== 'store' ? html`<td>${row.deptTotal ? fmtNum(row.deptTotal) : html`<span class="faint">—</span>`}</td>` : ''}<td><b style="color:rgb(var(--accent-ink))">${fmtNum(row.total)}</b></td></tr>`)}</tbody></table></div>${r.rows.length > 300 ? html`<p class="hint" style="padding:10px 16px">يُعرض أول 300 صنف من ${fmtNum(r.rows.length)}. استخدم البحث أو التصنيف لتضييق النتائج.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد بيانات مطابقة', text: 'غيّر النطاق أو التصنيف أو البحث.' })}</div>`}`);
     UI.hydrate($('#rbody', ctx.view));
   };
   UI.on(ctx.view, 'change', 'input[name="scope"]', (e, el) => { st.scope = el.value; $('#rpick', ctx.view).hidden = st.scope !== 'pick'; load(); });
@@ -4312,9 +4312,18 @@ Pages.invReport = async (ctx) => {
   $('#rwh', ctx.view).onchange = (e) => { st.warehouseId = e.target.value; load(); };
   $('#rcat', ctx.view).onchange = (e) => { st.cat = e.target.value; load(); };
   $('#rq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); load(); }, 300));
-  const tableData = () => { const { r, cols, wide } = ctx.report || { r: { rows: [] }, cols: [], wide: false }; const head = ['الصنف', 'الرمز', 'التصنيف', 'المخازن', ...(wide ? cols.map((c) => Data.nameOf('departments', c, 'غير محدد')) : st.scope !== 'store' ? ['عهدة الإدارات'] : []), 'الإجمالي']; const body = r.rows.map((row) => [row.item.name, row.item.sku, Data.nameOf('itemCategories', row.item.categoryId, ''), String(row.store), ...(wide ? cols.map((c) => String(row.depts[c] || 0)) : st.scope !== 'store' ? [String(row.deptTotal)] : []), String(row.total)]); return { head, body }; };
-  UI.on(ctx.view, 'click', '[data-act="xls"]', () => { const { head, body } = tableData(); downloadBlob(XL.write([{ name: 'تقرير المخزون', widths: [34, 16, 20, 12, ...head.slice(4).map(() => 16)], rows: [head, ...body] }]), `تقرير-المخزون-والعهد-${dateInput(now())}.xlsx`); UI.toast('تم تصدير التقرير'); });
-  UI.on(ctx.view, 'click', '[data-act="print"]', () => { const { head, body } = tableData(); UI.print(html`<h2>تقرير المخزون وعهد الإدارات</h2><table><tr>${head.map((h) => html`<th>${h}</th>`)}</tr>${body.slice(0, 500).map((r) => html`<tr>${r.map((c) => html`<td>${c}</td>`)}</tr>`)}</table><div class="sign-row two"><div>مسؤول الجرد</div><div>اعتماد المسؤول</div></div>`, 'تقرير المخزون والعهد'); });
+  const tableData = () => {
+    const { r, cols, wide } = ctx.report || { r: { rows: [] }, cols: [], wide: false };
+    const dcols = wide ? cols : st.scope !== 'store' ? ['__all'] : [];
+    const head = ['م', 'التصنيف', 'الماركة', 'الموديل', 'الرمز', 'المخازن', ...dcols.map((c) => (c === '__all' ? 'عهدة الإدارات' : Data.nameOf('departments', c, 'غير محدد'))), 'الإجمالي'];
+    const list = r.rows.map((row) => ({ row, t: INVT.of(row.item) })).sort((a, b) => AR_COLL.compare(a.t.type, b.t.type) || AR_COLL.compare(a.t.brand, b.t.brand) || AR_COLL.compare(a.t.model, b.t.model));
+    const body = list.map(({ row, t }, i) => [i + 1, t.type, t.brand || '—', t.model, row.item.sku || '', row.store, ...dcols.map((c) => (c === '__all' ? row.deptTotal : row.depts[c] || 0)), row.total]);
+    const tot = ['الإجمالي', '', '', '', '', r.rows.reduce((x, y) => x + y.store, 0), ...dcols.map((c) => r.rows.reduce((x, y) => x + (c === '__all' ? y.deptTotal : y.depts[c] || 0), 0)), r.rows.reduce((x, y) => x + y.total, 0)];
+    const filt = [{ all: 'المخازن وكل الإدارات', store: 'المخزن فقط', depts: 'كل الإدارات', pick: 'إدارات محددة' }[st.scope], st.warehouseId ? `المخزن: ${Data.nameOf('warehouses', st.warehouseId, '')}` : '', st.cat ? `التصنيف: ${Data.nameOf('itemCategories', st.cat, '')}` : '', st.q ? `بحث: ${st.q}` : ''].filter(Boolean).join(' · ');
+    return { head, body, tot, filt };
+  };
+  UI.on(ctx.view, 'click', '[data-act="xls"]', () => { const { head, body, tot, filt } = tableData(); downloadBlob(XL.write([{ name: 'تقرير المخزون', rows: [['تقرير المخزون والعهد'], ['النطاق', filt], ['أُعد في', fmtDateTime(now())], ['أعدّه', (Auth.user || {}).name || ''], [], head, ...body, tot] }]), `تقرير-المخزون-والعهد-${dateInput(now())}.xlsx`); UI.toast('تم تصدير التقرير'); });
+  UI.on(ctx.view, 'click', '[data-act="print"]', () => { const { head, body, tot, filt } = tableData(); const num = (i) => i === 0 || i >= 5; UI.print(html`<h2 style="text-align:center">تقرير المخزون وعهد الإدارات</h2><p class="inv-pf">${filt} · ${fmtNum(body.length)} صنف</p><table class="inv-pt"><thead><tr>${head.map((h, i) => html`<th${num(i) ? raw(' class="n"') : ''}>${h}</th>`)}</tr></thead><tbody>${body.slice(0, 1500).map((r) => html`<tr>${r.map((c, i) => html`<td${num(i) ? raw(' class="n"') : i === 3 || i === 4 ? raw(' dir="auto"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`)}</tr>`)}</tbody><tfoot><tr>${tot.map((c, i) => html`<td${num(i) ? raw(' class="n"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`)}</tr></tfoot></table><div class="sign-row two"><div>مسؤول الجرد</div><div>اعتماد المسؤول</div></div>`, 'تقرير المخزون والعهد'); });
   Pages.bindInv(ctx, load);
   await load();
 };
@@ -24632,6 +24641,25 @@ VC.xlsAll = async (vs) => {
   const byType = new Map(); vs.forEach((v) => { const t = VC.kind(v).label, e = byType.get(t) || [0, 0]; e[0]++; e[1] += VC.units(v); byType.set(t, e); });
   const kinds = [['نوع السند', 'عدد السندات', 'القطع'], ...[...byType.entries()].map(([t, [n, u]]) => [t, n, u]), ['الإجمالي', vs.length, vs.reduce((s, v) => s + VC.units(v), 0)]];
   downloadBlob(XL.write([{ name: 'السندات', rows: sum }, { name: 'الأجهزة والأصناف', rows: det }, { name: 'حسب النوع', rows: kinds }]), `السندات-${dateInput(now())}.xlsx`);
+};
+
+/* ══════════ الجولة 22: نوع الجهاز وماركته وموديله للتقارير ══════════
+   النوع من اسم الصنف نفسه (الكلمات العربية قبل الماركة: «شاشة»، «طابعة»، «حاسب مكتبي»)، وإلا من تصنيفه الرئيسي بالمفرد.
+   الموديل من حقله أو من الاسم، والماركة من حقلها أو من الاسم. */
+const INVT = {
+  ONE: { laptop: 'جهاز حاسب', computer: 'جهاز حاسب', display: 'شاشة', printer: 'طابعة', scanner: 'ماسح ضوئي', projector: 'جهاز عرض', cctv: 'كاميرا', webcam: 'كاميرا', speaker: 'سماعة', headset: 'سماعة رأس', network: 'جهاز شبكة', netswitch: 'محوّل شبكة', router: 'راوتر', wifi: 'نقطة وصول لاسلكية', cable: 'ملحق', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', drive: 'وسيط تخزين', ups: 'مزود طاقة', ink: 'حبر', toner: 'حبر', tablet: 'جهاز لوحي', phone: 'هاتف', server: 'خادم' },
+  _c: new Map(),
+  of(it) {
+    if (!it) return { type: '', brand: '', model: '' };
+    const key = `${it.id}:${it.updatedAt || 0}`; if (INVT._c.has(key)) return INVT._c.get(key);
+    const name = String(it.name || '').trim(), p = MDB.parse(it), model = String(it.model || '').trim() || p.model || '';
+    let lead = (name.match(/^[\u0600-\u06FF\s]+/) || [''])[0].trim();
+    MDB.aliases().filter((a) => !a.lat).forEach((a) => { lead = lead.replace(new RegExp(`(^|\\s)${a.a}$`), '').trim(); });
+    const top = IC.chain(it.categoryId)[0] || Data.c.itemCategories.get(it.categoryId) || {};
+    const cat = INVT.ONE[top.illustration] || top.name || '';
+    const out = { type: (lead && model ? lead : '') || cat || '—', brand: MDB.canonBrand(it.brand) || p.brand || '', model: model || name };
+    INVT._c.set(key, out); return out;
+  }
 };
 
 boot();

@@ -6414,3 +6414,13 @@ article.vc-card2[data-vpv]{cursor:pointer}
 
 .svr-bars.svx-hb li{grid-template-columns:minmax(80px,1fr) minmax(60px,1.4fr) auto}
 .svx-hb li>b{white-space:nowrap;font-size:12px;min-width:44px;text-align:end}
+
+/* ══════════ الجولة 22: تقرير المخزون المطبوع ══════════ */
+.print-doc .inv-pf{text-align:center;font-size:12px;color:#444;margin:-4px 0 10px}
+.print-doc .inv-pt thead{display:table-header-group}
+.print-doc .inv-pt tr{break-inside:avoid}
+.print-doc .inv-pt .n{text-align:center;white-space:nowrap}
+.print-doc .inv-pt td:nth-child(2){font-weight:700}
+.print-doc .inv-pt tfoot td{font-weight:800;background:#f6f2e8;border-top:2px solid #8a6a22}
+.print-doc .inv-pt td:nth-child(2),.print-doc .inv-pt td:nth-child(5){white-space:nowrap}
+.print-doc .inv-pt td:nth-child(5){direction:ltr;text-align:center}
