@@ -24643,22 +24643,20 @@ VC.xlsAll = async (vs) => {
   downloadBlob(XL.write([{ name: 'السندات', rows: sum }, { name: 'الأجهزة والأصناف', rows: det }, { name: 'حسب النوع', rows: kinds }]), `السندات-${dateInput(now())}.xlsx`);
 };
 
-/* ══════════ الجولة 22: نوع الجهاز وماركته وموديله للتقارير ══════════
-   النوع من اسم الصنف نفسه (الكلمات العربية قبل الماركة: «شاشة»، «طابعة»، «حاسب مكتبي»)، وإلا من تصنيفه الرئيسي بالمفرد.
+/* ══════════ الجولة 22: فئة الصنف وماركته وموديله للتقارير ══════════
+   التصنيف = اسم فئة الصنف كما هو في المخزن (الفئة المختارة في بطاقة الصنف).
    الموديل من حقله أو من الاسم، والماركة من حقلها أو من الاسم. */
 const INVT = {
-  ONE: { laptop: 'جهاز حاسب', computer: 'جهاز حاسب', display: 'شاشة', printer: 'طابعة', scanner: 'ماسح ضوئي', projector: 'جهاز عرض', cctv: 'كاميرا', webcam: 'كاميرا', speaker: 'سماعة', headset: 'سماعة رأس', network: 'جهاز شبكة', netswitch: 'محوّل شبكة', router: 'راوتر', wifi: 'نقطة وصول لاسلكية', cable: 'ملحق', keyboard: 'لوحة مفاتيح', mouse: 'ماوس', drive: 'وسيط تخزين', ups: 'مزود طاقة', ink: 'حبر', toner: 'حبر', tablet: 'جهاز لوحي', phone: 'هاتف', server: 'خادم' },
   _c: new Map(),
   of(it) {
     if (!it) return { type: '', brand: '', model: '' };
-    const key = `${it.id}:${it.updatedAt || 0}`; if (INVT._c.has(key)) return INVT._c.get(key);
-    const name = String(it.name || '').trim(), p = MDB.parse(it), model = String(it.model || '').trim() || p.model || '';
-    let lead = (name.match(/^[\u0600-\u06FF\s]+/) || [''])[0].trim();
-    MDB.aliases().filter((a) => !a.lat).forEach((a) => { lead = lead.replace(new RegExp(`(^|\\s)${a.a}$`), '').trim(); });
-    const top = IC.chain(it.categoryId)[0] || Data.c.itemCategories.get(it.categoryId) || {};
-    const cat = INVT.ONE[top.illustration] || top.name || '';
-    const out = { type: (lead && model ? lead : '') || cat || '—', brand: MDB.canonBrand(it.brand) || p.brand || '', model: model || name };
-    INVT._c.set(key, out); return out;
+    const type = Data.nameOf('itemCategories', it.categoryId, '') || '—';
+    const key = `${it.id}:${it.updatedAt || 0}`;
+    if (!INVT._c.has(key)) {
+      const name = String(it.name || '').trim(), p = MDB.parse(it), model = String(it.model || '').trim() || p.model || '';
+      INVT._c.set(key, { brand: MDB.canonBrand(it.brand) || p.brand || '', model: model || name });
+    }
+    return { type, ...INVT._c.get(key) };
   }
 };
 
