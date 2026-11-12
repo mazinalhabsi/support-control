@@ -6483,3 +6483,57 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 
 .dk-tile{position:relative}
 .dk-tile:hover>.cact,.dk-tile:focus-within>.cact{opacity:1;transform:none;pointer-events:auto}
+
+/* ══════════ الجولة 24: تأكيد العملية ══════════ */
+.modal.lg.opc-modal{max-width:min(760px,calc(100vw - 24px))}
+.opc{display:flex;flex-direction:column;gap:10px}
+.opc-hero{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(var(--t),.2),rgba(var(--t),.06));border:1px solid rgba(var(--t),.35)}
+.opc-hic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none;background:radial-gradient(120% 120% at 30% 25%,rgba(255,255,255,.45),rgba(255,255,255,0) 55%),rgb(var(--t));color:#fff;box-shadow:0 10px 20px -10px rgb(var(--t))}
+.opc-hic .ic{width:22px;height:22px}
+.opc-hero small{display:block;font-size:12px;color:var(--ink-2);font-weight:700}
+.opc-hero b{display:block;font-size:16.5px;line-height:1.5}
+.opc-kp{display:flex;gap:6px;flex:none}
+.opc-kp span{display:flex;flex-direction:column;align-items:center;min-width:58px;padding:6px 8px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--line-2);font-size:11px;color:var(--ink-3)}
+.opc-kp b{font-size:17px;color:var(--ink)}
+.opc-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:stretch}
+.opc-end{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--surface-solid);border:1px solid var(--line-2);min-width:0;position:relative}
+.opc-end>small{position:absolute;top:-8px;inset-inline-start:12px;font-size:10.5px;font-weight:800;padding:0 6px;border-radius:6px;background:var(--surface-2);color:var(--ink-3)}
+.opc-eic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);color:rgb(var(--accent));flex:none}
+.opc-end b{display:block;font-size:14px;overflow-wrap:anywhere}
+.opc-end span:not(.opc-eic){font-size:12px;color:var(--ink-3)}
+.opc-arr{display:grid;place-items:center;color:rgb(var(--accent))}
+.opc-arr .ic{width:22px;height:22px}
+.opc-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin:0}
+.opc-rows div{padding:7px 10px;border-radius:10px;background:var(--surface-solid);border:1px solid var(--line-2);min-width:0}
+.opc-rows dt{font-size:11px;color:var(--ink-3);font-weight:700}
+.opc-rows dd{margin:2px 0 0;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.opc-h{display:flex;align-items:center;gap:6px;margin:4px 0 0;font-size:13.5px}
+.opc-lines{display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow:auto}
+.opc-ln{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--line-2)}
+.opc-ln .iso.mini{width:40px;height:36px;flex:none}
+.opc-ln b{display:block;font-size:13.5px}
+.opc-ln small{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-3)}
+.opc-ln>em{font-style:normal;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--ink-3);flex:none}
+.opc-ln>em b{font-size:17px;color:var(--ink)}
+.opc-sns{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.opc-sns code{font-size:11px;padding:2px 7px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line-2);direction:ltr}
+.opc-doc{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:rgba(var(--accent),.07);border:1px dashed rgba(var(--accent),.4);font-size:13px}
+.opc-doc>.ic{width:18px;height:18px;flex:none;color:rgb(var(--accent));margin-top:2px}
+.opc-opts{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink-2)}
+@media (max-width:640px){.opc-flow{grid-template-columns:minmax(0,1fr)}.opc-arr{transform:rotate(-90deg)}.opc-hero{flex-wrap:wrap}}
+/* ══════════ الجولة 24: محرر الاستمارة ══════════ */
+.ved-side{gap:8px}
+.ved-bar{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:2;padding:6px 0;background:var(--surface)}
+.ved-sec{padding:10px 12px;border-radius:14px;background:var(--surface-solid);border:1px solid var(--line-2);display:flex;flex-direction:column;gap:8px}
+.ved-sec h4{display:flex;align-items:center;gap:6px;margin:0;font-size:13.5px}
+.ved-sec .input{width:100%;min-height:36px}
+.ved-sec textarea.input{min-height:64px;resize:vertical}
+.ved-facts{display:flex;flex-direction:column;gap:6px}
+.ved-fact{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr) auto;gap:6px;align-items:center}
+.ved-ln,.ved-party{padding:8px;border-radius:12px;border:1px dashed var(--line-2);display:flex;flex-direction:column;gap:6px}
+.ved-lnh{display:flex;align-items:center;gap:8px;font-size:13px}
+.ved-no{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:var(--surface-2);font-size:11.5px;font-weight:800;flex:none}
+.ved-lock{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-3);white-space:nowrap}
+.ved-lock .ic{width:12px;height:12px}
+.ved-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ved-grid label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--ink-3);font-weight:700;min-width:0}

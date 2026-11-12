@@ -2726,7 +2726,7 @@ Pages.loans = async (ctx) => {
   $('#lq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); st.offset = 0; load(); }, 300));
   UI.on(ctx.view, 'click', '[data-page]', (e, el) => { st.offset = Math.max(0, st.offset + (el.dataset.page === 'next' ? st.limit : -st.limit)); load(); });
   UI.on(ctx.view, 'click', '[data-ret]', async (e, el) => { const l = await DB.get('loans', el.dataset.ret); if (l && (await Pages.returnModal(l))) { load(); tabs(); } });
-  UI.on(ctx.view, 'click', '[data-print]', async (e, el) => { const l = await DB.get('loans', el.dataset.print); if (l) Pages.loanReceipt(l); });
+  UI.on(ctx.view, 'click', '[data-print]', async (e, el) => { const l = await DB.get('loans', el.dataset.print); if (l) { if (VPV.pref() === 'print') Pages.loanReceipt(l); else VED.loan(l); } });
   Pages.bindInv(ctx, () => { load(); tabs(); });
   await Promise.all([tabs(), load()]);
 };
@@ -4424,6 +4424,7 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
       if (['issue', 'transfer'].includes(type) && serialItem && avail.length && picks.length !== n) throw new AppError(`اختر ${fmtNum(n)} وحدة بأرقامها التسلسلية`);
       if (picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
       if (type === 'receive') await Data.assets.check(UI.serialPairs(form));
+      if (!(await OPC.move({ type, form, v, id, item, n, picks, avail, holderUser }))) return false;
       const mv = await Data.inv.move({ type, itemId: id, warehouseId: v.warehouseId, toWarehouseId: v.toWarehouseId, qty: v.qty, note: v.note, ref: v.ref, party: holderUser ? holderUser.name : v.party, departmentId: v.departmentId });
       if (type === 'receive') { const serials = UI.serialPairs(form); if (serials.length) { const r = await Data.assets.add({ itemId: id, warehouseId: v.warehouseId, serials }); if (r.dupes.length) UI.toast(`تم تجاهل ${arCount(r.dupes.length, AR.item)} لتكرار الرقم التسلسلي`, 'warn'); } }
       else if (picks.length) { if (type === 'issue') await Data.assets.assign(picks, { status: 'issued', departmentId: v.departmentId || '', holder: holderUser ? holderUser.name : v.party || '', holderId: v.holderId || '', warehouseId: '' }); else if (type === 'transfer') await Data.assets.assign(picks, { warehouseId: v.toWarehouseId }); }
@@ -4484,11 +4485,12 @@ Pages.loanModal = async (itemId) => {
       const picks = $$('[data-pick]:checked', form).map((x) => x.dataset.pick), n = Math.floor(Number(v.qty) || 1);
       if (isSerialItem(item) && avail.length && picks.length !== n) throw new AppError(`اختر ${fmtNum(n)} وحدة بأرقامها التسلسلية`);
       if (picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
+      if (!(await OPC.loan({ v, id, item, n, picks, avail, user, name }))) return false;
       const loan = await Data.inv.lend({ itemId: id, warehouseId: v.warehouseId, qty: n, borrower: name, departmentId: v.departmentId || (user ? user.departmentId : ''), dueAt: fromDateInput(v.dueAt, true), note: v.note });
       const rec = await DB.get('loans', loan.id); rec.borrowerId = v.borrowerId || ''; rec.assetIds = picks; await DB.put('loans', rec);
       if (picks.length) await Data.assets.assign(picks, { status: 'loaned', holder: name, holderId: v.borrowerId || '', loanId: loan.id, warehouseId: '' });
       if (v.borrowerId) await Data.notify([v.borrowerId], { title: `استلمت عهدة: ${rec.itemName}`, body: rec.dueAt ? `يرجى إرجاعها قبل ${fmtDate(rec.dueAt)}` : 'عهدة دائمة', link: '/my-custody', kind: 'inventory' });
-      UI.toast(`تم تسليم العهدة ${loan.number}`); setTimeout(() => Pages.loanReceipt(rec), 300); return rec;
+      UI.toast(`تم تسليم العهدة ${loan.number}`); setTimeout(() => VED.afterLoan(rec), 300); return rec;
     } }]
   });
 };
@@ -4642,6 +4644,7 @@ Pages.cartModal = (mode = 'issue') => {
       const departmentId = v.departmentId || (user ? user.departmentId : '');
       if (state.mode === 'issue' && !departmentId) throw new AppError('حدد الإدارة التي ستُضاف العهدة إليها');
       const dueAt = state.mode === 'loan' && Number(v.days) > 0 ? now() + Number(v.days) * DAY : 0;
+      if (!(await OPC.cart({ mode: state.mode, name, user, departmentId, v, dueAt, form }))) return false;
       const voucher = await Pages.checkoutCart({ mode: state.mode, holder: name, holderId: v.holderId || '', departmentId, unitId: v.unitId || '', dueAt, ref: v.ref, note: v.note });
       UI.confetti(); UI.toast(`تم إصدار السند ${voucher.number}`);
       setTimeout(() => Pages.afterVoucher(voucher), 350);
@@ -5473,6 +5476,7 @@ Pages.transferModal = async ({ itemId, departmentId, unitId = '' }) => {
       if (mineAssets.length && picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
       const serials = picks.map((id) => (mineAssets.find((a) => a.id === id) || {}).serial).filter(Boolean);
       let fromLabel = '', toLabel = '', toDept = departmentId, toUnit = '';
+      if (!(await OPC.xfer({ v, it, n, serials, departmentId, offices }))) return false;
       if (v.mode === 'office') {
         toUnit = v.toUnitId; if (!toUnit) throw new AppError('اختر المكتب المستلم');
         await Data.units.move({ departmentId, itemId, fromUnitId: v.fromUnitId, toUnitId: toUnit, qty: n });
@@ -5529,6 +5533,7 @@ Pages.replaceModal = async ({ itemId, departmentId, unitId = '' }) => {
       const boxes = $$('[data-pick]:checked', form).map((x) => x.dataset.pick);
       const oldPicks = boxes.filter((id) => oldAssets.some((a) => a.id === id)), newPicks = boxes.filter((id) => !oldPicks.includes(id));
       const oldSerials = oldPicks.map((id) => (oldAssets.find((a) => a.id === id) || {}).serial).filter(Boolean);
+      if (!(await OPC.replace({ v, n, oldItem, newItem, oldPicks, newPicks, oldAssets, departmentId, offices }))) return false;
       await Data.dept.returnToStore({ departmentId, itemId, warehouseId: v.warehouseId, qty: n, note: `استبدال: ${v.reason}` });
       if (v.fromUnitId || unitId) { const uid2 = v.fromUnitId || unitId; const cur = await DB.get('unitStock', [uid2, itemId]); if (cur && cur.qty >= n) { cur.qty -= n; cur.updatedAt = now(); await DB.put('unitStock', cur); } }
       if (oldPicks.length) await Data.assets.assign(oldPicks, { status: v.oldFate === 'تحويل إلى الصيانة' ? 'maintenance' : v.oldFate === 'خارج عن الخدمة (تالف)' ? 'retired' : 'in_store', departmentId: '', holder: '', holderId: '', warehouseId: v.warehouseId });
@@ -5727,6 +5732,7 @@ Pages.bulkTransferModal = async (departmentId, itemIds) => {
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'نقل وإصدار السند', kind: 'primary', icon: 'print', submit: true, handler: async (form) => {
       const v = UI.formValues(form), lines = [];
       let fromLabel = Data.nameOf('departments', departmentId), toLabel = '', toDept = departmentId;
+      if (!(await OPC.bulk({ v, items, held, form, departmentId, offices }))) return false;
       for (const it of items) {
         const qty = Math.floor(Number((form.querySelector(`[data-q="${it.id}"]`) || {}).value) || 0);
         if (!qty) continue;
@@ -5760,6 +5766,7 @@ Pages.deptReturnModal = async (departmentId, itemId = '') => {
       const v = UI.formValues(form), n = Math.floor(Number(v.qty) || 1), it = items.get(v.itemId) || {};
       const picks = $$('[data-pick]:checked', form).map((x) => x.dataset.pick), all = await assetsFor(v.itemId);
       if (all.length && picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
+      if (!(await OPC.ret({ v, n, it, picks, all, departmentId }))) return false;
       await Data.dept.returnToStore({ departmentId, itemId: v.itemId, warehouseId: v.warehouseId, qty: n, note: `${v.reason} — ${v.condition}${v.note ? ` — ${v.note}` : ''}`, party: v.party });
       const serials = picks.map((id) => (all.find((a) => a.id === id) || {}).serial).filter(Boolean);
       if (picks.length) await Data.assets.assign(picks, { status: v.condition === 'يحتاج صيانة' ? 'maintenance' : v.condition === 'تالف' ? 'retired' : 'in_store', departmentId: '', holder: '', holderId: '', warehouseId: v.warehouseId });
@@ -20660,6 +20667,7 @@ Pages.cmCommit = async (print) => {
   const N = Data.assets.norm, all = lines.flatMap((l) => (l.kind === 'assign' ? [] : snSplit(l.sn))).map(N), twice = all.find((s, i) => all.indexOf(s) !== i);
   if (twice) throw new AppError(`الرقم التسلسلي ${twice} مكرر في القائمة`);
   for (const l of lines) { const n = l.kind === 'assign' ? 0 : snSplit(l.sn).length; if (n > l.qty) l.qty = n; }
+  if (!(await OPC.cm(lines))) return false;
   const done = [], failed = [];
   for (const l of lines) {
     const sns = l.kind === 'assign' ? [] : CMP.pairs(l);
@@ -23419,7 +23427,7 @@ const VPV = {
       body: html`<div class="vpv">
         <aside class="vpv-side">
           <div class="vpv-hero tone-${k.tone}"><span class="vpv-hic">${UI.icon(k.icon)}</span><div class="grow"><small>${k.title}</small><b class="ltr">${v.number}</b><span>${fmtDateTime(v.at)} · ${timeAgo(v.at)}</span></div></div>
-          ${fresh ? html`<div class="vpv-fresh">${UI.icon('check')}<div><b>صدر السند وحُفظ في أرشيف السندات</b><label class="check"><input type="checkbox" data-vpvpref${VPV.pref() === 'print' ? raw(' checked') : ''}><span>في المرات القادمة: اطبع مباشرة بعد الإصدار دون معاينة</span></label></div></div>` : ''}
+          ${fresh ? html`<div class="vpv-fresh">${UI.icon('check')}<div><b>صدر السند وحُفظ في أرشيف السندات</b><label class="check"><input type="checkbox" data-vpvpref${VPV.pref() === 'print' ? raw(' checked') : ''}><span>في المرات القادمة: اطبع مباشرة بعد الإصدار دون معاينة</span></label><label class="check"><input type="checkbox" data-opcpref${OPC.on() ? raw(' checked') : ''}><span>اطلب تأكيد العملية قبل التنفيذ</span></label></div></div>` : ''}
           <p class="vpv-purpose">${VC.purpose(v)}</p>
           <div class="vpv-kpis"><span><b>${fmtNum(lines.length)}</b>صنف</span><span><b>${fmtNum(VC.units(v))}</b>قطعة</span><span><b>${fmtNum(sns)}</b>رقم تسلسلي</span></div>
           ${facts.length ? html`<dl class="vpv-facts">${facts.map(([a, b]) => html`<div><dt>${a}</dt><dd>${b}</dd></div>`)}</dl>` : ''}
@@ -23443,15 +23451,18 @@ const VPV = {
         UI.on(form, 'click', '[data-vz]', (e, b) => { const d = b.dataset.vz; if (d === 'fit') st.z = 0; else st.z = clamp(Math.round(((st.z || fit()) + (Number(d) > 0 ? 0.1 : -0.1)) * 10) / 10, 0.3, 2.5); zoom(); });
         const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { if (!st.z) zoom(); }) : null; if (ro) ro.observe(stage);
         const dlg = form.closest('dialog'); if (dlg && ro) dlg.addEventListener('close', () => ro.disconnect(), { once: true });
+        const ld0 = ld.innerHTML;
+        const load = async () => { ld.innerHTML = ld0; ld.hidden = false;
         st.cap = VPV.capture(() => Pages.printVoucher(v)); const h = await st.cap; st.cap = null;
         if (!form.isConnected) return;
         if (!h) { ld.innerHTML = String(html`${UI.icon('alert')}<b>تعذّرت المعاينة. يمكنك الطباعة مباشرة.</b>`); return; }
         st.P = VPV.page(h);
         const sz = form.querySelector('[data-vpvsz]'); if (sz) { sz.hidden = false; sz.textContent = st.P.name; }
         fr.addEventListener('load', () => { zoom(); const fams = [...new Set($$('[style*="font-family"]', fr.contentDocument).map((e) => (e.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim()).filter(Boolean))]; const go = () => { ld.hidden = true; }; if (fr.contentDocument.fonts && fams.length) Promise.race([Promise.all(fams.map((f) => fr.contentDocument.fonts.load(`400 16px "${f}"`))), new Promise((r) => setTimeout(r, 1200))]).then(go, go); else go(); }, { once: true });
-        fr.srcdoc = VPV.srcdoc(h, st.P);
+        fr.srcdoc = VPV.srcdoc(h, st.P); };
+        form._vpvLoad = load; await load();
       },
-      actions: [{ label: 'إغلاق', kind: 'ghost', value: false }, { label: 'Excel', kind: 'soft', icon: 'download', handler: () => { VC.xls(v); return false; } }, { label: 'طباعة', kind: 'primary', icon: 'print', handler: async () => { if (st.cap) await st.cap; Pages.printVoucher(v); return false; } }]
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: false }, { label: 'Excel', kind: 'soft', icon: 'download', handler: () => { VC.xls(v); return false; } }, ...(VED.can() && v.type !== 'custody' ? [{ label: 'تعديل الاستمارة', kind: 'soft', icon: 'edit', handler: async (form) => { const r = await VED.voucher(v); if (r === 'saved' && form.isConnected && form._vpvLoad) form._vpvLoad(); return false; } }] : []), { label: 'طباعة', kind: 'primary', icon: 'print', handler: async () => { if (st.cap) await st.cap; Pages.printVoucher(v); return false; } }]
     });
   }
 };
@@ -24920,6 +24931,262 @@ document.addEventListener('click', (e) => {
   if (!dep) { UI.toast('افتح الإدارة أولاً ثم نفّذ الإجراء', 'warn'); return; }
   CACT.run(b.dataset.cact, { itemId: host.dataset.cactItem, dep, at }).catch((ex) => UI.error(ex));
 }, true);
+
+/* ══════════ الجولة 24: تأكيد العملية قبل التنفيذ ══════════
+   بعد التحقق من البيانات وقبل أي تغيير في المخزن أو العهد: ملخص بما سيحدث (من ← إلى، الأصناف بكمياتها
+   وأرقامها التسلسلية، والتنبيهات)، ثم «تأكيد وتنفيذ» أو «رجوع للتعديل» دون أن يُفقد شيء مما كُتب.
+   خيار «اطلب التأكيد» لكل جهاز، ومعه خيار مراجعة الاستمارة وتعديلها قبل الطباعة. */
+const OPC = {
+  KIND: {
+    issue: ['تأكيد الصرف', 'upload', 'violet', 'صرف عهدة من المخزن'], loan: ['تأكيد الإعارة', 'clipboard', 'amber', 'إعارة أو تسليم عهدة'],
+    transfer: ['تأكيد النقل', 'swap', 'sky', 'نقل عهدة'], replace: ['تأكيد الاستبدال', 'refresh', 'teal', 'استبدال جهاز'],
+    return: ['تأكيد الإرجاع', 'undo', 'brass', 'إرجاع إلى المخزن'], receive: ['تأكيد الاستلام', 'download', 'teal', 'استلام إلى المخزن'],
+    whxfer: ['تأكيد التحويل', 'swap', 'sky', 'تحويل بين المخازن'], adjust: ['تأكيد التسوية', 'refresh', 'amber', 'تسوية جرد'],
+    custody: ['تأكيد التوزيع', 'building', 'violet', 'توزيع العهدة على الهيكل']
+  },
+  on() { try { return localStorage.getItem('sq_opc') !== 'off'; } catch (_) { return true; } },
+  set(v) { try { localStorage.setItem('sq_opc', v ? 'on' : 'off'); } catch (_) { /* تجاهل */ } },
+  editPref() { try { return localStorage.getItem('sq_opc_edit') === '1'; } catch (_) { return false; } },
+  next: null,
+  take() { const n = OPC.next; OPC.next = null; return n || {}; },
+  ln(it, qty, serials = [], o = {}) { it = it || {}; return { item: it, name: it.name || o.name || '—', sub: [[it.brand, it.model].filter(Boolean).join(' '), it.sku].filter(Boolean).join(' · '), qty: Number(qty) || 0, unit: it.unit || 'قطعة', serials: (serials || []).filter(Boolean), note: o.note || '' }; },
+  lnHTML(l) {
+    const sn = l.serials || [];
+    return html`<div class="opc-ln">${UI.illu(itemIllu(l.item || {}), 'mini')}<div class="grow"><b>${l.name}</b>${l.sub ? html`<small class="ltr-num">${l.sub}</small>` : ''}${l.note ? html`<small>${UI.icon('pin')} ${l.note}</small>` : ''}${sn.length ? html`<div class="opc-sns">${sn.slice(0, 12).map((x) => html`<code>${x}</code>`)}${sn.length > 12 ? html`<span class="faint small">+${fmtNum(sn.length - 12)}</span>` : ''}</div>` : ''}</div><em><b>${fmtNum(l.qty)}</b>${l.unit}</em></div>`;
+  },
+  async ask(o) {
+    OPC.next = null;
+    if (!OPC.on()) { OPC.next = { edit: false }; return true; }
+    const k = OPC.KIND[o.kind] || ['تأكيد العملية', 'check', 'slate', 'عملية'];
+    const lines = o.lines || [], old = o.old || [], doc = o.voucher || o.doc || '';
+    const units = lines.reduce((x, l) => x + (Number(l.qty) || 0), 0), sns = lines.reduce((x, l) => x + (l.serials || []).length, 0);
+    const rows = (o.rows || []).filter(([, b]) => b != null && String(b).trim() !== '');
+    const end = (e, cap) => (e ? html`<div class="opc-end"><small>${cap}</small><span class="opc-eic">${UI.icon(e.icon || 'box')}</span><div class="grow"><b>${e.label || '—'}</b>${e.sub ? html`<span>${e.sub}</span>` : ''}</div></div>` : '');
+    const r = await UI.modal({ title: k[0], icon: k[1], size: 'lg opc-modal',
+      body: html`<div class="opc">
+        <div class="opc-hero tone-${k[2]}"><span class="opc-hic">${UI.icon(k[1])}</span><div class="grow"><small>${k[3]}</small><b>${o.head || 'راجع البيانات قبل التنفيذ'}</b></div><div class="opc-kp"><span><b>${fmtNum(lines.length)}</b>صنف</span><span><b>${fmtNum(units)}</b>قطعة</span>${sns ? html`<span><b>${fmtNum(sns)}</b>رقم تسلسلي</span>` : ''}</div></div>
+        ${o.from || o.to ? html`<div class="opc-flow">${end(o.from, 'من')}<span class="opc-arr">${UI.icon('chevron-left')}</span>${end(o.to, 'إلى')}</div>` : ''}
+        ${rows.length ? html`<dl class="opc-rows">${rows.map(([a, b]) => html`<div><dt>${a}</dt><dd>${b}</dd></div>`)}</dl>` : ''}
+        <h4 class="opc-h">${UI.icon('box')} ${o.linesTitle || (old.length ? 'الجهاز الجديد' : 'الأصناف')}</h4>
+        <div class="opc-lines">${lines.length ? lines.map(OPC.lnHTML) : html`<p class="faint small">لا أصناف</p>`}</div>
+        ${old.length ? html`<h4 class="opc-h">${UI.icon('refresh')} الجهاز القديم</h4><div class="opc-lines">${old.map(OPC.lnHTML)}</div>` : ''}
+        ${(o.warn || []).filter(Boolean).map((w) => html`<div class="banner tone-amber mt">${UI.icon('alert')}<div class="grow">${w}</div></div>`)}
+        <div class="opc-doc">${UI.icon(doc ? 'file' : 'info')}<div class="grow">${doc ? html`يصدر <b>${doc}</b>${o.voucher ? ' برقم جديد ويُحفظ في أرشيف السندات' : ''}.` : 'تُسجَّل الحركة في سجل المخزن.'} لا تُلغى العملية بعد تنفيذها إلا بعملية عكسية.</div></div>
+        <div class="opc-opts">${doc && !o.noEdit ? html`<label class="check"><input type="checkbox" name="opcEdit"${OPC.editPref() ? raw(' checked') : ''}><span>${UI.icon('edit')} مراجعة الاستمارة وتعديلها قبل الطباعة</span></label>` : ''}<label class="check"><input type="checkbox" name="opcOn" checked><span>اطلب التأكيد قبل كل عملية على هذا الجهاز</span></label></div>
+      </div>`,
+      actions: [{ label: 'رجوع للتعديل', kind: 'ghost', value: false }, { label: o.ok || 'تأكيد وتنفيذ', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ edit: !!(f.querySelector('[name="opcEdit"]') || {}).checked, keep: (f.querySelector('[name="opcOn"]') || { checked: true }).checked, doc: !!(doc && !o.noEdit) }) }] });
+    if (!r || typeof r !== 'object') return false;
+    if (r.doc) { try { localStorage.setItem('sq_opc_edit', r.edit ? '1' : '0'); } catch (_) { /* تجاهل */ } }
+    if (!r.keep) { OPC.set(false); UI.toast('أُوقف طلب التأكيد على هذا الجهاز. تعيد تفعيله من نافذة معاينة أي سند', 'info', 6000); }
+    OPC.next = { edit: r.edit };
+    return true;
+  },
+  async move({ type, form, v, id, item, n, picks, avail, holderUser }) {
+    const it = item || (await DB.get('items', id)) || {}, cur = ((await DB.get('stock', [v.warehouseId, id])) || {}).qty || 0, wh = Data.nameOf('warehouses', v.warehouseId, '—'), u = it.unit || 'قطعة';
+    const sns = type === 'receive' ? UI.serialValues(form).filter(Boolean) : picks.map((pid) => (avail.find((a) => a.id === pid) || {}).serial).filter(Boolean);
+    const lines = [OPC.ln(it, n, sns)];
+    if (type === 'adjust') { const d = n - cur; return OPC.ask({ kind: 'adjust', head: d ? `${d > 0 ? 'زيادة' : 'خصم'} ${fmtNum(Math.abs(d))} ${u} في «${it.name}»` : `لا فرق في رصيد «${it.name}»`, from: { icon: 'database', label: `الرصيد في النظام: ${fmtNum(cur)}`, sub: wh }, to: { icon: 'check', label: `الرصيد الفعلي: ${fmtNum(n)}`, sub: d ? `الفرق ${d > 0 ? '+' : '−'}${fmtNum(Math.abs(d))}` : 'مطابق' }, rows: [['سبب التسوية', v.note]], lines, linesTitle: 'الصنف (الرصيد بعد التسوية)', warn: [d < 0 ? 'التسوية بالنقص تُخرج الكمية من الرصيد نهائياً' : ''] }); }
+    if (type === 'receive') return OPC.ask({ kind: 'receive', head: `استلام ${fmtNum(n)} ${u} إلى «${wh}»`, from: { icon: 'download', label: 'وارد جديد', sub: v.ref ? `المرجع: ${v.ref}` : '' }, to: { icon: 'warehouse', label: wh, sub: `الرصيد ${fmtNum(cur)} ← ${fmtNum(cur + n)}` }, rows: [['المرجع', v.ref], ['ملاحظات', v.note]], lines, warn: [isSerialItem(it) && !sns.length ? 'صنف مُسلسل يُستلم بلا أرقام تسلسلية' : ''] });
+    if (type === 'transfer') { const to = Data.nameOf('warehouses', v.toWarehouseId, '—'); return OPC.ask({ kind: 'whxfer', head: `تحويل ${fmtNum(n)} ${u} من «${wh}» إلى «${to}»`, from: { icon: 'warehouse', label: wh, sub: `المتاح ${fmtNum(cur)} ← ${fmtNum(Math.max(0, cur - n))}` }, to: { icon: 'warehouse', label: to }, rows: [['المرجع', v.ref], ['ملاحظات', v.note]], lines, warn: [n > cur ? `الكمية أكبر من المتاح في «${wh}»` : '', v.toWarehouseId && v.toWarehouseId === v.warehouseId ? 'المخزن المصدر والمستلم متطابقان' : ''] }); }
+    const dep = Data.nameOf('departments', v.departmentId, ''), us = form.querySelector('[name="unitId"]'), office = us && us.value ? us.options[us.selectedIndex].textContent : '';
+    return OPC.ask({ kind: 'issue', head: `صرف ${fmtNum(n)} ${u} إلى ${holderUser ? holderUser.name : dep || 'جهة غير محددة'}`, from: { icon: 'warehouse', label: wh, sub: `المتاح ${fmtNum(cur)} ← يتبقى ${fmtNum(Math.max(0, cur - n))}` }, to: { icon: holderUser ? 'user' : 'building', label: holderUser ? holderUser.name : dep || '—', sub: [holderUser ? dep : '', office].filter(Boolean).join(' — ') }, rows: [['الإدارة المستفيدة', dep], ['المكتب', office], ['المرجع', v.ref], ['ملاحظات', v.note]], lines, voucher: VOUCHER_KIND.issue.title, warn: [n > cur ? 'الكمية أكبر من الرصيد المتاح في المخزن' : '', !v.departmentId ? 'لم تُحدَّد الإدارة المستفيدة: لن تُضاف الكمية إلى عهدة أي إدارة' : ''] });
+  },
+  async loan({ v, id, item, n, picks, avail, user, name }) {
+    const it = item || (await DB.get('items', id)) || {}, wh = Data.nameOf('warehouses', v.warehouseId, '—'), cur = ((await DB.get('stock', [v.warehouseId, id])) || {}).qty || 0;
+    const dep = Data.nameOf('departments', v.departmentId || (user ? user.departmentId : ''), ''), due = v.dueAt ? fmtDate(fromDateInput(v.dueAt, true)) : 'عهدة دائمة';
+    const sns = picks.map((pid) => (avail.find((a) => a.id === pid) || {}).serial).filter(Boolean);
+    return OPC.ask({ kind: 'loan', head: `${v.dueAt ? 'إعارة' : 'تسليم عهدة'}: ${fmtNum(n)} ${it.unit || 'قطعة'} إلى ${name}`, from: { icon: 'warehouse', label: wh, sub: `المتاح ${fmtNum(cur)} ← يتبقى ${fmtNum(Math.max(0, cur - n))}` }, to: { icon: 'user', label: name, sub: dep }, rows: [['موعد الإرجاع', due], ['الإدارة', dep], ['ملاحظات', v.note]], lines: [OPC.ln(it, n, sns)], doc: (VOUCHER_KIND.receipt || {}).title || 'سند تسليم عهدة', warn: [n > cur ? 'الكمية أكبر من الرصيد المتاح' : '', !user ? 'المستلم بلا حساب في النظام: لن يصله تنبيه بموعد الإرجاع' : ''] });
+  },
+  async cart({ mode, name, user, departmentId, v, dueAt, form }) {
+    const its = await Promise.all(Cart.lines.map((l) => DB.get('items', l.itemId))), st = await Promise.all(Cart.lines.map((l) => DB.get('stock', [l.warehouseId, l.itemId])));
+    const lines = Cart.lines.map((l, i) => OPC.ln(its[i] || { name: l.name, brand: l.brand, model: l.model, sku: l.sku, unit: l.unit }, l.qty, (l.serials || []).map((x) => x.serial), { note: `من ${Data.nameOf('warehouses', l.warehouseId, '—')}` }));
+    const over = Cart.lines.filter((l, i) => Number(l.qty) > ((st[i] || {}).qty || 0)).map((l) => l.name);
+    const whs = [...new Set(Cart.lines.map((l) => Data.nameOf('warehouses', l.warehouseId, '')))].filter(Boolean);
+    const dep = Data.nameOf('departments', departmentId, ''), us = form.querySelector('[name="unitId"]'), office = us && us.value ? us.options[us.selectedIndex].textContent : '', loan = mode === 'loan';
+    return OPC.ask({ kind: loan ? 'loan' : 'issue', head: `${loan ? 'إعارة' : 'صرف'} ${arCount(lines.length, AR.item)} إلى ${name}`, from: { icon: 'warehouse', label: whs.join('، ') || '—', sub: whs.length > 1 ? `${fmtNum(whs.length)} مخازن` : '' }, to: { icon: user ? 'user' : 'building', label: name, sub: [dep, office].filter(Boolean).join(' — ') }, rows: [['الإدارة', dep], ['المكتب', office], ['موعد الإرجاع', loan ? (dueAt ? fmtDate(dueAt) : 'عهدة دائمة') : ''], ['المرجع', v.ref], ['ملاحظات تُطبع في السند', v.note]], lines, voucher: (VOUCHER_KIND[loan ? 'loan' : 'issue'] || {}).title, warn: [over.length ? `الكمية أكبر من المتاح: ${over.join('، ')}` : ''] });
+  },
+  async xfer({ v, it, n, serials, departmentId, offices }) {
+    if (v.mode === 'office' ? !v.toUnitId : !v.toDepartmentId) throw new AppError(v.mode === 'office' ? 'اختر المكتب المستلم' : 'اختر الإدارة المستلمة');
+    const dep = Data.nameOf('departments', departmentId, ''), off = (x) => (offices.find((o) => o.value === x) || {}).label || '', office = v.mode === 'office';
+    const from = office ? (v.fromUnitId ? off(v.fromUnitId) : `${dep} (غير موزّع)`) : dep, to = office ? off(v.toUnitId) : Data.nameOf('departments', v.toDepartmentId, '');
+    return OPC.ask({ kind: 'transfer', head: `نقل ${fmtNum(n)} ${it.unit || 'قطعة'} ${office ? 'بين مكاتب الإدارة' : 'إلى إدارة أخرى'}`, from: { icon: office ? 'pin' : 'building', label: from, sub: office ? dep : '' }, to: { icon: office ? 'pin' : 'building', label: to, sub: office ? dep : '' }, rows: [['سبب النقل', v.note]], lines: [OPC.ln(it, n, serials)], voucher: VOUCHER_KIND.transfer.title, warn: [office && v.fromUnitId && v.fromUnitId === v.toUnitId ? 'المكتب المصدر والمستلم متطابقان' : ''] });
+  },
+  async replace({ v, n, oldItem, newItem, oldPicks, newPicks, oldAssets, departmentId, offices }) {
+    const newSns = (await Promise.all(newPicks.map((x) => DB.get('assets', x)))).filter(Boolean).map((a) => a.serial), oldSns = oldPicks.map((x) => (oldAssets.find((a) => a.id === x) || {}).serial).filter(Boolean);
+    const dep = Data.nameOf('departments', departmentId, ''), office = (offices.find((o) => o.value === v.unitId) || {}).label || '', holder = v.holderId ? Data.userName(v.holderId) : '';
+    return OPC.ask({ kind: 'replace', head: `استبدال «${oldItem.name}» بـ «${newItem ? newItem.name : '—'}»`, from: { icon: 'undo', label: oldItem.name, sub: v.oldFate || '' }, to: { icon: 'upload', label: newItem ? newItem.name : '—', sub: [holder, dep, office].filter(Boolean).join(' — ') }, rows: [['سبب الاستبدال', v.reason], ['مصير الجهاز القديم', v.oldFate], ['يُرجَع القديم إلى', Data.nameOf('warehouses', v.warehouseId, '')], ['يُصرف الجديد من', Data.nameOf('warehouses', v.newWarehouseId, '')], ['ملاحظات', v.note]], lines: [OPC.ln(newItem, n, newSns)], old: [OPC.ln(oldItem, n, oldSns)], voucher: VOUCHER_KIND.replace.title, warn: [v.oldFate === 'خارج عن الخدمة (تالف)' ? 'الجهاز القديم يُخرج من الخدمة ويُخصم من رصيد المخزن' : ''] });
+  },
+  async bulk({ v, items, held, form, departmentId, offices }) {
+    const qs = items.map((it) => [it, Math.floor(Number((form.querySelector(`[data-q="${it.id}"]`) || {}).value) || 0)]).filter(([, q]) => q > 0);
+    const over = qs.find(([it, q]) => q > held[it.id]); if (over) throw new AppError(`${over[0].name}: المتاح ${fmtNum(held[over[0].id])} فقط`);
+    if (!qs.length) throw new AppError('حدد كمية واحدة على الأقل');
+    if (v.mode === 'office' ? !v.toUnitId : !v.toDepartmentId) throw new AppError(v.mode === 'office' ? 'اختر المكتب المستلم' : 'اختر الإدارة المستلمة');
+    const dep = Data.nameOf('departments', departmentId, ''), to = v.mode === 'office' ? (offices.find((o) => o.value === v.toUnitId) || {}).label || '' : Data.nameOf('departments', v.toDepartmentId, '');
+    return OPC.ask({ kind: 'transfer', head: `نقل ${arCount(qs.length, AR.item)} دفعة واحدة`, from: { icon: 'building', label: dep }, to: { icon: v.mode === 'office' ? 'pin' : 'building', label: to, sub: v.mode === 'office' ? dep : '' }, rows: [['سبب النقل', v.note]], lines: qs.map(([it, q]) => OPC.ln(it, q)), voucher: VOUCHER_KIND.transfer.title });
+  },
+  async ret({ v, n, it, picks, all, departmentId }) {
+    const sns = picks.map((x) => (all.find((a) => a.id === x) || {}).serial).filter(Boolean), wh = Data.nameOf('warehouses', v.warehouseId, '—'), dep = Data.nameOf('departments', departmentId, '');
+    const held = ((await DB.get('deptStock', [departmentId, v.itemId])) || {}).qty || 0;
+    return OPC.ask({ kind: 'return', head: `إرجاع ${fmtNum(n)} ${it.unit || 'قطعة'} من عهدة ${dep}`, from: { icon: 'building', label: dep, sub: `بالعهدة ${fmtNum(held)} ← ${fmtNum(Math.max(0, held - n))}` }, to: { icon: 'warehouse', label: wh, sub: v.condition || '' }, rows: [['حالة الصنف', v.condition], ['سبب الإرجاع', v.reason], ['المُسلِّم', v.party], ['ملاحظات', v.note]], lines: [OPC.ln(it, n, sns)], voucher: (VOUCHER_KIND.return || {}).title || 'سند إرجاع', warn: [n > held ? `الكمية أكبر مما بالعهدة (${fmtNum(held)})` : '', v.condition === 'تالف' ? 'الصنف التالف يُسجَّل خارج الخدمة' : ''] });
+  },
+  async cm(lines) {
+    const ids = [...new Set(lines.map((l) => l.itemId))], its = new Map((await Promise.all(ids.map((x) => DB.get('items', x)))).filter(Boolean).map((i) => [i.id, i]));
+    const units2 = await DB.getAll('deptUnits'), place = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : orgLabel(l.depId, l.unitId, units2) || Data.nameOf('departments', l.depId, ''));
+    const how = { store: 'استلام في المخزن', add: 'إضافة مباشرة للعهدة', assign: 'تخصيص من العهدة العامة' }, deps = new Set(lines.filter((l) => l.kind !== 'store').map((l) => l.depId).filter(Boolean));
+    const ok = await OPC.ask({ kind: 'custody', head: `حفظ ${fmtNum(lines.length)} سطر توزيع`, rows: [['الإدارات', [...deps].map((d) => Data.nameOf('departments', d, '')).join('، ')]], lines: lines.map((l) => OPC.ln(its.get(l.itemId), l.qty, l.kind === 'assign' ? [] : snSplit(l.sn), { note: `${place(l)} — ${l.temp ? 'استخدام مؤقت' : how[l.kind] || 'نقل داخل الإدارة'}` })), doc: 'كشف توزيع عهدة', noEdit: true, linesTitle: 'سطور التوزيع' });
+    OPC.next = null; return ok;
+  }
+};
+document.addEventListener('change', (e) => { const el = e.target.closest && e.target.closest('[data-opcpref]'); if (!el) return; OPC.set(el.checked); UI.toast(el.checked ? 'سيُطلب تأكيد كل عملية قبل تنفيذها' : 'لن يُطلب التأكيد قبل العمليات على هذا الجهاز', 'info'); });
+
+/* ══════════ الجولة 24: تعديل الاستمارة قبل الطباعة أو الحفظ ══════════
+   محرر بجانب معاينة حية: العنوان، والبيانات (إضافة وحذف بنود)، وأسماء الأصناف ووصفها ووحدتها وملاحظتها،
+   والملاحظات، ونص الإقرار، وأسماء الأطراف ورتبهم وأرقامهم. الكمية والأرقام التسلسلية مقفلة لأنها
+   مرتبطة بحركة المخزن. تُحفظ التعديلات مع السند (وتظهر في كل إعادة طباعة) ويُسجَّل من عدّلها ومتى. */
+const VED = {
+  queue: new Map(), _probe: 0, _doc: null,
+  can() { return ['inventory.move', 'inventory.manage', 'loans.manage', 'custody.direct', 'settings'].some((p) => Auth.can(p)); },
+  async probe(fn) { VED._probe++; VED._doc = null; try { await fn(); } catch (e) { console.warn('ved probe', e); } finally { VED._probe--; } const d = VED._doc; VED._doc = null; return d; },
+  desc: (l) => [l.brand, l.model].filter(Boolean).join(' '),
+  ml(ls, es) { return (ls || []).map((l, i) => { const x = (es || [])[i]; if (!x) return l; const o = { ...l }; if (x.name != null) o.name = x.name; if (x.desc != null) { o.brand = x.desc; o.model = ''; } if (x.unit != null) o.unit = x.unit; if (x.info != null) o.info = x.info; return o; }); },
+  apply(d, e) {
+    if (!d || !e) return d;
+    const out = { ...d };
+    if (Array.isArray(e.facts)) out.facts = e.facts.map(([a, b]) => [String(a || '').trim(), String(b || '').trim()]).filter(([a, b]) => a || b);
+    if (e.lines) out.lines = VED.ml(d.lines, e.lines);
+    if (e.oldLines) out.oldLines = VED.ml(d.oldLines, e.oldLines);
+    if (e.note != null) out.note = e.note;
+    if (e.pledge != null) out._pledge = e.pledge;
+    if (e.title) out._title = e.title;
+    if (e.parties) {
+      out.parties = (d.parties || []).map((p, i) => (e.parties[i] ? { ...p, ...e.parties[i] } : p));
+      const ri = (d.parties || []).findIndex((p) => p.role === 'recv');
+      if (d.returnHolder && ri >= 0 && e.parties[ri]) out.returnHolder = { ...d.returnHolder, ...e.parties[ri] };
+    }
+    return out;
+  },
+  clean(e) {
+    if (!e) return null; const o = {};
+    ['title', 'note', 'pledge'].forEach((k) => { if (e[k] != null) o[k] = e[k]; });
+    if (Array.isArray(e.facts)) o.facts = e.facts;
+    ['lines', 'oldLines', 'parties'].forEach((k) => { const a = (e[k] || []).map((x) => (x && Object.keys(x).length ? x : null)); if (a.some(Boolean)) o[k] = a; });
+    return Object.keys(o).length ? o : null;
+  },
+  count(e) { if (!e) return 0; let n = ['title', 'note', 'pledge'].filter((k) => e[k] != null).length + (e.facts ? 1 : 0); ['lines', 'oldLines', 'parties'].forEach((k) => (e[k] || []).forEach((x) => { if (x) n += Object.keys(x).length; })); return n; },
+  async studio({ title, icon = 'edit', base, edits, save = null, fresh = false }) {
+    const T0 = VTPL.eff(base.kindKey), R = { recv: T0.sigs.recv, deliv: T0.sigs.deliv, appr: T0.sigs.appr };
+    const tplTitle = String(T0.title.text || '').trim() || (base.kind || {}).title || '', tplPledge = String(T0.pledge.text || '').trim() || base.pledge || '';
+    let e = JSON.parse(JSON.stringify(VED.clean(edits || {}) || {})), savedJ = JSON.stringify(VED.clean(e)), saved = false;
+    const dirty = () => JSON.stringify(VED.clean(e)) !== savedJ;
+    const facts = () => e.facts || base.facts || [];
+    const val = (g, i, k, b) => { const x = (e[g] || [])[i] || {}; return x[k] != null ? x[k] : b; };
+    const setL = (g, i, k, value, b) => { const arr = (e[g] = e[g] || []); const x = { ...(arr[i] || {}) }; if (value === b) delete x[k]; else x[k] = value; arr[i] = Object.keys(x).length ? x : null; if (!arr.some(Boolean)) delete e[g]; };
+    const lineEd = (g, l, i) => html`<div class="ved-ln" data-g="${g}" data-i="${i}"><div class="ved-lnh"><span class="ved-no">${fmtNum(i + 1)}</span><b class="grow">${l.name}</b><span class="ved-lock" title="الكمية والأرقام التسلسلية مرتبطة بحركة المخزن ولا تُعدَّل من الاستمارة">${UI.icon('lock')} ${fmtNum(l.qty)} ${l.unit || 'قطعة'}${(l.serials || []).length ? ` · ${fmtNum(l.serials.length)} S/N` : ''}</span></div>
+      <div class="ved-grid"><label><span>اسم الصنف</span><input class="input" data-k="name" value="${val(g, i, 'name', l.name || '')}"></label><label><span>الماركة والموديل</span><input class="input" dir="auto" data-k="desc" value="${val(g, i, 'desc', VED.desc(l))}"></label><label><span>الوحدة</span><input class="input" data-k="unit" value="${val(g, i, 'unit', l.unit || 'قطعة')}"></label><label><span>ملاحظة السطر</span><input class="input" data-k="info" value="${val(g, i, 'info', l.info || '')}" placeholder="${T0.table.info ? '' : 'تظهر حين يُفعَّل عمودها في التصميم'}"></label></div></div>`;
+    const parties = (base.parties || []).map((p, i) => [p, i]).filter(([p]) => !p.signOnly);
+    const factsHTML = () => html`${facts().map(([a, b], i) => html`<div class="ved-fact" data-fi="${i}"><input class="input" data-fk="0" value="${a}" placeholder="البيان"><input class="input" data-fk="1" value="${b}" placeholder="القيمة"><button type="button" class="icon-btn" data-vfdel="${i}" title="حذف البند" aria-label="حذف البند">${UI.icon('x')}</button></div>`)}`;
+    const edHTML = () => html`
+      <section class="ved-sec"><h4>${UI.icon('file')} العنوان</h4><input class="input" data-k="title" placeholder="${tplTitle}" value="${e.title || ''}"></section>
+      <section class="ved-sec"><h4>${UI.icon('layers')} البيانات<span class="grow"></span><button type="button" class="btn btn-ghost btn-xs" data-vfadd>${UI.icon('plus')} بند</button></h4><div class="ved-facts" data-vfacts>${factsHTML()}</div></section>
+      <section class="ved-sec"><h4>${UI.icon('box')} ${(base.oldLines || []).length ? 'الجهاز الجديد' : 'الأصناف'}</h4>${(base.lines || []).map((l, i) => lineEd('lines', l, i))}</section>
+      ${(base.oldLines || []).length ? html`<section class="ved-sec"><h4>${UI.icon('refresh')} الجهاز القديم</h4>${base.oldLines.map((l, i) => lineEd('oldLines', l, i))}</section>` : ''}
+      <section class="ved-sec"><h4>${UI.icon('edit')} ${T0.notes.label || 'ملاحظات'}</h4><textarea class="input" rows="3" data-k="note">${e.note != null ? e.note : base.note || ''}</textarea>${T0.notes.show ? '' : html`<small class="hint">خانة الملاحظات مخفية في تصميم هذا النوع</small>`}</section>
+      <section class="ved-sec"><h4>${UI.icon('shield')} نص الإقرار</h4><textarea class="input" rows="3" data-k="pledge">${e.pledge != null ? e.pledge : tplPledge}</textarea></section>
+      ${parties.length ? html`<section class="ved-sec"><h4>${UI.icon('users')} الأطراف والتواقيع</h4>${parties.map(([p, i]) => html`<div class="ved-party" data-pi="${i}"><b>${(p.role && R[p.role]) || p.title}</b><div class="ved-grid"><label><span>الاسم</span><input class="input" data-k="name" value="${val('parties', i, 'name', p.name || '')}"></label><label><span>الرتبة</span><input class="input" data-k="rank" value="${val('parties', i, 'rank', p.rank || '')}"></label><label><span>الرقم</span><input class="input ltr" data-k="no" value="${val('parties', i, 'no', p.no || '')}"></label><label><span>الصفة الفرعية</span><input class="input" data-k="sub" value="${val('parties', i, 'sub', p.sub || '')}"></label></div></div>`)}</section>` : ''}`;
+    const st = { z: 0, P: null, busy: Promise.resolve(), y: 0 };
+    return UI.modal({ title, icon, size: 'xl vpv-modal',
+      body: html`<div class="vpv ved"><aside class="vpv-side ved-side">
+          ${fresh ? html`<div class="vpv-fresh">${UI.icon('check')}<div><b>نُفّذت العملية وحُفظ السند</b><span class="small faint">عدّل ما تشاء ثم اطبع؛ تُحفظ التعديلات مع السند</span></div></div>` : ''}
+          <div class="ved-bar"><span class="chip tone-slate" data-vedn>بلا تعديلات</span><span class="grow"></span><button type="button" class="btn btn-ghost btn-xs" data-vreset>${UI.icon('undo')} استعادة الأصل</button></div>
+          <div data-ved>${edHTML()}</div></aside>
+        <section class="vpv-doc"><div class="vpv-tb"><span class="vpv-tt">${UI.icon('file')} المستند كما سيُطبع</span><span class="grow"></span><button type="button" class="icon-btn" data-vz="-1" title="تصغير">−</button><button type="button" class="btn btn-ghost btn-xs" data-vz="fit"><span data-vzv>ملاءمة</span></button><button type="button" class="icon-btn" data-vz="1" title="تكبير">+</button></div>
+          <div class="vpv-stage"><iframe class="vpv-frame" title="معاينة الاستمارة" sandbox="allow-same-origin"></iframe><div class="vpv-load" data-vpvload><div class="spinner"></div><b>جارٍ تجهيز المعاينة بالقالب المعتمد…</b></div></div></section></div>`,
+      onMount: (form) => {
+        const fr = form.querySelector('.vpv-frame'), stage = form.querySelector('.vpv-stage'), ld = form.querySelector('[data-vpvload]'), zv = form.querySelector('[data-vzv]');
+        const fit = () => { if (!st.P) return 1; return clamp((stage.clientWidth - 8) / (st.P.w * 3.7795 + 30), 0.3, 1.6); };
+        const zoom = () => { const d = fr.contentDocument; if (!d || !d.body) return; const z = st.z || fit(); d.body.style.zoom = String(z); zv.textContent = st.z ? `${Math.round(z * 100)}%` : `ملاءمة (${Math.round(z * 100)}%)`; };
+        UI.on(form, 'click', '[data-vz]', (ev, b) => { const d = b.dataset.vz; st.z = d === 'fit' ? 0 : clamp(Math.round(((st.z || fit()) + (Number(d) > 0 ? 0.1 : -0.1)) * 10) / 10, 0.3, 2.5); zoom(); });
+        const chip = () => { const n = VED.count(VED.clean(e)), c = form.querySelector('[data-vedn]'); c.className = `chip tone-${n ? (save && dirty() ? 'amber' : 'teal') : 'slate'}`; c.textContent = n ? `${fmtNum(n)} تعديل${save ? (dirty() ? ' · غير محفوظ' : ' · محفوظ') : ''}` : 'بلا تعديلات'; };
+        const paint = async () => {
+          const h = await VPV.capture(() => VD.print(VED.apply(base, VED.clean(e)))); if (!form.isConnected) return;
+          if (!h) { ld.hidden = false; ld.innerHTML = String(html`${UI.icon('alert')}<b>تعذّرت المعاينة. يمكنك الطباعة مباشرة.</b>`); return; }
+          st.P = VPV.page(h); try { st.y = fr.contentWindow ? fr.contentWindow.scrollY : 0; } catch (_) { /* تجاهل */ }
+          fr.addEventListener('load', () => { zoom(); try { fr.contentWindow.scrollTo(0, st.y); } catch (_) { /* تجاهل */ } ld.hidden = true; }, { once: true });
+          fr.srcdoc = VPV.srcdoc(h, st.P);
+        };
+        const redraw = debounce(() => { st.busy = st.busy.then(paint, paint); }, 380);
+        const reFacts = () => { form.querySelector('[data-vfacts]').innerHTML = String(factsHTML()); };
+        form.addEventListener('input', (ev) => {
+          const t = ev.target, fi = t.closest('[data-fi]');
+          if (fi) { const rows = $$('[data-fi]', form).map((r) => [r.querySelector('[data-fk="0"]').value, r.querySelector('[data-fk="1"]').value]); if (JSON.stringify(rows) === JSON.stringify(base.facts || [])) delete e.facts; else e.facts = rows; chip(); redraw(); return; }
+          const k = t.dataset.k; if (!k) return;
+          const ln = t.closest('[data-g]');
+          if (ln) { const g = ln.dataset.g, i = Number(ln.dataset.i), l = (base[g] || [])[i] || {}; setL(g, i, k, t.value, { name: l.name || '', desc: VED.desc(l), unit: l.unit || 'قطعة', info: l.info || '' }[k]); chip(); redraw(); return; }
+          const pi = t.closest('[data-pi]');
+          if (pi) { const i = Number(pi.dataset.pi), p = (base.parties || [])[i] || {}; setL('parties', i, k, t.value, p[k] || ''); chip(); redraw(); return; }
+          const b = { title: '', note: base.note || '', pledge: tplPledge }[k]; if (b === undefined) return;
+          if (t.value === b || (k === 'title' && !t.value.trim())) delete e[k]; else e[k] = t.value;
+          chip(); redraw();
+        });
+        UI.on(form, 'click', '[data-vfadd]', () => { e.facts = [...facts().map((x) => [...x]), ['', '']]; reFacts(); chip(); const ins = $$('[data-fi] [data-fk="0"]', form); if (ins.length) ins[ins.length - 1].focus(); });
+        UI.on(form, 'click', '[data-vfdel]', (ev, b) => { const i = Number(b.dataset.vfdel); e.facts = facts().filter((x, j) => j !== i).map((x) => [...x]); reFacts(); chip(); redraw(); });
+        UI.on(form, 'click', '[data-vreset]', async () => { if (!VED.count(VED.clean(e))) return; if (!(await UI.confirm('إلغاء كل التعديلات على هذه الاستمارة والعودة إلى الأصل؟', { ok: 'استعادة الأصل' }))) return; e = {}; form.querySelector('[data-ved]').innerHTML = String(edHTML()); chip(); redraw(); });
+        form._ved = { e: () => e, dirty, wait: () => st.busy, saved: () => saved, markSaved: () => { savedJ = JSON.stringify(VED.clean(e)); saved = true; chip(); } };
+        st.busy = paint(); chip();
+      },
+      actions: [
+        { label: 'إغلاق', kind: 'ghost', handler: async (form) => { if (save && form._ved.dirty() && !(await UI.confirm('في الاستمارة تعديلات لم تُحفظ. تجاهلها؟', { ok: 'تجاهل', danger: true }))) return false; return form._ved.saved() ? 'saved' : null; } },
+        ...(save ? [{ label: 'حفظ التعديلات', kind: 'soft', icon: 'check', handler: async (form) => { await save(VED.clean(form._ved.e())); form._ved.markSaved(); UI.toast('حُفظت تعديلات الاستمارة مع السند'); return false; } }] : []),
+        { label: save ? 'حفظ وطباعة' : 'طباعة', kind: 'primary', icon: 'print', handler: async (form) => { const c = VED.clean(form._ved.e()); if (save && form._ved.dirty()) { await save(c); form._ved.markSaved(); } await form._ved.wait(); VD.print(VED.apply(base, c)); return false; } }
+      ] });
+  },
+  async voucher(v, o = {}) {
+    if (typeof v === 'string') v = await DB.get('vouchers', v);
+    if (!v) return null;
+    const base = await VED.probe(() => Pages.printVoucher({ ...v, docEdits: null }));
+    if (!base) { UI.toast('هذا النوع يُطبع بقالبه الخاص ولا يُعدَّل من هنا', 'warn'); if (o.fresh) VPV.open(v, { fresh: true }); return null; }
+    const k = VC.kind(v);
+    return VED.studio({ title: `${o.fresh ? 'مراجعة' : 'تعديل'} ${k.title} ${v.number}`, base, edits: v.docEdits, fresh: o.fresh,
+      save: VED.can() ? async (c) => { const cur = (await DB.get('vouchers', v.id)) || v; cur.docEdits = c ? { ...c, at: now(), by: Auth.user.id } : null; await DB.put('vouchers', cur); v.docEdits = cur.docEdits; await Data.log('update', 'inventory', cur.id, `تعديل استمارة ${cur.number}`); } : null });
+  },
+  async loan(l, o = {}) {
+    if (typeof l === 'string') l = await DB.get('loans', l);
+    if (!l) return null;
+    const base = await VED.probe(() => Pages.loanReceipt({ ...l, docEdits: null }));
+    if (!base) return Pages.loanReceipt(l);
+    return VED.studio({ title: `${o.fresh ? 'مراجعة' : 'تعديل'} ${(VOUCHER_KIND.receipt || {}).title || 'سند تسليم العهدة'} ${l.number}`, icon: 'clipboard', base, edits: l.docEdits, fresh: o.fresh,
+      save: VED.can() ? async (c) => { const cur = (await DB.get('loans', l.id)) || l; cur.docEdits = c ? { ...c, at: now(), by: Auth.user.id } : null; await DB.put('loans', cur); l.docEdits = cur.docEdits; await Data.log('update', 'inventory', cur.id, `تعديل سند العهدة ${cur.number}`); } : null });
+  },
+  afterLoan(l) { const o = OPC.take(); if (o.edit || VPV.pref() !== 'print') return VED.loan(l, { fresh: true }); return Pages.loanReceipt(l); }
+};
+/* التعديلات المحفوظة تُطبَّق في كل طباعة، والعنوان والإقرار المعدّلان يتقدمان على القالب */
+{
+  const p0 = VD.print;
+  VD.print = (d) => {
+    if (!d) return p0(d);
+    const e = VED.queue.get(d.number); VED.queue.delete(d.number);
+    if (VED._probe) { VED._doc = d; return; }
+    const x = e ? VED.apply(d, e) : d;
+    if (!x._title && x._pledge == null) return p0(x);
+    const eff0 = VTPL.eff;
+    VTPL.eff = (k) => { const T = eff0(k); return { ...T, title: x._title ? { ...T.title, text: x._title } : T.title, pledge: x._pledge != null ? { ...T.pledge, text: x._pledge, show: !!String(x._pledge).trim() } : T.pledge }; };
+    try { return p0(x); } finally { VTPL.eff = eff0; }
+  };
+  const pv = Pages.printVoucher;
+  Pages.printVoucher = (v) => { if (v && v.docEdits && v.number) VED.queue.set(v.number, v.docEdits); try { return pv(v); } finally { if (v && v.number) VED.queue.delete(v.number); } };
+  const lr = Pages.loanReceipt;
+  Pages.loanReceipt = async (l) => { if (l && l.docEdits && l.number) VED.queue.set(l.number, l.docEdits); try { return await lr(l); } finally { if (l && l.number) VED.queue.delete(l.number); } };
+  /* سندات الإرسال للصيانة والاستلام منها: معاينة وتعديل قبل الطباعة (دون حفظ) */
+  const xp = Pages.xmPrint;
+  Pages.xmPrint = async (recs, mode = 'send') => {
+    if (VPV.pref() === 'print') return xp(recs, mode);
+    const base = await VED.probe(() => xp(recs, mode)); if (!base) return xp(recs, mode);
+    return VED.studio({ title: `${mode === 'send' ? 'سند إرسال للصيانة' : 'سند استلام من الصيانة'} ${base.number}`, icon: 'tools', base });
+  };
+  /* بعد إصدار سند: مراجعة الاستمارة وتعديلها إن طُلب ذلك في نافذة التأكيد */
+  const av = Pages.afterVoucher;
+  Pages.afterVoucher = (v) => (OPC.take().edit ? VED.voucher(v, { fresh: true }) : av(v));
+}
 
 boot();
 })();
