@@ -1006,6 +1006,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'mdlcfg' || $key === 'mdlbuild:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* إظهار السندات للموظفين: يفتحه المشرف ويغلقه وحده */
       if ($key === 'vselfcfg') return is_sup($user) ? $new : null;
+      if ($key === 'rcperm') return can_any($user, ['settings', 'users.manage']) ? $new : null;
       /* سجل الخطوط المرفوعة: من يصمم الاستمارات أو يدير الإعدادات */
       if ($key === 'vfonts') return can_any($user, ['settings', 'vouchers.design', 'forms.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;

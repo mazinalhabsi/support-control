@@ -6537,3 +6537,67 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .ved-lock .ic{width:12px;height:12px}
 .ved-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .ved-grid label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--ink-3);font-weight:700;min-width:0}
+
+/* ══════════ الجولة 24: مستندات الفئات ══════════ */
+.cdoc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 14px}
+.cdoc-st{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--ink-3)}
+.cdoc-st>.ic{width:14px;height:14px}
+/* ══════════ الجولة 24: صلاحيات التقارير ══════════ */
+.rcp-tab{border:0;background:transparent;cursor:pointer;font:inherit;margin-inline-start:auto}
+.rcp{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:2px}
+.rcp-row{display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr);gap:10px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-solid)}
+.rcp-h{display:flex;align-items:center;gap:8px;min-width:0}
+.rcp-h .ic{width:26px;height:26px;flex:none}
+.rcp-h b{font-size:13.5px}
+.rcp-h small{display:block;font-size:11px;color:var(--ink-3);margin-inline-start:auto;white-space:nowrap}
+.rcp-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rcp-chips .chip button{border:0;background:transparent;cursor:pointer;padding:0;margin-inline-start:4px;display:inline-grid;place-items:center;color:inherit}
+.rcp-chips .chip button .ic{width:12px;height:12px}
+.rcp-chips select{height:30px;border-radius:9px;border:1px dashed var(--line-2);background:transparent;color:var(--ink-2);font:inherit;font-size:12.5px;padding:0 8px}
+.rcp-sum{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.rcp-sum h4{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:13px}
+.rcp-sum div{display:flex;gap:8px;font-size:12.5px;padding:3px 0}
+.rcp-sum span{color:var(--ink-3)}
+@media (max-width:640px){.rcp-row{grid-template-columns:minmax(0,1fr)}}
+/* ══════════ الجولة 24: مصمم الاستمارات ══════════ */
+.vlc-all{display:flex;gap:6px;margin-bottom:6px}
+.vle-bandc{width:24px;height:24px;border-radius:7px;border:0;background:transparent;color:var(--ink-3);display:grid;place-items:center;cursor:pointer;flex:none}
+.vle-bandc:hover{background:var(--surface-2);color:rgb(var(--accent))}
+.vle-bandc .ic{width:14px;height:14px}
+.vle-bandr.vlc-off{opacity:.7}
+.vle-bandr.vlc-off .vle-bandn span{text-decoration:line-through dotted}
+.vlf-list{display:flex;flex-direction:column;gap:6px}
+.vlf-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-solid)}
+.vlf-row.own{border-color:rgba(16,150,105,.45);background:rgba(16,185,129,.06)}
+.vlf-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);color:rgb(var(--accent));flex:none}
+.vlf-row small{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-3)}
+.vlf-row small .ic{width:12px;height:12px}
+/* ══════════ الجولة 24: طباعة النماذج ══════════ */
+.print-doc .mdlp-t.details td:nth-child(5){font-size:10.5px;color:#333}
+/* ══════════ الجولة 24: لوحة النماذج — المصدر وعرض الهيكل ══════════ */
+.cm-psrc{display:inline-flex;gap:2px;padding:2px;border-radius:10px;background:var(--surface-2);flex:none}
+.cm-psrc button{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 9px;border-radius:8px;border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer}
+.cm-psrc button .ic{width:14px;height:14px}
+.cm-psrc button.on{background:var(--surface-solid);color:rgb(var(--accent));font-weight:800;box-shadow:0 2px 6px -3px rgba(0,0,0,.3)}
+.cm-pstruct{display:flex;flex-direction:column;gap:10px}
+.cm-ps{border:1px solid var(--line-2);border-radius:14px;background:var(--surface-solid);overflow:hidden}
+.cm-ps>header{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);font-size:13px}
+.cm-ps>header small{margin-inline-start:auto;color:var(--ink-3);font-weight:700}
+.cm-psb{display:flex;flex-direction:column;gap:8px;padding:8px 10px 10px;position:relative}
+.cm-psbr{position:relative;padding-inline-start:14px;border-inline-start:2px solid var(--line-2)}
+.cm-psbr::before{content:"";position:absolute;top:10px;inset-inline-start:-2px;width:10px;height:2px;background:var(--line-2)}
+.cm-psbr h5{margin:0 0 6px;font-size:12.5px;display:flex;align-items:center;gap:6px}
+.cm-psbr h5 small{color:var(--ink-3)}
+/* ══════════ الجولة 24: ربط الجهاز بالشاشة ══════════ */
+.wsp{margin-top:12px;padding:10px 12px;border-radius:14px;border:1px dashed var(--line-2);background:var(--surface-2)}
+.wsp h5{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:13px}
+.wsp h5 small{color:var(--ink-3);font-weight:600}
+.wsp-list{display:flex;flex-wrap:wrap;gap:8px}
+.wsp-pair{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--line-2);font-size:12.5px}
+.wsp-pair>i{color:rgb(var(--accent));display:grid;place-items:center}
+.wsp-pair>i .ic{width:16px;height:16px}
+.wsp-d{display:inline-flex;align-items:center;gap:5px}
+.wsp-d .iso.mini{width:28px;height:24px}
+.wsp-pair code{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--surface-2);direction:ltr}
+.wsp-pair small{color:var(--ink-3)}
+.wsp-pair .icon-btn{width:24px;height:24px}
