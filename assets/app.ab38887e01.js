@@ -1521,7 +1521,7 @@ UI.print = (content, title) => {
   document.body.classList.add('printing');
   /* طباعتان متتاليتان: لا يمسح تنظيف الأولى محتوى الثانية */
   const tok = (UI._printTok = (UI._printTok || 0) + 1);
-  setTimeout(() => { if (tok !== UI._printTok) return; window.print(); setTimeout(() => { if (tok !== UI._printTok) return; document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80);
+  setTimeout(() => { if (tok !== UI._printTok) return; UI.printNow(tok, root); }, 80);
 };
 
 /* ── الحركة: عدادات، إمالة ثلاثية الأبعاد، عمق، احتفال، أصوات ── */
@@ -2464,7 +2464,7 @@ Pages.ticket = async (ctx) => {
         </div>
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
-          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('layers')} الموضع</dt><dd>${[Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← ') || t.location || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd><dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd><dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
+          ${UI.panel({ title: 'التفاصيل', icon: 'info', body: html`<div class="row" style="flex-wrap:nowrap;margin-bottom:14px">${UI.avatar(req, 'av-lg')}<div><b>${Data.userName(t.requesterId)}</b><div class="t-sub">${Data.nameOf('departments', t.departmentId)}${t.unitPath ? ` ← ${t.unitPath}` : ''}</div></div></div><dl class="kv"><dt>${UI.icon('tag')} الفئة</dt><dd>${c.name}</dd><dt>${UI.icon('layers')} الموضع</dt><dd>${[Data.nameOf('departments', t.departmentId, ''), t.unitPath].filter(Boolean).join(' ← ') || t.location || '—'}</dd><dt>${UI.icon('phone')} التواصل</dt><dd><span class="ltr">${t.contact || '—'}</span></dd>${TINK.rows(t)}<dt>${UI.icon('calendar')} الإنشاء</dt><dd>${fmtDateTime(t.createdAt)}</dd><dt>${UI.icon('refresh')} آخر تحديث</dt><dd>${timeAgo(t.updatedAt)}</dd>${t.resolveMethod ? html`<dt>${UI.icon('tools')} طريقة الحل</dt><dd>${RESOLVE_LABEL[t.resolveMethod] || t.resolveMethod}</dd>` : ''}${t.rating ? html`<dt>${UI.icon('star')} التقييم</dt><dd>${UI.stars(t.rating)}${t.ratingComment ? html`<div class="t-sub">${t.ratingComment}</div>` : ''}</dd>` : ''}</dl>` })}
           ${staff && VAULT.on() && VAULT.canRead() ? html`<div data-tknotes="${t.id}"></div>` : ''}
           ${staff ? UI.panel({ title: 'الإسناد والأولوية', icon: 'user-plus', body: html`<div class="stack" style="gap:12px"><div class="row" style="flex-wrap:nowrap">${t.assigneeId ? html`${UI.avatar(t.assigneeId, 'av-lg')}<div><b>${Data.userName(t.assigneeId)}</b><div class="t-sub">الفني المسؤول</div></div>` : html`<span class="faint">لم يُسند إلى فني بعد</span>`}</div>${mgr && OPEN.includes(t.status) ? html`${UI.field({ name: 'assign', label: 'إسناد إلى', type: 'select', options: UI.userOpts(['technician', 'support_manager', 'supervisor']) }, t.assigneeId)}${UI.field({ name: 'prio', label: 'الأولوية', type: 'select', placeholder: false, options: Object.entries(PRIORITY).map(([k, p]) => ({ value: k, label: p.label })) }, t.priority)}` : ''}</div>` }) : ''}
           ${staff ? Pages.ticketFlow(t) : ''}
@@ -3056,7 +3056,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -4280,53 +4280,7 @@ Pages.pickDept = async (title) => {
 };
 
 /* تقرير المخزون والعهد */
-Pages.invReport = async (ctx) => {
-  const st = { scope: 'all', depts: new Set(), warehouseId: '', cat: '', q: '' };
-  ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'تقرير المخزون والعهد', sub: 'أرصدة المخازن وعهد الإدارات في جدول واحد، مع تصدير وطباعة', illu: 'display', actions: html`<button class="btn" data-act="xls">${UI.icon('download')} تصدير Excel</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} طباعة</button>` })}
-    <section class="panel"><div class="toolbar">
-      <div class="seg" role="radiogroup" aria-label="النطاق">${[['all', 'المخازن وكل الإدارات'], ['store', 'المخزن فقط'], ['depts', 'كل الإدارات'], ['pick', 'إدارات محددة']].map(([k, l]) => html`<label><input type="radio" name="scope" value="${k}"${st.scope === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>
-      <select id="rwh" aria-label="المخزن"><option value="">كل المخازن</option>${UI.opts('warehouses').map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>
-      <select id="rcat" aria-label="التصنيف"><option value="">كل التصنيفات</option>${UI.opts('itemCategories').map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>
-      <div class="search-box" style="max-width:280px">${UI.icon('search')}<input id="rq" type="search" placeholder="اسم الصنف أو الرمز"></div>
-    </div><div id="rpick" class="panel-body" hidden><label class="field"><span class="small faint">اختر الإدارات المطلوبة</span><div class="chip-pick" style="margin-top:8px">${Data.list('departments').map((d) => html`<label><input type="checkbox" data-rdep="${d.id}"><span>${d.name}</span></label>`)}</div></label></div><div id="rbody"></div></section>`);
-  const load = async () => {
-    const depts = st.scope === 'store' ? ['__none__'] : st.scope === 'pick' ? [...st.depts] : [];
-    if (st.scope === 'pick' && !st.depts.size) { $('#rbody', ctx.view).innerHTML = String(html`<div class="panel-body">${UI.noData('اختر إدارة واحدة على الأقل')}</div>`); return; }
-    const r = await Data.dept.report({ departments: depts, warehouseId: st.warehouseId, categoryId: st.cat, q: st.q });
-    if (!ctx.alive()) return;
-    const cols = st.scope === 'pick' ? [...st.depts] : st.scope === 'store' ? [] : (await Data.dept.all()).map((d) => d.departmentId).slice(0, 6);
-    const wide = cols.length && cols.length <= 8;
-    ctx.report = { r, cols, wide };
-    $('#rbody', ctx.view).innerHTML = String(html`
-      <div class="kpis" style="border:0;border-radius:0;box-shadow:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
-        ${UI.kpi({ label: 'أصناف في التقرير', icon: 'box', tone: 'sky', value: r.skus })}
-        ${UI.kpi({ label: 'وحدات في المخازن', icon: 'warehouse', tone: 'teal', value: r.store })}
-        ${UI.kpi({ label: 'وحدات بعهدة الإدارات', icon: 'building', tone: 'violet', value: r.dept })}
-        ${UI.kpi({ label: 'الإجمالي الكلي', icon: 'layers', tone: 'brass', value: r.store + r.dept })}
-      </div>
-      ${r.rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th><th>التصنيف</th><th>المخازن</th>${wide ? cols.map((c) => html`<th>${Data.nameOf('departments', c, 'غير محدد')}</th>`) : st.scope !== 'store' ? html`<th>عهدة الإدارات</th>` : ''}<th>الإجمالي</th></tr></thead><tbody class="stagger">${r.rows.slice(0, 300).map((row) => html`<tr><td><div class="t-title">${UI.illu(itemIllu(row.item))}<div><div>${row.item.name}</div><div class="t-sub" style="text-align:start">${[INVT.of(row.item).brand, row.item.sku].filter(Boolean).join(' · ')}</div></div></div></td><td class="small">${INVT.of(row.item).type}</td><td><b>${fmtNum(row.store)}</b></td>${wide ? cols.map((c) => html`<td>${row.depts[c] ? fmtNum(row.depts[c]) : html`<span class="faint">—</span>`}</td>`) : st.scope !== 'store' ? html`<td>${row.deptTotal ? fmtNum(row.deptTotal) : html`<span class="faint">—</span>`}</td>` : ''}<td><b style="color:rgb(var(--accent-ink))">${fmtNum(row.total)}</b></td></tr>`)}</tbody></table></div>${r.rows.length > 300 ? html`<p class="hint" style="padding:10px 16px">يُعرض أول 300 صنف من ${fmtNum(r.rows.length)}. استخدم البحث أو التصنيف لتضييق النتائج.</p>` : ''}` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد بيانات مطابقة', text: 'غيّر النطاق أو التصنيف أو البحث.' })}</div>`}`);
-    UI.hydrate($('#rbody', ctx.view));
-  };
-  UI.on(ctx.view, 'change', 'input[name="scope"]', (e, el) => { st.scope = el.value; $('#rpick', ctx.view).hidden = st.scope !== 'pick'; load(); });
-  UI.on(ctx.view, 'change', '[data-rdep]', (e, el) => { if (el.checked) st.depts.add(el.dataset.rdep); else st.depts.delete(el.dataset.rdep); load(); });
-  $('#rwh', ctx.view).onchange = (e) => { st.warehouseId = e.target.value; load(); };
-  $('#rcat', ctx.view).onchange = (e) => { st.cat = e.target.value; load(); };
-  $('#rq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); load(); }, 300));
-  const tableData = () => {
-    const { r, cols, wide } = ctx.report || { r: { rows: [] }, cols: [], wide: false };
-    const dcols = wide ? cols : st.scope !== 'store' ? ['__all'] : [];
-    const head = ['م', 'التصنيف', 'الماركة', 'الموديل', 'الرمز', 'المخازن', ...dcols.map((c) => (c === '__all' ? 'عهدة الإدارات' : Data.nameOf('departments', c, 'غير محدد'))), 'الإجمالي'];
-    const list = r.rows.map((row) => ({ row, t: INVT.of(row.item) })).sort((a, b) => AR_COLL.compare(a.t.type, b.t.type) || AR_COLL.compare(a.t.brand, b.t.brand) || AR_COLL.compare(a.t.model, b.t.model));
-    const body = list.map(({ row, t }, i) => [i + 1, t.type, t.brand || '—', t.model, row.item.sku || '', row.store, ...dcols.map((c) => (c === '__all' ? row.deptTotal : row.depts[c] || 0)), row.total]);
-    const tot = ['الإجمالي', '', '', '', '', r.rows.reduce((x, y) => x + y.store, 0), ...dcols.map((c) => r.rows.reduce((x, y) => x + (c === '__all' ? y.deptTotal : y.depts[c] || 0), 0)), r.rows.reduce((x, y) => x + y.total, 0)];
-    const filt = [{ all: 'المخازن وكل الإدارات', store: 'المخزن فقط', depts: 'كل الإدارات', pick: 'إدارات محددة' }[st.scope], st.warehouseId ? `المخزن: ${Data.nameOf('warehouses', st.warehouseId, '')}` : '', st.cat ? `التصنيف: ${Data.nameOf('itemCategories', st.cat, '')}` : '', st.q ? `بحث: ${st.q}` : ''].filter(Boolean).join(' · ');
-    return { head, body, tot, filt };
-  };
-  UI.on(ctx.view, 'click', '[data-act="xls"]', () => { const { head, body, tot, filt } = tableData(); downloadBlob(XL.write([{ name: 'تقرير المخزون', rows: [['تقرير المخزون والعهد'], ['النطاق', filt], ['أُعد في', fmtDateTime(now())], ['أعدّه', (Auth.user || {}).name || ''], [], head, ...body, tot] }]), `تقرير-المخزون-والعهد-${dateInput(now())}.xlsx`); UI.toast('تم تصدير التقرير'); });
-  UI.on(ctx.view, 'click', '[data-act="print"]', () => { const { head, body, tot, filt } = tableData(); const num = (i) => i === 0 || i >= 5; UI.print(html`<h2 style="text-align:center">تقرير المخزون وعهد الإدارات</h2><p class="inv-pf">${filt} · ${fmtNum(body.length)} صنف</p><table class="inv-pt"><thead><tr>${head.map((h, i) => html`<th${num(i) ? raw(' class="n"') : ''}>${h}</th>`)}</tr></thead><tbody>${body.slice(0, 1500).map((r) => html`<tr>${r.map((c, i) => html`<td${num(i) ? raw(' class="n"') : i === 3 || i === 4 ? raw(' dir="auto"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`)}</tr>`)}</tbody><tfoot><tr>${tot.map((c, i) => html`<td${num(i) ? raw(' class="n"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`)}</tr></tfoot></table><div class="sign-row two"><div>مسؤول الجرد</div><div>اعتماد المسؤول</div></div>`, 'تقرير المخزون والعهد'); });
-  Pages.bindInv(ctx, load);
-  await load();
-};
+Pages.invReport = (ctx) => INVR.page(ctx);
 
 /* أصناف المخزن المرتبطة بالبلاغ */
 Pages.ticketParts = async (t) => {
@@ -4557,7 +4511,7 @@ Pages.browse = async (ctx) => {
       : !st.brand
         ? html`<div class="tiles stagger">${folderTiles}${man ? html`<button type="button" class="tile tile-add" data-icnew="${st.cat}">${UI.icon('plus')}<b>مجلد فرعي</b><small>داخل «${Data.nameOf('itemCategories', st.cat)}»</small></button>` : ''}${brands.map((b) => { const items = inCat.filter((i) => (i.brand || 'غير محدد') === b), units = items.reduce((s, i) => s + Math.max(0, i.onHand), 0); return html`<a class="tile tilt" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}"><span class="count">${fmtNum(units)}</span>${Auth.can('inventory.manage') ? html`<button type="button" class="tile-edit" data-bicon="${b}" title="تغيير أيقونة الماركة">${UI.icon('edit')}</button>` : ''}${UI.illu(bIcons.get(`${st.cat}|${b}`) || (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box')}<b>${b}</b><small>${arCount(items.length, AR.item)}</small></a>`; })}</div>`
         : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>` : ''}` })}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${INVR.btns(st)}${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>` : ''}` })}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
     UI.hydrate(ctx.view); UI.tilt(ctx.view);
     const s = $('#bq', ctx.view); s.addEventListener('input', debounce(async (e) => {
       st.q = e.target.value.trim();
@@ -5345,7 +5299,7 @@ Pages.deptDetail = async (ctx) => {
     const assigned = [...unitData.byUnit.values()].reduce((s, u) => s + u.units, 0), unassigned = Math.max(0, units - assigned);
     const officeCount = tree.reduce((s, x) => s + x.offices.length, 0);
     const unitRows = (unitId) => unitData.rows.filter((r) => r.unitId === unitId);
-    const itemLine = (r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف' }; return html`<button type="button" class="list-row unit-item" data-device="${r.itemId}"><div class="grow ellipsis"><b>${it.name}</b>${it.model ? html`<div class="t-sub">${[it.brand, it.model].filter(Boolean).join(' ')}</div>` : ''}</div>${UI.chip('teal', fmtNum(r.qty))}${UI.icon('eye')}</button>`; };
+    const itemLine = (r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف' }; return html`<div class="list-row unit-item" data-device="${r.itemId}" role="button" tabindex="0"><div class="grow ellipsis"><b dir="auto">${it.id ? DNM.model(it) : it.name}</b><div class="t-sub">${it.id ? DNM.brand(it) : ''}</div></div>${UI.chip('teal', fmtNum(r.qty))}${UI.icon('eye')}${CACT.can() ? CACT.bar({ itemId: r.itemId, dep: id, at: `u:${r.unitId}` }) : ''}</div>`; };
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/inventory/departments">عهدة الإدارات</a>${UI.icon('chevron-left')}<span>${name}</span>`, title: `عهدة ${name}`, sub: `${arCount(rows.length, AR.item)} بإجمالي ${fmtNum(units)} وحدة — ${fmtNum(tree.length)} قسم و${fmtNum(officeCount)} مكتب`, illu: 'box', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-primary" data-move="issue" data-dept="${id}">${UI.icon('upload')} صرف جديد</button><button class="btn btn-ok" data-act="dret">${UI.icon('undo')} إرجاع</button><button class="btn" data-act="dtr">${UI.icon('swap')} نقل لإدارة</button>` : ''}${OrgScope.covers(id) ? html`<button class="btn btn-soft" data-act="addunit">${UI.icon('plus')} أقسام ومكاتب</button>` : ''}<button class="btn btn-ghost" data-scanfor="lookup">${UI.icon('search')} بحث بالشفرة</button><button class="btn btn-ghost" data-act="print">${UI.icon('print')} كشف العهدة</button><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} Excel</button>` })}
       ${cbar}
@@ -5360,7 +5314,7 @@ Pages.deptDetail = async (ctx) => {
       <div class="grid g-side mt">
         <div class="stack">
           ${UI.panel({ title: 'التوزيع على الأقسام والمكاتب', icon: 'building', sub: 'اضغط القسم لعرض مكاتبه وما بداخلها', body: tree.length ? html`<div class="unit-tree">${tree.map((s) => { const secUnits = s.offices.reduce((a, o) => a + ((unitData.byUnit.get(o.id) || {}).units || 0), 0), open = st.open.has(s.id); return html`<div class="unit-sec ${open ? 'open' : ''}"><button type="button" class="unit-head" data-sec="${s.id}">${UI.icon(open ? 'chevron-down' : 'chevron-left')}<span class="icon3d unit-ic tone-${s.tone || (UNIT_TYPES[s.type] || UNIT_TYPES.section).tone}" style="width:38px;height:38px">${UI.icon(s.icon || (UNIT_TYPES[s.type] || UNIT_TYPES.section).icon)}</span><b>${s.name}</b><span class="faint small">${arCount(s.offices.length, AR.item).replace('صنف', 'مكتب').replace('أصناف', 'مكاتب')}</span><span class="unit-count">${fmtNum(secUnits)}</span></button>${open ? html`<div class="unit-offices">${s.offices.length ? s.offices.map((o) => { const u = unitData.byUnit.get(o.id) || { units: 0 }, list = unitRows(o.id); return html`<div class="unit-office"><div class="uo-head tone-${o.tone || (UNIT_TYPES[o.type] || UNIT_TYPES.office).tone}"><span class="uo-ic">${UI.icon(o.icon || (UNIT_TYPES[o.type] || UNIT_TYPES.office).icon)}</span><b>${o.name}</b><span class="unit-count">${fmtNum(u.units)}</span>${OrgScope.covers(id, o.id) ? html`<button class="icon-btn" style="width:28px;height:28px" data-editunit="${o.id}" aria-label="تعديل">${UI.icon('edit')}</button><button class="icon-btn" style="width:28px;height:28px" data-delunit="${o.id}" aria-label="حذف">${UI.icon('trash')}</button>` : ''}</div>${list.length ? html`<div class="list">${list.map(itemLine)}</div>` : html`<p class="faint small" style="padding:6px 10px">لا توجد عهدة في هذا المكتب</p>`}</div>`; }) : html`<p class="faint small" style="padding:8px 12px">لا توجد مكاتب في هذا القسم${OrgScope.covers(id, s.id) ? html` — <button class="btn btn-ghost btn-sm" data-addoffice="${s.id}">${UI.icon('plus')} إضافة مكاتب</button>` : ''}</p>`}${OrgScope.covers(id, s.id) ? html`<div class="row" style="padding:6px 10px"><button class="btn btn-ghost btn-sm" data-addoffice="${s.id}">${UI.icon('plus')} إضافة مكاتب</button><button class="btn btn-ghost btn-sm" data-editunit="${s.id}">${UI.icon('edit')} تعديل القسم</button><button class="btn btn-ghost btn-sm" data-delunit="${s.id}">${UI.icon('trash')} حذف القسم</button></div>` : ''}</div>` : ''}</div>`; })}</div>` : UI.empty({ illu: 'network', title: 'لم تُقسَّم هذه الإدارة بعد', text: 'أضف الأقسام الرئيسية ثم المكاتب داخل كل قسم لتوزيع العهدة عليها.', action: OrgScope.covers(id) ? html`<button class="btn btn-primary" data-act="addunit">${UI.icon('plus')} إضافة أقسام</button>` : '' }) })}
-          ${UI.panel({ title: 'كل أصناف الإدارة', icon: 'box', flush: st.view !== 'grid', tools: html`${Auth.can('inventory.move') ? html`<button class="btn btn-sm btn-soft" data-act="bulk">${UI.icon('swap')} نقل المحدد</button>` : ''}<div class="seg sm">${[['list', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`, body: st.view === 'grid' ? (rows.length ? html`<div class="dev-grid">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', categoryId: '' }; return UI.deviceCard(it, r.qty); })}</div>` : UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة.' })) : rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th style="width:36px"></th><th>الصنف</th><th>التصنيف</th><th>الكمية</th><th>الموزّع</th><th></th></tr></thead><tbody class="stagger">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', sku: '' }, dist = unitData.rows.filter((x) => x.itemId === r.itemId).reduce((a, x) => a + x.qty, 0); return html`<tr><td><input type="checkbox" data-sel="${r.itemId}" aria-label="تحديد"></td><td><button type="button" class="t-title link-title" data-device="${r.itemId}">${UI.illu(itemIllu(it))}<div><div>${it.name}</div><div class="t-sub ltr" style="text-align:start">${it.sku || ''}</div></div></button></td><td>${Data.nameOf('itemCategories', it.categoryId)}</td><td><b>${fmtNum(r.qty)}</b></td><td>${dist >= r.qty ? UI.chip('teal', 'موزّع بالكامل') : UI.chip('amber', `${fmtNum(dist)} من ${fmtNum(r.qty)}`)}</td><td class="nowrap">${Auth.can('inventory.move') ? html`<button class="btn btn-ghost btn-sm" data-assign="${r.itemId}" data-name="${it.name}">${UI.icon('pin')} توزيع</button><button class="btn btn-ghost btn-sm" data-xfer="${r.itemId}">${UI.icon('swap')} نقل</button><button class="btn btn-ghost btn-sm" data-swap="${r.itemId}">${UI.icon('refresh')} استبدال</button><button class="btn btn-ghost btn-sm" data-maint="${r.itemId}">${UI.icon('tools')} صيانة</button><button class="btn btn-ghost btn-sm" data-ret="${r.itemId}">${UI.icon('undo')}</button>` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة لتظهر هنا.' })}</div>` })}
+          ${UI.panel({ title: 'كل أصناف الإدارة', icon: 'box', flush: st.view !== 'grid', tools: html`${Auth.can('inventory.move') ? html`<button class="btn btn-sm btn-soft" data-act="bulk">${UI.icon('swap')} نقل المحدد</button>` : ''}<div class="seg sm">${[['list', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`, body: st.view === 'grid' ? (rows.length ? html`<div class="dev-grid">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', categoryId: '' }; return CACT.card(it, r.qty, { itemId: r.itemId, dep: id }); })}</div>` : UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة.' })) : rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th style="width:36px"></th><th>الصنف</th><th>التصنيف</th><th>الكمية</th><th>الموزّع</th><th></th></tr></thead><tbody class="stagger">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', sku: '' }, dist = unitData.rows.filter((x) => x.itemId === r.itemId).reduce((a, x) => a + x.qty, 0); return html`<tr><td><input type="checkbox" data-sel="${r.itemId}" aria-label="تحديد"></td><td><button type="button" class="t-title link-title" data-device="${r.itemId}">${UI.illu(itemIllu(it))}<div><div dir="auto">${it.id ? DNM.model(it) : it.name}</div><div class="t-sub" style="text-align:start">${it.id ? DNM.brand(it) : ''}</div></div></button></td><td>${Data.nameOf('itemCategories', it.categoryId)}</td><td><b>${fmtNum(r.qty)}</b></td><td>${dist >= r.qty ? UI.chip('teal', 'موزّع بالكامل') : UI.chip('amber', `${fmtNum(dist)} من ${fmtNum(r.qty)}`)}</td><td class="nowrap">${Auth.can('inventory.move') ? html`<button class="btn btn-ghost btn-sm" data-assign="${r.itemId}" data-name="${it.name}">${UI.icon('pin')} توزيع</button><button class="btn btn-ghost btn-sm" data-xfer="${r.itemId}">${UI.icon('swap')} نقل</button><button class="btn btn-ghost btn-sm" data-swap="${r.itemId}">${UI.icon('refresh')} استبدال</button><button class="btn btn-ghost btn-sm" data-maint="${r.itemId}">${UI.icon('tools')} صيانة</button><button class="btn btn-ghost btn-sm" data-ret="${r.itemId}">${UI.icon('undo')}</button>` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة لتظهر هنا.' })}</div>` })}
         </div>
         <div class="stack">
           ${UI.panel({ title: 'عهد أفراد الإدارة', icon: 'clipboard', body: mine.length ? html`<div class="list">${mine.map((l) => html`<div class="list-row"><div class="grow"><b>${l.itemName}</b><div class="t-sub">${l.borrower} — ${l.number}</div></div>${l.dueAt && l.dueAt < now() ? UI.chip('red', 'متأخرة', 'alert') : UI.chip('sky', fmtNum(l.qty - l.returnedQty))}</div>`)}</div>` : UI.noData('لا توجد عهد أفراد نشطة') })}
@@ -7829,7 +7783,7 @@ Pages.works = async (ctx) => {
     $('#kq', ctx.view).addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); draw().then(() => { const k = $('#kq', ctx.view); if (k) { k.focus(); k.setSelectionRange(k.value.length, k.value.length); } }); }, 300));
     [['kstatus', 'status'], ['kowner', 'owner'], ['kFrom', 'from'], ['kTo', 'to']].forEach(([id, key]) => { const el = $('#' + id, ctx.view); if (el) el.onchange = () => { st[key] = el.value; draw(); }; });
   };
-  const go = (id) => { st.cwd = id || ''; st.q = ''; const h = `#/works${st.cwd ? `?f=${st.cwd}` : ''}`; if (location.hash !== h) history.replaceState(null, '', h); draw(); };
+  const go = (id) => { st.cwd = id || ''; st.q = ''; const h = `#/works${st.cwd ? `?f=${st.cwd}` : ''}`; if (location.hash !== h) NAVH.push(h); draw(); };
   UI.on(ctx.view, 'click', '[data-open]', (e, el) => { if (e.target.closest('.wx-tools')) return; go(el.dataset.open); });
   UI.on(ctx.view, 'keydown', '[data-open]', (e, el) => { if (e.key === 'Enter') go(el.dataset.open); });
   UI.on(ctx.view, 'click', '[data-go]', (e, el) => go(el.dataset.go));
@@ -8852,7 +8806,7 @@ Pages.orgPeople = async (ctx) => {
   if (!st.d) { const first = myDeps()[0]; st.d = first ? first.id : ''; }
   /* رئيس فرع لا يرأس الإدارة: يبدأ عند فرعه الذي يرأسه بدل مستوى الإدارة الذي لا يملك التوزيع فيه */
   if (st.d && !st.u && !canAssign() && !OrgScope.covers(st.d, '')) { const tops = [...OrgScope.of().tops], u = Data.list('deptUnits').find((x) => x.departmentId === st.d && tops.includes(x.id)); if (u) st.u = u.id; }
-  const go = (d, u = '') => { st.d = d; st.u = u; st.pick.clear(); st.tpick.clear(); st.q = ''; try { history.replaceState(history.state, '', `#/org/people?d=${encodeURIComponent(d)}${u ? `&u=${encodeURIComponent(u)}` : ''}`); } catch (_) { /* تجاهل */ } draw(); };
+  const go = (d, u = '') => { st.d = d; st.u = u; st.pick.clear(); st.tpick.clear(); st.q = ''; try { NAVH.push(`#/org/people?d=${encodeURIComponent(d)}${u ? `&u=${encodeURIComponent(u)}` : ''}`); } catch (_) { /* تجاهل */ } draw(); };
   const rank = (p) => Data.nameOf('ranks', p.rankId, '');
   const draw = async () => {
     /* تبقى القائمة حيث كانت: كان كل تحديد يعيد رسم الصفحة فترجع القائمة إلى أولها */
@@ -10836,7 +10790,7 @@ Pages.monitor = async (ctx) => {
     nc.classList.toggle('empty', !st.news);
   };
   const load = async () => {
-    const [allT, allC, svcs, anns] = await Promise.all([DB.getAll('tickets'), DB.getAll('chats'), Data.svc.list(), DB.getAll('announcements')]);
+    const [allT, allC, svcs, anns] = await Promise.all([DB.getAll('tickets'), DB.getAll('chats'), Data.svc.list().then(SVCU), DB.getAll('announcements')]);
     const tickets = allT.filter(MonScope.ticket), chats = allC.filter(MonScope.chat);
     if (!ctx.alive()) return;
     syncTheme();
@@ -10886,8 +10840,8 @@ Pages.monitor = async (ctx) => {
     ].map(([o3, l, v, tone, foot, alarm]) => html`<div class="tv2-kpi tone-${tone}${alarm ? ' alarm' : ''}"><span class="tv2-kic">${UI.icon(`o3d:${o3}`)}</span><div class="tv2-kt"><b>${typeof v === 'number' ? fmtNum(v) : v}</b><span>${l}</span></div><small class="tv2-kf">${foot}</small></div>`)}`);
     /* الاتصال: Sync.status هو المصدر الصحيح (كانت الشاشة تقرأ حقلاً غير موجود فتعرض «متصل» دائماً) */
     const down = svcs.filter((x) => x.status !== 'up'), net = !Sync.on ? ['warn', 'وضع محلي'] : Sync.status === 'offline' ? ['bad', 'غير متصل بالخادم'] : ['ok', 'متصل بالخادم'];
-    $v('[data-pills]').innerHTML = String(html`<span class="tv2-pill ${net[0]}"><i></i>${net[1]}</span><span class="tv2-pill ${down.length ? 'bad' : 'ok'}"><i></i>${down.length ? `${fmtNum(down.length)} خدمة متأثرة` : 'كل الخدمات تعمل'}</span>`);
-    const ss = $v('[data-svcsum]'); if (ss) ss.textContent = svcs.length ? `${fmtNum(svcs.length - down.length)} من ${fmtNum(svcs.length)} تعمل` : '';
+    $v('[data-pills]').innerHTML = String(html`<span class="tv2-pill ${net[0]}"><i></i>${net[1]}</span>`);
+    const ss = $v('[data-svcsum]'); if (ss) { ss.textContent = !svcs.length ? '' : down.length ? `${fmtNum(down.length)} متأثرة من ${fmtNum(svcs.length)}` : `كلها تعمل (${fmtNum(svcs.length)})`; ss.classList.toggle('bad', down.length > 0); ss.classList.toggle('ok', svcs.length > 0 && !down.length); }
     $v('[data-svcs]').innerHTML = String(html`${svcs.map((x) => html`<div class="tv2-svc tone-${SVC_STATUS[x.status].tone}${x.status === 'up' ? '' : ' bad'}" title="${x.note || SVC_STATUS[x.status].label}"><span class="tv2-svic">${UI.illu(x.icon || 'network', 'mini')}<i></i></span><span class="tv2-svt"><b>${x.name}</b>${x.status === 'up' ? '' : html`<small>${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}</small>`}</span></div>`)}`);
     /* نبض اليوم: الالتزام بالموعد، ومتوسط الحل، وذروة الوارد، والإدارة الأكثر طلباً، والوارد ساعة بساعة */
     const hrs = new Array(24).fill(0); created.forEach((t) => { hrs[new Date(t.createdAt).getHours()]++; });
@@ -10916,7 +10870,6 @@ Pages.monitor = async (ctx) => {
     open.filter((x) => x.noteFrom === 'requester' && (x.noteAt || 0) >= tn - H2).forEach((x) => { const tx = String(x.noteText || ''); ev.push([x.noteAt, 'message', 'teal', `ملاحظة من ${x.noteBy ? Data.userName(x.noteBy) : 'الموظف'} على «${x.title}»: ${tx.length > 70 ? `${tx.slice(0, 70)}…` : tx}`, cart(x)]); });
     tickets.filter((x) => (x.resolvedAt || 0) >= tn - H2).forEach((x) => ev.push([x.resolvedAt, 'check', 'teal', `تم حل: ${x.title}${x.assigneeId ? ` — ${Data.userName(x.assigneeId)}` : ''}`, cart(x)]));
     open.filter((x) => x.dueAt && x.dueAt < tn).slice(0, 5).forEach((x) => ev.push([x.dueAt, 'clock', 'red', `تجاوز الموعد: ${x.number} ${x.title}`, cart(x)]));
-    svcs.filter((x) => x.status !== 'up').forEach((x) => ev.push([x.updatedAt, 'alert', 'amber', `${x.name}: ${SVC_STATUS[x.status].label}${x.note ? ` — ${x.note}` : ''}`, UI.illu(x.icon || 'network', 'mini')]));
     live.forEach((a) => ev.push([a.createdAt, 'bell', 'brass', a.title, UI.icon(`o3d:${TV_K3D[a.kind] || 'media'}:${a.level === 'critical' ? 'red' : 'amber'}`)]));
     const items = ev.sort((a, b) => b[0] - a[0]).slice(0, 14), key = items.map((x) => x[3]).join('|') || '-';
     const track = $v('[data-ticker]');
@@ -11567,7 +11520,7 @@ Pages.eFormHTML = async (t, { ef = null, blank = false, defs = null } = {}) => {
 Pages.printEForm = (content, title) => {
   const root = $('#print-root'); root.innerHTML = `<div class="print-doc ef-print">${content}</div>`;
   document.body.classList.add('printing');
-  setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80);
+  setTimeout(() => { UI.printNow((UI._printTok = (UI._printTok || 0) + 1), root); }, 80);
   document.title = title || document.title;
 };
 Pages.eFormView = async (t, opts = {}) => {
@@ -13855,7 +13808,7 @@ const VD = {
     const tok = (UI._printTok = (UI._printTok || 0) + 1);
     const ready = opts.font && document.fonts && document.fonts.load ? Promise.race([Promise.all([document.fonts.load(`400 16px "${opts.font}"`), document.fonts.load(`700 16px "${opts.font}"`)]), new Promise((r) => setTimeout(r, 1500))]).catch(() => {}) : Promise.resolve();
     const imgs = $$('img', root).filter((i) => !i.complete).map((i) => new Promise((r) => { i.onload = r; i.onerror = r; setTimeout(r, 1500); }));
-    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; window.print(); setTimeout(() => { if (tok !== UI._printTok) return; document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80));
+    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; UI.printNow(tok, root); }, 80));
   };
 }
 Pages.printVoucher = (v) => {
@@ -15474,7 +15427,7 @@ const vlFix = (L) => { L.page = { ...VLS.page(), ...(L.page || {}) }; L.bands = 
     const fams = [...new Set([opts.font, ...$$('[style*="font-family"]', root).map((e) => (e.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim())].filter(Boolean))];
     const ready = document.fonts && document.fonts.load ? Promise.race([Promise.all(fams.flatMap((f) => [document.fonts.load(`400 16px "${f}"`), document.fonts.load(`700 16px "${f}"`)])), new Promise((r) => setTimeout(r, 1800))]).catch(() => {}) : Promise.resolve();
     const imgs = $$('img', root).filter((i) => !i.complete).map((i) => new Promise((r) => { i.onload = r; i.onerror = r; setTimeout(r, 1500); }));
-    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; window.print(); setTimeout(() => { if (tok !== UI._printTok) return; document.body.classList.remove('printing'); root.innerHTML = ''; }, 400); }, 80));
+    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; UI.printNow(tok, root); }, 80));
   };
 }
 /* ── واجهة المحرر ── */
@@ -20359,7 +20312,7 @@ Pages.custodyMap = async (ctx) => {
   const shared = (uId) => { const m = new Map(T.uItems.get(uId) || []); wsList.filter((w) => w.unitId === uId).forEach((w) => (w.lines || []).forEach((l) => m.set(l.itemId, (m.get(l.itemId) || 0) - l.qty))); return new Map([...m].filter(([, q]) => q > 0)); };
   const placeOf = (l) => (l.kind === 'store' ? `المخزن: ${Data.nameOf('warehouses', l.whId, '')}` : `${orgLabel(l.depId, l.unitId, T.units) || `${Data.nameOf('departments', l.depId, '')} — العهدة العامة`}${l.wsId && wsOf(l.wsId) ? ` ← ${wsName(wsOf(l.wsId))}` : ''}`);
   const pendAt = (key) => CM.pend.filter((l) => (key.startsWith('s:') ? l.kind === 'store' && l.whId === key.slice(2) : key.startsWith('w:') ? l.wsId === key.slice(2) : key.startsWith('u:') ? l.unitId === key.slice(2) && !l.wsId : l.depId === key.slice(2) && !l.unitId && l.kind !== 'store')).reduce((s, l) => s + l.qty, 0);
-  const go = (at) => { st.at = at || ''; try { history.replaceState(null, '', `#/inventory/distribute?dep=${encodeURIComponent(st.dep)}${st.at ? `&at=${encodeURIComponent(st.at)}` : ''}`); } catch (_) { /* تجاهل */ } draw(false); const top = $('.cm-panel', ctx.view); if (top && top.getBoundingClientRect().top < 60) top.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  const go = (at) => { st.at = at || ''; NAVH.push(`#/inventory/distribute?dep=${encodeURIComponent(st.dep)}${st.at ? `&at=${encodeURIComponent(st.at)}` : ''}`); draw(false); const top = $('.cm-panel', ctx.view); if (top && top.getBoundingClientRect().top < 60) top.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   /* إضافة سطر من الإفلات: target = d:/u:/w:/s:، payload = i: نموذج، k: حزمة، a: من العهدة العامة للإدارة */
   const addPend = (target, payload, qty = 1) => {
     const [tk, tid] = target.split(':'), [pk, pid] = payload.split(':');
@@ -20470,8 +20423,8 @@ Pages.custodyMap = async (ctx) => {
   };
   const devs = (map, mode, kind) => {
     const list = [...map].filter(([id, q]) => q > 0 && items.get(id)); if (!list.length) return '';
-    if (mode === 'list') return html`<div class="table-wrap"><table class="table cm-devt"><thead><tr><th>الجهاز</th><th>النوع</th><th style="width:70px">العدد</th><th></th></tr></thead><tbody>${list.map(([id, q]) => { const it = items.get(id); return html`<tr data-dev="${id}" tabindex="0"><td><div class="t-title">${UI.illu(cmIllu(it), 'mini')}<div><div>${it.name}</div><div class="t-sub">${MDL.sub(it)}</div></div></div></td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td><b>${fmtNum(q)}</b></td><td class="nowrap">${devActs(kind, id, q)}</td></tr>`; })}</tbody></table></div>`;
-    return html`<div class="cm-devs">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-dev="${id}" tabindex="0" role="button" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${devActs(kind, id, q)}</div>`; })}</div>`;
+    if (mode === 'list') return html`<div class="table-wrap"><table class="table cm-devt"><thead><tr><th>الجهاز</th><th>النوع</th><th style="width:70px">العدد</th><th></th></tr></thead><tbody>${list.map(([id, q]) => { const it = items.get(id); return html`<tr data-dev="${id}" tabindex="0"><td><div class="t-title">${UI.illu(cmIllu(it), 'mini')}<div><div dir="auto">${DNM.model(it)}</div><div class="t-sub">${DNM.brand(it)}</div></div></div></td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td><b>${fmtNum(q)}</b></td><td class="nowrap">${devActs(kind, id, q)}${CACT.can() ? CACT.bar({ itemId: id, dep: st.dep, at: st.at }, true) : ''}</td></tr>`; })}</tbody></table></div>`;
+    return html`<div class="cm-devs">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-dev="${id}" tabindex="0" role="button" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${devActs(kind, id, q)}${CACT.can() ? CACT.bar({ itemId: id, dep: st.dep, at: st.at }) : ''}</div>`; })}</div>`;
   };
   const sec = (icon, title, n, body, tools = '') => html`<section class="cm-sec"><h3>${UI.icon(icon)} ${title}${n != null ? html` <small>${fmtNum(n)}</small>` : ''}<span class="grow"></span>${tools}</h3>${body}</section>`;
   const lendRows = (list) => (list.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>لدى</th><th>العدد</th><th>منذ</th><th>حتى</th><th></th></tr></thead><tbody>${list.map((l) => { const it = items.get(l.itemId) || { name: 'صنف' }; return html`<tr class="${DL.late(l) ? 'late' : ''}"><td>${it.name}</td><td>${l.unitId ? orgLabel(l.departmentId, l.unitId, T.units) : ''}${l.holderId ? html`${l.unitId ? ' — ' : ''}${Data.userName(l.holderId)}` : ''}${l.note ? html`<div class="t-sub">${l.note}</div>` : ''}</td><td><b>${fmtNum(l.qty)}</b></td><td>${fmtDate(l.at)}</td><td>${l.dueAt ? (DL.late(l) ? UI.chip('red', `${fmtDate(l.dueAt)} — متأخر`, 'alert') : fmtDate(l.dueAt)) : html`<span class="faint">—</span>`}</td><td>${DL.can() ? html`<button type="button" class="btn btn-soft btn-sm" data-dlret="${l.id}">${UI.icon('undo')} إرجاع للعهدة العامة</button>` : ''}</td></tr>`; })}</tbody></table></div>` : '');
@@ -22137,7 +22090,7 @@ Pages.cmMore = (o) => {
     await UI.modal({
       title: lk.name || 'أجهزة مشتركة', icon: 'users', size: 'lg',
       body: html`<div class="ws-shhead tone-${lk.tone || 'amber'}"><span class="cm-shic">${shIc(lk)}</span><div class="grow"><b>${lk.name || 'أجهزة مشتركة'}</b><small>${lk.note || 'غير مخصصة لموظف بعينه: يستخدمها المكتب كله'}</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-shlook>${UI.icon('palette')} الاسم والأيقونة</button>` : ''}</div>
-        ${list.length ? html`<div class="cm-devs mt">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-shdev="${id}" tabindex="0" role="button">${UI.illu(cmIllu(it), 'mini')}<b>${it.name}</b><small>${MDL.sub(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${WS.canEdit() && ws.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-shlink="${id}">${UI.icon('monitor')} ربط بمحطة</button>` : ''}</div>`; })}</div>` : html`<p class="hint mt">لا أجهزة مشتركة بعد. أفلت على هذه الخانة طابعة أو ماسحاً أو أي جهاز للمكتب كله.</p>`}`,
+        ${list.length ? html`<div class="cm-devs mt">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-shdev="${id}" tabindex="0" role="button">${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${WS.canEdit() && ws.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-shlink="${id}">${UI.icon('monitor')} ربط بمحطة</button>` : ''}</div>`; })}</div>` : html`<p class="hint mt">لا أجهزة مشتركة بعد. أفلت على هذه الخانة طابعة أو ماسحاً أو أي جهاز للمكتب كله.</p>`}`,
       onMount: (form, finish) => {
         UI.on(form, 'click', '[data-shlook]', async () => { if (await Pages.shLookModal(unitId)) { finish(true); draw(); } });
         UI.on(form, 'click', '[data-shdev]', (e, el) => { if (e.target.closest('button')) return; Pages.deviceModal(el.dataset.shdev, { departmentId: o.st.dep }); });
@@ -22176,7 +22129,7 @@ const CMV = {
   },
   tiles(lines, items) {
     const ls = lines.filter(([id, q]) => q > 0 && items.get(id)); if (!ls.length) return '';
-    return html`<div class="dk-tiles">${ls.map(([id, q]) => { const it = items.get(id); return html`<span class="dk-tile" data-dev="${id}" tabindex="0" role="button" title="${it.name} — اضغط للتفاصيل">${UI.illu(cmIllu(it), 'mini')}<span class="grow"><b>${it.name}</b>${MDL.sub(it) ? html`<small>${MDL.sub(it)}</small>` : ''}</span>${q > 1 ? html`<em>×${fmtNum(q)}</em>` : ''}</span>`; })}</div>`;
+    return html`<div class="dk-tiles">${ls.map(([id, q]) => { const it = items.get(id); return html`<span class="dk-tile" data-dev="${id}" tabindex="0" role="button" title="${it.name} — اضغط للتفاصيل">${UI.illu(cmIllu(it), 'mini')}<span class="grow"><b dir="auto">${DNM.model(it)}</b>${DNM.brand(it) ? html`<small>${DNM.brand(it)}</small>` : ''}</span>${q > 1 ? html`<em>×${fmtNum(q)}</em>` : ''}${CACT.can() ? CACT.bar({ itemId: id }) : ''}</span>`; })}</div>`;
   }
 };
 /* مفتاح «مشهد المكتب / الأجهزة»، والبحث في شريط الإدارات وإبقاء المختارة ظاهرة فيه */
@@ -23424,7 +23377,7 @@ const VPV = {
       const end = (h) => { if (done) return; done = true; clearTimeout(t); if (VPV._cap === grab) VPV._cap = null; res(h); };
       const grab = () => { const h = root ? root.innerHTML : ''; document.body.classList.remove('printing'); if (root) root.innerHTML = ''; end(h); };
       t = setTimeout(() => end(null), 8000);
-      VPV._cap = grab;
+      VPV._cap = grab; VPV._capTok = -1;
       try { const r = fn(); if (r && typeof r.catch === 'function') r.catch(() => end(null)); } catch (_) { end(null); }
     });
   },
@@ -23506,7 +23459,7 @@ VC.open = (v) => VPV.open(v);
 /* الالتقاط يسبق كل أغلفة الطباعة الأخرى */
 {
   const wp = window.print;
-  window.print = function () { if (VPV._cap) { VPV._cap(); return; } return wp.apply(this, arguments); };
+  window.print = function () { if (VPV._cap && (VPV._capTok < 0 || VPV._capTok === UI._printTok)) { VPV._cap(); return; } return wp.apply(this, arguments); };
 }
 /* بعد إصدار سند: معاينة أولاً (أو طباعة مباشرة لمن اختارها) */
 Pages.afterVoucher = (v) => (VPV.pref() === 'print' ? Pages.printVoucher(v) : VPV.open(v, { fresh: true }));
@@ -24659,6 +24612,314 @@ const INVT = {
     return { type, ...INVT._c.get(key) };
   }
 };
+
+/* ══════════ الجولة 24: الطباعة — يبقى المستند حتى ينتهي المتصفح من تجهيزه ══════════
+   كان يُمسح بعد 400 جزء من الثانية من استدعاء الطباعة. في المتصفحات التي لا تنتظر نافذة الطباعة
+   (أندرويد وiPad وبعض Safari) يُمسح قبل أن تُرسم المعاينة فتظهر الصفحة فارغة. */
+UI.printNow = (tok, root) => {
+  let fired = false, done = false, t2 = 0;
+  const clean = () => {
+    if (done) return; done = true; clearTimeout(t2);
+    window.removeEventListener('afterprint', onAfter); document.removeEventListener('pointerdown', clean, true);
+    if (tok !== UI._printTok) return;
+    document.body.classList.remove('printing'); if (root) root.innerHTML = '';
+  };
+  const onAfter = () => { fired = true; setTimeout(clean, 300); };
+  window.addEventListener('afterprint', onAfter);
+  const t0 = Date.now();
+  try { window.print(); } catch (_) { clean(); return; }
+  if (fired || Date.now() - t0 > 250) { setTimeout(clean, 400); return; }
+  t2 = setTimeout(clean, 120000);
+  setTimeout(() => { if (!done) document.addEventListener('pointerdown', clean, true); }, 1500);
+};
+/* طباعة يطلبها المستخدم أثناء تجهيز معاينة لا تُبتلع: تُعرف طباعة المعاينة برقمها */
+{ const up = UI.print; UI.print = function (...a) { const r = up.apply(this, a); if (VPV._cap && VPV._capTok < 0) VPV._capTok = UI._printTok; return r; }; }
+
+/* ══════════ الجولة 24: تقارير المخزون — تفصيلي بالفئات والموديلات، أو عام بالفئات ══════════ */
+const INVR = {
+  catOrder() { const m = new Map(); Data.list('itemCategories').forEach((c, i) => m.set(c.id, i)); return m; },
+  top(it) { const ch = IC.chain(it.categoryId), t = ch[0] || {}; return { id: t.id || '', name: t.name || 'بدون فئة', sub: ch.slice(1).map((c) => c.name).join(' / ') }; },
+  key: (t) => `${normalizeAr(t.brand || '').toLowerCase()}|${normalizeAr(t.model || '').toLowerCase()}`,
+  dname: (dc) => (dc === '__all' ? 'عهدة الإدارات' : Data.nameOf('departments', dc, 'غير محدد')),
+  /* rows من Data.dept.report، وdcols أعمدة الإدارات ('__all' = مجموع عهد الإدارات) */
+  build(rows, dcols) {
+    const G = new Map(), ord = INVR.catOrder();
+    rows.forEach((row) => {
+      const c = INVR.top(row.item), t = INVT.of(row.item);
+      let g = G.get(c.id); if (!g) G.set(c.id, (g = { id: c.id, name: c.name, M: new Map(), store: 0, dept: 0, total: 0, d: {} }));
+      const k = INVR.key(t); let m = g.M.get(k);
+      if (!m) g.M.set(k, (m = { key: k, brand: t.brand, model: t.model, subs: new Set(), ids: [], store: 0, dept: 0, total: 0, d: {} }));
+      if (c.sub) m.subs.add(c.sub); m.ids.push(row.item.id);
+      m.store += row.store; m.dept += row.deptTotal; m.total += row.total; g.store += row.store; g.dept += row.deptTotal; g.total += row.total;
+      dcols.forEach((dc) => { const v = dc === '__all' ? row.deptTotal : row.depts[dc] || 0; m.d[dc] = (m.d[dc] || 0) + v; g.d[dc] = (g.d[dc] || 0) + v; });
+    });
+    const o = (id) => (ord.has(id) ? ord.get(id) : 1e9);
+    return [...G.values()].sort((a, b) => o(a.id) - o(b.id) || AR_COLL.compare(a.name, b.name))
+      .map((g) => ({ ...g, models: [...g.M.values()].sort((a, b) => AR_COLL.compare(a.brand || 'ي', b.brand || 'ي') || AR_COLL.compare(a.model, b.model)) }));
+  },
+  /* الجدول بصيغة واحدة للشاشة والطباعة وExcel */
+  table(groups, dcols, mode) {
+    const nums = (x) => [x.store, ...dcols.map((dc) => x.d[dc] || 0), x.total];
+    const numHead = ['المخازن', ...dcols.map(INVR.dname), 'الإجمالي'];
+    const all = { store: 0, total: 0, d: {} }; groups.forEach((g) => { all.store += g.store; all.total += g.total; dcols.forEach((dc) => { all.d[dc] = (all.d[dc] || 0) + (g.d[dc] || 0); }); });
+    const models = groups.reduce((n, g) => n + g.models.length, 0);
+    if (mode === 'general') return { mode, lead: 2, head: ['م', 'الفئة', 'عدد الموديلات', ...numHead], rows: groups.map((g, i) => [i + 1, g.name, g.models.length, ...nums(g)]), tot: ['الإجمالي', '', models, ...nums(all)] };
+    let n = 0;
+    return { mode, lead: 3, head: ['م', 'الماركة', 'الموديل', ...numHead], tot: ['الإجمالي العام', '', '', ...nums(all)],
+      groups: groups.map((g) => ({ name: g.name, count: g.models.length, total: g.total, subs: g.models.map((m) => [...m.subs].join('، ')), rows: g.models.map((m) => [++n, m.brand || '—', m.model || '—', ...nums(m)]), sub: [`إجمالي ${g.name}`, '', '', ...nums(g)] })) };
+  },
+  tableHTML(T, cls) {
+    const isN = (i) => i === 0 || i >= T.lead;
+    const N = (c, i) => html`<td${isN(i) ? raw(' class="n"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`;
+    const S = (r) => html`<td class="lbl" colspan="${T.lead}">${r[0]}</td>${r.slice(T.lead).map((c, k) => N(c, k + T.lead))}`;
+    const body = T.mode === 'general' ? html`${T.rows.map((r) => html`<tr>${r.map(N)}</tr>`)}`
+      : html`${T.groups.map((g) => html`<tr class="inv-g"><td colspan="${T.head.length}">${g.name}<small>${fmtNum(g.count)} موديل · ${fmtNum(g.total)} قطعة</small></td></tr>${g.rows.map((r, ri) => html`<tr>${r.map((c, i) => (i === 2 && g.subs[ri] ? html`<td dir="auto">${c}<small class="inv-sub">${g.subs[ri]}</small></td>` : i === 2 ? html`<td dir="auto">${c}</td>` : N(c, i)))}</tr>`)}<tr class="inv-st">${S(g.sub)}</tr>`)}`;
+    return html`<table class="${cls} ${T.mode === 'general' ? 'inv-gen' : 'inv-det'}"><thead><tr>${T.head.map((h, i) => html`<th${isN(i) ? raw(' class="n"') : ''}>${h}</th>`)}</tr></thead><tbody>${body}</tbody><tfoot><tr>${S(T.tot)}</tr></tfoot></table>`;
+  },
+  xlsRows(T, title, filt, G) {
+    const top = [[title], ['النطاق', filt], ['أُعد في', fmtDateTime(now())], ['أعدّه', (Auth.user || {}).name || ''], []];
+    if (T.mode === 'general') return [...top, T.head, ...T.rows, T.tot];
+    const out = [...top];
+    T.groups.forEach((g) => { out.push([`${g.name} — ${fmtNum(g.count)} موديل · ${fmtNum(g.total)} قطعة`], T.head, ...g.rows.map((r, i) => (g.subs[i] ? r.map((c, k) => (k === 2 ? `${c} (${g.subs[i]})` : c)) : r)), ['الإجمالي', ...g.sub.slice(1)], []); });
+    out.push(['ملخص الفئات'], G.head, ...G.rows, G.tot);
+    return out;
+  },
+  title: (mode) => (mode === 'general' ? 'تقرير المخزون والعهد — عام بالفئات' : 'تقرير المخزون والعهد — تفصيلي بالفئات والموديلات'),
+  run({ mode, rows, dcols, filt = '', out = 'print', file = 'تقرير-المخزون', title = '' }) {
+    const groups = INVR.build(rows, dcols), T = INVR.table(groups, dcols, mode), G = INVR.table(groups, dcols, 'general');
+    if (!groups.length) { UI.toast('لا توجد أرصدة في هذا النطاق', 'warn'); return; }
+    const ttl = title || INVR.title(mode);
+    const f2 = [filt, `${fmtNum(groups.length)} فئة`, `${fmtNum(G.tot[2])} موديل`, `${fmtNum(G.tot[G.tot.length - 1])} قطعة`].filter(Boolean).join(' · ');
+    if (out === 'xls') { downloadBlob(XL.write([{ name: mode === 'general' ? 'عام بالفئات' : 'تفصيلي', rows: INVR.xlsRows(T, ttl, f2, G) }]), `${file}-${dateInput(now())}.xlsx`); UI.toast('تم تصدير التقرير'); return; }
+    UI.print(html`<h2 style="text-align:center">${ttl}</h2><p class="inv-pf">${f2}</p>${INVR.tableHTML(T, 'inv-pt')}<div class="sign-row two"><div>مسؤول الجرد</div><div>اعتماد المسؤول</div></div>`, ttl);
+  },
+  /* النطاق: all المخازن والإدارات، store المخزن فقط، depts عهد الإدارات فقط */
+  scopeRows(rows, scope) {
+    if (scope === 'store') return rows.filter((r) => r.store > 0).map((r) => ({ ...r, deptTotal: 0, depts: {}, total: r.store }));
+    if (scope === 'depts') return rows.filter((r) => r.deptTotal > 0).map((r) => ({ ...r, store: 0, total: r.deptTotal }));
+    return rows;
+  },
+  modeKey: 'sq_invr_mode',
+  getMode() { try { return localStorage.getItem(INVR.modeKey) || 'detail'; } catch (_) { return 'detail'; } },
+  setMode(m) { try { localStorage.setItem(INVR.modeKey, m); } catch (_) { /* تجاهل */ } },
+  /* اختيار موديلات محددة: يُرجع Set بمفاتيح الموديلات، أو null للكل، أو undefined عند الإلغاء */
+  async pickModels(rows, sel) {
+    const groups = INVR.build(rows, []);
+    if (!groups.length) { UI.toast('لا موديلات في هذا النطاق', 'info'); return undefined; }
+    const r = await UI.modal({ title: 'اختيار الموديلات', icon: 'layers', size: 'lg',
+      body: html`<div class="row" style="gap:6px;margin-bottom:8px"><button type="button" class="btn btn-ghost btn-xs" data-mall="1">${UI.icon('check')} تحديد الكل</button><button type="button" class="btn btn-ghost btn-xs" data-mall="0">${UI.icon('x')} إلغاء الكل</button><span class="grow"></span><span class="chip tone-slate" data-mcount></span></div>
+        <div class="invr-pick">${groups.map((g) => html`<section><h4><label class="check"><input type="checkbox" data-mg="${g.id}"><span>${g.name}</span></label><small>${fmtNum(g.models.length)} موديل · ${fmtNum(g.total)} قطعة</small></h4><div class="chip-pick">${g.models.map((m) => html`<label><input type="checkbox" data-mk="${m.key}" data-mgi="${g.id}"${!sel || sel.has(m.key) ? raw(' checked') : ''}><span><b>${m.model || '—'}</b>${m.brand ? html` <small>${m.brand}</small>` : ''} <em>${fmtNum(m.total)}</em></span></label>`)}</div></section>`)}</div>`,
+      onMount: (f) => {
+        const cnt = () => { const all = $$('[data-mk]', f), on = all.filter((x) => x.checked).length; f.querySelector('[data-mcount]').textContent = `${fmtNum(on)} من ${fmtNum(all.length)}`; $$('[data-mg]', f).forEach((g) => { const ks = $$(`[data-mgi="${g.dataset.mg}"]`, f); g.checked = ks.every((x) => x.checked); g.indeterminate = !g.checked && ks.some((x) => x.checked); }); };
+        UI.on(f, 'click', '[data-mall]', (e, b) => { $$('[data-mk]', f).forEach((x) => { x.checked = b.dataset.mall === '1'; }); cnt(); });
+        UI.on(f, 'change', '[data-mg]', (e, g) => { $$(`[data-mgi="${g.dataset.mg}"]`, f).forEach((x) => { x.checked = g.checked; }); cnt(); });
+        UI.on(f, 'change', '[data-mk]', cnt); cnt();
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'اعتماد', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const all = $$('[data-mk]', f), on = all.filter((x) => x.checked); if (!on.length) throw new AppError('اختر موديلاً واحداً على الأقل'); return { set: on.length === all.length ? null : new Set(on.map((x) => x.dataset.mk)) }; } }] });
+    return r && typeof r === 'object' ? r.set : undefined;
+  },
+  /* أزرار التقرير في «تصفح المخزن»: تقرير لما في الصفحة الحالية (المخزن كله، أو الفئة، أو الماركة) */
+  btns(st) { return html`<button type="button" class="btn btn-soft" data-invr="1" data-cat="${st.cat || ''}" data-brand="${st.brand || ''}" title="تقرير بما في هذه الصفحة: طباعة أو Excel">${UI.icon('print')} تقرير</button>`; },
+  async dialog({ cat = '', brand = '' } = {}) {
+    const r = await Data.dept.report({});
+    const sub = cat ? IC.subtree(cat) : null;
+    const pool = r.rows.filter((x) => (!sub || sub.has(x.item.categoryId)) && (!brand || (x.item.brand || 'غير محدد') === brand));
+    const place = [cat ? IC.label(cat) : 'المخزن كاملاً', brand].filter(Boolean).join(' / ');
+    const st = { mode: brand || cat ? 'detail' : INVR.getMode(), scope: 'all', models: null };
+    const groups = INVR.build(pool, []);
+    return UI.modal({ title: `تقرير: ${place}`, icon: 'print', size: 'lg',
+      body: html`<div class="invr-dlg">
+        <div class="field"><label>نوع التقرير</label><div class="seg">${[['detail', 'تفصيلي: الفئات والموديلات وعدد كل موديل', 'layers'], ['general', 'عام: الفئات فقط', 'grid']].map(([k, l, ic]) => html`<label><input type="radio" name="imode" value="${k}"${st.mode === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
+        <div class="field mt"><label>الأرصدة</label><div class="seg">${[['all', 'المخازن وعهد الإدارات'], ['store', 'المخزن فقط'], ['depts', 'عهد الإدارات فقط']].map(([k, l]) => html`<label><input type="radio" name="iscope" value="${k}"${st.scope === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
+        <div class="field mt"><label>الموديلات <small class="faint">(كلها محددة، أزل ما لا تريده)</small></label>
+          ${groups.length ? html`<div class="invr-pick">${groups.map((g) => html`<section><h4><label class="check"><input type="checkbox" data-mg="${g.id}" checked><span>${g.name}</span></label><small>${fmtNum(g.models.length)} موديل · ${fmtNum(g.total)} قطعة</small></h4><div class="chip-pick">${g.models.map((m) => html`<label><input type="checkbox" data-mk="${m.key}" data-mgi="${g.id}" checked><span><b>${m.model || '—'}</b>${m.brand ? html` <small>${m.brand}</small>` : ''} <em>${fmtNum(m.total)}</em></span></label>`)}</div></section>`)}</div>` : html`<p class="faint">لا توجد أرصدة في هذا الموضع</p>`}
+        </div></div>`,
+      onMount: (f) => {
+        UI.on(f, 'change', '[data-mg]', (e, g) => { $$(`[data-mgi="${g.dataset.mg}"]`, f).forEach((x) => { x.checked = g.checked; }); });
+        UI.on(f, 'change', '[data-mk]', (e, x) => { const g = f.querySelector(`[data-mg="${x.dataset.mgi}"]`), ks = $$(`[data-mgi="${x.dataset.mgi}"]`, f); g.checked = ks.every((k) => k.checked); g.indeterminate = !g.checked && ks.some((k) => k.checked); });
+      },
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...['xls', 'print'].map((out) => ({ label: out === 'xls' ? 'Excel' : 'طباعة', kind: out === 'xls' ? 'soft' : 'primary', icon: out === 'xls' ? 'download' : 'print', handler: (f) => {
+        const mode = (f.querySelector('[name="imode"]:checked') || {}).value || 'detail', scope = (f.querySelector('[name="iscope"]:checked') || {}).value || 'all';
+        const keys = new Set($$('[data-mk]:checked', f).map((x) => x.dataset.mk)); if (!keys.size) throw new AppError('اختر موديلاً واحداً على الأقل');
+        const rows = INVR.scopeRows(pool.filter((x) => keys.has(INVR.key(INVT.of(x.item)))), scope);
+        INVR.setMode(mode);
+        const all = $$('[data-mk]', f).length;
+        INVR.run({ mode, rows, dcols: scope === 'store' ? [] : ['__all'], out, file: `تقرير-${place.replace(/[\\/:*?"<>|\s]+/g, '-')}`, filt: [`الموضع: ${place}`, { all: 'المخازن وعهد الإدارات', store: 'المخزن فقط', depts: 'عهد الإدارات فقط' }[scope], keys.size < all ? `${fmtNum(keys.size)} موديل محدد` : ''].filter(Boolean).join(' · ') });
+        return false;
+      } }))] });
+  },
+  /* صفحة «تقرير المخزون والعهد» */
+  async page(ctx) {
+    const st = { scope: 'all', depts: new Set(), warehouseId: '', cat: '', brand: '', q: '', mode: INVR.getMode(), models: null };
+    const cats = Data.list('itemCategories').map((c) => ({ value: c.id, label: IC.label(c.id) })).sort((a, b) => AR_COLL.compare(a.label, b.label));
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'تقرير المخزون والعهد', sub: 'تفصيلي بالفئات والموديلات وعدد كل موديل، أو عام بالفئات فقط، مع الطباعة والتصدير', illu: 'display', actions: html`<button class="btn" data-act="xls">${UI.icon('download')} تصدير Excel</button><button class="btn btn-primary" data-act="print">${UI.icon('print')} طباعة</button>` })}
+      <section class="panel"><div class="toolbar invr-tb">
+        <div class="seg" role="radiogroup" aria-label="نوع التقرير">${[['detail', 'تفصيلي', 'layers'], ['general', 'عام (الفئات)', 'grid']].map(([k, l, ic]) => html`<label><input type="radio" name="rmode" value="${k}"${st.mode === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>
+        <div class="seg" role="radiogroup" aria-label="النطاق">${[['all', 'المخازن وكل الإدارات'], ['store', 'المخزن فقط'], ['depts', 'كل الإدارات'], ['pick', 'إدارات محددة']].map(([k, l]) => html`<label><input type="radio" name="scope" value="${k}"${st.scope === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>
+      </div><div class="toolbar invr-tb" style="border-top:0;padding-top:0">
+        <select id="rwh" aria-label="المخزن"><option value="">كل المخازن</option>${UI.opts('warehouses').map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>
+        <select id="rcat" aria-label="الفئة"><option value="">كل الفئات</option>${cats.map((o) => html`<option value="${o.value}">${o.label}</option>`)}</select>
+        <select id="rbrand" aria-label="الماركة"><option value="">كل الماركات</option></select>
+        <button type="button" class="btn btn-ghost" id="rmodels">${UI.icon('layers')} <span>كل الموديلات</span></button>
+        <div class="search-box" style="max-width:260px">${UI.icon('search')}<input id="rq" type="search" placeholder="اسم الصنف أو الموديل"></div>
+      </div><div id="rpick" class="panel-body" hidden><label class="field"><span class="small faint">اختر الإدارات المطلوبة</span><div class="chip-pick" style="margin-top:8px">${Data.list('departments').map((d) => html`<label><input type="checkbox" data-rdep="${d.id}"><span>${d.name}</span></label>`)}</div></label></div><div id="rbody"></div></section>`);
+    const $v = (q) => $(q, ctx.view);
+    const load = async () => {
+      const depts = st.scope === 'store' ? ['__none__'] : st.scope === 'pick' ? [...st.depts] : [];
+      if (st.scope === 'pick' && !st.depts.size) { $v('#rbody').innerHTML = String(html`<div class="panel-body">${UI.noData('اختر إدارة واحدة على الأقل')}</div>`); ctx.rep = null; return; }
+      const r = await Data.dept.report({ departments: depts, warehouseId: st.warehouseId, q: st.q });
+      if (!ctx.alive()) return;
+      const sub = st.cat ? IC.subtree(st.cat) : null;
+      let rows = r.rows.filter((x) => !sub || sub.has(x.item.categoryId));
+      if (st.scope === 'store') rows = INVR.scopeRows(rows, 'store');
+      const brands = [...new Set(rows.map((x) => INVT.of(x.item).brand).filter(Boolean))].sort(AR_COLL.compare);
+      if (st.brand && !brands.includes(st.brand)) st.brand = '';
+      $v('#rbrand').innerHTML = String(html`<option value="">كل الماركات</option>${brands.map((b) => html`<option value="${b}"${b === st.brand ? raw(' selected') : ''}>${b}</option>`)}`);
+      if (st.brand) rows = rows.filter((x) => INVT.of(x.item).brand === st.brand);
+      ctx.pool = rows;
+      if (st.models) rows = rows.filter((x) => st.models.has(INVR.key(INVT.of(x.item))));
+      $v('#rmodels span').textContent = st.models ? `${fmtNum(st.models.size)} موديل محدد` : 'كل الموديلات';
+      $v('#rmodels').classList.toggle('btn-soft', !!st.models);
+      const cols = st.scope === 'pick' ? [...st.depts] : st.scope === 'store' ? [] : (await Data.dept.all()).map((d) => d.departmentId).slice(0, 6);
+      const wide = cols.length && cols.length <= 8, dcols = wide ? cols : st.scope !== 'store' ? ['__all'] : [];
+      ctx.rep = { rows, dcols };
+      const groups = INVR.build(rows, dcols), T = INVR.table(groups, dcols, st.mode), G = INVR.table(groups, dcols, 'general');
+      const sumStore = groups.reduce((a, g) => a + g.store, 0), sumDept = groups.reduce((a, g) => a + g.dept, 0);
+      $v('#rbody').innerHTML = String(html`
+        <div class="kpis" style="border:0;border-radius:0;box-shadow:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+          ${UI.kpi({ label: 'فئات', icon: 'grid', tone: 'sky', value: groups.length })}
+          ${UI.kpi({ label: 'موديلات', icon: 'layers', tone: 'violet', value: G.tot[2] })}
+          ${UI.kpi({ label: 'في المخازن', icon: 'warehouse', tone: 'teal', value: sumStore })}
+          ${UI.kpi({ label: 'بعهدة الإدارات', icon: 'building', tone: 'amber', value: sumDept })}
+          ${UI.kpi({ label: 'الإجمالي الكلي', icon: 'box', tone: 'brass', value: sumStore + sumDept })}
+        </div>
+        ${groups.length ? html`<div class="table-wrap">${INVR.tableHTML(T, 'table inv-scr')}</div>` : html`<div class="panel-body">${UI.noData('لا توجد أرصدة بهذه المعايير')}</div>`}`);
+      UI.hydrate($v('#rbody'));
+    };
+    UI.on(ctx.view, 'change', 'input[name="rmode"]', (e, el) => { st.mode = el.value; INVR.setMode(st.mode); load(); });
+    UI.on(ctx.view, 'change', 'input[name="scope"]', (e, el) => { st.scope = el.value; $v('#rpick').hidden = st.scope !== 'pick'; load(); });
+    UI.on(ctx.view, 'change', '[data-rdep]', (e, el) => { if (el.checked) st.depts.add(el.dataset.rdep); else st.depts.delete(el.dataset.rdep); load(); });
+    $v('#rwh').onchange = (e) => { st.warehouseId = e.target.value; load(); };
+    $v('#rcat').onchange = (e) => { st.cat = e.target.value; st.brand = ''; st.models = null; load(); };
+    $v('#rbrand').onchange = (e) => { st.brand = e.target.value; st.models = null; load(); };
+    $v('#rq').addEventListener('input', debounce((e) => { st.q = e.target.value.trim(); load(); }, 300));
+    UI.on(ctx.view, 'click', '#rmodels', async () => { const set = await INVR.pickModels(ctx.pool || [], st.models); if (set !== undefined) { st.models = set; load(); } });
+    const filt = () => [{ all: 'المخازن وكل الإدارات', store: 'المخزن فقط', depts: 'كل الإدارات', pick: 'إدارات محددة' }[st.scope], st.warehouseId ? `المخزن: ${Data.nameOf('warehouses', st.warehouseId, '')}` : '', st.cat ? `الفئة: ${IC.label(st.cat)}` : '', st.brand ? `الماركة: ${st.brand}` : '', st.models ? `${fmtNum(st.models.size)} موديل محدد` : '', st.q ? `بحث: ${st.q}` : ''].filter(Boolean).join(' · ');
+    const go = (out) => { if (!ctx.rep) { UI.toast('اختر إدارة واحدة على الأقل', 'warn'); return; } INVR.run({ mode: st.mode, ...ctx.rep, filt: filt(), out, file: 'تقرير-المخزون-والعهد' }); };
+    UI.on(ctx.view, 'click', '[data-act="xls"]', () => go('xls'));
+    UI.on(ctx.view, 'click', '[data-act="print"]', () => go('print'));
+    Pages.bindInv(ctx, load);
+    await load();
+  }
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-invr]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation(); INVR.dialog({ cat: b.dataset.cat || '', brand: b.dataset.brand || '' });
+}, true);
+
+/* ══════════ الجولة 24: الرجوع خطوة واحدة في كل الصفحات ══════════
+   كانت بعض الصفحات تحدّث العنوان بـ replaceState(null) فتمسح رقم الخطوة الذي يعتمد عليه زر الرجوع،
+   فيصعد الرجوع مستوى في المسار (من «توزيع العهدة» إلى «المخازن») بدل الرجوع للخطوة السابقة.
+   الآن يُحفظ رقم الخطوة دائماً، والتنقل داخل الصفحة (الإدارة ← القسم ← المحطة، والمجلدات) خطوات حقيقية. */
+{
+  const rs = history.replaceState.bind(history);
+  history.replaceState = (state, title, url) => { const cur = history.state && history.state.sqi; if (cur && (state == null || (typeof state === 'object' && !state.sqi))) state = { ...(state || {}), sqi: cur }; return rs(state, title, url); };
+}
+const NAVH = {
+  push(url) {
+    try {
+      if (location.hash === url) return;
+      const i = ((history.state && history.state.sqi) || Router.idx || 1) + 1;
+      history.pushState({ sqi: i }, '', url); Router.idx = i;
+    } catch (_) { /* تجاهل */ }
+  }
+};
+
+/* ══════════ الجولة 24: الطابعة والحبر المطلوب في تفاصيل بلاغ الأحبار ══════════ */
+const TINK = {
+  lines(t) {
+    const e = t.extra || {}; if (Array.isArray(e.inkLines) && e.inkLines.length) return e.inkLines;
+    const f = e.fields || [], g = (k) => String((f.find((x) => x.key === k) || {}).value || '').trim(), ink = g('ink');
+    return ink ? [{ brand: g('brand'), model: g('model'), inks: [{ code: ink, qty: Number(g('qty')) || 1, color: '' }] }] : [];
+  },
+  rows(t) {
+    const L = TINK.lines(t);
+    if (!L.length) return html`<dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd>`;
+    const dev = t.deviceName || [...new Set(L.map((l) => [l.brand, l.model].filter(Boolean).join(' ')).filter(Boolean))].join('، ');
+    return html`<dt>${UI.icon('printer')} الطابعة</dt><dd class="ltr-num">${dev || '—'}</dd><dt>${UI.icon('tag')} الحبر المطلوب</dt><dd><div class="tk-inks">${L.flatMap((l) => (l.inks || []).map((k) => html`<span class="tk-ink">${k.color ? html`<i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i>` : ''}<b class="ltr">${k.code}</b><small>× ${fmtNum(k.qty)}</small></span>`))}</div></dd>`;
+  }
+};
+
+/* ══════════ الجولة 24: شاشة العرض — الخدمة الواحدة تظهر مرة واحدة ══════════ */
+const SVCU = (list) => {
+  const sev = (s) => (s.status === 'down' ? 2 : s.status === 'up' ? 0 : 1), m = new Map();
+  (list || []).forEach((s) => {
+    const k = normalizeAr(String(s.name || '').trim()), p = m.get(k);
+    if (!p) { m.set(k, s); return; }
+    if (sev(s) > sev(p) || (sev(s) === sev(p) && (s.updatedAt || 0) > (p.updatedAt || 0))) m.set(k, { ...s, order: Math.min(s.order || 0, p.order || 0) });
+  });
+  return [...m.values()].sort((a, b) => (a.order || 0) - (b.order || 0));
+};
+
+/* ══════════ الجولة 24: عرض أجهزة العهدة — الموديل وتحته الماركة ══════════ */
+const DNM = {
+  model(it) {
+    if (!it) return '—';
+    const t = INVT.of(it), b = String(t.brand || '').trim(); let m = String(t.model || it.name || '').trim();
+    if (b) { const e = b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), m2 = m.replace(new RegExp(`^(?:${e}\\s+)+`, 'i'), '').trim(); if (m2) m = m2; }
+    return m || it.name || '—';
+  },
+  brand: (it) => (it ? INVT.of(it).brand || '' : '')
+};
+
+/* ══════════ الجولة 24: إجراءات العهدة عند التمرير — إرجاع، نقل، استبدال، صيانة ══════════
+   تظهر على كل جهاز في عهدة الإدارات (المخطط والقسم والمحطة وقائمة الإدارة) وتختفي بإبعاد المؤشر.
+   الإرجاع من مكتب أو محطة يُنقص رصيدهما أيضاً حتى تبقى الأرقام متطابقة. */
+const CACT = {
+  can: () => Auth.can('inventory.move'),
+  ACTS: [['ret', 'undo', 'إرجاع إلى المخزن'], ['xfer', 'swap', 'نقل إلى قسم أو إدارة أخرى'], ['swap', 'refresh', 'استبدال بجهاز آخر'], ['maint', 'tools', 'إرسال للصيانة']],
+  bar({ itemId, dep = '', at = '' }, inline = false) {
+    if (!itemId) return '';
+    return html`<span class="cact${inline ? ' inl' : ''}" data-cact-item="${itemId}" data-cact-dep="${dep}" data-cact-at="${at || ''}">${CACT.ACTS.map(([k, ic, l]) => html`<button type="button" data-cact="${k}" title="${l}" aria-label="${l}">${UI.icon(ic)}</button>`)}</span>`;
+  },
+  card(it, qty, ctx) { return html`<div class="cact-host">${UI.deviceCard(it.id ? { ...it, name: DNM.model(it), brand: DNM.brand(it), model: '' } : it, qty)}${CACT.can() ? CACT.bar(ctx) : ''}</div>`; },
+  async where(at) {
+    const [k, id] = String(at || '').split(':');
+    if (k === 'u') return { unit: id, ws: '' };
+    if (k === 'w') { const w = await DB.get('workstations', id); return { unit: (w && w.unitId) || '', ws: id }; }
+    return { unit: '', ws: '' };
+  },
+  async unitDrop(unit, itemId, n) { if (!unit || !(n > 0)) return; const cur = await DB.get('unitStock', [unit, itemId]); if (cur && cur.qty > 0) { cur.qty = Math.max(0, cur.qty - n); cur.updatedAt = now(); await DB.put('unitStock', cur); } },
+  async wsAdj(wsId, itemId, delta) {
+    if (!wsId || !delta) return; const w = await DB.get('workstations', wsId); if (!w) return;
+    const lines = (w.lines || []).map((l) => ({ ...l })), l = lines.find((x) => x.itemId === itemId);
+    if (l) l.qty = Math.max(0, (Number(l.qty) || 0) + delta); else if (delta > 0) lines.push({ itemId, qty: delta });
+    await WS.save({ ...w, lines: lines.filter((x) => Number(x.qty) > 0) });
+  },
+  async run(act, { itemId, dep, at }) {
+    const { unit, ws } = await CACT.where(at);
+    const qOf = (v, k = 'lines') => Number((((v || {})[k] || [])[0] || {}).qty) || 0;
+    let r = null;
+    if (act === 'xfer') { r = await Pages.transferModal({ itemId, departmentId: dep, unitId: unit }); if (r && ws) await CACT.wsAdj(ws, itemId, -qOf(r)); }
+    else if (act === 'swap') { r = await Pages.replaceModal({ itemId, departmentId: dep, unitId: unit }); if (r && ws) { const n = qOf(r, 'oldLines') || qOf(r); await CACT.wsAdj(ws, itemId, -n); const ni = ((r.lines || [])[0] || {}).itemId; if (ni) await CACT.wsAdj(ws, ni, n); } }
+    else if (act === 'maint') r = await Pages.maintSendModal(itemId, { departmentId: dep, unitId: unit });
+    else if (act === 'ret') { r = await Pages.deptReturnModal(dep, itemId); if (r) { const n = qOf(r); await CACT.unitDrop(unit, itemId, n); if (ws) await CACT.wsAdj(ws, itemId, -n); } }
+    if (r) Bus.emit('inventory', {});
+    return r;
+  }
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-cact]'); if (!b) return;
+  const host = b.closest('[data-cact-item]'); if (!host) return;
+  e.preventDefault(); e.stopPropagation();
+  /* السياق من الموضع نفسه: محطة أو مكتب أو إدارة، والإدارة من عنوان الصفحة إن لم تُذكر */
+  let at = host.dataset.cactAt || '', dep = host.dataset.cactDep || '';
+  if (!at) { const d = host.closest('[data-cdrop]'); at = d ? d.dataset.cdrop : ''; }
+  if (at.startsWith('d:')) { dep = dep || at.slice(2); at = ''; }
+  if (!dep) dep = new URLSearchParams(location.hash.split('?')[1] || '').get('dep') || '';
+  if (!dep) { UI.toast('افتح الإدارة أولاً ثم نفّذ الإجراء', 'warn'); return; }
+  CACT.run(b.dataset.cact, { itemId: host.dataset.cactItem, dep, at }).catch((ex) => UI.error(ex));
+}, true);
 
 boot();
 })();

@@ -6424,3 +6424,62 @@ article.vc-card2[data-vpv]{cursor:pointer}
 .print-doc .inv-pt tfoot td{font-weight:800;background:#f6f2e8;border-top:2px solid #8a6a22}
 .print-doc .inv-pt td:nth-child(2),.print-doc .inv-pt td:nth-child(5){white-space:nowrap}
 .print-doc .inv-pt td:nth-child(5){direction:ltr;text-align:center}
+
+/* ══════════ الجولة 24: الطباعة — الجداول الطويلة تبدأ في الصفحة نفسها ══════════
+   كانت القاعدة العامة table{break-inside:avoid} تنقل أي جدول لا يتسع له باقي الصفحة إلى الصفحة التالية
+   فتبقى الأولى فارغة إلا من العنوان. الآن ينقسم الجدول بين الصفحات، ولا ينقسم الصف، ويتكرر رأسه */
+@media print{
+  #print-root table,.print-doc table{break-inside:auto!important;page-break-inside:auto!important}
+  .print-doc tr{break-inside:avoid;page-break-inside:avoid}
+  .print-doc thead{display:table-header-group}
+  .print-doc .vd-sigs,.print-doc .sign-row{break-inside:avoid!important;page-break-inside:avoid!important}
+  .print-doc .panel{break-inside:auto!important}
+}
+/* ══════════ الجولة 24: تقرير المخزون بالفئات ══════════ */
+.print-doc .inv-pt .inv-g td{background:#efe9da;font-weight:800;font-size:13px;border-top:2px solid #8a6a22;text-align:start}
+.print-doc .inv-pt .inv-g small{font-weight:600;color:#555;margin-inline-start:10px;font-size:11px}
+.print-doc .inv-pt .inv-st td{font-weight:700;background:#faf7ef}
+.print-doc .inv-pt td.lbl{text-align:start;font-weight:800}
+.print-doc .inv-pt.inv-det td:nth-child(2){font-weight:600}
+.inv-sub{display:block;font-size:10.5px;color:#777;font-weight:400}
+.inv-scr .inv-g td{background:var(--surface-2);font-weight:800;border-top:2px solid rgb(var(--accent));text-align:start}
+.inv-scr .inv-g small{color:var(--ink-3);font-weight:600;margin-inline-start:10px;font-size:12px}
+.inv-scr .inv-st td{font-weight:700;background:rgba(var(--accent),.06)}
+.inv-scr td.n,.inv-scr th.n{text-align:center;white-space:nowrap}
+.inv-scr td.lbl{font-weight:800}
+.inv-scr tfoot td{font-weight:800;border-top:2px solid var(--line);background:var(--surface-2)}
+.invr-tb{flex-wrap:wrap;gap:8px}
+.invr-pick{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto;padding:2px}
+.invr-pick section{border:1px solid var(--line-2);border-radius:12px;padding:8px 10px;background:var(--surface-solid)}
+.invr-pick h4{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:13.5px}
+.invr-pick h4 small{color:var(--ink-3);font-weight:600;font-size:11.5px}
+.invr-pick .chip-pick span small{color:var(--ink-3)}
+.invr-pick .chip-pick span em{font-style:normal;font-weight:800;color:rgb(var(--accent));margin-inline-start:4px}
+
+@media print{.print-doc tfoot{display:table-row-group}}
+/* ══════════ الجولة 24: بلاغ الأحبار ══════════ */
+.tk-inks{display:flex;flex-wrap:wrap;gap:6px}
+.tk-ink{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line-2);font-size:12.5px}
+.tk-ink small{color:var(--ink-3);font-weight:700}
+/* ══════════ الجولة 24: شاشة العرض ══════════ */
+.tv2-hsum.ok{color:#2fbf8f}
+.tv2-hsum.bad{color:#ff6b6b;font-weight:800}
+.tv-light .tv2-hsum.ok{color:#0f8a5f}
+.tv-light .tv2-hsum.bad{color:#c62828}
+/* ══════════ الجولة 24: إجراءات العهدة عند التمرير ══════════ */
+.cact-host,.cm-dev,.unit-item{position:relative}
+.cact{position:absolute;top:6px;inset-inline-end:6px;z-index:4;display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--surface-solid);border:1px solid var(--line-2);box-shadow:0 8px 18px -10px rgba(0,0,0,.45);opacity:0;transform:translateY(-3px);transition:opacity .15s,transform .15s;pointer-events:none}
+.cact button{width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;padding:0}
+.cact button .ic{width:16px;height:16px}
+.cact button:hover,.cact button:focus-visible{background:rgba(var(--accent),.14);color:rgb(var(--accent));outline:none}
+.cact button[data-cact="ret"]:hover{background:rgba(16,150,105,.14);color:#0f8a5f}
+.cact button[data-cact="maint"]:hover{background:rgba(245,158,11,.16);color:#b45309}
+.cm-dev:hover>.cact,.cm-dev:focus-within>.cact,.cact-host:hover>.cact,.cact-host:focus-within>.cact{opacity:1;transform:none;pointer-events:auto}
+.unit-item .cact{top:50%;transform:translateY(-50%);inset-inline-end:40px}
+.unit-item:hover .cact,.unit-item:focus-within .cact{opacity:1;transform:translateY(-50%);pointer-events:auto}
+.cact.inl{position:static;display:inline-flex;opacity:.55;transform:none;pointer-events:auto;box-shadow:none;margin-inline-start:4px;vertical-align:middle}
+tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
+@media (hover:none){.cact{opacity:1;transform:none;pointer-events:auto}.unit-item .cact{transform:translateY(-50%)}}
+
+.dk-tile{position:relative}
+.dk-tile:hover>.cact,.dk-tile:focus-within>.cact{opacity:1;transform:none;pointer-events:auto}
