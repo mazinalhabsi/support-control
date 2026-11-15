@@ -6601,3 +6601,39 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .wsp-pair code{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--surface-2);direction:ltr}
 .wsp-pair small{color:var(--ink-3)}
 .wsp-pair .icon-btn{width:24px;height:24px}
+
+/* ══════════ الجولة 25: الرقم التسلسلي بعد السحب إلى المحطة ══════════ */
+.cmsn-host{position:fixed;z-index:60;width:min(420px,calc(100vw - 20px))}
+.cmsn{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:14px;background:var(--surface-solid);border:1px solid var(--line-2)}
+.cmsn.pop{border-color:rgba(var(--accent),.5);box-shadow:0 18px 40px -16px rgba(0,0,0,.45),0 0 0 4px rgba(var(--accent),.10);animation:cmsnIn .16s ease-out}
+@keyframes cmsnIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.cmsn-top{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#0f8a5f}
+.cmsn-top>.ic{width:16px;height:16px}
+.cmsn-top .icon-btn{width:26px;height:26px}
+.cmsn-h{display:flex;align-items:center;gap:8px}
+.cmsn-h .iso.mini{width:36px;height:32px;flex:none}
+.cmsn-h b{display:block;font-size:13.5px}
+.cmsn-h small{display:block;font-size:11.5px;color:var(--ink-3)}
+.cmsn-q{font-weight:800;font-size:13px;padding:2px 8px;border-radius:999px;background:var(--surface-2)}
+.cmsn-in{display:flex;gap:6px;align-items:center}
+.cmsn-in .input{flex:1;min-width:0;height:36px;font-family:ui-monospace,Consolas,monospace;letter-spacing:.3px}
+.cmsn-mode{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 10px;border-radius:10px;border:1px solid rgba(var(--accent),.45);background:rgba(var(--accent),.10);color:rgb(var(--accent));font:inherit;font-size:12px;cursor:pointer;flex:none;direction:ltr}
+.cmsn-mode b{font-weight:800;letter-spacing:.4px}
+.cmsn-mode .ic{width:14px;height:14px}
+.cmsn-mode.tag{border-color:rgba(124,58,237,.45);background:rgba(124,58,237,.10);color:#7c3aed}
+.cmsn-list{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.cmsn-p{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 8px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-2);font-size:11.5px;direction:ltr}
+.cmsn-p em{font-style:normal;font-weight:800;color:var(--ink-3)}
+.cmsn-p code{font-size:11px}
+.cmsn-p code.tag{color:#7c3aed}
+.cmsn-p code.miss{color:var(--ink-3);opacity:.7}
+.cmsn-p button{border:0;background:transparent;cursor:pointer;width:18px;height:18px;display:grid;place-items:center;color:var(--ink-3);padding:0}
+.cmsn-p button .ic{width:11px;height:11px}
+.cmsn-need{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:#b45309}
+.cmsn-need .ic{width:13px;height:13px}
+.cmsn-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cmsn-block{margin-top:12px;padding:10px 12px;border-radius:14px;border:1px dashed rgba(245,158,11,.55);background:rgba(245,158,11,.06)}
+.cmsn-block h5{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;font-size:13px}
+.cmsn-block h5 small{color:var(--ink-3);font-weight:600}
+.cmsn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.cmsn-in .input::placeholder{font-family:inherit;letter-spacing:0}

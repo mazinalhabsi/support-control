@@ -20332,7 +20332,7 @@ Pages.custodyMap = async (ctx) => {
   /* إضافة سطر من الإفلات: target = d:/u:/w:/s:، payload = i: نموذج، k: حزمة، a: من العهدة العامة للإدارة */
   const addPend = (target, payload, qty = 1) => {
     const [tk, tid] = target.split(':'), [pk, pid] = payload.split(':');
-    if (pk === 'k') { const kit = MDL.kits().find((x) => x.id === pid); if (!kit) return 0; let n = 0; kit.rows.forEach((r) => { if (addPend(target, `i:${r.itemId}`, r.qty * qty)) n++; }); if (n) UI.toast(`أُضيفت حزمة «${kit.name}» (${fmtNum(n)} نموذج) إلى قائمة التوزيع`, 'ok'); return n; }
+    if (pk === 'k') { const kit = MDL.kits().find((x) => x.id === pid); if (!kit) return 0; let n = 0; CMSN.mute++; try { kit.rows.forEach((r) => { if (addPend(target, `i:${r.itemId}`, r.qty * qty)) n++; }); } finally { CMSN.mute--; } if (n) UI.toast(`أُضيفت حزمة «${kit.name}» (${fmtNum(n)} نموذج) إلى قائمة التوزيع`, 'ok'); return n; }
     const it = items.get(pid); if (!it) return 0;
     let line = null;
     if (tk === 's') { if (!canStore) { UI.toast('الاستلام في المخزن لمن يملك حركات المخزون', 'warn'); return 0; } if (pk === 'a') { UI.toast('عهدة الإدارة تعود للمخزن من «إرجاع إلى المخزن»', 'warn'); return 0; } line = { kind: 'store', whId: tid, depId: '', unitId: '', wsId: '' }; }
@@ -20350,8 +20350,8 @@ Pages.custodyMap = async (ctx) => {
       }
     }
     const hit = CM.pend.find((l) => l.kind === line.kind && l.itemId === pid && l.depId === line.depId && l.unitId === line.unitId && l.wsId === line.wsId && l.whId === line.whId && !l.temp);
-    if (hit) hit.qty += qty; else CM.pend.push({ k: uid('cp'), ...line, itemId: pid, qty, sn: '', temp: false, due: '' });
-    CM.keep(); return 1;
+    let L = hit; if (hit) hit.qty += qty; else { L = { k: uid('cp'), ...line, itemId: pid, qty, sn: '', temp: false, due: '' }; CM.pend.push(L); }
+    CM.keep(); CMSN.dropped(L, target, it); return 1;
   };
   /* ── لوحة النماذج: شجرة قابلة للطي (الفئة ← الماركة ← السلسلة ← الموديل)، تُفتح فيها عدة ماركات معاً ── */
   const models = () => [...items.values()].filter((i) => !i.archived);
@@ -20497,7 +20497,7 @@ Pages.custodyMap = async (ctx) => {
   /* محطة العمل: أجهزتها شبكة أو قائمة، والضغط على الجهاز يعرض تفاصيله */
   const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${WS.holders(w).length ? html`<small>${UI.icon(WS.holders(w).length > 1 ? 'users' : 'user')} ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}${WS.holders(w).length > 1 ? ' — محطة مشتركة' : ''}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-ghost btn-sm" data-wsren="${w.id}">${UI.icon('tag')} تسمية</button>` : ''}${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
     <div class="dk-stage tone-${w.tone || 'sky'}">${CMV.scene(wsLines(w), items, 'lg')}</div>
-    ${sec('box', 'أجهزة المحطة', WS.count(w), html`${devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`}${WSP.block(w, items)}`)}</div>`;
+    ${sec('box', 'أجهزة المحطة', WS.count(w), html`${devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`}${CMSN.block(CM.pend.filter((l) => l.wsId === w.id), items)}${WSP.block(w, items)}`)}</div>`;
   const tray = () => {
     if (!CM.pend.length) return html`<div class="cm-trayempty">${UI.icon('info')} اسحب النماذج من اللوحة إلى أي إدارة أو قسم أو مكتب أو محطة${canStore ? ' أو مخزن' : ''}، فتظهر هنا لتعديل العدد والأرقام التسلسلية قبل الحفظ.</div>`;
     const tot = CM.pend.reduce((s, l) => s + l.qty, 0);
@@ -20558,6 +20558,7 @@ Pages.custodyMap = async (ctx) => {
     drawPal();
   };
   const after = () => draw(false);
+  const onSn = (e) => { after(); CMSN.refocus(e.detail); }; document.addEventListener('cmsn:change', onSn); ctx.onCleanup(() => { document.removeEventListener('cmsn:change', onSn); CMSN.close(); });
   addEventListener('resize', place); ctx.onCleanup(() => removeEventListener('resize', place));
   /* ── السحب والإفلات من اللوحة ── */
   let dragPay = '';
@@ -25488,6 +25489,108 @@ document.addEventListener('click', (e) => {
   const [w, p] = a.dataset.wspdel.split('|');
   UI.confirm('فك ربط هذا الجهاز بشاشته؟', { ok: 'فك الربط' }).then((ok) => { if (ok) WSP.unpair(w, p).catch((ex) => UI.error(ex)); });
 }, true);
+
+/* ══════════ الجولة 25: الرقم التسلسلي مباشرة بعد سحب الجهاز إلى محطة العمل ══════════
+   بعد إفلات جهاز على محطة عمل تظهر تحتها خانة الرقم التسلسلي، وزر يبدّلها بين S/N ورقم التاج.
+   Enter يضيف الرقم ويُبقي الخانة جاهزة للتالي (ويزيد العدد تلقائياً إن زادت الأرقام)، وShift+Enter يضيف ويبدّل النوع.
+   الأرقام تُحفظ في سطر قائمة التوزيع نفسه (S/N وTAG لكل جهاز) فتُسجَّل مع «حفظ التوزيع».
+   وفي صفحة المحطة تظهر الأجهزة المضافة ولم تُحفظ بعد، وتحت كل منها الخانة نفسها. */
+const CMSN = {
+  mute: 0, at: null, place: '', lastFocus: 'pop', its: new Map(),
+  mode() { try { return localStorage.getItem('sq_cmsn_mode') === 'tag' ? 'tag' : 'sn'; } catch (_) { return 'sn'; } },
+  setMode(m) { try { localStorage.setItem('sq_cmsn_mode', m); } catch (_) { /* تجاهل */ } },
+  line: (k) => CM.pend.find((x) => x.k === k),
+  pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || '', tag: p.tag || '' })) : snSplit(l.sn).map((x) => ({ serial: x, tag: '' })); },
+  set(l, pairs) { const ps = pairs.filter((p) => p.serial || p.tag); l.pairs = ps; l.sn = ps.map((p) => p.serial || p.tag).join('، '); l.pairsShown = l.sn; const q0 = l.qty; l.qty = Math.max(Number(l.qty) || 1, ps.length); CM.keep(); return l.qty !== q0; },
+  norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/\s+/g, ''),
+  add(l, v, mode) {
+    const vs = snSplit(v).length > 1 ? snSplit(v) : [String(v || '').trim()].filter(Boolean), ps = CMSN.pairs(l);
+    const used = new Set(CM.pend.flatMap((x) => CMSN.pairs(x).flatMap((p) => [p.serial, p.tag])).filter(Boolean).map(CMSN.norm));
+    let n = 0;
+    vs.forEach((x) => {
+      if (used.has(CMSN.norm(x))) { UI.toast(`الرقم ${x} مضاف من قبل في قائمة التوزيع`, 'warn'); return; }
+      if (mode === 'tag') { const p = ps.find((y) => y.serial && !y.tag); if (p) p.tag = x; else ps.push({ serial: '', tag: x }); }
+      else { const p = ps.find((y) => y.tag && !y.serial); if (p) p.serial = x; else ps.push({ serial: x, tag: '' }); }
+      used.add(CMSN.norm(x)); n++;
+    });
+    return { n, q: n ? CMSN.set(l, ps) : false };
+  },
+  view(l, it, pop = false) {
+    const ps = CMSN.pairs(l), m = CMSN.mode(), need = Math.max(0, (Number(l.qty) || 0) - ps.filter((p) => p.serial || p.tag).length);
+    return html`<div class="cmsn${pop ? ' pop' : ''}" data-cmsn="${l.k}">
+      ${pop ? html`<div class="cmsn-top">${UI.icon('check')}<span class="grow">أُضيف إلى ${CMSN.place || 'المحطة'}</span><button type="button" class="icon-btn" data-cmsnx aria-label="إغلاق">${UI.icon('x')}</button></div>` : ''}
+      <div class="cmsn-h">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it)}</b><small>${[DNM.brand(it), pop ? '' : 'بانتظار الحفظ'].filter(Boolean).join(' · ')}</small></div><span class="cmsn-q" title="العدد">×${fmtNum(l.qty)}</span></div>
+      <div class="cmsn-in"><button type="button" class="cmsn-mode ${m}" data-cmsnmode title="تبديل بين الرقم التسلسلي ورقم التاج (أو Shift+Enter)"><b>${m === 'tag' ? 'TAG' : 'S/N'}</b>${UI.icon('swap')}</button><input class="input ltr" data-cmsnv autocomplete="off" spellcheck="false" placeholder="${m === 'tag' ? 'رقم التاج' : 'الرقم التسلسلي'} ثم Enter"><button type="button" class="btn btn-sm btn-primary" data-cmsnadd>${UI.icon('plus')} إضافة</button></div>
+      ${ps.length || need ? html`<div class="cmsn-list">${ps.map((p, i) => html`<span class="cmsn-p"><em>${fmtNum(i + 1)}</em>${p.serial ? html`<code title="الرقم التسلسلي">S/N ${p.serial}</code>` : html`<code class="miss" title="لم يُكتب الرقم التسلسلي">S/N —</code>`}${p.tag ? html`<code class="tag" title="رقم التاج">TAG ${p.tag}</code>` : ''}<button type="button" data-cmsndel="${i}" title="حذف" aria-label="حذف">${UI.icon('x')}</button></span>`)}${need ? html`<span class="cmsn-need">${UI.icon('info')} ${fmtNum(need)} ${need === 1 ? 'جهاز' : 'أجهزة'} بلا رقم</span>` : ''}</div>` : ''}
+      ${pop ? html`<div class="cmsn-foot"><small class="faint">Enter يضيف ويبقى جاهزاً للتالي · Shift+Enter يضيف ويبدّل إلى ${m === 'tag' ? 'S/N' : 'TAG'}</small><span class="grow"></span><button type="button" class="btn btn-sm btn-ghost" data-cmsnx>تم</button><button type="button" class="btn btn-sm btn-soft" data-cmsnsave>${UI.icon('check')} حفظ التوزيع الآن</button></div>` : ''}
+    </div>`;
+  },
+  block(lines, items) {
+    lines = lines.filter((l) => l.kind !== 'assign' && items.get(l.itemId)); if (!lines.length) return '';
+    lines.forEach((l) => CMSN.its.set(l.itemId, items.get(l.itemId)));
+    return html`<div class="cmsn-block"><h5>${UI.icon('clock')} أُضيفت ولم تُحفظ بعد <small>اكتب الرقم التسلسلي أو التاج تحت كل جهاز، ثم «حفظ التوزيع»</small></h5><div class="cmsn-grid">${lines.map((l) => CMSN.view(l, items.get(l.itemId)))}</div></div>`;
+  },
+  dropped(L, target, it) {
+    if (CMSN.mute || !L || !it || L.kind === 'assign') return;
+    if (!String(target).startsWith('w:') && !isSerialItem(it)) return;
+    CMSN.its.set(it.id, it);
+    setTimeout(() => CMSN.pop(L.k, target), 90);
+  },
+  pop(k, target) {
+    const l = CMSN.line(k), it = l && CMSN.its.get(l.itemId); if (!l || !it) return;
+    CMSN.close();
+    const tEl = document.querySelector(`[data-cdrop="${String(target).replace(/"/g, '')}"]`), nm = tEl ? ((tEl.querySelector('b') || tEl).textContent || '').trim() : '';
+    CMSN.place = String(target).startsWith('w:') ? `محطة «${nm || 'العمل'}»` : nm ? `«${nm}»` : 'الموضع';
+    const host = document.createElement('div'); host.className = 'cmsn-host'; host.dataset.cmsnFor = k; host.setAttribute('role', 'dialog'); host.setAttribute('aria-label', 'الرقم التسلسلي للجهاز المضاف');
+    host.innerHTML = String(CMSN.view(l, it, true)); document.body.appendChild(host); CMSN.at = host;
+    const w = host.offsetWidth, h = host.offsetHeight, r = tEl ? tEl.getBoundingClientRect() : null;
+    let top, left;
+    if (r && r.width && r.bottom > 0 && r.top < innerHeight) { top = r.bottom + 8; if (top + h > innerHeight - 10) top = Math.max(10, r.top - h - 8); left = r.left + r.width / 2 - w / 2; }
+    else { top = innerHeight - h - 20; left = innerWidth / 2 - w / 2; }
+    host.style.top = `${Math.round(clamp(top, 10, Math.max(10, innerHeight - h - 10)))}px`; host.style.left = `${Math.round(clamp(left, 10, Math.max(10, innerWidth - w - 10)))}px`;
+    CMSN.lastFocus = 'pop'; const inp = host.querySelector('[data-cmsnv]'); if (inp) inp.focus();
+  },
+  close() { if (CMSN.at) { CMSN.at.remove(); CMSN.at = null; } },
+  rerender() {
+    $$('[data-cmsn]').forEach((n) => {
+      const l = CMSN.line(n.dataset.cmsn), it = l && CMSN.its.get(l.itemId), pop = n.classList.contains('pop');
+      if (!l || !it) { if (pop) CMSN.close(); else n.remove(); return; }
+      const t = document.createElement('div'); t.innerHTML = String(CMSN.view(l, it, pop)); n.replaceWith(t.firstElementChild);
+    });
+  },
+  syncTray(k) { const l = CMSN.line(k), tr = l && document.querySelector(`[data-pk="${k}"]`); if (!tr) return; const a = tr.querySelector('[data-psn]'); if (a) a.value = l.sn; const q = tr.querySelector('[data-pqty]'); if (q) q.value = l.qty; },
+  refocus(k) { const sel = CMSN.lastFocus === 'pop' ? '.cmsn.pop' : '.cmsn:not(.pop)', inp = document.querySelector(`${sel}[data-cmsn="${k}"] [data-cmsnv]`) || document.querySelector(`[data-cmsn="${k}"] [data-cmsnv]`); if (inp) inp.focus(); },
+  commit(inp, flip = false) {
+    const c = inp.closest('[data-cmsn]'), k = c && c.dataset.cmsn, l = k && CMSN.line(k); if (!l) return;
+    if (!inp.value.trim()) { inp.focus(); return; }
+    CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline';
+    const r = CMSN.add(l, inp.value, CMSN.mode());
+    if (flip) CMSN.setMode(CMSN.mode() === 'tag' ? 'sn' : 'tag');
+    CMSN.rerender(); CMSN.syncTray(k);
+    if (r.q) document.dispatchEvent(new CustomEvent('cmsn:change', { detail: k }));
+    CMSN.refocus(k);
+  }
+};
+document.addEventListener('keydown', (e) => {
+  const inp = e.target.closest && e.target.closest('[data-cmsnv]');
+  if (inp && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); CMSN.commit(inp, e.shiftKey); return; }
+  if (e.key === 'Escape' && CMSN.at && CMSN.at.contains(e.target)) { e.preventDefault(); e.stopPropagation(); CMSN.close(); }
+}, true);
+document.addEventListener('click', (e) => {
+  const c = e.target.closest && e.target.closest('[data-cmsn]'); if (!c) return;
+  e.stopPropagation();
+  const t = e.target.closest('[data-cmsnmode],[data-cmsnadd],[data-cmsndel],[data-cmsnx],[data-cmsnsave]'); if (!t) return;
+  e.preventDefault();
+  const k = c.dataset.cmsn, l = CMSN.line(k); CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline';
+  if (t.matches('[data-cmsnx]')) { CMSN.close(); return; }
+  if (t.matches('[data-cmsnsave]')) { CMSN.close(); const b = document.querySelector('[data-cmsave=""]'); if (b) b.click(); else UI.toast('احفظ من «قائمة التوزيع»', 'info'); return; }
+  if (!l) { CMSN.rerender(); return; }
+  if (t.matches('[data-cmsnmode]')) { CMSN.setMode(CMSN.mode() === 'tag' ? 'sn' : 'tag'); CMSN.rerender(); CMSN.refocus(k); return; }
+  if (t.matches('[data-cmsnadd]')) { CMSN.commit(c.querySelector('[data-cmsnv]')); return; }
+  if (t.matches('[data-cmsndel]')) { const ps = CMSN.pairs(l); ps.splice(Number(t.dataset.cmsndel), 1); CMSN.set(l, ps); CMSN.rerender(); CMSN.syncTray(k); CMSN.refocus(k); }
+}, true);
+window.addEventListener('hashchange', () => CMSN.close());
+Bus.on('inventory', () => { if (CMSN.at && !CMSN.line(CMSN.at.dataset.cmsnFor)) CMSN.close(); });
 
 boot();
 })();
