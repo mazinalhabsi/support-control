@@ -20891,15 +20891,15 @@ const rcLoad = async (from, to, keys) => {
   const vOf = new Map(); vouchers.forEach((v) => (v.movementIds || []).forEach((id) => vOf.set(id, v)));
   const loanByNo = new Map(loans.map((l) => [l.number, l]));
   const ST = (label, tone) => ({ label, tone });
-  tickets.forEach((t) => { const S = STATUS[t.status] || STATUS.new, done = ['resolved', 'closed'].includes(t.status), open = !done && t.status !== 'cancelled'; out.push({ src: 'tickets', id: t.id, at: t.createdAt, title: t.title || 'بلاغ', sub: Data.nameOf('categories', t.categoryId, ''), ref: t.number || '', dep: t.departmentId || '', unit: t.unitId || '', who: t.requesterId ? Data.userName(t.requesterId) : '', byId: t.assigneeId || '', by: t.assigneeId ? Data.userName(t.assigneeId) : '', qty: 1, st: S, open, done, late: !!t.dueAt && t.status !== 'cancelled' && (t.resolvedAt || T) > t.dueAt, dur: t.resolvedAt ? t.resolvedAt - t.createdAt : 0, link: `#/tickets/${t.id}`, extra: (PRIORITY[t.priority] || {}).label || '' }); });
-  maint.forEach((r) => { const S = MAINT_STATUS[r.status] || MAINT_STATUS.open; out.push({ src: 'maint', id: r.id, at: r.openedAt, title: `${r.itemName || 'جهاز'}${r.serial ? ` — ${r.serial}` : ''}`, sub: r.reason || r.symptom || '', ref: '', dep: r.fromDepartmentId || '', unit: r.fromUnitId || '', who: '', byId: r.openedBy || '', by: r.openedBy ? Data.userName(r.openedBy) : '', qty: 1, st: S, open: ['open', 'done'].includes(r.status), done: r.status === 'returned', late: false, dur: (r.closedAt || r.returnedAt) ? (r.closedAt || r.returnedAt) - r.openedAt : 0, link: `#/maintenance/${r.id}` }); });
-  ext.forEach((r) => { const S = XM_STATUS[r.status] || XM_STATUS.sent, done = ['delivered', 'closed'].includes(r.status); out.push({ src: 'extmaint', id: r.id, at: r.sentAt, title: r.name || 'جهاز', sub: [r.vendor, r.fault].filter(Boolean).join(' — '), ref: r.number || '', dep: r.departmentId || '', unit: r.unitId || '', who: r.holder || '', byId: r.sentBy || '', by: r.sentBy ? Data.userName(r.sentBy) : '', qty: 1, st: S, open: !done, done, late: !done && !!r.expectedAt && r.expectedAt < T, dur: (r.deliveredAt || r.receivedAt) ? (r.deliveredAt || r.receivedAt) - r.sentAt : 0, link: '#/ext-maint' }); });
+  tickets.forEach((t) => { const S = STATUS[t.status] || STATUS.new, done = ['resolved', 'closed'].includes(t.status), open = !done && t.status !== 'cancelled'; out.push({ src: 'tickets', id: t.id, at: t.createdAt, title: t.title || 'بلاغ', sub: Data.nameOf('categories', t.categoryId, ''), ref: t.number || '', dep: t.departmentId || '', unit: t.unitId || '', who: t.requesterId ? Data.userName(t.requesterId) : '', byId: t.assigneeId || '', by: t.assigneeId ? Data.userName(t.assigneeId) : '', qty: 1, st: S, open, done, late: !!t.dueAt && t.status !== 'cancelled' && (t.resolvedAt || T) > t.dueAt, dur: t.resolvedAt ? t.resolvedAt - t.createdAt : 0, link: `#/tickets/${t.id}`, extra: (PRIORITY[t.priority] || {}).label || '', catId: t.categoryId || '' }); });
+  maint.forEach((r) => { const S = MAINT_STATUS[r.status] || MAINT_STATUS.open; out.push({ src: 'maint', itemId: r.itemId || '', id: r.id, at: r.openedAt, title: `${r.itemName || 'جهاز'}${r.serial ? ` — ${r.serial}` : ''}`, sub: r.reason || r.symptom || '', ref: '', dep: r.fromDepartmentId || '', unit: r.fromUnitId || '', who: '', byId: r.openedBy || '', by: r.openedBy ? Data.userName(r.openedBy) : '', qty: 1, st: S, open: ['open', 'done'].includes(r.status), done: r.status === 'returned', late: false, dur: (r.closedAt || r.returnedAt) ? (r.closedAt || r.returnedAt) - r.openedAt : 0, link: `#/maintenance/${r.id}` }); });
+  ext.forEach((r) => { const S = XM_STATUS[r.status] || XM_STATUS.sent, done = ['delivered', 'closed'].includes(r.status); out.push({ src: 'extmaint', itemId: r.itemId || '', vendor: r.vendor || '', id: r.id, at: r.sentAt, title: r.name || 'جهاز', sub: [r.vendor, r.fault].filter(Boolean).join(' — '), ref: r.number || '', dep: r.departmentId || '', unit: r.unitId || '', who: r.holder || '', byId: r.sentBy || '', by: r.sentBy ? Data.userName(r.sentBy) : '', qty: 1, st: S, open: !done, done, late: !done && !!r.expectedAt && r.expectedAt < T, dur: (r.deliveredAt || r.receivedAt) ? (r.deliveredAt || r.receivedAt) - r.sentAt : 0, link: '#/ext-maint' }); });
   mt.forEach((r) => { const at = r.sentAt || r.createdAt || 0; if (at < from || at > to) return; const S = (typeof MT_STAGES !== 'undefined' && MT_STAGES[r.status]) || ST(r.status || '', 'sky'), done = ['returned', 'closed'].includes(r.status), dv = r.device || {}; out.push({ src: 'mtrack', id: r.id, at, title: dv.name || dv.model || 'جهاز', sub: [dv.model && dv.model !== dv.name ? dv.model : '', r.fault, r.dest && r.dest.name].filter(Boolean).join(' — '), ref: r.number || '', dep: r.departmentId || '', unit: r.unitId || '', who: r.holder || '', byId: r.createdBy || '', by: r.createdBy ? Data.userName(r.createdBy) : '', qty: 1, st: S, open: !done, done, late: !done && !!r.expectedAt && r.expectedAt < T, dur: r.returnedAt ? r.returnedAt - at : 0, link: '#/send-maint' }); });
-  wl.forEach((r) => { const W = workType(r.type), done = (r.result || 'done') === 'done'; out.push({ src: 'worklog', id: r.id, at: r.at, title: r.title || W.l, sub: `${W.l}${r.place ? ` — ${r.place}` : ''}`, ref: '', dep: r.departmentId || '', unit: r.unitId || '', who: r.withWhom || '', byId: r.userId || '', by: r.userId ? Data.userName(r.userId) : '', qty: Number(r.hours) || 0, st: done ? ST('منجز', 'teal') : ST('قيد المتابعة', 'amber'), open: !done, done, late: false, dur: (Number(r.hours) || 0) * HOUR, link: '#/worklog', extra: r.hours ? `${fmtNum(r.hours)} ساعة` : '' }); });
+  wl.forEach((r) => { const W = workType(r.type), done = (r.result || 'done') === 'done'; out.push({ src: 'worklog', grp: W.l, id: r.id, at: r.at, title: r.title || W.l, sub: `${W.l}${r.place ? ` — ${r.place}` : ''}`, ref: '', dep: r.departmentId || '', unit: r.unitId || '', who: r.withWhom || '', byId: r.userId || '', by: r.userId ? Data.userName(r.userId) : '', qty: Number(r.hours) || 0, st: done ? ST('منجز', 'teal') : ST('قيد المتابعة', 'amber'), open: !done, done, late: false, dur: (Number(r.hours) || 0) * HOUR, link: '#/worklog', extra: r.hours ? `${fmtNum(r.hours)} ساعة` : '' }); });
   const MV = { issue: 'issue', dept_opening: 'direct', loan_out: 'loan', dept_transfer: 'transfer', transfer_out: 'transfer', dept_return: 'return', loan_return: 'return', receive: 'receive', adjust: 'adjust', dept_adjust: 'adjust' };
   mvs.forEach((m) => {
     const k = MV[m.type]; if (!k || !has(k)) return;
-    const v = vOf.get(m.id), ln = m.type.startsWith('loan') ? loanByNo.get(m.ref) : null, base = { src: k, id: m.id, at: m.at, title: iname(m.itemId), ref: (v && v.number) || m.ref || '', dep: m.departmentId || '', unit: (v && v.unitId) || m.unitId || '', byId: m.userId || '', by: m.userId ? Data.userName(m.userId) : '', qty: Math.abs(Number(m.qty) || 0), dur: 0, late: false, link: `#/inventory/items/${m.itemId}` };
+    const v = vOf.get(m.id), ln = m.type.startsWith('loan') ? loanByNo.get(m.ref) : null, base = { src: k, itemId: m.itemId, id: m.id, at: m.at, title: iname(m.itemId), ref: (v && v.number) || m.ref || '', dep: m.departmentId || '', unit: (v && v.unitId) || m.unitId || '', byId: m.userId || '', by: m.userId ? Data.userName(m.userId) : '', qty: Math.abs(Number(m.qty) || 0), dur: 0, late: false, link: `#/inventory/items/${m.itemId}` };
     if (k === 'issue') out.push({ ...base, sub: `من ${Data.nameOf('warehouses', m.warehouseId, 'المخزن')}`, who: (v && v.holder) || m.party || '', st: ST('صُرف', 'violet'), open: false, done: true });
     else if (k === 'direct') out.push({ ...base, sub: 'إضافة مباشرة لعهدة الإدارة', who: m.party && m.party !== Data.nameOf('departments', m.departmentId, '') ? m.party : '', st: ST('أُضيفت', 'brass'), open: false, done: true });
     else if (k === 'loan') { const act = ln && ln.status === 'active', late = act && ln.dueAt && ln.dueAt < T; out.push({ ...base, sub: ln && ln.dueAt ? `حتى ${fmtDate(ln.dueAt)}` : 'إعارة', who: (ln && ln.borrower) || m.party || '', st: !ln ? ST('إعارة', 'amber') : ln.status !== 'active' ? ST('أُعيدت', 'green') : late ? ST('متأخرة', 'red') : ST('لدى المستعير', 'amber'), open: !!act, done: !!ln && !act, late: !!late, dur: ln && ln.returnedAt ? ln.returnedAt - ln.issuedAt : 0 }); }
@@ -20908,8 +20908,8 @@ const rcLoad = async (from, to, keys) => {
     else if (k === 'receive') out.push({ ...base, sub: `في ${Data.nameOf('warehouses', m.warehouseId, 'المخزن')}${m.party ? ` — من ${m.party}` : ''}`, who: m.party || '', st: ST('استُلم', 'emerald'), open: false, done: true });
     else if (k === 'adjust') { const dd = Number(m.type === 'dept_adjust' ? m.ddelta : m.delta) || 0; out.push({ ...base, qty: Math.abs(dd), sub: m.type === 'dept_adjust' ? `جرد عهدة ${Data.nameOf('departments', m.departmentId, '')}` : `جرد ${Data.nameOf('warehouses', m.warehouseId, '')}`, who: '', st: ST(dd > 0 ? `زيادة ${fmtNum(dd)}` : dd < 0 ? `نقص ${fmtNum(-dd)}` : 'مطابق', dd < 0 ? 'red' : dd > 0 ? 'teal' : 'slate'), open: false, done: true }); }
   });
-  if (has('replace')) vouchers.filter((v) => v.type === 'replace' && v.at >= from && v.at <= to).forEach((v) => out.push({ src: 'replace', id: v.id, at: v.at, title: (v.lines || []).map((l) => l.name).join('، ') || 'استبدال', sub: (v.oldLines || []).length ? `بدل: ${(v.oldLines || []).map((l) => l.name).join('، ')}` : '', ref: v.number || '', dep: v.departmentId || '', unit: v.unitId || '', who: v.holder || '', byId: v.userId || '', by: v.userId ? Data.userName(v.userId) : '', qty: (v.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0) || 1, st: ST('استُبدل', 'coral'), open: false, done: true, late: false, dur: 0, link: '#/inventory/vouchers' }));
-  if (has('templend')) lends.filter((l) => l.at >= from && l.at <= to).forEach((l) => { const late = !l.returnedAt && l.dueAt && l.dueAt < T; out.push({ src: 'templend', id: l.id, at: l.at, title: iname(l.itemId), sub: `من العهدة العامة لـ${Data.nameOf('departments', l.departmentId, '')}${l.note ? ` — ${l.note}` : ''}`, ref: '', dep: l.departmentId || '', unit: l.unitId || '', who: l.holderId ? Data.userName(l.holderId) : '', byId: l.by || '', by: l.by ? Data.userName(l.by) : '', qty: l.qty, st: l.returnedAt ? ST('أُعيد', 'green') : late ? ST('متأخر', 'red') : ST('قيد الاستخدام', 'cyan'), open: !l.returnedAt, done: !!l.returnedAt, late: !!late, dur: l.returnedAt ? l.returnedAt - l.at : 0, link: `#/inventory/distribute?dep=${l.departmentId}&at=g` }); });
+  if (has('replace')) vouchers.filter((v) => v.type === 'replace' && v.at >= from && v.at <= to).forEach((v) => out.push({ src: 'replace', itemId: ((v.lines || [])[0] || {}).itemId || '', id: v.id, at: v.at, title: (v.lines || []).map((l) => l.name).join('، ') || 'استبدال', sub: (v.oldLines || []).length ? `بدل: ${(v.oldLines || []).map((l) => l.name).join('، ')}` : '', ref: v.number || '', dep: v.departmentId || '', unit: v.unitId || '', who: v.holder || '', byId: v.userId || '', by: v.userId ? Data.userName(v.userId) : '', qty: (v.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0) || 1, st: ST('استُبدل', 'coral'), open: false, done: true, late: false, dur: 0, link: '#/inventory/vouchers' }));
+  if (has('templend')) lends.filter((l) => l.at >= from && l.at <= to).forEach((l) => { const late = !l.returnedAt && l.dueAt && l.dueAt < T; out.push({ src: 'templend', itemId: l.itemId, id: l.id, at: l.at, title: iname(l.itemId), sub: `من العهدة العامة لـ${Data.nameOf('departments', l.departmentId, '')}${l.note ? ` — ${l.note}` : ''}`, ref: '', dep: l.departmentId || '', unit: l.unitId || '', who: l.holderId ? Data.userName(l.holderId) : '', byId: l.by || '', by: l.by ? Data.userName(l.by) : '', qty: l.qty, st: l.returnedAt ? ST('أُعيد', 'green') : late ? ST('متأخر', 'red') : ST('قيد الاستخدام', 'cyan'), open: !l.returnedAt, done: !!l.returnedAt, late: !!late, dur: l.returnedAt ? l.returnedAt - l.at : 0, link: `#/inventory/distribute?dep=${l.departmentId}&at=g` }); });
   return out.sort((a, b) => b.at - a.at);
 };
 /* مؤشرات كل مصدر */
@@ -21068,18 +21068,25 @@ Pages.reportCenter = async (ctx) => {
   /* ── التصدير ── */
   const cols = ['التاريخ', 'الوقت', 'المصدر', 'المرجع', 'السجل', 'التفاصيل', 'الإدارة', 'الفرع', 'المستفيد / المستلم', 'المنفذ', 'العدد', 'الحالة', 'المدة', 'متأخر'];
   const line = (r) => [fmtDate(r.at), fmtTime(r.at), rcSrc(r.src).l, r.ref, r.title, r.sub, Data.nameOf('departments', r.dep, ''), r.unit ? orgLabel(r.dep, r.unit, units) : '', r.who, r.by, String(r.qty), r.st.label, rcDur(r.dur), r.late ? 'نعم' : ''];
-  UI.on(ctx.view, 'click', '[data-rcxls]', () => {
+  UI.on(ctx.view, 'click', '[data-rcxls]', async () => {
     const rows = sorted(filt(cache.rows)), srcs = allowed.filter((s) => st.src.has(s.k));
     const summary = [['مركز التقارير'], ['المدة', perText()], ['النطاق', scopeText()], ['الحالة', { all: 'الكل', open: 'مفتوح', done: 'منجز', late: 'متأخر' }[st.state]], ['المنفذ', st.by ? Data.userName(st.by) : 'الكل'], ['أُعد في', fmtDateTime(now())], ['أعدّه', Auth.user.name || ''], [], ['المصدر', 'السجلات', 'مفتوحة', 'منجزة', 'متأخرة', 'مؤشرات'], ...srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return [s.l, String(l.length), String(l.filter((r) => r.open).length), String(l.filter((r) => r.done).length), String(l.filter((r) => r.late).length), rcKpi(s.k, l).filter(Boolean).join(' · ')]; }), ['الإجمالي', String(rows.length), String(rows.filter((r) => r.open).length), String(rows.filter((r) => r.done).length), String(rows.filter((r) => r.late).length), '']];
     const widths = [12, 7, 16, 16, 34, 34, 20, 26, 22, 18, 7, 14, 10, 7];
     const sheets = [{ name: 'الملخص', widths: [22, 30, 10, 10, 10, 40], rows: summary }, { name: 'كل السجلات', widths, rows: [cols, ...rows.map(line)] }, ...srcs.filter((s) => rows.some((r) => r.src === s.k)).map((s) => ({ name: s.l.slice(0, 30), widths, rows: [cols, ...rows.filter((r) => r.src === s.k).map(line)] }))];
+    await RCD.prep(rows); const dsrc = srcs.filter((x) => rows.some((r) => r.src === x.k)); if (dsrc.length) sheets.splice(1, 0, { name: 'التفاصيل', rows: RCD.xlsRows(dsrc, rows) });
     downloadBlob(XL.write(sheets), `تقرير-${dateInput(range()[0])}-${dateInput(range()[1])}.xlsx`); UI.toast(`صُدّر ${fmtNum(rows.length)} سجل في ${fmtNum(sheets.length)} ورقة`);
   });
-  UI.on(ctx.view, 'click', '[data-rcprint]', () => {
+  UI.on(ctx.view, 'click', '[data-rcprint]', async () => {
     const rows = sorted(filt(cache.rows)), srcs = allowed.filter((s) => st.src.has(s.k) && rows.some((r) => r.src === s.k));
-    UI.print(html`<div class="rc-print"><h2 style="text-align:center;margin:0 0 4px">تقرير أعمال قسم تقنية المعلومات</h2><p style="text-align:center;margin:0 0 12px">${perText()} — ${scopeText()}${st.state !== 'all' ? ` — ${{ open: 'المفتوح', done: 'المنجز', late: 'المتأخر' }[st.state]}` : ''}${st.by ? ` — المنفذ: ${Data.userName(st.by)}` : ''}</p>
-      <table><tr><th>المصدر</th><th>السجلات</th><th>مفتوحة</th><th>منجزة</th><th>متأخرة</th><th>مؤشرات</th></tr>${srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return html`<tr><td><b>${s.l}</b></td><td>${fmtNum(l.length)}</td><td>${fmtNum(l.filter((r) => r.open).length)}</td><td>${fmtNum(l.filter((r) => r.done).length)}</td><td>${fmtNum(l.filter((r) => r.late).length)}</td><td>${rcKpi(s.k, l).filter(Boolean).join(' · ')}</td></tr>`; })}<tr><th>الإجمالي</th><th>${fmtNum(rows.length)}</th><th>${fmtNum(rows.filter((r) => r.open).length)}</th><th>${fmtNum(rows.filter((r) => r.done).length)}</th><th>${fmtNum(rows.filter((r) => r.late).length)}</th><th></th></tr></table>
-      ${srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return html`<h3 style="margin:16px 0 6px">${s.l} (${fmtNum(l.length)})</h3><table><tr><th style="width:70px">التاريخ</th><th>المرجع</th><th>السجل</th><th>الإدارة والفرع</th><th>المستفيد</th><th>المنفذ</th><th style="width:40px">العدد</th><th>الحالة</th></tr>${l.slice(0, 400).map((r) => html`<tr><td>${fmtDate(r.at)}</td><td>${r.ref}</td><td>${r.title}${r.sub ? html`<div style="font-size:10px;color:#666">${r.sub}</div>` : ''}</td><td>${where(r)}</td><td>${r.who}</td><td>${r.by}</td><td>${fmtNum(r.qty)}</td><td>${r.st.label}${r.late ? ' (متأخر)' : ''}</td></tr>`)}</table>${l.length > 400 ? html`<p style="font-size:11px">يُطبع أول 400 سجل من ${fmtNum(l.length)}؛ الكامل في ملف Excel.</p>` : ''}`; })}
+    if (!rows.length) { UI.toast('لا توجد سجلات في هذا التقرير', 'warn'); return; }
+    const o = await RCD.ask(); if (!o) return;
+    await RCD.prep(rows);
+    const hdr = `${perText()} — ${scopeText()}${st.state !== 'all' ? ` — ${{ open: 'المفتوح', done: 'المنجز', late: 'المتأخر' }[st.state]}` : ''}${st.by ? ` — المنفذ: ${Data.userName(st.by)}` : ''}`;
+    const recs = (l) => html`<table class="rcd-rec"><thead><tr><th style="width:70px">التاريخ</th><th>المرجع</th><th>السجل</th><th>الإدارة والفرع</th><th>المستفيد</th><th>المنفذ</th><th style="width:40px">العدد</th><th>الحالة</th></tr></thead><tbody>${l.slice(0, 400).map((r) => html`<tr><td>${fmtDate(r.at)}</td><td>${r.ref}</td><td>${r.title}${r.sub ? html`<div style="font-size:10px;color:#666">${r.sub}</div>` : ''}</td><td>${where(r)}</td><td>${r.who}</td><td>${r.by}</td><td>${fmtNum(r.qty)}</td><td>${r.st.label}${r.late ? ' (متأخر)' : ''}</td></tr>`)}</tbody></table>${l.length > 400 ? html`<p style="font-size:11px">يُطبع أول 400 سجل من ${fmtNum(l.length)}؛ الكامل في ملف Excel.</p>` : ''}`;
+    UI.print(html`<div class="rc-print"><h2 style="text-align:center;margin:0 0 4px">تقرير أعمال قسم تقنية المعلومات</h2><p style="text-align:center;margin:0 0 12px">${hdr}</p>
+      ${o.sum ? RCD.overall(rows, srcs) : ''}
+      <table><thead><tr><th>نوع التقرير</th><th>السجلات</th><th>مفتوحة</th><th>منجزة</th><th>متأخرة</th><th>مؤشرات</th></tr></thead><tbody>${srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return html`<tr><td><b>${s.l}</b></td><td>${fmtNum(l.length)}</td><td>${fmtNum(l.filter((r) => r.open).length)}</td><td>${fmtNum(l.filter((r) => r.done).length)}</td><td>${fmtNum(l.filter((r) => r.late).length)}</td><td>${rcKpi(s.k, l).filter(Boolean).join(' · ')}</td></tr>`; })}</tbody><tfoot><tr><th>الإجمالي</th><th>${fmtNum(rows.length)}</th><th>${fmtNum(rows.filter((r) => r.open).length)}</th><th>${fmtNum(rows.filter((r) => r.done).length)}</th><th>${fmtNum(rows.filter((r) => r.late).length)}</th><th></th></tr></tfoot></table>
+      ${srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return html`<section class="rcd-sec"><h3>${s.l} <small>${fmtNum(l.length)} سجل</small></h3>${o.det ? RCD.secHTML(s.k, l) : ''}${o.rec ? html`${o.det ? html`<h4 class="rcd-rh">السجلات</h4>` : ''}${recs(l)}` : ''}</section>`; })}
       ${UI.signBlock([{ title: 'مُعدّ التقرير', userId: Auth.user.id }, { title: 'رئيس القسم' }, { title: 'الاعتماد' }])}</div>`, `تقرير ${perText()}`);
   });
   ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !$('dialog[open]')) { cache.key = ''; draw(); } }, 1500)));
@@ -25591,6 +25598,112 @@ document.addEventListener('click', (e) => {
 }, true);
 window.addEventListener('hashchange', () => CMSN.close());
 Bus.on('inventory', () => { if (CMSN.at && !CMSN.line(CMSN.at.dataset.cmsnFor)) CMSN.close(); });
+
+/* ══════════ الجولة 26: تفاصيل التقارير عند الطباعة وفي Excel ══════════
+   لكل نوع تقرير: تفاصيله العامة (السجلات، والمنجز والمفتوح والمتأخر، ومتوسط المدة، والإدارات والمنفذون…)
+   وجداول توزيع تناسبه. البلاغات: الفئات التي عولجت بلاغاتها (العدد والمحلول والمفتوح والمتأخر ومتوسط الحل
+   ونسبة الإنجاز)، ثم الحالة والأولوية والإدارة والفني. الصيانة: فئة الجهاز والجهاز والحالة والإدارة والمنفذ.
+   الأعمال اليومية: النوع والمنفذ والإدارة بالساعات. الصرف والإعارة والنقل والإرجاع والاستلام…: فئة الصنف
+   والصنف والإدارة والمستلم والمنفذ بالقطع. قبل الطباعة يُختار المحتوى: الملخص، والتفاصيل، والسجلات. */
+const RCD = {
+  items: new Map(),
+  async prep(rows) { RCD.items = rows.some((r) => r.itemId) ? new Map((await DB.getAll('items')).map((i) => [i.id, i])) : new Map(); },
+  it: (r) => (r.itemId ? RCD.items.get(r.itemId) : null),
+  DIM: {
+    cat: (r) => (r.catId ? Data.nameOf('categories', r.catId, '') : '') || r.sub || 'بدون فئة',
+    status: (r) => (r.st && r.st.label) || '—',
+    prio: (r) => r.extra || 'غير محددة',
+    dep: (r) => Data.nameOf('departments', r.dep, '') || 'غير محدد',
+    toDep: (r) => Data.nameOf('departments', r.toDep, '') || '—',
+    by: (r) => r.by || 'غير مسند',
+    who: (r) => r.who || 'غير محدد',
+    item: (r) => { const it = RCD.it(r); return it ? `${DNM.model(it)}${DNM.brand(it) ? ` — ${DNM.brand(it)}` : ''}` : String(r.title || '—').split(' — ')[0]; },
+    icat: (r) => { const it = RCD.it(r); return it ? INVR.top(it).name : 'غير محدد'; },
+    wtype: (r) => r.grp || String(r.sub || '').split(' — ')[0] || '—',
+    vendor: (r) => r.vendor || String(r.sub || '').split(' — ')[0] || 'غير محدد'
+  },
+  INV: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب الإدارة', 'dep', 'qty'], ['حسب المستلم', 'who', 'qty'], ['حسب المنفذ', 'by', 'qty']],
+  spec(k) {
+    return ({
+      tickets: [['الفئات التي عولجت بلاغاتها', 'cat', 'full'], ['حسب الحالة', 'status', 'count'], ['حسب الأولوية', 'prio', 'count'], ['حسب الإدارة', 'dep', 'full'], ['حسب الفني المسؤول', 'by', 'full']],
+      maint: [['حسب فئة الجهاز', 'icat', 'full'], ['حسب الجهاز', 'item', 'full'], ['حسب الحالة', 'status', 'count'], ['حسب الإدارة', 'dep', 'full'], ['حسب المنفذ', 'by', 'count']],
+      extmaint: [['حسب الجهة الخارجية', 'vendor', 'full'], ['حسب فئة الجهاز', 'icat', 'count'], ['حسب الحالة', 'status', 'count'], ['حسب الإدارة', 'dep', 'full'], ['حسب المنفذ', 'by', 'count']],
+      mtrack: [['حسب الحالة', 'status', 'count'], ['حسب الإدارة', 'dep', 'full'], ['حسب المنفذ', 'by', 'count']],
+      worklog: [['حسب نوع العمل', 'wtype', 'hours'], ['حسب المنفذ', 'by', 'hours'], ['حسب الإدارة', 'dep', 'hours'], ['حسب النتيجة', 'status', 'count']],
+      loan: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب الحالة', 'status', 'count'], ['حسب الإدارة', 'dep', 'qty'], ['حسب المستعير', 'who', 'qty']],
+      templend: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب الحالة', 'status', 'count'], ['حسب الإدارة', 'dep', 'qty'], ['حسب المستخدم', 'who', 'qty']],
+      transfer: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب الإدارة المُسلِّمة', 'dep', 'qty'], ['حسب الإدارة المستلمة', 'toDep', 'qty'], ['حسب المنفذ', 'by', 'qty']],
+      receive: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب الجهة الموردة', 'who', 'qty'], ['حسب المنفذ', 'by', 'qty']],
+      adjust: [['حسب فئة الصنف', 'icat', 'qty'], ['حسب الصنف', 'item', 'qty'], ['حسب النتيجة', 'status', 'count'], ['حسب المنفذ', 'by', 'count']]
+    })[k] || RCD.INV;
+  },
+  group(rows, dim, mode, limit = 12) {
+    const f = RCD.DIM[dim], G = new Map();
+    rows.forEach((r) => { const k = f(r); let g = G.get(k); if (!g) G.set(k, (g = { k, n: 0, done: 0, open: 0, late: 0, qty: 0, durS: 0, durN: 0 })); g.n++; if (r.done) g.done++; if (r.open) g.open++; if (r.late) g.late++; g.qty += Number(r.qty) || 0; if (r.done && r.dur > 0) { g.durS += r.dur; g.durN++; } });
+    let list = [...G.values()].sort((a, b) => ((mode === 'qty' || mode === 'hours') ? b.qty - a.qty : b.n - a.n) || b.n - a.n || AR_COLL.compare(String(a.k), String(b.k)));
+    if (list.length > limit) { const rest = list.slice(limit - 1), z = { k: `أخرى (${fmtNum(rest.length)})`, n: 0, done: 0, open: 0, late: 0, qty: 0, durS: 0, durN: 0 }; rest.forEach((g) => ['n', 'done', 'open', 'late', 'qty', 'durS', 'durN'].forEach((x) => { z[x] += g[x]; })); list = [...list.slice(0, limit - 1), z]; }
+    return list;
+  },
+  pct: (a, b) => (b ? `${fmtNum(Math.round((a / b) * 100))}%` : '—'),
+  table(rows, [title, dim, mode]) {
+    const list = RCD.group(rows, dim, mode); if (!list.length) return null;
+    if (list.length === 1 && /^(غير محدد|غير مسند|—|بدون فئة|غير محددة)$/.test(String(list[0].k))) return null;
+    const tot = rows.length, totQ = rows.reduce((a, r) => a + (Number(r.qty) || 0), 0), P = RCD.pct;
+    if (mode === 'full') return { title, mode, head: ['البند', 'العدد', 'منجزة', 'مفتوحة', 'متأخرة', 'متوسط المدة', 'الإنجاز'], body: list.map((g) => [g.k, g.n, g.done, g.open, g.late, g.durN ? rcDur(g.durS / g.durN) : '—', P(g.done, g.n)]) };
+    if (mode === 'qty') return { title, mode, head: ['البند', 'العمليات', 'القطع', 'النسبة'], body: list.map((g) => [g.k, g.n, g.qty, P(g.qty, totQ)]) };
+    if (mode === 'hours') return { title, mode, head: ['البند', 'الأعمال', 'الساعات', 'النسبة'], body: list.map((g) => [g.k, g.n, Math.round(g.qty * 10) / 10, P(g.qty, totQ)]) };
+    return { title, mode, head: ['البند', 'العدد', 'النسبة'], body: list.map((g) => [g.k, g.n, P(g.n, tot)]) };
+  },
+  top(rows, dim) { const g = RCD.group(rows, dim, 'count', 2)[0]; return g && !/^(غير محدد|غير مسند|—|بدون فئة)$/.test(String(g.k)) ? `${g.k} (${fmtNum(g.n)})` : ''; },
+  kv(k, rows) {
+    const n = rows.length, done = rows.filter((r) => r.done), open = rows.filter((r) => r.open).length, late = rows.filter((r) => r.late).length;
+    const durs = done.filter((r) => r.dur > 0), avg = durs.length ? rcDur(durs.reduce((a, r) => a + r.dur, 0) / durs.length) : '';
+    const deps = new Set(rows.map((r) => r.dep).filter(Boolean)).size, bys = new Set(rows.map((r) => r.byId || r.by).filter(Boolean)).size, qty = rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+    const inv = !['tickets', 'maint', 'extmaint', 'mtrack', 'worklog'].includes(k);
+    const out = [['السجلات', fmtNum(n)]];
+    if (k === 'worklog') out.push(['الساعات', fmtNum(Math.round(qty * 10) / 10)]);
+    if (inv) out.push(['القطع', fmtNum(qty)], ['الأصناف', fmtNum(new Set(rows.map((r) => r.itemId || r.title)).size)]);
+    if (!inv || ['loan', 'templend'].includes(k)) out.push(['المنجز', `${fmtNum(done.length)} (${RCD.pct(done.length, n)})`], ['المفتوح', fmtNum(open)]);
+    if (late) out.push(['المتأخر', fmtNum(late)]);
+    if (avg) out.push([k === 'tickets' ? 'متوسط مدة الحل' : 'متوسط المدة', avg]);
+    if (k === 'tickets') { out.push(['الفئات', fmtNum(new Set(rows.map(RCD.DIM.cat)).size)]); const t = RCD.top(rows, 'cat'); if (t) out.push(['أكثر فئة', t]); }
+    if (k === 'worklog') { const t = RCD.top(rows, 'wtype'); if (t) out.push(['أكثر عمل', t]); }
+    if (inv || k === 'maint') { const t = RCD.top(rows, 'icat'); if (t) out.push(['أكثر فئة', t]); const t2 = RCD.top(rows, 'item'); if (t2) out.push(['أكثر صنف', t2]); }
+    if (deps) out.push(['الإدارات', fmtNum(deps)]);
+    const td = RCD.top(rows, 'dep'); if (td && deps > 1) out.push(['أكثر إدارة', td]);
+    if (bys) out.push(['المنفذون', fmtNum(bys)]);
+    return out;
+  },
+  kvHTML: (list) => html`<div class="rcd-kv">${list.map(([a, b]) => html`<div><span>${a}</span><b>${b}</b></div>`)}</div>`,
+  tHTML(t) { const num = (i) => i > 0; return html`<div class="rcd-t${t.mode === 'full' ? ' wide' : ''}"><h4>${t.title}</h4><table><thead><tr>${t.head.map((h, i) => html`<th${num(i) ? raw(' class="n"') : ''}>${h}</th>`)}</tr></thead><tbody>${t.body.map((r) => html`<tr>${r.map((c, i) => html`<td${num(i) ? raw(' class="n"') : ''}>${typeof c === 'number' ? fmtNum(c) : c}</td>`)}</tr>`)}</tbody></table></div>`; },
+  secHTML(k, rows) { const ts = RCD.spec(k).map((x) => RCD.table(rows, x)).filter(Boolean); return html`<h4 class="rcd-rh">التفاصيل العامة</h4>${RCD.kvHTML(RCD.kv(k, rows))}${ts.length ? html`<div class="rcd-grid">${ts.map(RCD.tHTML)}</div>` : ''}`; },
+  overall(rows, srcs) {
+    const done = rows.filter((r) => r.done).length, deps = new Set(rows.map((r) => r.dep).filter(Boolean)).size, bys = new Set(rows.map((r) => r.byId || r.by).filter(Boolean)).size;
+    const tk = rows.filter((r) => r.src === 'tickets');
+    const list = [['أنواع التقارير', fmtNum(srcs.length)], ['السجلات', fmtNum(rows.length)], ['المنجز', `${fmtNum(done)} (${RCD.pct(done, rows.length)})`], ['المفتوح', fmtNum(rows.filter((r) => r.open).length)], ['المتأخر', fmtNum(rows.filter((r) => r.late).length)], ['الإدارات', fmtNum(deps)], ['المنفذون', fmtNum(bys)]];
+    if (tk.length) list.push(['فئات البلاغات', fmtNum(new Set(tk.map(RCD.DIM.cat)).size)]);
+    return html`<h3 class="rcd-h">الملخص العام</h3>${RCD.kvHTML(list)}`;
+  },
+  xlsRows(srcs, rows) {
+    const out = [['تفاصيل التقرير'], []];
+    srcs.forEach((s) => {
+      const l = rows.filter((r) => r.src === s.k); if (!l.length) return;
+      out.push([`${s.l} — التفاصيل العامة`], ...RCD.kv(s.k, l), []);
+      RCD.spec(s.k).map((x) => RCD.table(l, x)).filter(Boolean).forEach((t) => { out.push([`${s.l}: ${t.title}`], t.head, ...t.body, []); });
+    });
+    return out;
+  },
+  /* محتوى الطباعة يُختار ويُحفظ لهذا الجهاز */
+  async ask() {
+    let o = { sum: 1, det: 1, rec: 1 }; try { o = { ...o, ...JSON.parse(localStorage.getItem('sq_rcd_opts') || '{}') }; } catch (_) { /* تجاهل */ }
+    const r = await UI.modal({ title: 'طباعة التقرير', icon: 'print', size: 'sm',
+      body: html`<p class="muted small" style="margin-bottom:8px">اختر ما يُطبع:</p><div class="stack" style="gap:8px">${[['sum', 'الملخص العام', 'إجمالي السجلات والمنجز والمفتوح والمتأخر والإدارات والمنفذين'], ['det', 'التفاصيل العامة والتوزيعات', 'لكل نوع: الفئات التي عولجت بلاغاتها، والحالات، والإدارات، والمنفذون، والأصناف…'], ['rec', 'قائمة السجلات', 'كل سجل بتاريخه ومرجعه وحالته']].map(([k, l, d]) => html`<label class="check rcd-opt"><input type="checkbox" name="${k}"${o[k] ? raw(' checked') : ''}><span><b>${l}</b><small>${d}</small></span></label>`)}</div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'طباعة', kind: 'primary', icon: 'print', submit: true, handler: (f) => { const v = { sum: f.querySelector('[name="sum"]').checked ? 1 : 0, det: f.querySelector('[name="det"]').checked ? 1 : 0, rec: f.querySelector('[name="rec"]').checked ? 1 : 0 }; if (!v.sum && !v.det && !v.rec) throw new AppError('اختر جزءاً واحداً على الأقل'); return v; } }] });
+    if (!r) return null;
+    try { localStorage.setItem('sq_rcd_opts', JSON.stringify(r)); } catch (_) { /* تجاهل */ }
+    return r;
+  }
+};
 
 boot();
 })();
