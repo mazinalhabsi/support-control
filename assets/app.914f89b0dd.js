@@ -2765,7 +2765,7 @@ Pages.reports = async (ctx) => {
         ${UI.panel({ title: 'الالتزام باتفاقية الخدمة', icon: 'shield', body: UI.chart.gauge(sla, { label: 'ضمن الموعد', tone: sla >= 90 ? 'teal' : sla >= 70 ? 'amber' : 'red' }) })}
       </div>
       <div class="grid g-3 mt">
-        ${UI.panel({ title: 'حسب الفئة', icon: 'tag', body: UI.chart.hbars(Stats.group(win.created, 'categoryId').slice(0, 8).map(([id, v], i) => ({ label: Data.nameOf('categories', id, 'أخرى'), value: v, tone: TONES[i % TONES.length], lead: String(UI.illu(catIllu(id))) }))) })}
+        ${UI.panel({ title: 'حسب الفئة', icon: 'tag', body: UI.chart.hbars(Stats.group(win.created, 'categoryId').slice(0, 24).map(([id, v], i) => ({ label: Data.nameOf('categories', id, 'أخرى'), value: v, tone: TONES[i % TONES.length], lead: String(UI.illu(catIllu(id))) }))) })}
         ${UI.panel({ title: 'حسب القسم', icon: 'building', body: UI.chart.treemap(Stats.group(win.created, 'departmentId').map(([id, v]) => ({ label: Data.nameOf('departments', id, 'غير محدد'), value: v }))) })}
         ${UI.panel({ title: 'حسب القسم والمكتب', icon: 'layers', body: UI.chart.hbars(Stats.group(win.created.filter((t) => t.unitId), 'unitId').slice(0, 8).map(([id, v], i) => ({ label: Data.nameOf('deptUnits', id, 'فرع محذوف'), value: v, tone: TONES[(i + 3) % TONES.length] }))) })}
       </div>
@@ -20927,7 +20927,7 @@ const rcKpi = (k, rows) => {
   }
 };
 /* حالة التقرير في الرابط: يُشارَك ويُحفظ */
-const rcQS = (st) => { const q = new URLSearchParams(); q.set('p', st.p); if (st.p === 'custom') { q.set('f', st.f); q.set('t', st.t); } if (st.src.size !== rcAllowed().length) q.set('s', [...st.src].join(',')); if (st.deps.size) q.set('d', [...st.deps].join(',')); if (st.units.size) q.set('u', [...st.units].join(',')); if (st.state !== 'all') q.set('st', st.state); if (st.by) q.set('by', st.by); if (st.q) q.set('q', st.q); if (st.view !== 'list') q.set('v', st.view); if (st.group !== 'none') q.set('g', st.group); return q.toString(); };
+const rcQS = (st) => { const q = new URLSearchParams(); q.set('p', st.p); if (st.p === 'custom') { q.set('f', st.f); q.set('t', st.t); } if (st.src.size !== rcAllowed().length) q.set('s', [...st.src].join(',')); if (st.deps.size) q.set('d', [...st.deps].join(',')); if (st.units.size) q.set('u', [...st.units].join(',')); if (st.state !== 'all') q.set('st', st.state); if (st.by) q.set('by', st.by); if (st.cats && st.cats.size) q.set('c', [...st.cats].join(',')); if (st.q) q.set('q', st.q); if (st.view !== 'list') q.set('v', st.view); if (st.group !== 'none') q.set('g', st.group); return q.toString(); };
 const rcPresets = { key: () => `sq_rc_presets_${(Auth.user || {}).id || 'x'}`, get() { try { const v = JSON.parse(localStorage.getItem(rcPresets.key()) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } }, set(list) { try { localStorage.setItem(rcPresets.key(), JSON.stringify(list.slice(0, 30))); } catch (_) { /* تجاهل */ } } };
 
 Pages.reportCenter = async (ctx) => {
@@ -20937,7 +20937,7 @@ Pages.reportCenter = async (ctx) => {
   const st = {
     p: RC_PER.some(([k]) => k === Q.p) ? Q.p : Q.days ? '30d' : 'month', f: Q.f || dateInput(startOfDay() - 29 * DAY), t: Q.t || dateInput(now()),
     src: pick(Q.s, allowed.map((s) => s.k)) || new Set(allowed.map((s) => s.k)), deps: new Set(String(Q.d || '').split(',').filter(Boolean)), units: new Set(String(Q.u || '').split(',').filter(Boolean)),
-    state: ['open', 'done', 'late'].includes(Q.st) ? Q.st : 'all', by: Q.by || '', q: Q.q || '', view: ['grid', 'timeline'].includes(Q.v) ? Q.v : 'list', group: ['source', 'dept', 'day', 'by'].includes(Q.g) ? Q.g : 'none', sort: 'new', limit: 150
+    state: ['open', 'done', 'late'].includes(Q.st) ? Q.st : 'all', by: Q.by || '', q: Q.q || '', view: ['grid', 'timeline'].includes(Q.v) ? Q.v : 'list', group: ['source', 'dept', 'day', 'by', 'cat'].includes(Q.g) ? Q.g : 'none', cats: new Set(String(Q.c || '').split(',').filter(Boolean)), sort: 'new', limit: 150
   };
   let cache = { key: '', rows: [], prev: [] }, units = await DB.getAll('deptUnits');
   const range = () => rcRange(st.p, st.f, st.t);
@@ -20955,6 +20955,7 @@ Pages.reportCenter = async (ctx) => {
       && (!any || st.deps.has(r.dep) || (r.toDep && st.deps.has(r.toDep)) || (r.unit && us.has(r.unit)))
       && (st.state === 'all' || (st.state === 'open' && r.open) || (st.state === 'done' && r.done) || (st.state === 'late' && r.late))
       && (!st.by || r.byId === st.by)
+      && (!st.cats.size || r.src !== 'tickets' || st.cats.has(r.catId || '_'))
       && (!qn || normalizeAr(`${r.title} ${r.sub} ${r.ref} ${r.who} ${r.by} ${Data.nameOf('departments', r.dep, '')} ${r.unit ? orgLabel(r.dep, r.unit, units) : ''}`).includes(qn)));
   };
   const scopeText = () => { const ds = [...st.deps].map((d) => Data.nameOf('departments', d, '')).filter(Boolean), us = [...st.units].map((u) => { const x = units.find((y) => y.id === u); return x ? x.name : ''; }).filter(Boolean); return ds.length || us.length ? [...ds, ...us].join('، ') : 'كل الإدارات'; };
@@ -20976,8 +20977,8 @@ Pages.reportCenter = async (ctx) => {
   const sorted = (rows) => { const r = [...rows]; if (st.sort === 'old') r.sort((a, b) => a.at - b.at); else if (st.sort === 'qty') r.sort((a, b) => b.qty - a.qty || b.at - a.at); else if (st.sort === 'dur') r.sort((a, b) => b.dur - a.dur || b.at - a.at); else r.sort((a, b) => b.at - a.at); return r; };
   const groups = (rows) => {
     if (st.group === 'none') return [['', rows]];
-    const key = (r) => (st.group === 'source' ? r.src : st.group === 'dept' ? r.dep || '_' : st.group === 'by' ? r.byId || '_' : String(startOfDay(r.at)));
-    const label = (k) => (st.group === 'source' ? rcSrc(k).l : st.group === 'dept' ? (k === '_' ? 'بلا إدارة' : Data.nameOf('departments', k, 'غير محدد')) : st.group === 'by' ? (k === '_' ? 'بلا منفذ' : Data.userName(k) || 'غير محدد') : `${['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date(Number(k)).getDay()]} ${fmtDate(Number(k))}`);
+    const key = (r) => (st.group === 'cat' ? RCD.catOf(r) || '_' : st.group === 'source' ? r.src : st.group === 'dept' ? r.dep || '_' : st.group === 'by' ? r.byId || '_' : String(startOfDay(r.at)));
+    const label = (k) => (st.group === 'cat' ? (k === '_' ? 'بلا فئة' : k) : st.group === 'source' ? rcSrc(k).l : st.group === 'dept' ? (k === '_' ? 'بلا إدارة' : Data.nameOf('departments', k, 'غير محدد')) : st.group === 'by' ? (k === '_' ? 'بلا منفذ' : Data.userName(k) || 'غير محدد') : `${['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date(Number(k)).getDay()]} ${fmtDate(Number(k))}`);
     const m = new Map(); rows.forEach((r) => { const k = key(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
     return [...m].sort((x, y) => (st.group === 'day' ? (st.sort === 'old' ? Number(x[0]) - Number(y[0]) : Number(y[0]) - Number(x[0])) : y[1].length - x[1].length)).map(([k, list]) => [label(k), list, k]);
   };
@@ -21007,27 +21008,29 @@ Pages.reportCenter = async (ctx) => {
       </div>
       <div class="rc-actions">${presetsMenu()}<button type="button" class="btn btn-ghost btn-sm" data-rcsave>${UI.icon('star')} حفظ هذا التقرير</button><button type="button" class="btn btn-ghost btn-sm" data-rclink>${UI.icon('copy')} نسخ رابط التقرير</button><button type="button" class="btn btn-ghost btn-sm" data-rcreset>${UI.icon('undo')} إعادة الضبط</button><span class="grow"></span><button type="button" class="btn btn-soft" data-rcxls>${UI.icon('download')} Excel</button><button type="button" class="btn btn-primary" data-rcprint>${UI.icon('print')} طباعة التقرير</button></div>
     </section>`;
+  const tkCats = () => { const sv = st.cats; st.cats = new Set(); const base = filt(cache.rows).filter((r) => r.src === 'tickets'); st.cats = sv; return RCD.catPanel(base, st.cats); };
   const results = () => {
     const rows = filt(cache.rows), prev = filt(cache.prev), n = rows.length, pn = prev.length;
     const delta = (a, b) => (!b ? (a ? html`<span class="delta good">جديد</span>` : '') : html`<span class="delta ${a >= b ? 'good' : 'bad'}">${a >= b ? '▲' : '▼'} ${fmtNum(Math.abs(Math.round(((a - b) / b) * 100)))}%</span>`);
     const srcs = allowed.filter((s) => st.src.has(s.k)), per = (k, list) => list.filter((r) => r.src === k);
     const open = rows.filter((r) => r.open).length, late = rows.filter((r) => r.late).length, done = rows.filter((r) => r.done).length;
-    return html`<div class="rc-sum">${UI.icon('file')}<div class="grow"><b>${perText()}</b><small>${scopeText()} · ${fmtNum(srcs.length)} مصدر${st.state !== 'all' ? ` · ${{ open: 'المفتوح فقط', done: 'المنجز فقط', late: 'المتأخر فقط' }[st.state]}` : ''}${st.by ? ` · المنفذ: ${Data.userName(st.by)}` : ''}${st.q ? ` · «${st.q}»` : ''}</small></div><span class="faint small">مقارنة بالمدة السابقة المماثلة</span></div>
+    return html`<div class="rc-sum">${UI.icon('file')}<div class="grow"><b>${perText()}</b><small>${scopeText()} · ${fmtNum(srcs.length)} مصدر${st.state !== 'all' ? ` · ${{ open: 'المفتوح فقط', done: 'المنجز فقط', late: 'المتأخر فقط' }[st.state]}` : ''}${st.by ? ` · المنفذ: ${Data.userName(st.by)}` : ''}${st.q ? ` · «${st.q}»` : ''}${RCD.catsText(st.cats) ? ` · فئات البلاغات: ${RCD.catsText(st.cats)}` : ''}</small></div><span class="faint small">مقارنة بالمدة السابقة المماثلة</span></div>
       <div class="rc-totals">${[['كل السجلات', n, pn, 'layers', 'brass'], ['مفتوحة', open, prev.filter((r) => r.open).length, 'clock', 'sky'], ['منجزة', done, prev.filter((r) => r.done).length, 'check', 'teal'], ['متأخرة', late, prev.filter((r) => r.late).length, 'alert', 'red']].map(([l, v, pv, ic, tone]) => html`<div class="rc-total tone-${tone}" data-rcstate="${{ 'مفتوحة': 'open', 'منجزة': 'done', 'متأخرة': 'late' }[l] || 'all'}"><span class="rc-tic">${UI.icon(ic)}</span><div><small>${l}</small><b>${fmtNum(v)}</b>${delta(v, pv)}</div></div>`)}</div>
       <div class="rc-kpis">${srcs.map((s) => { const list = per(s.k, rows), pl = per(s.k, prev); return html`<button type="button" class="rc-kpi tone-${s.tone}${list.length ? '' : ' zero'}" data-rconly="${s.k}" title="عرض ${s.l} وحدها"><span class="rc-kic">${UI.icon(s.ic)}</span><div class="grow"><small>${s.l}</small><b>${fmtNum(list.length)}</b>${delta(list.length, pl.length)}<span class="rc-kx">${rcKpi(s.k, list).filter(Boolean).map((x) => html`<i>${x}</i>`)}</span></div></button>`; })}</div>
-      <div class="grid g-main mt rc-charts">${UI.panel({ title: 'النشاط خلال المدة', icon: 'chart', sub: 'حسب المصدر', body: timeline(rows) })}${UI.panel({ title: 'حسب المصدر', icon: 'layers', body: bySrc(rows) })}</div>
+      ${tkCats()}<div class="grid g-main mt rc-charts">${UI.panel({ title: 'النشاط خلال المدة', icon: 'chart', sub: 'حسب المصدر', body: timeline(rows) })}${UI.panel({ title: 'حسب المصدر', icon: 'layers', body: bySrc(rows) })}</div>
       <div class="grid g-2 mt rc-charts">${UI.panel({ title: 'الإدارات الأكثر نشاطاً', icon: 'building', body: byDept(rows) })}${UI.panel({ title: 'المنفذون الأكثر عملاً', icon: 'users', body: byStaff(rows) })}</div>
       <section class="panel mt rc-recs"><div class="toolbar"><b class="grow">${UI.icon('menu')} السجلات <small class="faint">(${fmtNum(n)})</small></b>
         <div class="seg sm">${[['list', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid'], ['timeline', 'خط زمني', 'clock']].map(([k, l, ic]) => html`<label><input type="radio" name="rcview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>
-        <select class="input rc-sel" data-rcgroup aria-label="تجميع">${[['none', 'بلا تجميع'], ['source', 'حسب المصدر'], ['dept', 'حسب الإدارة'], ['day', 'حسب اليوم'], ['by', 'حسب المنفذ']].map(([k, l]) => html`<option value="${k}"${st.group === k ? raw(' selected') : ''}>${l}</option>`)}</select>
+        <select class="input rc-sel" data-rcgroup aria-label="تجميع">${[['none', 'بلا تجميع'], ['source', 'حسب المصدر'], ['cat', 'حسب الفئة'], ['dept', 'حسب الإدارة'], ['day', 'حسب اليوم'], ['by', 'حسب المنفذ']].map(([k, l]) => html`<option value="${k}"${st.group === k ? raw(' selected') : ''}>${l}</option>`)}</select>
         <select class="input rc-sel" data-rcsort aria-label="ترتيب">${[['new', 'الأحدث أولاً'], ['old', 'الأقدم أولاً'], ['qty', 'الأكبر عدداً'], ['dur', 'الأطول مدة']].map(([k, l]) => html`<option value="${k}"${st.sort === k ? raw(' selected') : ''}>${l}</option>`)}</select></div>
         <div class="panel-body">${records(rows)}</div></section>`;
   };
   const sync = () => { try { history.replaceState(null, '', `#/reports?${rcQS(st)}`); } catch (_) { /* تجاهل */ } };
+  UI.on(ctx.view, 'click', '[data-rccat]', (e, el) => { const k = el.dataset.rccat; if (!k) st.cats.clear(); else if (st.cats.has(k)) st.cats.delete(k); else st.cats.add(k); sync(); redrawResults(); });
   let busy = 0;
   const draw = async (reload = true) => {
     const my = ++busy, host = $('[data-rcres]', ctx.view); if (host && reload) host.classList.add('rc-loading');
-    if (reload) await load(); if (my !== busy || !ctx.alive()) return;
+    if (reload) { await load(); await RCD.prep(cache.rows); } if (my !== busy || !ctx.alive()) return;
     $('[data-rcfil]', ctx.view).innerHTML = String(filters()); const h = $('[data-rcres]', ctx.view); h.innerHTML = String(results()); h.classList.remove('rc-loading'); UI.hydrate(ctx.view); sync();
   };
   const redrawResults = () => { const h = $('[data-rcres]', ctx.view); if (!h) return; h.innerHTML = String(results()); UI.hydrate(h); sync(); };
@@ -21055,7 +21058,7 @@ Pages.reportCenter = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-rconly]', (e, b) => { st.src = new Set([b.dataset.rconly]); reset(); draw(); });
   UI.on(ctx.view, 'click', '[data-rcstate]', (e, b) => { reset({ state: b.dataset.rcstate }); draw(false); });
   UI.on(ctx.view, 'click', '[data-rcmore]', () => { st.limit += 300; redrawResults(); });
-  UI.on(ctx.view, 'click', '[data-rcreset]', () => { Object.assign(st, { p: 'month', src: new Set(allowed.map((s) => s.k)), deps: new Set(), units: new Set(), state: 'all', by: '', q: '', view: 'list', group: 'none', sort: 'new', limit: 150 }); draw(); });
+  UI.on(ctx.view, 'click', '[data-rcreset]', () => { Object.assign(st, { p: 'month', src: new Set(allowed.map((s) => s.k)), deps: new Set(), units: new Set(), state: 'all', by: '', q: '', view: 'list', group: 'none', sort: 'new', limit: 150, cats: new Set() }); draw(); });
   UI.on(ctx.view, 'click', 'tr[data-rlink]', (e, tr) => { if (e.target.closest('a,button')) return; const l = tr.dataset.rlink; if (l) location.hash = l.slice(1); });
   UI.on(ctx.view, 'click', '[data-rclink]', async () => { const url = `${location.origin}${location.pathname}#/reports?${rcQS(st)}`; try { await copyText(url); UI.toast('نُسخ رابط التقرير: يفتح بالتصفية نفسها لمن يملك الصلاحية'); } catch (_) { UI.toast(url, 'info', 9000); } });
   UI.on(ctx.view, 'click', '[data-rcsave]', async () => {
@@ -21066,12 +21069,12 @@ Pages.reportCenter = async (ctx) => {
     const r = await Pages.rcOrgPick(st.deps, st.units); if (!r) return; st.deps = r.deps; st.units = r.units; reset(); draw(false);
   });
   /* ── التصدير ── */
-  const cols = ['التاريخ', 'الوقت', 'المصدر', 'المرجع', 'السجل', 'التفاصيل', 'الإدارة', 'الفرع', 'المستفيد / المستلم', 'المنفذ', 'العدد', 'الحالة', 'المدة', 'متأخر'];
-  const line = (r) => [fmtDate(r.at), fmtTime(r.at), rcSrc(r.src).l, r.ref, r.title, r.sub, Data.nameOf('departments', r.dep, ''), r.unit ? orgLabel(r.dep, r.unit, units) : '', r.who, r.by, String(r.qty), r.st.label, rcDur(r.dur), r.late ? 'نعم' : ''];
+  const cols = ['التاريخ', 'الوقت', 'المصدر', 'الفئة', 'المرجع', 'السجل', 'التفاصيل', 'الإدارة', 'الفرع', 'المستفيد / المستلم', 'المنفذ', 'العدد', 'الحالة', 'المدة', 'متأخر'];
+  const line = (r) => [fmtDate(r.at), fmtTime(r.at), rcSrc(r.src).l, RCD.catOf(r), r.ref, r.title, r.sub, Data.nameOf('departments', r.dep, ''), r.unit ? orgLabel(r.dep, r.unit, units) : '', r.who, r.by, String(r.qty), r.st.label, rcDur(r.dur), r.late ? 'نعم' : ''];
   UI.on(ctx.view, 'click', '[data-rcxls]', async () => {
     const rows = sorted(filt(cache.rows)), srcs = allowed.filter((s) => st.src.has(s.k));
-    const summary = [['مركز التقارير'], ['المدة', perText()], ['النطاق', scopeText()], ['الحالة', { all: 'الكل', open: 'مفتوح', done: 'منجز', late: 'متأخر' }[st.state]], ['المنفذ', st.by ? Data.userName(st.by) : 'الكل'], ['أُعد في', fmtDateTime(now())], ['أعدّه', Auth.user.name || ''], [], ['المصدر', 'السجلات', 'مفتوحة', 'منجزة', 'متأخرة', 'مؤشرات'], ...srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return [s.l, String(l.length), String(l.filter((r) => r.open).length), String(l.filter((r) => r.done).length), String(l.filter((r) => r.late).length), rcKpi(s.k, l).filter(Boolean).join(' · ')]; }), ['الإجمالي', String(rows.length), String(rows.filter((r) => r.open).length), String(rows.filter((r) => r.done).length), String(rows.filter((r) => r.late).length), '']];
-    const widths = [12, 7, 16, 16, 34, 34, 20, 26, 22, 18, 7, 14, 10, 7];
+    const summary = [['مركز التقارير'], ['المدة', perText()], ['النطاق', scopeText()], ['الحالة', { all: 'الكل', open: 'مفتوح', done: 'منجز', late: 'متأخر' }[st.state]], ['المنفذ', st.by ? Data.userName(st.by) : 'الكل'], ['فئات البلاغات', RCD.catsText(st.cats) || 'كل الفئات'], ['أُعد في', fmtDateTime(now())], ['أعدّه', Auth.user.name || ''], [], ['المصدر', 'السجلات', 'مفتوحة', 'منجزة', 'متأخرة', 'مؤشرات'], ...srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return [s.l, String(l.length), String(l.filter((r) => r.open).length), String(l.filter((r) => r.done).length), String(l.filter((r) => r.late).length), rcKpi(s.k, l).filter(Boolean).join(' · ')]; }), ['الإجمالي', String(rows.length), String(rows.filter((r) => r.open).length), String(rows.filter((r) => r.done).length), String(rows.filter((r) => r.late).length), '']];
+    const widths = [12, 7, 16, 20, 16, 34, 34, 20, 26, 22, 18, 7, 14, 10, 7];
     const sheets = [{ name: 'الملخص', widths: [22, 30, 10, 10, 10, 40], rows: summary }, { name: 'كل السجلات', widths, rows: [cols, ...rows.map(line)] }, ...srcs.filter((s) => rows.some((r) => r.src === s.k)).map((s) => ({ name: s.l.slice(0, 30), widths, rows: [cols, ...rows.filter((r) => r.src === s.k).map(line)] }))];
     await RCD.prep(rows); const dsrc = srcs.filter((x) => rows.some((r) => r.src === x.k)); if (dsrc.length) sheets.splice(1, 0, { name: 'التفاصيل', rows: RCD.xlsRows(dsrc, rows) });
     downloadBlob(XL.write(sheets), `تقرير-${dateInput(range()[0])}-${dateInput(range()[1])}.xlsx`); UI.toast(`صُدّر ${fmtNum(rows.length)} سجل في ${fmtNum(sheets.length)} ورقة`);
@@ -21081,8 +21084,8 @@ Pages.reportCenter = async (ctx) => {
     if (!rows.length) { UI.toast('لا توجد سجلات في هذا التقرير', 'warn'); return; }
     const o = await RCD.ask(); if (!o) return;
     await RCD.prep(rows);
-    const hdr = `${perText()} — ${scopeText()}${st.state !== 'all' ? ` — ${{ open: 'المفتوح', done: 'المنجز', late: 'المتأخر' }[st.state]}` : ''}${st.by ? ` — المنفذ: ${Data.userName(st.by)}` : ''}`;
-    const recs = (l) => html`<table class="rcd-rec"><thead><tr><th style="width:70px">التاريخ</th><th>المرجع</th><th>السجل</th><th>الإدارة والفرع</th><th>المستفيد</th><th>المنفذ</th><th style="width:40px">العدد</th><th>الحالة</th></tr></thead><tbody>${l.slice(0, 400).map((r) => html`<tr><td>${fmtDate(r.at)}</td><td>${r.ref}</td><td>${r.title}${r.sub ? html`<div style="font-size:10px;color:#666">${r.sub}</div>` : ''}</td><td>${where(r)}</td><td>${r.who}</td><td>${r.by}</td><td>${fmtNum(r.qty)}</td><td>${r.st.label}${r.late ? ' (متأخر)' : ''}</td></tr>`)}</tbody></table>${l.length > 400 ? html`<p style="font-size:11px">يُطبع أول 400 سجل من ${fmtNum(l.length)}؛ الكامل في ملف Excel.</p>` : ''}`;
+    const hdr = `${perText()} — ${scopeText()}${st.state !== 'all' ? ` — ${{ open: 'المفتوح', done: 'المنجز', late: 'المتأخر' }[st.state]}` : ''}${st.by ? ` — المنفذ: ${Data.userName(st.by)}` : ''}${RCD.catsText(st.cats) ? ` — فئات البلاغات: ${RCD.catsText(st.cats)}` : ''}`;
+    const recs = (l) => html`<table class="rcd-rec"><thead><tr><th style="width:70px">التاريخ</th><th>المرجع</th><th>السجل</th><th>الفئة</th><th>الإدارة والفرع</th><th>المستفيد</th><th>المنفذ</th><th style="width:40px">العدد</th><th>الحالة</th></tr></thead><tbody>${l.slice(0, 400).map((r) => html`<tr><td>${fmtDate(r.at)}</td><td>${r.ref}</td><td>${r.title}${r.sub && r.src !== 'tickets' ? html`<div style="font-size:10px;color:#666">${r.sub}</div>` : ''}</td><td>${RCD.catOf(r) || '—'}</td><td>${where(r)}</td><td>${r.who}</td><td>${r.by}</td><td>${fmtNum(r.qty)}</td><td>${r.st.label}${r.late ? ' (متأخر)' : ''}</td></tr>`)}</tbody></table>${l.length > 400 ? html`<p style="font-size:11px">يُطبع أول 400 سجل من ${fmtNum(l.length)}؛ الكامل في ملف Excel.</p>` : ''}`;
     UI.print(html`<div class="rc-print"><h2 style="text-align:center;margin:0 0 4px">تقرير أعمال قسم تقنية المعلومات</h2><p style="text-align:center;margin:0 0 12px">${hdr}</p>
       ${o.sum ? RCD.overall(rows, srcs) : ''}
       <table><thead><tr><th>نوع التقرير</th><th>السجلات</th><th>مفتوحة</th><th>منجزة</th><th>متأخرة</th><th>مؤشرات</th></tr></thead><tbody>${srcs.map((s) => { const l = rows.filter((r) => r.src === s.k); return html`<tr><td><b>${s.l}</b></td><td>${fmtNum(l.length)}</td><td>${fmtNum(l.filter((r) => r.open).length)}</td><td>${fmtNum(l.filter((r) => r.done).length)}</td><td>${fmtNum(l.filter((r) => r.late).length)}</td><td>${rcKpi(s.k, l).filter(Boolean).join(' · ')}</td></tr>`; })}</tbody><tfoot><tr><th>الإجمالي</th><th>${fmtNum(rows.length)}</th><th>${fmtNum(rows.filter((r) => r.open).length)}</th><th>${fmtNum(rows.filter((r) => r.done).length)}</th><th>${fmtNum(rows.filter((r) => r.late).length)}</th><th></th></tr></tfoot></table>
@@ -25703,6 +25706,28 @@ const RCD = {
     try { localStorage.setItem('sq_rcd_opts', JSON.stringify(r)); } catch (_) { /* تجاهل */ }
     return r;
   }
+};
+
+/* ══════════ الجولة 27: الفئات في تقارير البلاغات ══════════
+   «البلاغات حسب الفئة» في مركز التقارير: بطاقة لكل فئة (أجهزة الحاسب، الطابعات، الشبكة، أخرى…) بعددها
+   ومنجزها ومفتوحها ومتأخرها ومتوسط حلها، والضغط عليها يقصر التقرير على الفئة أو عدة فئات (ويظهر ذلك في
+   الطباعة وExcel). وعمود «الفئة» لكل سجل: فئة البلاغ، أو فئة الجهاز في الصيانة والمخزون، أو نوع العمل. */
+RCD.catOf = (r) => {
+  if (!r) return '';
+  if (r.src === 'tickets') return (r.catId ? Data.nameOf('categories', r.catId, '') : '') || r.sub || '';
+  if (r.src === 'worklog') return r.grp || '';
+  const it = RCD.it(r); return it ? INVR.top(it).name : '';
+};
+RCD.catsText = (set) => (set && set.size ? [...set].map((c) => (c === '_' ? 'بلا فئة' : Data.nameOf('categories', c, 'فئة محذوفة'))).join('، ') : '');
+RCD.catPanel = (rows, sel) => {
+  if (!rows.length) return '';
+  const G = new Map(); rows.forEach((r) => { const k = r.catId || '_'; let g = G.get(k); if (!g) G.set(k, (g = { k, n: 0, done: 0, open: 0, late: 0, durS: 0, durN: 0 })); g.n++; if (r.done) g.done++; if (r.open) g.open++; if (r.late) g.late++; if (r.done && r.dur > 0) { g.durS += r.dur; g.durN++; } });
+  const ord = new Map(Data.list('categories').map((c, i) => [c.id, i])), o = (k) => (ord.has(k) ? ord.get(k) : 1e9);
+  const list = [...G.values()].sort((a, b) => b.n - a.n || o(a.k) - o(b.k));
+  const name = (k) => (k === '_' ? 'بلا فئة' : Data.nameOf('categories', k, 'فئة محذوفة'));
+  const doneAll = rows.filter((r) => r.done).length;
+  return html`<section class="panel mt rc-cats"><div class="toolbar"><b class="grow">${UI.icon('tag')} البلاغات حسب الفئة <small class="faint">(${fmtNum(list.length)} فئة · ${fmtNum(rows.length)} بلاغ)</small></b>${sel.size ? html`<button type="button" class="btn btn-ghost btn-sm" data-rccat="">${UI.icon('x')} كل الفئات</button>` : html`<small class="faint">اضغط فئة أو أكثر لقصر التقرير عليها</small>`}</div>
+    <div class="rc-catg"><button type="button" class="rc-cat all${sel.size ? '' : ' on'}" data-rccat=""><span class="rc-catic">${UI.icon('layers')}</span><div class="grow"><b>كل الفئات</b><small>${fmtNum(rows.length)} بلاغ · ${RCD.pct(doneAll, rows.length)} منجز</small></div></button>${list.map((g) => html`<button type="button" class="rc-cat${sel.has(g.k) ? ' on' : ''}${sel.size && !sel.has(g.k) ? ' dim' : ''}" data-rccat="${g.k}" title="${sel.has(g.k) ? 'إزالة من التقرير' : 'قصر التقرير على هذه الفئة'}"><span class="rc-catic">${g.k === '_' ? UI.icon('tag') : UI.illu(catIllu(g.k), 'mini')}</span><div class="grow"><b>${name(g.k)}</b><small>${fmtNum(g.done)} منجز · ${fmtNum(g.open)} مفتوح${g.late ? html` · <em>${fmtNum(g.late)} متأخر</em>` : ''}${g.durN ? ` · ${rcDur(g.durS / g.durN)}` : ''}</small><i class="rc-catbar"><i style="width:${Math.round((g.done / g.n) * 100)}%"></i></i></div><span class="rc-catn">${fmtNum(g.n)}</span></button>`)}</div></section>`;
 };
 
 boot();
