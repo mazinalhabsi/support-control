@@ -25512,7 +25512,7 @@ const CMSN = {
   mode() { try { const v = localStorage.getItem('sq_cmsn_mode'); return ['tag', 'host'].includes(v) ? v : 'sn'; } catch (_) { return 'sn'; } },
   next: (m) => ({ sn: 'tag', tag: 'host', host: 'sn' })[m] || 'sn',
   LBL: { sn: 'S/N', tag: 'TAG', host: 'اسم الجهاز' },
-  PH: { sn: 'الرقم التسلسلي', tag: 'رقم التاج', host: 'اسم الجهاز في المجال، مثل IT-PC-014' },
+  PH: { sn: 'الرقم التسلسلي', tag: 'رقم التاج', host: 'مثل IT-PC-014' },
   setMode(m) { try { localStorage.setItem('sq_cmsn_mode', m); } catch (_) { /* تجاهل */ } },
   line: (k) => CM.pend.find((x) => x.k === k),
   pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || '', tag: p.tag || '', host: p.host || '' })) : snSplit(l.sn).map((x) => ({ serial: x, tag: '', host: '' })); },
