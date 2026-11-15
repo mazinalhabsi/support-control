@@ -20497,7 +20497,7 @@ Pages.custodyMap = async (ctx) => {
   /* محطة العمل: أجهزتها شبكة أو قائمة، والضغط على الجهاز يعرض تفاصيله */
   const wsView = (w) => html`<div class="cm-zone" data-cdrop="w:${w.id}"><div class="cm-wshead tone-${w.tone || 'sky'}"><span class="cm-wsic lg">${UI.icon(w.icon || 'o3d:office')}</span><div class="grow"><b>${wsName(w)}</b>${WS.holders(w).length ? html`<small>${UI.icon(WS.holders(w).length > 1 ? 'users' : 'user')} ${WS.holders(w).map((x) => Data.userName(x)).join('، ')}${WS.holders(w).length > 1 ? ' — محطة مشتركة' : ''}</small>` : ''}${w.note ? html`<small>${w.note}</small>` : ''}<small>${fmtNum(WS.count(w))} جهاز · أفلت النماذج هنا لإضافتها إلى المحطة</small></div>${WS.canEdit() ? html`<button type="button" class="btn btn-ghost btn-sm" data-wsren="${w.id}">${UI.icon('tag')} تسمية</button>` : ''}${WS.canEdit() ? html`<button type="button" class="btn btn-soft btn-sm" data-wsed="${w.id}">${UI.icon('edit')} تعديل وربط أجهزة</button><button type="button" class="btn btn-ghost btn-sm" data-wsmove="${w.id}">${UI.icon('swap')} نقل</button><button type="button" class="btn btn-ghost btn-sm danger" data-wsdel="${w.id}">${UI.icon('trash')} حذف</button>` : ''}</div>
     <div class="dk-stage tone-${w.tone || 'sky'}">${CMV.scene(wsLines(w), items, 'lg')}</div>
-    ${sec('box', 'أجهزة المحطة', WS.count(w), html`${devs(new Map(wsLines(w)), st.wview, 'ws') || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`}${CMSN.block(CM.pend.filter((l) => l.wsId === w.id), items)}${WSP.block(w, items)}`)}</div>`;
+    ${sec('box', 'أجهزة المحطة', WS.count(w), html`${WSS.view(w, items) || html`<p class="hint">لا أجهزة في هذه المحطة بعد. اسحب نموذجاً إليها، أو اربط من أجهزة المكتب المشتركة.</p>`}${CMSN.block(CM.pend.filter((l) => l.wsId === w.id), items)}`)}</div>`;
   const tray = () => {
     if (!CM.pend.length) return html`<div class="cm-trayempty">${UI.icon('info')} اسحب النماذج من اللوحة إلى أي إدارة أو قسم أو مكتب أو محطة${canStore ? ' أو مخزن' : ''}، فتظهر هنا لتعديل العدد والأرقام التسلسلية قبل الحفظ.</div>`;
     const tot = CM.pend.reduce((s, l) => s + l.qty, 0);
@@ -20512,7 +20512,7 @@ Pages.custodyMap = async (ctx) => {
     if (!st.at) { tools = html`${seg('cmview', st.view, [['chart', 'مخطط', 'layers'], ['tree', 'شجرة', 'menu']])}${st.view === 'chart' ? seg('cmdir', st.dir, [['down', 'عمودي', 'chevron-down'], ['side', 'أفقي', 'chevron-left']]) : ''}${CMF.tools(st.view === 'chart')}`; body = depView(); }
     else if (k === 'g') { tools = seg('cmgview', st.gview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = genView(); }
     else if (k === 'u') { tools = html`${st.uview === 'grid' ? seg('cmdview', CM.get('dview', 'scene'), [['scene', 'مشهد المكتب', 'monitor'], ['tiles', 'الأجهزة', 'grid']]) : ''}${seg('cmuview', st.uview, [['struct', 'هيكل', 'layers'], ['grid', 'بطاقات', 'grid'], ['list', 'قائمة', 'menu']])}`; body = unitView(unitOf(id)); }
-    else if (k === 'w') { tools = seg('cmwview', st.wview, [['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']]); body = wsView(wsOf(id)); }
+    else if (k === 'w') { tools = WSS.tools(); body = wsView(wsOf(id)); }
     return html`<div class="toolbar cm-bar">${crumbs()}<span class="grow"></span>${tools}<a class="btn btn-ghost btn-sm" href="#/inventory/departments?at=${k === 'u' ? `u:${id}` : `d:${st.dep}`}">${UI.icon('search')} المستكشف</a></div><div class="panel-body">${body}</div>`;
   };
   const main = () => {
@@ -20558,7 +20558,7 @@ Pages.custodyMap = async (ctx) => {
     drawPal();
   };
   const after = () => draw(false);
-  const onSn = (e) => { after(); CMSN.refocus(e.detail); }; document.addEventListener('cmsn:change', onSn); ctx.onCleanup(() => { document.removeEventListener('cmsn:change', onSn); CMSN.close(); });
+  const onSn = (e) => { after(); CMSN.refocus(e.detail); }, onW = () => after(); document.addEventListener('wss:change', onW); ctx.onCleanup(() => document.removeEventListener('wss:change', onW)); document.addEventListener('cmsn:change', onSn); ctx.onCleanup(() => { document.removeEventListener('cmsn:change', onSn); CMSN.close(); });
   addEventListener('resize', place); ctx.onCleanup(() => removeEventListener('resize', place));
   /* ── السحب والإفلات من اللوحة ── */
   let dragPay = '';
@@ -20686,7 +20686,7 @@ Pages.cmCommit = async (print) => {
     try {
       const w = l.wsId ? await DB.get('workstations', l.wsId) : null;
       if (l.kind === 'store') { await Data.inv.move({ type: 'receive', itemId: l.itemId, warehouseId: l.whId, qty: l.qty, note: 'استلام من «توزيع العهدة»' }); if (sns.length) await Data.assets.add({ itemId: l.itemId, warehouseId: l.whId, serials: sns, note: 'استلام من «توزيع العهدة»' }); }
-      else if (l.kind === 'add') { await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && WS.holders(w).length === 1 && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : l.unitId ? 'إضافة من «توزيع العهدة»' : 'عهدة عامة للإدارة من «توزيع العهدة»' }); }
+      else if (l.kind === 'add') { await Data.dept.addDirect({ departmentId: l.depId, unitId: l.unitId, itemId: l.itemId, qty: l.qty, serials: sns, holderId: (w && WS.holders(w).length === 1 && w.holderId) || '', note: w ? `إضافة إلى محطة «${WS.label(w)}»` : l.unitId ? 'إضافة من «توزيع العهدة»' : 'عهدة عامة للإدارة من «توزيع العهدة»' }); if (l.wsId && sns.length) await WSS.stamp(l.wsId, l.itemId, sns); }
       else if (l.temp) { await DL.create({ departmentId: l.depId, unitId: l.unitId, holderId: (w && WS.holders(w).length === 1 && w.holderId) || '', itemId: l.itemId, qty: l.qty, dueAt: l.due ? new Date(`${l.due}T23:59:00`).getTime() : 0, note: w ? `لمحطة «${WS.label(w)}»` : '' }); }
       else { await Data.units.move({ departmentId: l.depId, itemId: l.itemId, fromUnitId: '', toUnitId: l.unitId, qty: l.qty }); }
       if (l.wsId && !(l.kind === 'assign' && l.temp)) { try { await WS.link(l.wsId, l.itemId, l.qty); } catch (ex) { failed.push([l, `أُضيف للمكتب ولم يُربط بالمحطة: ${ex.message}`]); } }
@@ -25729,6 +25729,218 @@ RCD.catPanel = (rows, sel) => {
   return html`<section class="panel mt rc-cats"><div class="toolbar"><b class="grow">${UI.icon('tag')} البلاغات حسب الفئة <small class="faint">(${fmtNum(list.length)} فئة · ${fmtNum(rows.length)} بلاغ)</small></b>${sel.size ? html`<button type="button" class="btn btn-ghost btn-sm" data-rccat="">${UI.icon('x')} كل الفئات</button>` : html`<small class="faint">اضغط فئة أو أكثر لقصر التقرير عليها</small>`}</div>
     <div class="rc-catg"><button type="button" class="rc-cat all${sel.size ? '' : ' on'}" data-rccat=""><span class="rc-catic">${UI.icon('layers')}</span><div class="grow"><b>كل الفئات</b><small>${fmtNum(rows.length)} بلاغ · ${RCD.pct(doneAll, rows.length)} منجز</small></div></button>${list.map((g) => html`<button type="button" class="rc-cat${sel.has(g.k) ? ' on' : ''}${sel.size && !sel.has(g.k) ? ' dim' : ''}" data-rccat="${g.k}" title="${sel.has(g.k) ? 'إزالة من التقرير' : 'قصر التقرير على هذه الفئة'}"><span class="rc-catic">${g.k === '_' ? UI.icon('tag') : UI.illu(catIllu(g.k), 'mini')}</span><div class="grow"><b>${name(g.k)}</b><small>${fmtNum(g.done)} منجز · ${fmtNum(g.open)} مفتوح${g.late ? html` · <em>${fmtNum(g.late)} متأخر</em>` : ''}${g.durN ? ` · ${rcDur(g.durS / g.durN)}` : ''}</small><i class="rc-catbar"><i style="width:${Math.round((g.done / g.n) * 100)}%"></i></i></div><span class="rc-catn">${fmtNum(g.n)}</span></button>`)}</div></section>`;
 };
+
+/* ══════════ الجولة 28: أطقم أجهزة المحطة — دمج بالسحب، وإطارات بلون واحد، وتفاصيل عامة أو كاملة ══════════
+   الطقم: جهاز وشاشته (وشاشة ثانية ولوحة مفاتيح وماوس إن شئت) في إطار بلون واحد واسم («الجهاز الأيمن»).
+   يُدمج بسحب جهاز وإفلاته فوق آخر، أو بزر «دمج» ثم الضغط على الجهاز الآخر (للشاشات اللمسية)، أو «تجميع تلقائي».
+   ثلاثة عروض: أطقم (كل طقم نافذة واحدة)، أو شبكة (الأجهزة بإطارات ملونة بلون طقمها)، أو قائمة. ومستويان: عام أو تفصيلي
+   (الرقم التسلسلي والتاج والفئة والمواصفات). الرقم التسلسلي يظهر على كل جهاز بخط خفيف، وبطاقة جرد المحطة تُطبع. */
+const WSS = {
+  COLORS: [['teal', '#0f9f8a'], ['violet', '#7c3aed'], ['amber', '#d97706'], ['sky', '#0284c7'], ['rose', '#e11d48'], ['green', '#16a34a'], ['indigo', '#4f46e5'], ['orange', '#ea580c']],
+  hex: (c) => (WSS.COLORS.find((x) => x[0] === c) || WSS.COLORS[0])[1],
+  pref(k, d) { try { return localStorage.getItem(`sq_wss_${k}`) || d; } catch (_) { return d; } },
+  setPref(k, v) { try { localStorage.setItem(`sq_wss_${k}`, v); } catch (_) { /* تجاهل */ } },
+  mode: () => { const v = WSS.pref('view', 'sets'); return ['sets', 'grid', 'list'].includes(v) ? v : 'sets'; },
+  det: () => (WSS.pref('det', 'basic') === 'full' ? 'full' : 'basic'),
+  armed: null, assets: null, loading: false,
+  /* الأطقم المحفوظة (والربط القديم جهاز↔شاشة يتحول إلى أطقم) */
+  sets(w) {
+    if (Array.isArray(w.sets)) return w.sets;
+    return (w.pairs || []).map((p, i) => ({ id: p.id || `wst${i}`, name: p.note || '', color: WSS.COLORS[i % WSS.COLORS.length][0], members: [{ id: `${p.id}a`, itemId: p.pc, sn: p.pcSn || '', tag: '' }, { id: `${p.id}b`, itemId: p.scr, sn: p.scrSn || '', tag: '' }], at: p.at || 0 }));
+  },
+  nextColor(sets) { const used = new Set(sets.map((x) => x.color)); return (WSS.COLORS.find(([c]) => !used.has(c)) || WSS.COLORS[sets.length % WSS.COLORS.length])[0]; },
+  norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/\s+/g, ''),
+  need() {
+    if (WSS.assets || WSS.loading) return; WSS.loading = true;
+    DB.getAll('assets').then((a) => { WSS.assets = a.filter((x) => x.wsId && x.status !== 'retired'); WSS.loading = false; document.dispatchEvent(new CustomEvent('wss:change')); }).catch(() => { WSS.loading = false; WSS.assets = []; });
+  },
+  /* وحدات المحطة: كل وحدة بطاقة، المنضمة لطقم ثم الحرة، ولكل منها رقمها التسلسلي إن عُرف */
+  units(w, items) {
+    const lines = (w.lines || []).filter((l) => Number(l.qty) > 0 && items.get(l.itemId)), sets = WSS.sets(w).map((x) => ({ ...x, members: (x.members || []).filter((m) => items.get(m.itemId)) }));
+    const qty = new Map(lines.map((l) => [l.itemId, Number(l.qty) || 0])), used = new Map();
+    sets.forEach((x) => { x.members = x.members.filter((m) => { const n = used.get(m.itemId) || 0; if (n >= (qty.get(m.itemId) || 0)) return false; used.set(m.itemId, n + 1); return true; }); });
+    const pool = new Map(); (WSS.assets || []).filter((a) => a.wsId === w.id).forEach((a) => { if (!pool.has(a.itemId)) pool.set(a.itemId, []); pool.get(a.itemId).push({ sn: a.serial, tag: a.tag || '' }); });
+    const own = new Set(sets.flatMap((x) => x.members.map((m) => WSS.norm(m.sn)).filter(Boolean)));
+    pool.forEach((l, k) => pool.set(k, l.filter((p) => !own.has(WSS.norm(p.sn)))));
+    const take = (itemId) => { const l = pool.get(itemId); return l && l.length ? l.shift() : null; };
+    const live = sets.filter((x) => x.members.length).map((x, si) => ({ ...x, n: si + 1, members: x.members.map((m) => { const p = m.sn ? null : take(m.itemId); return { ...m, it: items.get(m.itemId), key: `m:${x.id}:${m.id}`, sn: m.sn || (p ? p.sn : ''), tag: m.tag || (p ? p.tag : ''), guess: !m.sn && !!p }; }) }));
+    const free = []; lines.forEach((l) => { for (let i = used.get(l.itemId) || 0; i < l.qty; i++) { const p = take(l.itemId); free.push({ itemId: l.itemId, it: items.get(l.itemId), key: `f:${l.itemId}:${i}`, sn: p ? p.sn : '', tag: p ? p.tag : '' }); } });
+    return { sets: live, free };
+  },
+  tools() {
+    const m = WSS.mode(), d = WSS.det();
+    return html`<div class="seg sm">${[['sets', 'أطقم', 'layers'], ['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="wssview" value="${k}"${m === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div><div class="seg sm">${[['basic', 'عام'], ['full', 'تفصيلي']].map(([k, l]) => html`<label><input type="radio" name="wssdet" value="${k}"${d === k ? raw(' checked') : ''}><span>${l}</span></label>`)}</div>`;
+  },
+  specs(it) { return Object.entries(it.specs || {}).filter(([, x]) => x != null && String(x).trim() !== '' && !(Array.isArray(x) && !x.length)).slice(0, 3).map(([k, x]) => `${specLabel(it.categoryId, k)}: ${Array.isArray(x) ? x.join('، ') : x}`); },
+  tile(u, w, o = {}) {
+    const it = u.it, full = WSS.det() === 'full', armed = WSS.armed && WSS.armed.key === u.key;
+    return html`<div class="wss-t${o.set ? ' in' : ''}${armed ? ' armed' : ''}" draggable="true" data-wst="${u.key}" data-dev="${it.id}" tabindex="0" role="button" title="اسحبه فوق جهاز آخر لدمجهما في طقم، أو اضغطه للتفاصيل"${o.set ? raw(` style="--sc:${WSS.hex(o.set.color)}"`) : ''}>
+      ${o.badge && o.set ? html`<span class="wss-badge">${o.set.name || `طقم ${fmtNum(o.set.n)}`}</span>` : ''}
+      ${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small>
+      ${u.sn ? html`<span class="wss-sn${u.guess ? ' guess' : ''}" title="${u.guess ? 'من سجل الأجهزة المرتبطة بالمحطة' : 'الرقم التسلسلي'}">S/N ${u.sn}</span>` : full ? html`<span class="wss-sn none">بلا رقم تسلسلي</span>` : ''}
+      ${full && u.tag ? html`<span class="wss-sn tag">TAG ${u.tag}</span>` : ''}
+      ${full ? html`<span class="wss-meta">${INVR.top(it).name}${WSS.specs(it).length ? html`<br>${WSS.specs(it).join(' · ')}` : ''}</span>` : ''}
+      <span class="wss-acts">${o.set ? html`<button type="button" data-wssedit="${o.set.id}|${u.id}" title="الرقم التسلسلي والتاج">${UI.icon('tag')}</button><button type="button" data-wssmx="${o.set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : html`<button type="button" data-wssarm="${u.key}" title="دمج: اضغط ثم اضغط الجهاز الآخر">${UI.icon('layers')}</button>`}</span>
+      ${CACT.can() ? CACT.bar({ itemId: it.id, dep: w.departmentId, at: `w:${w.id}` }) : ''}
+    </div>`;
+  },
+  view(w, items) {
+    if (!(w.lines || []).some((l) => Number(l.qty) > 0 && items.get(l.itemId))) return '';
+    WSS.need();
+    const U = WSS.units(w, items), mode = WSS.mode(), full = WSS.det() === 'full', edit = WS.canEdit();
+    const kinds = (list) => list.reduce((a, u) => { const k = CMV.kind(u.it); a[k] = (a[k] || 0) + 1; return a; }, {});
+    const fk = kinds(U.free), canAuto = edit && (fk.pc || 0) > 0 && (fk.monitor || 0) > 0;
+    const head = html`<div class="wss-tb"><span class="wss-tip">${UI.icon('info')} ${WSS.armed ? 'اضغط الجهاز الذي تدمجه معه، أو Esc للإلغاء' : 'اسحب جهازاً وأفلته فوق آخر لدمجهما في طقم بإطار واحد'}</span><span class="grow"></span>${canAuto ? html`<button type="button" class="btn btn-soft btn-sm" data-wssauto="${w.id}">${UI.icon('sparkle')} تجميع تلقائي</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-wssprint="${w.id}">${UI.icon('print')} بطاقة جرد المحطة</button></div>`;
+    const warn = (() => { const all = [...U.free, ...U.sets.flatMap((x) => x.members)], k = kinds(all); const pcs = k.pc || 0, mons = k.monitor || 0, setPc = U.sets.filter((x) => x.members.some((m) => CMV.kind(m.it) === 'pc')).length; return pcs > 1 && setPc < Math.min(pcs, mons) ? html`<div class="wss-warn">${UI.icon('alert')} في المحطة ${fmtNum(pcs)} أجهزة و${fmtNum(mons)} شاشة، والمدموج منها ${fmtNum(setPc)} — ادمج كل جهاز بشاشته ليسهل الجرد</div>` : ''; })();
+    let body;
+    if (mode === 'list') {
+      const rows = [...U.sets.flatMap((x) => x.members.map((u) => ({ u, set: x }))), ...U.free.map((u) => ({ u, set: null }))];
+      body = html`<div class="table-wrap"><table class="table wss-list"><thead><tr><th>الجهاز</th><th>الماركة</th><th>الرقم التسلسلي</th>${full ? html`<th>التاج</th><th>الفئة</th><th>المواصفات</th>` : ''}<th>الطقم</th><th></th></tr></thead><tbody>${rows.map(({ u, set }) => html`<tr data-wst="${u.key}" draggable="true" data-dev="${u.it.id}" tabindex="0"${set ? raw(` style="--sc:${WSS.hex(set.color)}"`) : ''} class="${set ? 'in' : ''}"><td><div class="t-title">${UI.illu(cmIllu(u.it), 'mini')}<b dir="auto">${DNM.model(u.it)}</b></div></td><td>${DNM.brand(u.it) || '—'}</td><td><span class="wss-sn${u.guess ? ' guess' : ''}">${u.sn || '—'}</span></td>${full ? html`<td><span class="wss-sn">${u.tag || '—'}</span></td><td>${INVR.top(u.it).name}</td><td class="small">${WSS.specs(u.it).join(' · ') || '—'}</td>` : ''}<td>${set ? html`<span class="wss-chip" style="--sc:${WSS.hex(set.color)}">${set.name || `طقم ${fmtNum(set.n)}`}</span>` : html`<span class="faint small">غير مدموج</span>`}</td><td class="nowrap">${set && edit ? html`<button type="button" class="icon-btn" data-wssedit="${set.id}|${u.id}" title="الرقم التسلسلي والتاج">${UI.icon('tag')}</button><button type="button" class="icon-btn" data-wssmx="${set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : edit ? html`<button type="button" class="icon-btn" data-wssarm="${u.key}" title="دمج">${UI.icon('layers')}</button>` : ''}${edit ? html`<button type="button" class="btn btn-ghost btn-xs" data-wsunlink="${u.it.id}" title="فك كل وحدات هذا الجهاز من المحطة (يبقى في المكتب)">فك من المحطة</button>` : ''}</td></tr>`)}</tbody></table></div>`;
+    } else if (mode === 'grid') {
+      body = html`<div class="wss-tiles" data-wsfree>${[...U.sets.flatMap((x) => x.members.map((u) => WSS.tile(u, w, { set: x, badge: true }))), ...U.free.map((u) => WSS.tile(u, w))]}</div>`;
+    } else {
+      body = html`${U.sets.length ? html`<div class="wss-sets">${U.sets.map((x) => html`<section class="wss-set" data-wsset="${x.id}" style="--sc:${WSS.hex(x.color)}">
+          <header><i class="wss-dot"></i>${edit ? html`<input class="wss-name" data-wssname="${x.id}" value="${x.name || ''}" placeholder="طقم ${fmtNum(x.n)} — مثال: الجهاز الأيمن" aria-label="اسم الطقم">` : html`<b>${x.name || `طقم ${fmtNum(x.n)}`}</b>`}<small>${fmtNum(x.members.length)} أجهزة</small>${edit ? html`<button type="button" class="icon-btn" data-wsscolor="${x.id}" title="تغيير لون الإطار">${UI.icon('sparkle')}</button><button type="button" class="icon-btn" data-wssdel="${x.id}" title="فك الطقم (تبقى الأجهزة في المحطة)">${UI.icon('x')}</button>` : ''}</header>
+          <div class="wss-mem">${x.members.map((u) => WSS.tile(u, w, { set: x }))}</div></section>`)}</div>` : ''}
+        ${U.free.length ? html`<section class="wss-free" data-wsfree><header>${UI.icon('box')} ${U.sets.length ? 'أجهزة غير مدموجة' : 'أجهزة المحطة'} <small>${fmtNum(U.free.length)}</small></header><div class="wss-tiles">${U.free.map((u) => WSS.tile(u, w))}</div></section>` : ''}`;
+    }
+    return html`<div class="wss wsm-${mode}${full ? ' full' : ''}" data-wss="${w.id}">${edit ? head : ''}${warn}${body}</div>`;
+  },
+  parse(k) { const [t, a, b] = String(k).split(':'); return t === 'm' ? { k: 'm', set: a, mem: b } : { k: 'f', itemId: a, i: Number(b) || 0 }; },
+  async mut(wsId, fn, msg) {
+    const w = await DB.get('workstations', wsId); if (!w) return;
+    if (!WS.canEdit()) throw new AppError('أطقم المحطة لمن يملك صرف العهدة أو إضافتها');
+    const sets = JSON.parse(JSON.stringify(WSS.sets(w)));
+    const r = fn(sets, w); if (r === false) return;
+    const qty = new Map((w.lines || []).map((l) => [l.itemId, Number(l.qty) || 0])), cnt = new Map();
+    sets.forEach((x) => x.members.forEach((m) => cnt.set(m.itemId, (cnt.get(m.itemId) || 0) + 1)));
+    for (const [id, n] of cnt) if (n > (qty.get(id) || 0)) throw new AppError('لا توجد وحدة أخرى حرة من هذا الجهاز في المحطة');
+    w.sets = sets.filter((x) => x.members.length > 1); delete w.pairs; w.updatedAt = now();
+    await DB.put('workstations', w);
+    if (msg) await Data.log('update', 'inventory', w.id, `${msg} في محطة «${WS.label(w)}»`);
+    Bus.emit('inventory', {});
+  },
+  async link(wsId, aKey, bKey) {
+    if (aKey === bKey) return;
+    await WSS.mut(wsId, (sets) => {
+      const A = WSS.parse(aKey), B = WSS.parse(bKey), SA = A.k === 'm' ? sets.find((x) => x.id === A.set) : null, SB = B.k === 'm' ? sets.find((x) => x.id === B.set) : null;
+      if (SA && SA === SB) return false;
+      const memA = SA ? SA.members.find((m) => m.id === A.mem) : { id: uid('wm'), itemId: A.itemId, sn: '', tag: '' };
+      if (!memA) return false;
+      if (SB) { if (SA) SA.members = SA.members.filter((m) => m !== memA); SB.members.push(memA); }
+      else if (SA) SA.members.push({ id: uid('wm'), itemId: B.itemId, sn: '', tag: '' });
+      else sets.push({ id: uid('wst'), name: '', color: WSS.nextColor(sets), members: [memA, { id: uid('wm'), itemId: B.itemId, sn: '', tag: '' }], at: now() });
+      return true;
+    }, 'دمج جهازين في طقم');
+    UI.toast('دُمج الجهازان في طقم واحد', 'ok', 1800);
+  },
+  async toSet(wsId, key, setId) {
+    await WSS.mut(wsId, (sets) => {
+      const A = WSS.parse(key), S = sets.find((x) => x.id === setId); if (!S) return false;
+      if (A.k === 'm') { if (A.set === setId) return false; const SA = sets.find((x) => x.id === A.set), m = SA && SA.members.find((y) => y.id === A.mem); if (!m) return false; SA.members = SA.members.filter((y) => y !== m); S.members.push(m); }
+      else S.members.push({ id: uid('wm'), itemId: A.itemId, sn: '', tag: '' });
+      return true;
+    }, 'إضافة جهاز إلى طقم');
+  },
+  async free(wsId, key) { const A = WSS.parse(key); if (A.k !== 'm') return; await WSS.mut(wsId, (sets) => { const S = sets.find((x) => x.id === A.set); if (!S) return false; S.members = S.members.filter((m) => m.id !== A.mem); return true; }, 'إخراج جهاز من طقم'); },
+  async auto(wsId) {
+    const w = await DB.get('workstations', wsId); if (!w) return;
+    const items = new Map((await DB.getAll('items')).map((i) => [i.id, i])), U = WSS.units(w, items), by = (k) => U.free.filter((u) => CMV.kind(u.it) === k);
+    const pcs = by('pc'), mons = by('monitor'), kbs = by('keyboard'), mice = by('mouse'), n = Math.min(pcs.length, mons.length);
+    if (!n) { UI.toast('لا يوجد جهاز وشاشة غير مدموجين', 'info'); return; }
+    const extra = mons.slice(n), plan = Array.from({ length: n }, (_, i) => [pcs[i], mons[i], ...(extra[i] ? [extra[i]] : []), ...(kbs[i] ? [kbs[i]] : []), ...(mice[i] ? [mice[i]] : [])]);
+    const ok = await UI.confirm(html`سيُنشأ <b>${fmtNum(n)}</b> طقم: ${plan.map((p, i) => html`<div class="small" style="margin-top:4px">طقم ${fmtNum(i + 1)}: ${p.map((u) => DNM.model(u.it)).join(' + ')}</div>`)}`, { title: 'تجميع تلقائي', ok: 'إنشاء الأطقم', icon: 'sparkle' });
+    if (!ok) return;
+    await WSS.mut(wsId, (sets) => { plan.forEach((p) => sets.push({ id: uid('wst'), name: '', color: WSS.nextColor(sets), members: p.map((u) => ({ id: uid('wm'), itemId: u.itemId, sn: u.sn || '', tag: u.tag || '' })), at: now() })); return true; }, `تجميع تلقائي (${n} طقم)`);
+    UI.toast(`أُنشئ ${fmtNum(n)} طقم`, 'ok');
+  },
+  async edit(wsId, setId, memId) {
+    const w = await DB.get('workstations', wsId); if (!w) return;
+    const S = WSS.sets(w).find((x) => x.id === setId), m = S && S.members.find((y) => y.id === memId); if (!m) return;
+    const it = await DB.get('items', m.itemId), list = (await Data.assets.byItem(m.itemId)).filter((a) => a.status === 'issued' && (!w.departmentId || a.departmentId === w.departmentId));
+    const r = await UI.modal({ title: `${it ? DNM.model(it) : 'الجهاز'} — الرقم التسلسلي والتاج`, icon: 'tag', size: 'sm',
+      body: html`<div class="field"><label>الرقم التسلسلي</label><input class="input ltr" name="sn" list="wss-sns" value="${m.sn || ''}" autocomplete="off"><datalist id="wss-sns">${list.map((a) => html`<option value="${a.serial}">${a.tag ? `TAG ${a.tag}` : ''}</option>`)}</datalist><small class="hint">اختر من أجهزة الإدارة المسجلة أو اكتبه</small></div><div class="field mt"><label>رقم التاج</label><input class="input ltr" name="tag" value="${m.tag || ''}" autocomplete="off"></div>`,
+      onMount: (fm) => { const sn = fm.querySelector('[name="sn"]'), tg = fm.querySelector('[name="tag"]'); sn.addEventListener('change', () => { const a = list.find((x) => WSS.norm(x.serial) === WSS.norm(sn.value)); if (a && a.tag && !tg.value) tg.value = a.tag; }); },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (fm) => UI.formValues(fm) }] });
+    if (!r) return;
+    const sn = String(r.sn || '').trim(), tag = String(r.tag || '').trim();
+    await WSS.mut(wsId, (sets) => { const S2 = sets.find((x) => x.id === setId), m2 = S2 && S2.members.find((y) => y.id === memId); if (!m2) return false; m2.sn = sn; m2.tag = tag; return true; }, 'تسجيل رقم جهاز في طقم');
+    if (sn) await WSS.stamp(wsId, m.itemId, [{ serial: sn, tag }]);
+  },
+  /* وسم الأجهزة المسجلة بالمحطة: يظهر رقمها عليها في صفحة المحطة */
+  async stamp(wsId, itemId, pairs) {
+    try {
+      const want = new Map((pairs || []).map((p) => [WSS.norm(p.serial || p.tag), p]).filter(([k]) => k)); if (!want.size) return;
+      for (const a of await Data.assets.byItem(itemId)) { if (!want.has(WSS.norm(a.serial)) || a.wsId === wsId) continue; await DB.put('assets', { ...a, wsId, updatedAt: now() }); }
+      WSS.assets = null;
+    } catch (e) { console.warn('wss stamp', e); }
+  },
+  async print(wsId) {
+    const w = await DB.get('workstations', wsId); if (!w) return;
+    WSS.assets = null; await new Promise((res) => { WSS.need(); const t0 = Date.now(), iv = setInterval(() => { if (WSS.assets || Date.now() - t0 > 4000) { clearInterval(iv); res(); } }, 60); });
+    const items = new Map((await DB.getAll('items')).map((i) => [i.id, i])), U = WSS.units(w, items), units = await DB.getAll('deptUnits');
+    const row = (u, i) => html`<tr><td class="n">${fmtNum(i + 1)}</td><td><b dir="auto">${DNM.model(u.it)}</b></td><td>${DNM.brand(u.it) || '—'}</td><td>${INVR.top(u.it).name}</td><td class="ltr">${u.sn || ''}</td><td class="ltr">${u.tag || ''}</td><td></td></tr>`;
+    const head = html`<thead><tr><th class="n" style="width:30px">م</th><th>الجهاز</th><th>الماركة</th><th>الفئة</th><th>الرقم التسلسلي</th><th>التاج</th><th style="width:60px">الجرد ✓</th></tr></thead>`;
+    UI.print(html`<h2 style="text-align:center">بطاقة جرد محطة عمل</h2>
+      <table><tr><th>المحطة</th><td>${WS.label(w)}</td><th>الموضع</th><td>${orgLabel(w.departmentId, w.unitId, units)}</td></tr><tr><th>المستخدم</th><td>${WS.holders(w).map((x) => Data.userName(x)).join('، ') || 'مشتركة'}</td><th>الأجهزة</th><td>${fmtNum(U.free.length + U.sets.reduce((a, x) => a + x.members.length, 0))}${U.sets.length ? ` في ${fmtNum(U.sets.length)} طقم` : ''}</td></tr></table>
+      ${U.sets.map((x) => html`<h3 class="wss-ph"><i style="background:${WSS.hex(x.color)}"></i>${x.name || `طقم ${fmtNum(x.n)}`}</h3><table class="inv-pt">${head}<tbody>${x.members.map(row)}</tbody></table>`)}
+      ${U.free.length ? html`<h3 class="wss-ph">${U.sets.length ? 'أجهزة غير مدموجة' : 'أجهزة المحطة'}</h3><table class="inv-pt">${head}<tbody>${U.free.map(row)}</tbody></table>` : ''}
+      <div class="sign-row two"><div>المستلم</div><div>فني قسم تقنية المعلومات</div></div>`, `بطاقة جرد ${WS.label(w)}`);
+  }
+};
+Bus.on('inventory', () => { WSS.assets = null; });
+const wssRoot = (el) => { const r = el && el.closest && el.closest('[data-wss]'); return r ? r.dataset.wss : ''; };
+const wssRun = (p) => Promise.resolve(p).catch((ex) => UI.error(ex));
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.matches && t.matches('input[name="wssview"]')) { WSS.setPref('view', t.value); document.dispatchEvent(new CustomEvent('wss:change')); }
+  else if (t.matches && t.matches('input[name="wssdet"]')) { WSS.setPref('det', t.value); document.dispatchEvent(new CustomEvent('wss:change')); }
+  else if (t.matches && t.matches('[data-wssname]')) { const ws = wssRoot(t), id = t.dataset.wssname, v = t.value.trim().slice(0, 40); wssRun(WSS.mut(ws, (sets) => { const S = sets.find((x) => x.id === id); if (!S || S.name === v) return false; S.name = v; return true; }, 'تسمية طقم')); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-wssname]')) { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Escape' && WSS.armed) { WSS.armed = null; document.dispatchEvent(new CustomEvent('wss:change')); }
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-wssauto],[data-wssprint],[data-wssdel],[data-wsscolor],[data-wssmx],[data-wssedit],[data-wssarm]');
+  if (b) {
+    e.preventDefault(); e.stopPropagation();
+    const ws = wssRoot(b);
+    if (b.dataset.wssauto) wssRun(WSS.auto(b.dataset.wssauto));
+    else if (b.dataset.wssprint) wssRun(WSS.print(b.dataset.wssprint));
+    else if (b.dataset.wssdel) UI.confirm('فك هذا الطقم؟ تبقى أجهزته في المحطة.', { ok: 'فك الطقم' }).then((ok) => { if (ok) wssRun(WSS.mut(ws, (sets) => { const i = sets.findIndex((x) => x.id === b.dataset.wssdel); if (i < 0) return false; sets.splice(i, 1); return true; }, 'فك طقم')); });
+    else if (b.dataset.wsscolor) wssRun(WSS.mut(ws, (sets) => { const S = sets.find((x) => x.id === b.dataset.wsscolor); if (!S) return false; const i = WSS.COLORS.findIndex((c) => c[0] === S.color); S.color = WSS.COLORS[(i + 1) % WSS.COLORS.length][0]; return true; }));
+    else if (b.dataset.wssmx) { const [sid, mid] = b.dataset.wssmx.split('|'); wssRun(WSS.free(ws, `m:${sid}:${mid}`)); }
+    else if (b.dataset.wssedit) { const [sid, mid] = b.dataset.wssedit.split('|'); wssRun(WSS.edit(ws, sid, mid)); }
+    else if (b.dataset.wssarm) { WSS.armed = WSS.armed && WSS.armed.key === b.dataset.wssarm ? null : { ws, key: b.dataset.wssarm }; document.dispatchEvent(new CustomEvent('wss:change')); if (WSS.armed) UI.toast('اضغط الآن الجهاز الذي تدمجه معه', 'info', 2500); }
+    return;
+  }
+  /* وضع الدمج بالضغط: الضغطة التالية على جهاز آخر تدمجه */
+  if (WSS.armed) {
+    const t = e.target.closest && e.target.closest('[data-wst],[data-wsset]'); if (!t || wssRoot(t) !== WSS.armed.ws) return;
+    if (e.target.closest('input,.cact')) return;
+    e.preventDefault(); e.stopPropagation();
+    const a = WSS.armed; WSS.armed = null;
+    if (t.dataset.wst) { if (t.dataset.wst === a.key) { document.dispatchEvent(new CustomEvent('wss:change')); return; } wssRun(WSS.link(a.ws, a.key, t.dataset.wst)); }
+    else wssRun(WSS.toSet(a.ws, a.key, t.dataset.wsset));
+  }
+}, true);
+/* السحب والإفلات: جهاز فوق جهاز = طقم، وفوق طقم = ينضم إليه، وإلى «غير مدموجة» = يخرج من طقمه */
+{
+  let drag = null;
+  const clear = () => $$('.wss-over').forEach((x) => x.classList.remove('wss-over'));
+  document.addEventListener('dragstart', (e) => { const t = e.target.closest && e.target.closest('[data-wst]'); if (!t) return; drag = { ws: wssRoot(t), key: t.dataset.wst }; try { e.dataTransfer.setData('text/plain', `wss:${drag.key}`); e.dataTransfer.effectAllowed = 'move'; } catch (_) { /* تجاهل */ } t.classList.add('wss-drag'); document.body.classList.add('wss-dragging'); e.stopPropagation(); }, true);
+  document.addEventListener('dragend', () => { drag = null; clear(); $$('.wss-drag').forEach((x) => x.classList.remove('wss-drag')); document.body.classList.remove('wss-dragging'); }, true);
+  const target = (e) => { if (!drag) return null; const t = e.target.closest && e.target.closest('[data-wst],[data-wsset],[data-wsfree]'); return t && wssRoot(t) === drag.ws && t.dataset.wst !== drag.key ? t : null; };
+  document.addEventListener('dragover', (e) => { const t = target(e); if (!t) return; e.preventDefault(); e.stopPropagation(); try { e.dataTransfer.dropEffect = 'move'; } catch (_) { /* تجاهل */ } if (!t.classList.contains('wss-over')) { clear(); t.classList.add('wss-over'); } }, true);
+  document.addEventListener('drop', (e) => {
+    const t = target(e); if (!t) return; e.preventDefault(); e.stopPropagation(); clear();
+    const d = drag; drag = null; document.body.classList.remove('wss-dragging');
+    if (t.dataset.wst) wssRun(WSS.link(d.ws, d.key, t.dataset.wst));
+    else if (t.dataset.wsset) wssRun(WSS.toSet(d.ws, d.key, t.dataset.wsset));
+    else wssRun(WSS.free(d.ws, d.key));
+  }, true);
+}
 
 boot();
 })();
