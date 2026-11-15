@@ -20177,9 +20177,11 @@ const WS = {
     if (!unit) throw new AppError('اختر المكتب أو الفرع');
     const free = await WS.free(unit.id, cur ? cur.id : ''), merged = new Map();
     (rec.lines || []).forEach((l) => { const q = Math.floor(Number(l.qty) || 0); if (l.itemId && q > 0) merged.set(l.itemId, (merged.get(l.itemId) || 0) + q); });
+    /* يُرفض فقط ما زاد على المتاح؛ الأجهزة الموجودة في المحطة أصلاً لا تمنع إضافة جهاز جديد ولو اختلّ رصيد المكتب */
+    const prevQ = new Map(); ((cur && cur.lines) || []).forEach((l) => prevQ.set(l.itemId, (prevQ.get(l.itemId) || 0) + (Number(l.qty) || 0)));
     for (const [itemId, q] of merged) {
       const av = Math.max(0, free.get(itemId) || 0);
-      if (q > av) { const it = await DB.get('items', itemId); throw new AppError(`المتاح من «${it ? it.name : 'الصنف'}» في «${unit.name}» وغير المربوط بمحطة أخرى: ${fmtNum(av)}`); }
+      if (q > av && q > (prevQ.get(itemId) || 0)) { const it = await DB.get('items', itemId); throw new AppError(`المتاح من «${it ? it.name : 'الصنف'}» في «${unit.name}» وغير المربوط بمحطة أخرى: ${fmtNum(av)}`); }
     }
     const t = now(), out = { ...(cur || {}), id: (cur && cur.id) || uid('ws'), departmentId: unit.departmentId, unitId: unit.id, name: String(rec.name || '').trim().slice(0, 60), ...WS.of([rec.holderId, ...(Array.isArray(rec.coIds) ? rec.coIds : (cur && cur.coIds) || [])]), icon: rec.icon || 'o3d:office', tone: ORG_TONES.includes(rec.tone) ? rec.tone : 'sky', lines: [...merged].map(([itemId, qty]) => ({ itemId, qty })), note: String(rec.note || '').trim().slice(0, 300), order: Number(rec.order != null ? rec.order : cur ? cur.order : 0) || 0, createdAt: cur ? cur.createdAt : t, createdBy: cur ? cur.createdBy : Auth.user.id, updatedAt: t };
     await DB.put('workstations', out);
@@ -23046,7 +23048,7 @@ document.addEventListener('click', async (e) => {
 }, true);
 /* قائمة «توزيع العهدة»: الأرقام مع التاج لكل سطر */
 const CMP = {
-  pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || p.tag, tag: p.serial ? p.tag || '' : '' })) : snSplit(l.sn).map((s) => ({ serial: s, tag: '' })); }
+  pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || p.tag, tag: p.serial ? p.tag || '' : '', host: p.host || '' })) : snSplit(l.sn).map((s) => ({ serial: s, tag: '' })); }
 };
 document.addEventListener('click', async (e) => {
   const b = e.target.closest && e.target.closest('[data-psne]'); if (!b) return;
@@ -25507,17 +25509,26 @@ document.addEventListener('click', (e) => {
    وفي صفحة المحطة تظهر الأجهزة المضافة ولم تُحفظ بعد، وتحت كل منها الخانة نفسها. */
 const CMSN = {
   mute: 0, at: null, place: '', lastFocus: 'pop', its: new Map(),
-  mode() { try { return localStorage.getItem('sq_cmsn_mode') === 'tag' ? 'tag' : 'sn'; } catch (_) { return 'sn'; } },
+  mode() { try { const v = localStorage.getItem('sq_cmsn_mode'); return ['tag', 'host'].includes(v) ? v : 'sn'; } catch (_) { return 'sn'; } },
+  next: (m) => ({ sn: 'tag', tag: 'host', host: 'sn' })[m] || 'sn',
+  LBL: { sn: 'S/N', tag: 'TAG', host: 'اسم الجهاز' },
+  PH: { sn: 'الرقم التسلسلي', tag: 'رقم التاج', host: 'اسم الجهاز في المجال، مثل IT-PC-014' },
   setMode(m) { try { localStorage.setItem('sq_cmsn_mode', m); } catch (_) { /* تجاهل */ } },
   line: (k) => CM.pend.find((x) => x.k === k),
-  pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || '', tag: p.tag || '' })) : snSplit(l.sn).map((x) => ({ serial: x, tag: '' })); },
+  pairs(l) { return Array.isArray(l.pairs) && l.sn === l.pairsShown ? l.pairs.map((p) => ({ serial: p.serial || '', tag: p.tag || '', host: p.host || '' })) : snSplit(l.sn).map((x) => ({ serial: x, tag: '', host: '' })); },
   set(l, pairs) { const ps = pairs.filter((p) => p.serial || p.tag); l.pairs = ps; l.sn = ps.map((p) => p.serial || p.tag).join('، '); l.pairsShown = l.sn; const q0 = l.qty; l.qty = Math.max(Number(l.qty) || 1, ps.length); CM.keep(); return l.qty !== q0; },
   norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/\s+/g, ''),
   add(l, v, mode) {
     const vs = snSplit(v).length > 1 ? snSplit(v) : [String(v || '').trim()].filter(Boolean), ps = CMSN.pairs(l);
-    const used = new Set(CM.pend.flatMap((x) => CMSN.pairs(x).flatMap((p) => [p.serial, p.tag])).filter(Boolean).map(CMSN.norm));
+    const used = new Set(CM.pend.flatMap((x) => CMSN.pairs(x).flatMap((p) => [p.serial, p.tag])).filter(Boolean).map(CMSN.norm)), hosts = new Set(CM.pend.flatMap((x) => CMSN.pairs(x).map((p) => p.host)).filter(Boolean).map(CMSN.norm));
     let n = 0;
     vs.forEach((x) => {
+      if (mode === 'host') {
+        if (hosts.has(CMSN.norm(x))) { UI.toast(`اسم الجهاز ${x} مضاف من قبل في قائمة التوزيع`, 'warn'); return; }
+        const p = ps.find((y) => (y.serial || y.tag) && !y.host);
+        if (!p) { UI.toast('اكتب الرقم التسلسلي أو التاج أولاً، ثم اسم الجهاز في المجال', 'warn'); return; }
+        p.host = x; hosts.add(CMSN.norm(x)); n++; return;
+      }
       if (used.has(CMSN.norm(x))) { UI.toast(`الرقم ${x} مضاف من قبل في قائمة التوزيع`, 'warn'); return; }
       if (mode === 'tag') { const p = ps.find((y) => y.serial && !y.tag); if (p) p.tag = x; else ps.push({ serial: '', tag: x }); }
       else { const p = ps.find((y) => y.tag && !y.serial); if (p) p.serial = x; else ps.push({ serial: x, tag: '' }); }
@@ -25530,9 +25541,9 @@ const CMSN = {
     return html`<div class="cmsn${pop ? ' pop' : ''}" data-cmsn="${l.k}">
       ${pop ? html`<div class="cmsn-top">${UI.icon('check')}<span class="grow">أُضيف إلى ${CMSN.place || 'المحطة'}</span><button type="button" class="icon-btn" data-cmsnx aria-label="إغلاق">${UI.icon('x')}</button></div>` : ''}
       <div class="cmsn-h">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it)}</b><small>${[DNM.brand(it), pop ? '' : 'بانتظار الحفظ'].filter(Boolean).join(' · ')}</small></div><span class="cmsn-q" title="العدد">×${fmtNum(l.qty)}</span></div>
-      <div class="cmsn-in"><button type="button" class="cmsn-mode ${m}" data-cmsnmode title="تبديل بين الرقم التسلسلي ورقم التاج (أو Shift+Enter)"><b>${m === 'tag' ? 'TAG' : 'S/N'}</b>${UI.icon('swap')}</button><input class="input ltr" data-cmsnv autocomplete="off" spellcheck="false" placeholder="${m === 'tag' ? 'رقم التاج' : 'الرقم التسلسلي'} ثم Enter"><button type="button" class="btn btn-sm btn-primary" data-cmsnadd>${UI.icon('plus')} إضافة</button></div>
-      ${ps.length || need ? html`<div class="cmsn-list">${ps.map((p, i) => html`<span class="cmsn-p"><em>${fmtNum(i + 1)}</em>${p.serial ? html`<code title="الرقم التسلسلي">S/N ${p.serial}</code>` : html`<code class="miss" title="لم يُكتب الرقم التسلسلي">S/N —</code>`}${p.tag ? html`<code class="tag" title="رقم التاج">TAG ${p.tag}</code>` : ''}<button type="button" data-cmsndel="${i}" title="حذف" aria-label="حذف">${UI.icon('x')}</button></span>`)}${need ? html`<span class="cmsn-need">${UI.icon('info')} ${fmtNum(need)} ${need === 1 ? 'جهاز' : 'أجهزة'} بلا رقم</span>` : ''}</div>` : ''}
-      ${pop ? html`<div class="cmsn-foot"><small class="faint">Enter يضيف ويبقى جاهزاً للتالي · Shift+Enter يضيف ويبدّل إلى ${m === 'tag' ? 'S/N' : 'TAG'}</small><span class="grow"></span><button type="button" class="btn btn-sm btn-ghost" data-cmsnx>تم</button><button type="button" class="btn btn-sm btn-soft" data-cmsnsave>${UI.icon('check')} حفظ التوزيع الآن</button></div>` : ''}
+      <div class="cmsn-in"><button type="button" class="cmsn-mode ${m}" data-cmsnmode title="تبديل: الرقم التسلسلي ← التاج ← اسم الجهاز في المجال (أو Shift+Enter)"><b>${CMSN.LBL[m]}</b>${UI.icon('swap')}</button><input class="input ltr" data-cmsnv autocomplete="off" spellcheck="false" placeholder="${CMSN.PH[m]} ثم Enter"><button type="button" class="btn btn-sm btn-primary" data-cmsnadd>${UI.icon('plus')} إضافة</button></div>
+      ${ps.length || need ? html`<div class="cmsn-list">${ps.map((p, i) => html`<span class="cmsn-p"><em>${fmtNum(i + 1)}</em>${p.serial ? html`<code title="الرقم التسلسلي">S/N ${p.serial}</code>` : html`<code class="miss" title="لم يُكتب الرقم التسلسلي">S/N —</code>`}${p.tag ? html`<code class="tag" title="رقم التاج">TAG ${p.tag}</code>` : ''}${p.host ? html`<code class="host" title="اسم الجهاز في المجال">${p.host}</code>` : ''}<button type="button" data-cmsndel="${i}" title="حذف" aria-label="حذف">${UI.icon('x')}</button></span>`)}${need ? html`<span class="cmsn-need">${UI.icon('info')} ${fmtNum(need)} ${need === 1 ? 'جهاز' : 'أجهزة'} بلا رقم</span>` : ''}</div>` : ''}
+      ${pop ? html`<div class="cmsn-foot"><small class="faint">Enter يضيف ويبقى جاهزاً للتالي · Shift+Enter يضيف وينتقل إلى ${CMSN.LBL[CMSN.next(m)]}</small><span class="grow"></span><button type="button" class="btn btn-sm btn-ghost" data-cmsnx>تم</button><button type="button" class="btn btn-sm btn-soft" data-cmsnsave>${UI.icon('check')} حفظ التوزيع الآن</button></div>` : ''}
     </div>`;
   },
   block(lines, items) {
@@ -25575,7 +25586,7 @@ const CMSN = {
     if (!inp.value.trim()) { inp.focus(); return; }
     CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline';
     const r = CMSN.add(l, inp.value, CMSN.mode());
-    if (flip) CMSN.setMode(CMSN.mode() === 'tag' ? 'sn' : 'tag');
+    if (flip) CMSN.setMode(CMSN.next(CMSN.mode()));
     CMSN.rerender(); CMSN.syncTray(k);
     if (r.q) document.dispatchEvent(new CustomEvent('cmsn:change', { detail: k }));
     CMSN.refocus(k);
@@ -25595,7 +25606,7 @@ document.addEventListener('click', (e) => {
   if (t.matches('[data-cmsnx]')) { CMSN.close(); return; }
   if (t.matches('[data-cmsnsave]')) { CMSN.close(); const b = document.querySelector('[data-cmsave=""]'); if (b) b.click(); else UI.toast('احفظ من «قائمة التوزيع»', 'info'); return; }
   if (!l) { CMSN.rerender(); return; }
-  if (t.matches('[data-cmsnmode]')) { CMSN.setMode(CMSN.mode() === 'tag' ? 'sn' : 'tag'); CMSN.rerender(); CMSN.refocus(k); return; }
+  if (t.matches('[data-cmsnmode]')) { CMSN.setMode(CMSN.next(CMSN.mode())); CMSN.rerender(); CMSN.refocus(k); return; }
   if (t.matches('[data-cmsnadd]')) { CMSN.commit(c.querySelector('[data-cmsnv]')); return; }
   if (t.matches('[data-cmsndel]')) { const ps = CMSN.pairs(l); ps.splice(Number(t.dataset.cmsndel), 1); CMSN.set(l, ps); CMSN.rerender(); CMSN.syncTray(k); CMSN.refocus(k); }
 }, true);
@@ -25750,6 +25761,7 @@ const WSS = {
   },
   nextColor(sets) { const used = new Set(sets.map((x) => x.color)); return (WSS.COLORS.find(([c]) => !used.has(c)) || WSS.COLORS[sets.length % WSS.COLORS.length])[0]; },
   norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/\s+/g, ''),
+  hostOf(itemId, sn) { if (!sn) return ''; const k = WSS.norm(sn), a = [...(WSS.assets || []), ...(WSS.allA || [])].find((x) => x.itemId === itemId && WSS.norm(x.serial) === k); return (a && a.host) || ''; },
   need() {
     if (WSS.assets || WSS.loading) return; WSS.loading = true;
     DB.getAll('assets').then((a) => { WSS.assets = a.filter((x) => x.wsId && x.status !== 'retired'); WSS.allA = a.filter((x) => x.status === 'issued'); WSS.loading = false; document.dispatchEvent(new CustomEvent('wss:change')); }).catch(() => { WSS.loading = false; WSS.assets = []; });
@@ -25759,12 +25771,12 @@ const WSS = {
     const lines = (w.lines || []).filter((l) => Number(l.qty) > 0 && items.get(l.itemId)), sets = WSS.sets(w).map((x) => ({ ...x, members: (x.members || []).filter((m) => items.get(m.itemId)) }));
     const qty = new Map(lines.map((l) => [l.itemId, Number(l.qty) || 0])), used = new Map();
     sets.forEach((x) => { x.members = x.members.filter((m) => { const n = used.get(m.itemId) || 0; if (n >= (qty.get(m.itemId) || 0)) return false; used.set(m.itemId, n + 1); return true; }); });
-    const pool = new Map(); (WSS.assets || []).filter((a) => a.wsId === w.id).forEach((a) => { if (!pool.has(a.itemId)) pool.set(a.itemId, []); pool.get(a.itemId).push({ sn: a.serial, tag: a.tag || '' }); });
+    const pool = new Map(); (WSS.assets || []).filter((a) => a.wsId === w.id).forEach((a) => { if (!pool.has(a.itemId)) pool.set(a.itemId, []); pool.get(a.itemId).push({ sn: a.serial, tag: a.tag || '', host: a.host || '' }); });
     const own = new Set(sets.flatMap((x) => x.members.map((m) => WSS.norm(m.sn)).filter(Boolean)));
     pool.forEach((l, k) => pool.set(k, l.filter((p) => !own.has(WSS.norm(p.sn)))));
     const take = (itemId) => { const l = pool.get(itemId); return l && l.length ? l.shift() : null; };
-    const live = sets.filter((x) => x.members.length).map((x, si) => ({ ...x, n: si + 1, members: x.members.map((m) => { const p = m.sn ? null : take(m.itemId); return { ...m, it: items.get(m.itemId), key: `m:${x.id}:${m.id}`, sn: m.sn || (p ? p.sn : ''), tag: m.tag || (p ? p.tag : ''), guess: !m.sn && !!p }; }) }));
-    const free = []; lines.forEach((l) => { for (let i = used.get(l.itemId) || 0; i < l.qty; i++) { const p = take(l.itemId); free.push({ itemId: l.itemId, it: items.get(l.itemId), key: `f:${l.itemId}:${i}`, sn: p ? p.sn : '', tag: p ? p.tag : '' }); } });
+    const live = sets.filter((x) => x.members.length).map((x, si) => ({ ...x, n: si + 1, members: x.members.map((m) => { const p = m.sn ? null : take(m.itemId); return { ...m, it: items.get(m.itemId), key: `m:${x.id}:${m.id}`, sn: m.sn || (p ? p.sn : ''), tag: m.tag || (p ? p.tag : ''), host: m.host || (p ? p.host : '') || WSS.hostOf(m.itemId, m.sn), guess: !m.sn && !!p }; }) }));
+    const free = []; lines.forEach((l) => { for (let i = used.get(l.itemId) || 0; i < l.qty; i++) { const p = take(l.itemId); free.push({ itemId: l.itemId, it: items.get(l.itemId), key: `f:${l.itemId}:${i}`, sn: p ? p.sn : '', tag: p ? p.tag : '', host: p ? p.host : '' }); } });
     { const c = new Map(); [...live.flatMap((x) => x.members), ...free].forEach((u) => { const n = (c.get(u.itemId) || 0) + 1; c.set(u.itemId, n); u.nth = n; u.of = qty.get(u.itemId) || 1; }); }
     return { sets: live, free };
   },
@@ -25779,9 +25791,9 @@ const WSS = {
       ${o.badge && o.set ? html`<span class="wss-badge">${o.set.name || `طقم ${fmtNum(o.set.n)}`}</span>` : ''}
       ${UI.illu(cmIllu(it), 'mini')}${u.of > 1 ? html`<em class="wss-no">${fmtNum(u.nth)}/${fmtNum(u.of)}</em>` : ''}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small>
       ${u.sn ? html`<span class="wss-sn${u.guess ? ' guess' : ''}" title="${u.guess ? 'من سجل الأجهزة المرتبطة بالمحطة' : 'الرقم التسلسلي'}">S/N ${u.sn}</span>` : full ? html`<span class="wss-sn none">بلا رقم تسلسلي</span>` : ''}
-      ${full && u.tag ? html`<span class="wss-sn tag">TAG ${u.tag}</span>` : ''}
+      ${u.host ? html`<span class="wss-sn host" title="اسم الجهاز في المجال">${u.host}</span>` : ''}${full && u.tag ? html`<span class="wss-sn tag">TAG ${u.tag}</span>` : ''}
       ${full ? html`<span class="wss-meta">${INVR.top(it).name}${WSS.specs(it).length ? html`<br>${WSS.specs(it).join(' · ')}` : ''}</span>` : ''}
-      <span class="wss-acts">${o.set ? html`<button type="button" data-wssedit="${o.set.id}|${u.id}" title="الرقم التسلسلي والتاج">${UI.icon('tag')}</button><button type="button" data-wssmx="${o.set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : html`<button type="button" data-wssarm="${u.key}" title="دمج: اضغط ثم اضغط الجهاز الآخر">${UI.icon('layers')}</button>`}</span>
+      <span class="wss-acts">${o.set ? html`<button type="button" data-wssedit="${o.set.id}|${u.id}" title="الرقم التسلسلي والتاج واسم الجهاز">${UI.icon('tag')}</button><button type="button" data-wssmx="${o.set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : html`<button type="button" data-wssarm="${u.key}" title="دمج: اضغط ثم اضغط الجهاز الآخر">${UI.icon('layers')}</button>`}</span>
       ${CACT.can() ? CACT.bar({ itemId: it.id, dep: w.departmentId, at: `w:${w.id}` }) : ''}
     </div>`;
   },
@@ -25796,7 +25808,7 @@ const WSS = {
     let body;
     if (mode === 'list') {
       const rows = [...U.sets.flatMap((x) => x.members.map((u) => ({ u, set: x }))), ...U.free.map((u) => ({ u, set: null }))];
-      body = html`<div class="table-wrap"><table class="table wss-list"><thead><tr><th>الجهاز</th><th>الماركة</th><th>الرقم التسلسلي</th>${full ? html`<th>التاج</th><th>الفئة</th><th>المواصفات</th>` : ''}<th>الطقم</th><th></th></tr></thead><tbody>${rows.map(({ u, set }) => html`<tr data-wst="${u.key}" draggable="true" data-dev="${u.it.id}" tabindex="0"${set ? raw(` style="--sc:${WSS.hex(set.color)}"`) : ''} class="${set ? 'in' : ''}"><td><div class="t-title">${UI.illu(cmIllu(u.it), 'mini')}<b dir="auto">${DNM.model(u.it)}</b></div></td><td>${DNM.brand(u.it) || '—'}</td><td><span class="wss-sn${u.guess ? ' guess' : ''}">${u.sn || '—'}</span></td>${full ? html`<td><span class="wss-sn">${u.tag || '—'}</span></td><td>${INVR.top(u.it).name}</td><td class="small">${WSS.specs(u.it).join(' · ') || '—'}</td>` : ''}<td>${set ? html`<span class="wss-chip" style="--sc:${WSS.hex(set.color)}">${set.name || `طقم ${fmtNum(set.n)}`}</span>` : html`<span class="faint small">غير مدموج</span>`}</td><td class="nowrap">${set && edit ? html`<button type="button" class="icon-btn" data-wssedit="${set.id}|${u.id}" title="الرقم التسلسلي والتاج">${UI.icon('tag')}</button><button type="button" class="icon-btn" data-wssmx="${set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : edit ? html`<button type="button" class="icon-btn" data-wssarm="${u.key}" title="دمج">${UI.icon('layers')}</button>` : ''}${edit ? html`<button type="button" class="btn btn-ghost btn-xs" data-wsunlink="${u.it.id}" title="فك كل وحدات هذا الجهاز من المحطة (يبقى في المكتب)">فك من المحطة</button>` : ''}</td></tr>`)}</tbody></table></div>`;
+      body = html`<div class="table-wrap"><table class="table wss-list"><thead><tr><th>الجهاز</th><th>الماركة</th><th>الرقم التسلسلي</th><th>اسم الجهاز</th>${full ? html`<th>التاج</th><th>الفئة</th><th>المواصفات</th>` : ''}<th>الطقم</th><th></th></tr></thead><tbody>${rows.map(({ u, set }) => html`<tr data-wst="${u.key}" draggable="true" data-dev="${u.it.id}" tabindex="0"${set ? raw(` style="--sc:${WSS.hex(set.color)}"`) : ''} class="${set ? 'in' : ''}"><td><div class="t-title">${UI.illu(cmIllu(u.it), 'mini')}<b dir="auto">${DNM.model(u.it)}</b></div></td><td>${DNM.brand(u.it) || '—'}</td><td><span class="wss-sn${u.guess ? ' guess' : ''}">${u.sn || '—'}</span></td><td><span class="wss-sn host">${u.host || '—'}</span></td>${full ? html`<td><span class="wss-sn">${u.tag || '—'}</span></td><td>${INVR.top(u.it).name}</td><td class="small">${WSS.specs(u.it).join(' · ') || '—'}</td>` : ''}<td>${set ? html`<span class="wss-chip" style="--sc:${WSS.hex(set.color)}">${set.name || `طقم ${fmtNum(set.n)}`}</span>` : html`<span class="faint small">غير مدموج</span>`}</td><td class="nowrap">${set && edit ? html`<button type="button" class="icon-btn" data-wssedit="${set.id}|${u.id}" title="الرقم التسلسلي والتاج واسم الجهاز">${UI.icon('tag')}</button><button type="button" class="icon-btn" data-wssmx="${set.id}|${u.id}" title="إخراج من الطقم">${UI.icon('x')}</button>` : edit ? html`<button type="button" class="icon-btn" data-wssarm="${u.key}" title="دمج">${UI.icon('layers')}</button>` : ''}${edit ? html`<button type="button" class="btn btn-ghost btn-xs" data-wsunlink="${u.it.id}" title="فك كل وحدات هذا الجهاز من المحطة (يبقى في المكتب)">فك من المحطة</button>` : ''}</td></tr>`)}</tbody></table></div>`;
     } else if (mode === 'grid') {
       body = html`<div class="wss-tiles" data-wsfree>${[...U.sets.flatMap((x) => x.members.map((u) => WSS.tile(u, w, { set: x, badge: true }))), ...U.free.map((u) => WSS.tile(u, w))]}</div>`;
     } else {
@@ -25859,20 +25871,20 @@ const WSS = {
     const w = await DB.get('workstations', wsId); if (!w) return;
     const S = WSS.sets(w).find((x) => x.id === setId), m = S && S.members.find((y) => y.id === memId); if (!m) return;
     const it = await DB.get('items', m.itemId), list = (await Data.assets.byItem(m.itemId)).filter((a) => a.status === 'issued' && (!w.departmentId || a.departmentId === w.departmentId));
-    const r = await UI.modal({ title: `${it ? DNM.model(it) : 'الجهاز'} — الرقم التسلسلي والتاج`, icon: 'tag', size: 'sm',
-      body: html`<div class="field"><label>الرقم التسلسلي</label><input class="input ltr" name="sn" list="wss-sns" value="${m.sn || ''}" autocomplete="off"><datalist id="wss-sns">${list.map((a) => html`<option value="${a.serial}">${a.tag ? `TAG ${a.tag}` : ''}</option>`)}</datalist><small class="hint">اختر من أجهزة الإدارة المسجلة أو اكتبه</small></div><div class="field mt"><label>رقم التاج</label><input class="input ltr" name="tag" value="${m.tag || ''}" autocomplete="off"></div>`,
-      onMount: (fm) => { const sn = fm.querySelector('[name="sn"]'), tg = fm.querySelector('[name="tag"]'); sn.addEventListener('change', () => { const a = list.find((x) => WSS.norm(x.serial) === WSS.norm(sn.value)); if (a && a.tag && !tg.value) tg.value = a.tag; }); },
+    const r = await UI.modal({ title: `${it ? DNM.model(it) : 'الجهاز'} — الرقم التسلسلي والتاج واسم الجهاز`, icon: 'tag', size: 'sm',
+      body: html`<div class="field"><label>الرقم التسلسلي</label><input class="input ltr" name="sn" list="wss-sns" value="${m.sn || ''}" autocomplete="off"><datalist id="wss-sns">${list.map((a) => html`<option value="${a.serial}">${a.tag ? `TAG ${a.tag}` : ''}</option>`)}</datalist><small class="hint">اختر من أجهزة الإدارة المسجلة أو اكتبه</small></div><div class="field mt"><label>رقم التاج</label><input class="input ltr" name="tag" value="${m.tag || ''}" autocomplete="off"></div><div class="field mt"><label>اسم الجهاز في المجال</label><input class="input ltr" name="host" value="${m.host || WSS.hostOf(m.itemId, m.sn) || ''}" placeholder="مثال: IT-PC-014" autocomplete="off"></div>`,
+      onMount: (fm) => { const sn = fm.querySelector('[name="sn"]'), tg = fm.querySelector('[name="tag"]'); sn.addEventListener('change', () => { const a = list.find((x) => WSS.norm(x.serial) === WSS.norm(sn.value)); if (a && a.tag && !tg.value) tg.value = a.tag; const hs = fm.querySelector('[name="host"]'); if (a && a.host && hs && !hs.value) hs.value = a.host; }); },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (fm) => UI.formValues(fm) }] });
     if (!r) return;
-    const sn = String(r.sn || '').trim(), tag = String(r.tag || '').trim();
-    await WSS.mut(wsId, (sets) => { const S2 = sets.find((x) => x.id === setId), m2 = S2 && S2.members.find((y) => y.id === memId); if (!m2) return false; m2.sn = sn; m2.tag = tag; return true; }, 'تسجيل رقم جهاز في طقم');
-    if (sn) await WSS.stamp(wsId, m.itemId, [{ serial: sn, tag }]);
+    const sn = String(r.sn || '').trim(), tag = String(r.tag || '').trim(), host = String(r.host || '').trim();
+    await WSS.mut(wsId, (sets) => { const S2 = sets.find((x) => x.id === setId), m2 = S2 && S2.members.find((y) => y.id === memId); if (!m2) return false; m2.sn = sn; m2.tag = tag; m2.host = host; return true; }, 'تسجيل رقم جهاز في طقم');
+    if (sn) await WSS.stamp(wsId, m.itemId, [{ serial: sn, tag, host }]);
   },
   /* وسم الأجهزة المسجلة بالمحطة: يظهر رقمها عليها في صفحة المحطة */
   async stamp(wsId, itemId, pairs) {
     try {
       const want = new Map((pairs || []).map((p) => [WSS.norm(p.serial || p.tag), p]).filter(([k]) => k)); if (!want.size) return;
-      for (const a of await Data.assets.byItem(itemId)) { if (!want.has(WSS.norm(a.serial)) || a.wsId === wsId) continue; await DB.put('assets', { ...a, wsId, updatedAt: now() }); }
+      for (const a of await Data.assets.byItem(itemId)) { const p = want.get(WSS.norm(a.serial)); if (!p) continue; const host = String(p.host || '').trim(); if (a.wsId === wsId && (!host || host === a.host)) continue; await DB.put('assets', { ...a, wsId, ...(host ? { host } : {}), updatedAt: now() }); }
       WSS.assets = null;
     } catch (e) { console.warn('wss stamp', e); }
   },
@@ -25880,8 +25892,8 @@ const WSS = {
     const w = await DB.get('workstations', wsId); if (!w) return;
     WSS.assets = null; await new Promise((res) => { WSS.need(); const t0 = Date.now(), iv = setInterval(() => { if (WSS.assets || Date.now() - t0 > 4000) { clearInterval(iv); res(); } }, 60); });
     const items = new Map((await DB.getAll('items')).map((i) => [i.id, i])), U = WSS.units(w, items), units = await DB.getAll('deptUnits');
-    const row = (u, i) => html`<tr><td class="n">${fmtNum(i + 1)}</td><td><b dir="auto">${DNM.model(u.it)}</b></td><td>${DNM.brand(u.it) || '—'}</td><td>${INVR.top(u.it).name}</td><td class="ltr">${u.sn || ''}</td><td class="ltr">${u.tag || ''}</td><td></td></tr>`;
-    const head = html`<thead><tr><th class="n" style="width:30px">م</th><th>الجهاز</th><th>الماركة</th><th>الفئة</th><th>الرقم التسلسلي</th><th>التاج</th><th style="width:60px">الجرد ✓</th></tr></thead>`;
+    const row = (u, i) => html`<tr><td class="n">${fmtNum(i + 1)}</td><td><b dir="auto">${DNM.model(u.it)}</b></td><td>${DNM.brand(u.it) || '—'}</td><td>${INVR.top(u.it).name}</td><td class="ltr">${u.sn || ''}</td><td class="ltr">${u.tag || ''}</td><td class="ltr">${u.host || ''}</td><td></td></tr>`;
+    const head = html`<thead><tr><th class="n" style="width:30px">م</th><th>الجهاز</th><th>الماركة</th><th>الفئة</th><th>الرقم التسلسلي</th><th>التاج</th><th>اسم الجهاز</th><th style="width:60px">الجرد ✓</th></tr></thead>`;
     UI.print(html`<h2 style="text-align:center">بطاقة جرد محطة عمل</h2>
       <table><tr><th>المحطة</th><td>${WS.label(w)}</td><th>الموضع</th><td>${orgLabel(w.departmentId, w.unitId, units)}</td></tr><tr><th>المستخدم</th><td>${WS.holders(w).map((x) => Data.userName(x)).join('، ') || 'مشتركة'}</td><th>الأجهزة</th><td>${fmtNum(U.free.length + U.sets.reduce((a, x) => a + x.members.length, 0))}${U.sets.length ? ` في ${fmtNum(U.sets.length)} طقم` : ''}</td></tr></table>
       ${U.sets.map((x) => html`<h3 class="wss-ph"><i style="background:${WSS.hex(x.color)}"></i>${x.name || `طقم ${fmtNum(x.n)}`}</h3><table class="inv-pt">${head}<tbody>${x.members.map(row)}</tbody></table>`)}

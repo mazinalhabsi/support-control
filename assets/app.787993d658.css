@@ -6636,7 +6636,7 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .cmsn-block h5{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;font-size:13px}
 .cmsn-block h5 small{color:var(--ink-3);font-weight:600}
 .cmsn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
-.cmsn-in .input::placeholder{font-family:inherit;letter-spacing:0}
+.cmsn-in .input::placeholder{font-family:var(--f-body);letter-spacing:0}
 
 /* ══════════ الجولة 26: تفاصيل التقارير المطبوعة ══════════ */
 .print-doc .rcd-h{margin:10px 0 4px;font-size:14px}
@@ -6729,3 +6729,8 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .cm-dev .wss-sn{margin-top:1px}
 .wss-no{position:absolute;top:6px;inset-inline-end:8px;font-style:normal;font-size:10.5px;font-weight:800;color:var(--ink-3);padding:1px 6px;border-radius:999px;background:var(--surface-2)}
 .wss-t.in .wss-no{background:color-mix(in srgb,var(--sc) 14%,var(--surface-2));color:var(--sc)}
+
+/* ══════════ الجولة 30: اسم الجهاز في المجال ══════════ */
+.cmsn-mode.host{border-color:rgba(2,132,199,.45);background:rgba(2,132,199,.10);color:#0284c7}
+.cmsn-p code.host{color:#0284c7}
+.wss-sn.host{color:#0284c7;opacity:.85}
