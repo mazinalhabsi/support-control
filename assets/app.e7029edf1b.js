@@ -20441,7 +20441,7 @@ Pages.custodyMap = async (ctx) => {
   const devs = (map, mode, kind) => {
     const list = [...map].filter(([id, q]) => q > 0 && items.get(id)); if (!list.length) return '';
     if (mode === 'list') return html`<div class="table-wrap"><table class="table cm-devt"><thead><tr><th>الجهاز</th><th>النوع</th><th style="width:70px">العدد</th><th></th></tr></thead><tbody>${list.map(([id, q]) => { const it = items.get(id); return html`<tr data-dev="${id}" tabindex="0"><td><div class="t-title">${UI.illu(cmIllu(it), 'mini')}<div><div dir="auto">${DNM.model(it)}</div><div class="t-sub">${DNM.brand(it)}</div></div></div></td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td><b>${fmtNum(q)}</b></td><td class="nowrap">${devActs(kind, id, q)}${CACT.can() ? CACT.bar({ itemId: id, dep: st.dep, at: st.at }, true) : ''}</td></tr>`; })}</tbody></table></div>`;
-    return html`<div class="cm-devs">${list.map(([id, q]) => { const it = items.get(id); return html`<div class="cm-dev" data-dev="${id}" tabindex="0" role="button" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small><span class="cm-dq">×${fmtNum(q)}</span>${devActs(kind, id, q)}${CACT.can() ? CACT.bar({ itemId: id, dep: st.dep, at: st.at }) : ''}</div>`; })}</div>`;
+    return html`<div class="cm-devs">${CMU.expand(list).map(([id, q, i, tot]) => { const it = items.get(id), sn = CMU.sn(kind, st, id, i); return html`<div class="cm-dev" data-dev="${id}" tabindex="0" role="button" title="تفاصيل الجهاز">${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small>${sn ? html`<span class="wss-sn">S/N ${sn}</span>` : ''}${q > 1 ? html`<span class="cm-dq">×${fmtNum(q)}</span>` : tot > 1 ? html`<span class="cm-dq n">${fmtNum(i + 1)}/${fmtNum(tot)}</span>` : ''}${devActs(kind, id, q)}${CACT.can() ? CACT.bar({ itemId: id, dep: st.dep, at: st.at }) : ''}</div>`; })}</div>`;
   };
   const sec = (icon, title, n, body, tools = '') => html`<section class="cm-sec"><h3>${UI.icon(icon)} ${title}${n != null ? html` <small>${fmtNum(n)}</small>` : ''}<span class="grow"></span>${tools}</h3>${body}</section>`;
   const lendRows = (list) => (list.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>الجهاز</th><th>لدى</th><th>العدد</th><th>منذ</th><th>حتى</th><th></th></tr></thead><tbody>${list.map((l) => { const it = items.get(l.itemId) || { name: 'صنف' }; return html`<tr class="${DL.late(l) ? 'late' : ''}"><td>${it.name}</td><td>${l.unitId ? orgLabel(l.departmentId, l.unitId, T.units) : ''}${l.holderId ? html`${l.unitId ? ' — ' : ''}${Data.userName(l.holderId)}` : ''}${l.note ? html`<div class="t-sub">${l.note}</div>` : ''}</td><td><b>${fmtNum(l.qty)}</b></td><td>${fmtDate(l.at)}</td><td>${l.dueAt ? (DL.late(l) ? UI.chip('red', `${fmtDate(l.dueAt)} — متأخر`, 'alert') : fmtDate(l.dueAt)) : html`<span class="faint">—</span>`}</td><td>${DL.can() ? html`<button type="button" class="btn btn-soft btn-sm" data-dlret="${l.id}">${UI.icon('undo')} إرجاع للعهدة العامة</button>` : ''}</td></tr>`; })}</tbody></table></div>` : '');
@@ -22143,23 +22143,23 @@ const CMV = {
   kind(it) { const k = WS_KINDS.find((x) => { try { return x.is(it); } catch (_) { return false; } }); return k ? k.k : ''; },
   slots(lines, items) {
     const s = { back: [], front: [], side: [] };
-    lines.forEach(([id, q]) => { const it = q > 0 && items.get(id); if (!it) return; const k = CMV.kind(it); s[DK_SLOT[k] || 'front'].push([id, q, it, k]); });
+    lines.forEach(([id, q]) => { const it = q > 0 && items.get(id); if (!it) return; const k = CMV.kind(it), n = Math.min(q, 12), slot = DK_SLOT[k] || 'front'; for (let i = 0; i < n; i++) s[slot].push([id, 1, it, k, i + 1, q]); if (q > n) s[slot].push([id, q - n, it, k, n + 1, q]); });
     /* الشاشات في الوسط والحاسب بجانبها */
-    s.back.sort((a, b) => (a[3] === 'pc') - (b[3] === 'pc'));
+    { const mons = s.back.filter((x) => x[3] !== 'pc'), pcs = s.back.filter((x) => x[3] === 'pc'), n = Math.max(mons.length, pcs.length); s.back = []; for (let i = 0; i < n; i++) { if (mons[i]) s.back.push(mons[i]); if (pcs[i]) s.back.push(pcs[i]); } }
     return s;
   },
-  dev([id, q, it, k], click) {
-    return html`<span class="dk-dev k-${k || 'other'}"${click ? raw(` data-dev="${esc(id)}" tabindex="0" role="button"`) : ''} title="${it.name}${q > 1 ? ` × ${fmtNum(q)}` : ''}${click ? ' — اضغط للتفاصيل' : ''}">${UI.illu(cmIllu(it), 'dk-im')}${q > 1 ? html`<em>×${fmtNum(q)}</em>` : ''}</span>`;
+  dev([id, q, it, k, nth = 1, of = 1], click) {
+    return html`<span class="dk-dev k-${k || 'other'}"${click ? raw(` data-dev="${esc(id)}" tabindex="0" role="button"`) : ''} title="${it.name}${q > 1 ? ` × ${fmtNum(q)}` : of > 1 ? ` (${fmtNum(nth)} من ${fmtNum(of)})` : ''}${click ? ' — اضغط للتفاصيل' : ''}">${UI.illu(cmIllu(it), 'dk-im')}${q > 1 ? html`<em>×${fmtNum(q)}</em>` : ''}</span>`;
   },
   scene(lines, items, size = 'md') {
     const s = CMV.slots(lines, items), n = s.back.length + s.front.length + s.side.length, click = size !== 'xs';
-    const cap = { xs: [3, 3, 1], md: [3, 4, 2], lg: [6, 8, 4] }[size] || [3, 4, 2];
+    const cap = { xs: [4, 3, 2], md: [5, 6, 3], lg: [8, 10, 5] }[size] || [5, 6, 3];
     const row = (arr, c) => html`${arr.slice(0, c).map((x) => CMV.dev(x, click))}${arr.length > c ? html`<span class="dk-more" title="${arr.slice(c).map((x) => x[2].name).join('، ')}">+${fmtNum(arr.length - c)}</span>` : ''}`;
-    return html`<div class="dk-scene dk-${size}${n ? '' : ' dk-0'}" role="img" aria-label="${n ? `مكتب عليه ${fmtNum(n)} نوع من الأجهزة` : 'مكتب بلا أجهزة'}"><div class="dk-desk"><div class="dk-back">${row(s.back, cap[0])}</div><div class="dk-top"><div class="dk-front">${row(s.front, cap[1])}</div>${n ? '' : html`<span class="dk-free">${size === 'xs' ? 'بلا أجهزة' : 'لا أجهزة بعد — اسحب نموذجاً إلى هنا'}</span>`}</div><div class="dk-legs"><i></i><i></i></div></div>${s.side.length ? html`<div class="dk-side">${row(s.side, cap[2])}</div>` : ''}</div>`;
+    return html`<div class="dk-scene dk-${size}${n ? '' : ' dk-0'}" role="img" aria-label="${n ? `مكتب عليه ${fmtNum(n)} جهاز` : 'مكتب بلا أجهزة'}"><div class="dk-desk"><div class="dk-back">${row(s.back, cap[0])}</div><div class="dk-top"><div class="dk-front">${row(s.front, cap[1])}</div>${n ? '' : html`<span class="dk-free">${size === 'xs' ? 'بلا أجهزة' : 'لا أجهزة بعد — اسحب نموذجاً إلى هنا'}</span>`}</div><div class="dk-legs"><i></i><i></i></div></div>${s.side.length ? html`<div class="dk-side">${row(s.side, cap[2])}</div>` : ''}</div>`;
   },
   tiles(lines, items) {
     const ls = lines.filter(([id, q]) => q > 0 && items.get(id)); if (!ls.length) return '';
-    return html`<div class="dk-tiles">${ls.map(([id, q]) => { const it = items.get(id); return html`<span class="dk-tile" data-dev="${id}" tabindex="0" role="button" title="${it.name} — اضغط للتفاصيل">${UI.illu(cmIllu(it), 'mini')}<span class="grow"><b dir="auto">${DNM.model(it)}</b>${DNM.brand(it) ? html`<small>${DNM.brand(it)}</small>` : ''}</span>${q > 1 ? html`<em>×${fmtNum(q)}</em>` : ''}${CACT.can() ? CACT.bar({ itemId: id }) : ''}</span>`; })}</div>`;
+    return html`<div class="dk-tiles">${CMU.expand(ls).map(([id, q, i, tot]) => { const it = items.get(id); return html`<span class="dk-tile" data-dev="${id}" tabindex="0" role="button" title="${it.name} — اضغط للتفاصيل">${UI.illu(cmIllu(it), 'mini')}<span class="grow"><b dir="auto">${DNM.model(it)}</b>${DNM.brand(it) ? html`<small>${DNM.brand(it)}</small>` : ''}</span>${q > 1 ? html`<em>×${fmtNum(q)}</em>` : tot > 1 ? html`<em class="n">${fmtNum(i + 1)}/${fmtNum(tot)}</em>` : ''}${CACT.can() ? CACT.bar({ itemId: id }) : ''}</span>`; })}</div>`;
   }
 };
 /* مفتاح «مشهد المكتب / الأجهزة»، والبحث في شريط الإدارات وإبقاء المختارة ظاهرة فيه */
@@ -25752,7 +25752,7 @@ const WSS = {
   norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/\s+/g, ''),
   need() {
     if (WSS.assets || WSS.loading) return; WSS.loading = true;
-    DB.getAll('assets').then((a) => { WSS.assets = a.filter((x) => x.wsId && x.status !== 'retired'); WSS.loading = false; document.dispatchEvent(new CustomEvent('wss:change')); }).catch(() => { WSS.loading = false; WSS.assets = []; });
+    DB.getAll('assets').then((a) => { WSS.assets = a.filter((x) => x.wsId && x.status !== 'retired'); WSS.allA = a.filter((x) => x.status === 'issued'); WSS.loading = false; document.dispatchEvent(new CustomEvent('wss:change')); }).catch(() => { WSS.loading = false; WSS.assets = []; });
   },
   /* وحدات المحطة: كل وحدة بطاقة، المنضمة لطقم ثم الحرة، ولكل منها رقمها التسلسلي إن عُرف */
   units(w, items) {
@@ -25765,6 +25765,7 @@ const WSS = {
     const take = (itemId) => { const l = pool.get(itemId); return l && l.length ? l.shift() : null; };
     const live = sets.filter((x) => x.members.length).map((x, si) => ({ ...x, n: si + 1, members: x.members.map((m) => { const p = m.sn ? null : take(m.itemId); return { ...m, it: items.get(m.itemId), key: `m:${x.id}:${m.id}`, sn: m.sn || (p ? p.sn : ''), tag: m.tag || (p ? p.tag : ''), guess: !m.sn && !!p }; }) }));
     const free = []; lines.forEach((l) => { for (let i = used.get(l.itemId) || 0; i < l.qty; i++) { const p = take(l.itemId); free.push({ itemId: l.itemId, it: items.get(l.itemId), key: `f:${l.itemId}:${i}`, sn: p ? p.sn : '', tag: p ? p.tag : '' }); } });
+    { const c = new Map(); [...live.flatMap((x) => x.members), ...free].forEach((u) => { const n = (c.get(u.itemId) || 0) + 1; c.set(u.itemId, n); u.nth = n; u.of = qty.get(u.itemId) || 1; }); }
     return { sets: live, free };
   },
   tools() {
@@ -25776,7 +25777,7 @@ const WSS = {
     const it = u.it, full = WSS.det() === 'full', armed = WSS.armed && WSS.armed.key === u.key;
     return html`<div class="wss-t${o.set ? ' in' : ''}${armed ? ' armed' : ''}" draggable="true" data-wst="${u.key}" data-dev="${it.id}" tabindex="0" role="button" title="اسحبه فوق جهاز آخر لدمجهما في طقم، أو اضغطه للتفاصيل"${o.set ? raw(` style="--sc:${WSS.hex(o.set.color)}"`) : ''}>
       ${o.badge && o.set ? html`<span class="wss-badge">${o.set.name || `طقم ${fmtNum(o.set.n)}`}</span>` : ''}
-      ${UI.illu(cmIllu(it), 'mini')}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small>
+      ${UI.illu(cmIllu(it), 'mini')}${u.of > 1 ? html`<em class="wss-no">${fmtNum(u.nth)}/${fmtNum(u.of)}</em>` : ''}<b dir="auto">${DNM.model(it)}</b><small>${DNM.brand(it) || Data.nameOf('itemCategories', it.categoryId, '')}</small>
       ${u.sn ? html`<span class="wss-sn${u.guess ? ' guess' : ''}" title="${u.guess ? 'من سجل الأجهزة المرتبطة بالمحطة' : 'الرقم التسلسلي'}">S/N ${u.sn}</span>` : full ? html`<span class="wss-sn none">بلا رقم تسلسلي</span>` : ''}
       ${full && u.tag ? html`<span class="wss-sn tag">TAG ${u.tag}</span>` : ''}
       ${full ? html`<span class="wss-meta">${INVR.top(it).name}${WSS.specs(it).length ? html`<br>${WSS.specs(it).join(' · ')}` : ''}</span>` : ''}
@@ -25888,7 +25889,7 @@ const WSS = {
       <div class="sign-row two"><div>المستلم</div><div>فني قسم تقنية المعلومات</div></div>`, `بطاقة جرد ${WS.label(w)}`);
   }
 };
-Bus.on('inventory', () => { WSS.assets = null; });
+Bus.on('inventory', () => { WSS.assets = null; WSS.allA = null; });
 const wssRoot = (el) => { const r = el && el.closest && el.closest('[data-wss]'); return r ? r.dataset.wss : ''; };
 const wssRun = (p) => Promise.resolve(p).catch((ex) => UI.error(ex));
 document.addEventListener('change', (e) => {
@@ -25941,6 +25942,21 @@ document.addEventListener('click', (e) => {
     else wssRun(WSS.free(d.ws, d.key));
   }, true);
 }
+
+/* ══════════ الجولة 29: كل جهاز بأيقونته ══════════
+   جهازان (أو أكثر) من النوع نفسه لا يُختصران في أيقونة واحدة عليها «×2»: لكل وحدة أيقونتها وبطاقتها
+   مرقّمة (1/2، 2/2) وعليها رقمها التسلسلي إن كان مسجلاً. وفوق 12 وحدة من النوع نفسه تُجمع البقية في بطاقة «×N». */
+const CMU = {
+  expand(list, max = 12) { return list.flatMap(([id, q]) => { const n = Math.min(Number(q) || 0, max), out = Array.from({ length: n }, (_, i) => [id, 1, i, q]); if (q > n) out.push([id, q - n, n, q]); return out; }); },
+  sn(kind, st, itemId, i) {
+    const A = WSS.allA; if (!A) { WSS.need(); return ''; }
+    const [k, id] = String(st.at || '').split(':');
+    const list = kind === 'shared' && k === 'u' ? A.filter((a) => a.itemId === itemId && a.unitId === id && !a.wsId)
+      : kind === 'pool' ? A.filter((a) => a.itemId === itemId && a.departmentId === st.dep && !a.unitId) : [];
+    list.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+    return (list[i] || {}).serial || '';
+  }
+};
 
 boot();
 })();
