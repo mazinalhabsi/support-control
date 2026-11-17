@@ -3390,7 +3390,7 @@ dialog.modal.ff-modal .modal-body{display:flex;flex-direction:column;flex:1;min-
 .vle-layer{display:flex;gap:6px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:12px;cursor:pointer;text-align:start}
 .vle-layer span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vle-bands{display:grid;gap:4px;margin-bottom:6px}
-.vle-bandr{display:grid;grid-template-columns:minmax(0,1fr) 28px 28px;gap:3px}
+.vle-bandr{display:grid;grid-template-columns:26px minmax(0,1fr) 28px 28px;gap:3px;align-items:center}.vle-bandn{min-width:0;min-height:32px}.vle-bandn .ic{flex:none}.vle-bandn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.vle-bandr .vle-bandc{width:26px;height:32px;border:1px solid var(--line-2);background:var(--surface-solid)}
 .vle-bandr .icon-btn{width:28px;height:32px}
 .vle-bandn{display:flex;gap:6px;align-items:center;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-align:start}
 .vle-bandr.on .vle-bandn{border-color:rgb(var(--accent));background:rgba(var(--accent),.12)}
@@ -7145,3 +7145,146 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lv-bleft{display:flex;flex-direction:column;align-items:center;min-width:52px;padding:4px 6px;border-radius:10px;background:var(--surface-2)}
 .lv-bleft b{font-size:16px;color:#0f8a5f}
 .lv-bleft.bad b{color:#dc2626}
+
+/* الجولة 38: مكتبة نماذج الاستمارات */
+.vlf-p{margin-bottom:10px;line-height:1.9}
+.vlf-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.vlf-head .search-box{flex:1 1 200px;min-width:170px;max-width:280px}.vlf-head .search-box input{width:100%;min-width:0;box-sizing:border-box}
+.vlf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.vlf-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--surface-solid);overflow:hidden;transition:border-color .2s,box-shadow .2s,transform .2s}
+.vlf-card:hover{border-color:rgba(var(--accent),.55);box-shadow:0 10px 26px -16px rgba(0,0,0,.45);transform:translateY(-1px)}
+.vlf-card.ok{border-color:rgba(var(--green),.45)}
+.vlf-card.cur{box-shadow:0 0 0 2px rgba(var(--accent),.5)}
+.vlf-cth{position:relative;display:block;width:100%;border:0;padding:10px 10px 0;background:var(--surface-2);cursor:zoom-in}
+.vlf-th{width:206px;height:200px;margin:0 auto;border-radius:8px 8px 0 0}
+.vlf-th .vle-thumbz{transform:scale(.26)}
+.vlf-th.sm{width:104px;height:112px;border-radius:8px}
+.vlf-th.sm .vle-thumbz{transform:scale(.13)}
+.vlf-bd{position:absolute;top:16px;inset-inline-end:16px;display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.vlf-bd.ok{background:rgb(var(--green))}.vlf-bd.dr{background:rgb(var(--slate))}
+.vlf-bd .ic{width:12px;height:12px}
+.vlf-cb{display:grid;gap:6px;padding:10px 12px 8px;flex:1;align-content:start}
+.vlf-cn{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vlf-cur{display:flex;align-items:center;gap:4px;font-size:11px;color:rgb(var(--accent))}.vlf-cur .ic{width:12px;height:12px}
+.vlf-chips{display:flex;flex-wrap:wrap;gap:4px;min-height:26px;align-items:center}
+.vlf-chips .chip{height:22px;font-size:11.5px;padding:0 8px}
+.vlf-ca{display:flex;gap:2px;padding:6px 8px;border-top:1px solid var(--line-2);justify-content:space-between}
+.vlf-ib{width:34px;height:32px;border-radius:9px;border:0;background:transparent;color:var(--ink-2);display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s}
+.vlf-ib:hover{background:var(--surface-2);color:rgb(var(--accent))}
+.vlf-ib.ok:hover{color:rgb(var(--green));background:rgba(var(--green),.12)}
+.vlf-ib.del:hover{color:rgb(var(--red));background:rgba(var(--red),.1)}
+.vlf-ib .ic{width:17px;height:17px}
+.vlf-klist{display:flex;flex-direction:column;gap:8px}
+.vlf-krow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 10px;border:1px solid var(--line-2);border-radius:14px;background:var(--surface-solid)}
+.vlf-krow.own{border-color:rgba(var(--green),.45)}
+.vlf-kth{border:0;padding:0;background:none;cursor:zoom-in;border-radius:8px;box-shadow:0 0 0 1px var(--line)}
+.vlf-kth.none{width:104px;height:112px;display:grid;place-items:center;align-content:center;gap:4px;border:1px dashed var(--line);box-shadow:none;color:var(--ink-3);cursor:default;font-size:11px}
+.vlf-kb{display:grid;gap:5px;min-width:0;justify-items:start}
+.vlf-kb>b{display:flex;align-items:center;gap:6px;font-size:14px}
+.vlf-kb>small{color:var(--ink-3)}
+.vlf-ksel{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3)}
+.vlf-ksel select{height:32px;max-width:240px;padding:0 8px;border-radius:9px;border:1px solid var(--line);background:var(--surface-solid);color:var(--ink);font:inherit;font-size:12.5px}
+.vlf-ka{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:300px}
+.vlf-kp{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:6px}
+.vlf-kpi{position:relative;display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface-solid);transition:border-color .15s,background .15s}
+.vlf-kpi input{position:absolute;opacity:0;pointer-events:none}
+.vlf-kpi:hover{border-color:rgba(var(--accent),.5)}
+.vlf-kpi.on{border-color:rgb(var(--accent));background:rgba(var(--accent),.08)}
+.vlf-kpi.on .vlf-ic{background:rgb(var(--accent));color:#fff}
+.vlf-kpi:focus-within{outline:2px solid rgba(var(--accent),.45);outline-offset:1px}
+.vlf-kpt{display:grid;min-width:0;flex:1}.vlf-kpt b{font-size:13px}
+.vlf-kpt small{font-size:11px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vlf-kpc{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);color:transparent;flex:none}
+.vlf-kpc .ic{width:12px;height:12px}
+.vlf-kpi.on .vlf-kpc{background:rgb(var(--accent));border-color:rgb(var(--accent));color:#fff}
+.vlf-kpa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.vlf-def,.vlf-open{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer}
+.vlf-def{margin-inline-start:auto;padding:4px 10px;border-radius:10px;background:var(--surface-2)}
+.vlf-def .ic{width:14px;height:14px;color:rgb(var(--sky))}
+.vlf-open{margin-top:12px}
+.vlf-sub{font-weight:700;margin:14px 0 6px;font-size:13px}
+.vlf-sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.vlf-sgi{position:relative;display:grid;gap:3px;padding:6px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface-2);transition:border-color .15s}
+.vlf-sgi input{position:absolute;opacity:0;pointer-events:none}
+.vlf-sgi.on{border-color:rgb(var(--accent));box-shadow:0 0 0 2px rgba(var(--accent),.25)}
+.vlf-sgi .vlf-th{width:132px;height:130px;border-radius:8px}
+.vlf-sgi .vlf-th .vle-thumbz{transform:scale(.166)}
+.vlf-sgi b{font-size:12.5px}.vlf-sgi small{font-size:11px;color:var(--ink-3);line-height:1.5}
+.vlf-pvk{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.vlf-pvk .qchip{display:inline-flex;align-items:center;gap:5px}
+.vlf-pvk .qchip .ic{width:14px;height:14px}
+.vlf-pvk .qchip.on{border-style:solid;border-color:rgb(var(--accent));color:rgb(var(--accent-ink));background:rgba(var(--accent),.1);font-weight:700}
+.vlf-okd{width:7px;height:7px;border-radius:50%;background:rgb(var(--green));display:inline-block}
+.vlf-pvn{margin:0 0 8px}
+.vlf-pv{background:var(--surface-2);border-radius:12px;padding:14px;max-height:68vh;overflow:auto}
+.vlf-pvs{position:relative;margin:0 auto;overflow:hidden;box-shadow:0 12px 30px -14px rgba(0,0,0,.55)}
+.vlf-pvz{position:absolute;top:0;right:0;transform-origin:top right}
+@media (max-width:760px){.vlf-krow{grid-template-columns:auto minmax(0,1fr)}.vlf-ka{grid-column:1/-1;justify-content:flex-start;max-width:none}.vlf-def{margin-inline-start:0}}
+/* الجولة 38: مخزون الأحبار المطلوبة */
+.tk-inks.stk{flex-direction:column;align-items:stretch;gap:5px}
+.tk-inks.stk .tk-ink{border-radius:10px;padding:5px 10px;flex-wrap:wrap}
+.tk-sp{margin-inline-start:auto;font-style:normal;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px;background:rgba(var(--t),.15);color:rgb(var(--tl));white-space:nowrap}
+[data-theme=dark] .tk-sp{color:rgb(var(--td))}
+.tk-stkh{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);padding-inline-start:2px}
+.tk-stkh .ic{width:13px;height:13px}.tk-stkh .tk-sp{margin-inline-start:0}
+.tk-stkv{display:grid;justify-items:center;min-width:70px;padding:4px 8px;border-radius:10px;background:rgba(var(--t),.12);color:rgb(var(--tl))}
+[data-theme=dark] .tk-stkv{color:rgb(var(--td))}
+.tk-stkv b{font-size:18px;line-height:1.15;font-variant-numeric:tabular-nums}.tk-stkv small{font-size:10.5px;font-weight:700}
+.tk-stkr .pc-dot{width:12px;height:12px;flex:none}
+.tk-stkw:empty{display:none}
+.tk-stkc{height:22px;font-size:11px;padding:0 8px;margin-inline-start:4px;vertical-align:middle}
+.tk-stkc .ic{width:12px;height:12px}
+
+/* الجولة 40: قائمة الخطوط بمعاينة حية */
+.fmenu{position:fixed;z-index:10000;display:flex;flex-direction:column;background:var(--surface-solid);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px -12px rgba(0,0,0,.45);overflow:hidden;animation:fmIn .14s ease-out}
+@keyframes fmIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.fmenu-q{position:relative;padding:8px;border-bottom:1px solid var(--line-2);flex:none}
+.fmenu-q .ic{position:absolute;inset-inline-start:18px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ink-3);pointer-events:none}
+.fmenu-q input{width:100%;box-sizing:border-box;height:34px;padding-inline-start:32px;padding-inline-end:10px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px}
+.fmenu-l{overflow:auto;padding:4px;flex:1;min-height:0;overscroll-behavior:contain}
+.fmenu-g{position:sticky;top:-4px;padding:7px 10px 4px;font:700 11px var(--f-body);color:var(--ink-3);background:var(--surface-solid);z-index:1}
+.fmenu-o{display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%;padding:6px 10px;border:0;border-inline-start:3px solid transparent;border-radius:9px;background:transparent;color:var(--ink);cursor:pointer;text-align:start;font-size:15px;line-height:1.6}
+.fmenu-o span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fmenu-o small{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52%;flex:none}
+.fmenu-o.hi{background:rgba(var(--accent),.13)}
+.fmenu-o.on{border-inline-start-color:rgb(var(--accent));font-weight:700}
+.fmenu-o[hidden],.fmenu-g[hidden]{display:none}
+.fmenu-f{display:flex;align-items:center;gap:6px;padding:7px 10px;font:11.5px var(--f-body);color:var(--ink-3);border-top:1px solid var(--line-2);background:var(--surface-2);flex:none}
+.fmenu-f .ic{width:13px;height:13px;flex:none}
+
+/* الجولة 39: أيام كل مشارك في خطة الإجازات */
+.lp-qf{border:1px solid var(--line-2);border-radius:12px;padding:10px 12px 4px;margin:12px 0 4px;display:grid;gap:8px}
+.lp-qf legend{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;padding:0 6px}
+.lp-qf legend .ic{width:15px;height:15px;color:rgb(var(--accent))}
+.lp-qrow{display:grid;grid-template-columns:140px minmax(0,1fr);gap:4px 12px;align-items:end}
+.lp-qrow .hint{grid-column:1/-1;margin:0}
+.lp-qrow[hidden],.lp-parts[hidden]{display:none}
+.lp-parts{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;color:var(--ink-2)}
+.lp-parts .input{width:84px!important;max-width:84px;height:32px;flex:none}
+.lp-qi{border:1px solid var(--line-2);border-radius:12px;padding:8px 10px;margin:6px 0;display:grid;gap:6px;background:var(--surface-2)}
+.lp-qi.bad{border-color:rgba(var(--red),.45);background:rgba(var(--red),.06)}
+.lp-qh{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px}
+.lp-qh .ic{width:15px;height:15px;color:rgb(var(--accent))}.lp-qh span{color:var(--ink-3)}
+.lp-qbar{position:relative;height:8px;border-radius:99px;background:var(--line-2);overflow:hidden;min-width:80px}
+.lp-qbar i,.lp-qbar em{position:absolute;inset-block:0;inset-inline-start:0;border-radius:99px}
+.lp-qbar i{background:rgba(var(--accent),.55)}
+.lp-qbar em{background:rgb(var(--accent))}
+.lp-qbar i.full{background:rgb(var(--green))}.lp-qbar i.over{background:rgb(var(--red))}
+.lp-qn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:12px;color:var(--ink-3)}
+.lp-qn b{color:var(--ink)}.lp-qn b.bad,.lp-qi .bad{color:rgb(var(--red))}
+.lp-qn .btn{margin-inline-start:auto}
+.lp-mine{display:grid;grid-template-columns:auto minmax(80px,1fr) auto;align-items:center;gap:10px;padding:8px 12px;margin:8px 0;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-solid);font-size:12.5px}
+.lp-mine>span{display:flex;align-items:center;gap:6px;font-weight:700}.lp-mine>span .ic{width:15px;height:15px;color:rgb(var(--accent))}
+.lp-pq{font:700 10.5px var(--f-body);padding:0 6px;border-radius:99px;background:var(--surface-2);color:var(--ink-3)}
+.q-full{color:rgb(var(--green))!important}.q-over{color:rgb(var(--red))!important}.q-part{color:rgb(var(--amber))!important}
+.lp-pq.q-full{background:rgba(var(--green),.14)}.lp-pq.q-over{background:rgba(var(--red),.12)}.lp-pq.q-part{background:rgba(var(--amber),.15)}
+.lv-tt small{font-size:9.5px;opacity:.75}
+@media (max-width:640px){.lp-qrow{grid-template-columns:1fr}.lp-mine{grid-template-columns:1fr}}
+
+/* الجولة 40: ما أعرته */
+.lw-sum{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.bw-card .lw-who{display:block}
+.bw-card .lw-who b{display:inline;font-size:inherit;font-weight:700;color:var(--ink)}
+.lw-who .ic{width:13px;height:13px;vertical-align:-2px}
+.lw-side{display:grid;gap:6px;justify-items:end;align-content:start;flex:none}
+.lw-card .bw-dates .faint{font-size:11px}

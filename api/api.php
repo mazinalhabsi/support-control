@@ -478,6 +478,32 @@ function vault_rows(array $rows, array $user): array {
    ما لا يحق للحساب يُرسل له حذفاً (فيُمسح من جهازه إن تغيّر الظهور)، و«غائب» يصله بلا تفاصيل.
    خطط الإجازات (lplan) ورغباتها (wish): تصل واضع الخطة والمشاركين فيها والإدارة فقط. */
 const LEAVE_TYPES = ['annual', 'sick', 'emergency', 'training', 'mission', 'comp', 'other'];
+/* الجولة 39: عدّ أيام الإجازة كما في الواجهة (أيام العمل دون عطلة الأسبوع والعطل الرسمية، أو التقويمية) */
+function leave_cfg(): array { if (!isset($GLOBALS['LV_CFG'])) { $d = doc_data('meta', 'leavecfg'); $GLOBALS['LV_CFG'] = is_array($d['value'] ?? null) ? $d['value'] : []; } return $GLOBALS['LV_CFG']; }
+function leave_count(string $a, string $b): int {
+  if (!leave_day($a) || !leave_day($b) || $b < $a) return 0;
+  $c = leave_cfg(); $cal = ($c['countBy'] ?? 'work') === 'cal';
+  $we = array_map('intval', (array) ($c['weekend'] ?? [5, 6])); $hol = (array) ($c['holidays'] ?? []);
+  $n = 0;
+  for ($t = strtotime($a . ' 12:00:00'), $e = strtotime($b . ' 12:00:00'), $i = 0; $t <= $e && $i < 800; $t += 86400, $i++) {
+    if ($cal) { $n++; continue; }
+    if (in_array((int) date('w', $t), $we, true)) continue;
+    $s = date('Y-m-d', $t);
+    foreach ($hol as $h) { if (!is_array($h)) continue; $hf = (string) ($h['from'] ?? ''); $ht = (string) (($h['to'] ?? '') ?: $hf); if ($hf !== '' && $hf <= $s && $s <= $ht) continue 2; }
+    $n++;
+  }
+  return $n;
+}
+/** رغبات الفني الأخرى في الخطة بالأولوية نفسها (من القاعدة مع ما في دفعة المزامنة الحالية) */
+function leave_wish_sibs(string $pid, string $uid, int $pri, string $except): array {
+  $all = [];
+  if (isset($GLOBALS['LV_SIBS']) && is_callable($GLOBALS['LV_SIBS'])) $all = ($GLOBALS['LV_SIBS'])($pid);
+  else { $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = 'leaves' AND deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.planId')) = ?"); $st->execute([$pid]); foreach ($st->fetchAll() as $r) { $d = json_decode((string) $r['data'], true); if (is_array($d)) $all[(string) $r['doc_id']] = $d; } }
+  foreach ((array) ($GLOBALS['PUSH_BATCH'] ?? []) as $k => $d) if (strpos((string) $k, 'leaves|') === 0 && is_array($d)) $all[substr((string) $k, 7)] = $d;
+  $out = [];
+  foreach ($all as $id => $d) if ((string) $id !== $except && ($d['kind'] ?? '') === 'wish' && (string) ($d['planId'] ?? '') === $pid && (string) ($d['userId'] ?? '') === $uid && ((int) ($d['pri'] ?? 1) === 2 ? 2 : 1) === $pri) $out[] = $d;
+  return $out;
+}
 function leave_plan(string $id): ?array { if ($id === '') return null; $d = doc_data('leaves', $id); return is_array($d) && ($d['kind'] ?? '') === 'lplan' ? $d : null; }
 function leave_in_plan(?array $p, string $uid): bool { return $p !== null && $uid !== '' && ((string) ($p['createdBy'] ?? '') === $uid || in_array($uid, array_map('strval', (array) ($p['members'] ?? [])), true)); }
 /** $plan: خطة الرغبة إن كانت معروفة (false = يُبحث عنها) */
@@ -555,6 +581,7 @@ function leave_clean(array $d, string $kind): ?array {
     $dl = (string) ($d['deadline'] ?? ''); $ps = (string) ($d['state'] ?? 'collect');
     return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
+      'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))), 'qexact' => empty($d['qexact']) || empty($d['quota']) ? 0 : 1, 'split' => max(0, min(20, (int) ($d['split'] ?? 0))),
       'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
   if ($kind === 'bal') {
@@ -635,6 +662,19 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
     if (!$old && !$coord && ($c['userId'] !== $me || !$open)) return null;
     if (!in_array($c['userId'], array_map('strval', (array) ($p['members'] ?? [])), true)) return null;
     if ($c['from'] < (string) ($p['from'] ?? '') || $c['to'] > (string) ($p['to'] ?? '')) return null;
+    /* أيام كل مشارك: لا يتجاوز مجموع فتراته (بالأولوية نفسها) العدد المحدد، ولا عدد الفترات «متصلة فقط» أو الحد الأقصى؛
+       وتعديل رغبة قائمة لا يُرفض ما دام لا يزيد التجاوز (إن خُفّض العدد بعد التسجيل) */
+    $q = (int) ($p['quota'] ?? 0); $sp = (int) ($p['split'] ?? 0);
+    if ($q > 0 || $sp > 0) {
+      $same = $old && ((int) ($old['pri'] ?? 1) === 2 ? 2 : 1) === $c['pri'];
+      $sib = leave_wish_sibs($c['planId'], $c['userId'], $c['pri'], $c['id']);
+      if ($sp > 0 && !$same && count($sib) + 1 > $sp) return null;
+      if ($q > 0) {
+        $used = 0; foreach ($sib as $w) $used += leave_count((string) ($w['from'] ?? ''), (string) ($w['to'] ?? ''));
+        $tot = $used + leave_count($c['from'], $c['to']); $prev = $same ? $used + leave_count((string) ($old['from'] ?? ''), (string) ($old['to'] ?? '')) : $used;
+        if ($tot > $q && $tot > $prev) return null;
+      }
+    }
     $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? '') : $me;
     $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
     $isOwner = $c['userId'] === $me;

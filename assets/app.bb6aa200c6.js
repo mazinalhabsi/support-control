@@ -2119,7 +2119,8 @@ Pages.dashManager = (ctx) => Pages.live(ctx, async () => {
     <div class="grid ${inv ? 'g-main' : ''} mt">
       ${UI.panel({ title: 'البلاغات حسب القسم', icon: 'building', sub: `خلال آخر ${days} يوماً`, body: UI.chart.treemap(Stats.group(win.created, 'departmentId').map(([id, v]) => ({ label: Data.nameOf('departments', id, 'غير محدد'), value: v }))) })}
       ${inv ? Pages.invWidget(inv) : ''}
-    </div>`);
+    </div>
+    ${await (async () => { const a = await Pages.myCustodyPanel(), b = await LW.panel(); return a || b ? html`<div class="grid g-2 mt">${a}${b}</div>` : ''; })()}`);
   await Board.render($('#board', ctx.view), { all: true, animate: false });
 }, { all: true });
 
@@ -2141,7 +2142,7 @@ Pages.dashTech = (ctx) => Pages.live(ctx, async () => {
     </div>
     <section class="mt"><div class="panel-head" style="padding:0 2px 12px"><h2>${UI.icon('layers')} طابور عملي</h2><p>اسحب البطاقة من «غير مسندة» لاستلامها، أو بين الأعمدة لتغيير الحالة</p></div><div id="board"></div></section>
     <div class="grid g-3 mt">
-      ${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await Pages.myVouchersPanel()}${!LB.ok() ? '' : UI.panel({ title: 'لوحة الشرف', icon: 'star', sub: `آخر ${days} يوماً`, body: UI.chart.leader(lb.slice(0, 6)) })}
+      ${await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await LW.panel()}${await Pages.myVouchersPanel()}${!LB.ok() ? '' : UI.panel({ title: 'لوحة الشرف', icon: 'star', sub: `آخر ${days} يوماً`, body: UI.chart.leader(lb.slice(0, 6)) })}
     </div>
     ${inv ? html`<div class="grid g-main mt">${UI.panel({ title: 'الوارد والمحلول في الأكاديمية', icon: 'pulse', body: UI.chart.area([{ name: 'واردة', tone: 'sky', values: Stats.daily(win.created, 'createdAt', from, days) }, { name: 'محلولة', tone: 'teal', values: Stats.daily(win.resolved, 'resolvedAt', from, days) }], Stats.dayLabels(from, days), { height: 200 }) })}${Pages.invWidget(inv)}</div>` : ''}`);
   await Board.render($('#board', ctx.view), { animate: false });
@@ -2163,7 +2164,7 @@ Pages.dashUser = (ctx) => Pages.live(ctx, async () => {
     ${UI.panel({ cls: 'mt', body: html`<div class="tiles">${Nav.hidden('/chat') ? '' : Pages.chatTile()}${Data.list('categories').filter((c) => !c.hidden).slice(0, 12).map((c) => html`<a class="tile tilt" href="#/tickets/new?cat=${c.id}">${UI.illu('cat:' + c.id)}<b>${c.name}</b></a>`)}</div>` })}
     <div class="grid g-main mt">
       ${UI.panel({ title: 'بلاغاتي الأخيرة', icon: 'ticket', tools: html`<a class="btn btn-ghost btn-sm" href="#/tickets">الكل ${UI.icon('chevron-left')}</a>`, body: rows.length ? html`<div class="list">${rows.slice(0, 6).map((t) => html`<a class="list-row" href="#/tickets/${t.id}">${UI.illu(catIllu(t.categoryId), 'mini')}<div class="grow"><div class="ellipsis"><b>${t.title}</b></div><div class="t-sub"><span class="t-num">${t.number}</span> ${timeAgo(t.createdAt)} ${Pages.noteChip(t)}</div>${Pages.stepper(t, true)}</div>${UI.status(t.status)}</a>`)}</div>` : UI.empty({ illu: 'bell', title: 'لم تقدّم أي بلاغ بعد', text: 'عند مواجهة أي مشكلة تقنية اختر نوعها من الأعلى.' }) })}
-      <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await Pages.myVouchersPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
+      <div class="stack">${Nav.hidden('/chat') ? '' : await Pages.chatPanel()}${await Pages.myDevicesPanel()}${await Pages.myCustodyPanel()}${await LW.panel()}${await Pages.myVouchersPanel()}${Nav.hidden('/kb') ? '' : UI.panel({ title: 'حلول لمشاكل متكررة', icon: 'book', sub: 'خطوات مجرّبة قد تحل مشكلتك دون انتظار', body: html`<div class="stack" style="gap:10px">${kb.map((a) => html`<a class="kb-card" href="#/kb?open=${a.id}"><b>${a.title}</b><p>${a.body}</p></a>`)}</div>` })}</div>
     </div>`);
 }, null);
 
@@ -15454,7 +15455,7 @@ Pages.vleImage = async (maxPx = 1600) => {
 };
 Pages.voucherDesigner = async (ctx) => {
   const lib = JSON.parse(JSON.stringify(VL.data() || {}));
-  lib.tpls = (lib.tpls || []).map((t) => ({ ...t, layout: vlFix(t.layout || {}) })); lib.use = lib.use || {}; lib.def = lib.def || '';
+  lib.tpls = (lib.tpls || []).map((t) => ({ ...t, layout: vlFix(t.layout || {}) })); /* الخادم يعيد {} الفارغ مصفوفة [] فتضيع التعيينات اللاحقة؛ نحوّله كائناً دائماً */ lib.use = { ...(lib.use || {}) }; lib.def = lib.def || '';
   if (!lib.tpls.length) lib.tpls.push({ id: uid('vt'), name: 'الرسمي الكلاسيكي', layout: VLS.classic(), createdAt: now() });
   const st = { id: lib.tpls[0].id, sel: null, kind: 'issue', n: 3, data: false, zoom: 0, grid: true, dirty: false, undo: [], redo: [], editing: null, cell: null, histAt: 0, openSec: {} };
   const ro = !VL.can();
@@ -15500,11 +15501,11 @@ Pages.voucherDesigner = async (ctx) => {
   const drawTop = () => {
     const box = $v('.vle-top'); if (!box) return;
     const uses = VT_KINDS.filter(([k]) => (lib.use[k] || lib.def) === st.id).map(([, l]) => l);
-    box.innerHTML = String(html`<div class="vle-tsel">${UI.icon('file')}<select data-tpl>${lib.tpls.map((t) => html`<option value="${t.id}"${t.id === st.id ? raw(' selected') : ''}>${t.name}</option>`)}</select>
+    box.innerHTML = String(html`<div class="vle-tsel">${UI.icon('file')}<select data-tpl>${lib.tpls.map((t) => html`<option value="${t.id}"${t.id === st.id ? raw(' selected') : ''}>${t.name}${VLF.official(lib, t) ? '' : ' — مسودة'}</option>`)}</select>
       ${ro ? '' : html`<button type="button" class="btn btn-sm btn-ghost" data-top="new" title="قالب جديد">${UI.icon('plus')} جديد</button><button type="button" class="btn btn-sm btn-ghost" data-top="dup" title="نسخ القالب">${UI.icon('copy')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="ren" title="إعادة تسمية">${UI.icon('edit')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="del" title="حذف القالب">${UI.icon('trash')}</button>`}</div>
       <div class="vle-uses">${uses.length ? html`${UI.icon('check')} مستخدم في: ${uses.join('، ')}` : html`<span class="faint">${UI.icon('info')} غير معيّن لأي استمارة بعد</span>`}</div>
       <span class="grow"></span>
-      ${ro ? '' : html`<button type="button" class="btn btn-sm btn-soft" data-top="forms" title="نموذج جاهز لكل استمارة: الصرف والإعارة والنقل والصيانة وغيرها">${UI.icon('file')} نماذج كل الاستمارات</button>`}
+      <button type="button" class="btn btn-sm btn-soft" data-top="forms" title="مكتبة النماذج: معاينة واعتماد ونسخ وحذف، ونموذج كل استمارة">${UI.icon('file')} نماذج كل الاستمارات</button>
       <button type="button" class="btn btn-sm btn-soft" data-top="assign">${UI.icon('layers')} تعيين القوالب للاستمارات</button>
       <button type="button" class="btn btn-sm btn-ghost" data-top="test">${UI.icon('print')} طباعة تجريبية</button>
       <button type="button" class="btn btn-sm btn-ghost" data-top="io">${UI.icon('download')} تصدير / استيراد</button>
@@ -15828,11 +15829,14 @@ Pages.voucherDesigner = async (ctx) => {
     UI.toast('أصبح جدول التواقيع جدولاً حراً: عدّل أي خلية أو ادمجها، والبيانات تبقى تُملأ تلقائياً');
   };
   /* ── إدارة القوالب ── */
-  const saveAll = async () => {
+  const saveAll = async (msg) => {
     const size = JSON.stringify(lib).length;
     if (size > 2.5e6) throw new AppError('حجم القوالب كبير جداً بسبب الصور. قلّل عدد الصور أو أحجامها.');
-    await XCFG.save('vlay', 'vlay', { ...lib, updatedAt: now(), updatedBy: Auth.user.id }, 'تحديث قوالب الاستمارات الرسمية');
-    dirty(false); UI.toast('حُفظت القوالب واعتُمدت'); UI.sound('success');
+    const old = new Map(((VL.data() || {}).tpls || []).map((t) => [t.id, t]));
+    lib.tpls.forEach((t) => { const o = old.get(t.id); if (!o || o.name !== t.name || JSON.stringify(vlFix(JSON.parse(JSON.stringify(o.layout || {})))) !== JSON.stringify(t.layout)) { t.updatedAt = now(); t.updatedBy = Auth.user.id; } });
+    /* نسخة مستقلة: لا تتسرب تعديلات المحرر غير المحفوظة إلى ما تُطبع به الاستمارات */
+    await XCFG.save('vlay', 'vlay', JSON.parse(JSON.stringify({ ...lib, updatedAt: now(), updatedBy: Auth.user.id })), 'تحديث قوالب الاستمارات الرسمية');
+    dirty(false); UI.toast(typeof msg === 'string' ? msg : 'حُفظت القوالب واعتُمدت'); UI.sound('success');
   };
   const gallery = () => UI.modal({
     title: 'قالب جديد', icon: 'plus', size: 'xl',
@@ -15854,12 +15858,10 @@ Pages.voucherDesigner = async (ctx) => {
       const v = await UI.modal({ title: 'تعيين القوالب للاستمارات', icon: 'layers', size: 'lg', body: html`<p class="muted small" style="margin-bottom:10px">اختر القالب الذي تُطبع به كل استمارة. «لكل الاستمارات» يسري على كل ما لم تحدد له قالباً خاصاً.</p><div class="vle-asg"><div class="vle-asr main"><b>${UI.icon('layers')} لكل الاستمارات</b><select name="def">${opts.map(([a2, l]) => html`<option value="${a2}"${lib.def === a2 ? raw(' selected') : ''}>${l}</option>`)}</select></div>${VT_KINDS.map(([k, l]) => html`<div class="vle-asr"><span>${l}</span><select name="k_${k}"><option value="">— كما في «لكل الاستمارات» —</option>${lib.tpls.map((t) => html`<option value="${t.id}"${lib.use[k] === t.id ? raw(' selected') : ''}>${t.name}</option>`)}</select></div>`)}</div>`, actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تطبيق', kind: 'primary', icon: 'check', submit: true, handler: (f) => UI.formValues(f) }] });
       if (v) { lib.def = v.def || ''; VT_KINDS.forEach(([k]) => { if (v[`k_${k}`]) lib.use[k] = v[`k_${k}`]; else delete lib.use[k]; }); dirty(true); drawTop(); UI.toast('عُيّنت القوالب — اضغط «حفظ» لاعتمادها'); }
     } else if (a === 'forms') {
-      const r = await VLF.gallery(lib); if (!r) return;
-      const mk = (k, starter) => { const lbl = (VT_KINDS.find((x) => x[0] === k) || [k, k])[1], t = { id: uid('vt'), name: `نموذج ${lbl}`, layout: vlFix(VLS[starter]()), createdAt: now(), forKind: k }; lib.tpls.push(t); lib.use[k] = t.id; return t; };
-      if (r.act === 'edit') { st.id = lib.use[r.k] || lib.def || st.id; st.kind = r.k; st.sel = null; st.zoom = 0; drawAll(); UI.toast('عدّل النموذج ثم احفظ'); }
-      else if (r.act === 'new') { const t = mk(r.k, r.starter); st.id = t.id; st.kind = r.k; st.sel = null; st.undo = []; st.redo = []; st.zoom = 0; dirty(true); drawAll(); UI.toast(`أُنشئ «${t.name}» وعُيّن لاستمارته — عدّله ثم اضغط «حفظ» لاعتماده`); }
-      else if (r.act === 'all') { const made = VT_KINDS.filter(([k]) => !lib.use[k]).map(([k]) => mk(k, r.starter)); if (!made.length) { UI.toast('لكل استمارة نموذجها الخاص بالفعل', 'info'); return; } st.id = made[0].id; st.kind = made[0].forKind; st.sel = null; st.zoom = 0; dirty(true); drawAll(); UI.toast(`أُنشئ ${fmtNum(made.length)} نموذج وعُيّن كل منها لاستمارته — اضغط «حفظ» لاعتمادها`); }
-      else if (r.act === 'unassign') { delete lib.use[r.k]; dirty(true); drawTop(); UI.toast('عادت الاستمارة إلى القالب العام — اضغط «حفظ»'); }
+      const r = await VLF.library(lib, { ro, cur: () => st.id, save: (msg) => saveAll(msg) });
+      if (!lib.tpls.some((t) => t.id === st.id)) { st.id = lib.tpls[0].id; st.sel = null; }
+      if (r && r.act === 'edit' && lib.tpls.some((t) => t.id === r.id)) { st.id = r.id; if (r.k) st.kind = r.k; st.sel = null; st.zoom = 0; drawAll(); UI.toast('عدّل النموذج ثم اضغط «حفظ» — يبقى معتمداً لفئاته'); }
+      else drawAll();
     } else if (a === 'test') {
       const d = Pages.vleSample(st.kind, st.n);
       VL.print({ ...tpl(), layout: L() }, d);
@@ -15879,7 +15881,7 @@ Pages.voucherDesigner = async (ctx) => {
   view.addEventListener('click', async (ev) => {
     const t = ev.target;
     const rb = t.closest('[data-rb]'); if (rb && !rb.disabled) { if (ro && !rb.dataset.rb.startsWith('vw:') && rb.dataset.rb !== 'menu:align') return; ribbon(rb.dataset.rb, rb); return; }
-    const tp = t.closest('[data-top]'); if (tp) { if (ro && !['test', 'io'].includes(tp.dataset.top)) return; topAct(tp.dataset.top); return; }
+    const tp = t.closest('[data-top]'); if (tp) { if (ro && !['test', 'io', 'forms'].includes(tp.dataset.top)) return; topAct(tp.dataset.top); return; }
     if (t.closest('[data-act="save"]')) { try { await saveAll(); drawTop(); } catch (err) { UI.error(err); } return; }
     const tok = t.closest('[data-tok]'); if (tok) { insertToken(tok.dataset.tok); return; }
     const sc = t.closest('[data-setc]'); if (sc) { const [p, c] = sc.dataset.setc.split('|'); hist(true); setP(p, c); drawCanvas(); drawInsp(); drawRibbon(); return; }
@@ -20788,10 +20790,11 @@ const BW = {
     try {
       const d = new Date(), day = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
       for (const r of await BW.mine()) {
-        const s = BW.state(r); if (!(s.k === 'today' || (s.k === 'late' && r.kind === 'lend'))) continue;
-        const id = `nt:bw:${r.key}:${s.k === 'today' ? day : 'late'}:${u.id}`;
+        const s = BW.state(r), dl = BW.daysLeft(r), near = r.kind === 'lend' && dl != null && dl >= 1 && dl <= 2;
+        if (!(near || s.k === 'today' || (s.k === 'late' && r.kind === 'lend'))) continue;
+        const id = `nt:bw:${r.key}:${near ? 'near' : s.k === 'today' ? day : 'late'}:${u.id}`;
         if (await DB.get('notifications', id).catch(() => null)) continue;
-        await DB.put('notifications', { id, userId: u.id, at: now(), read: 0, title: s.k === 'today' ? `اليوم موعد تسليم: ${r.name}` : `تأخر تسليم: ${r.name}`, body: `${r.from}. ${r.back}.`, link: '/dashboard', kind: s.k === 'today' ? 'warn' : 'urgent', tone: s.k === 'today' ? 'amber' : 'red' });
+        await DB.put('notifications', { id, userId: u.id, at: now(), read: 0, title: near ? `يقترب موعد تسليم: ${r.name}` : s.k === 'today' ? `اليوم موعد تسليم: ${r.name}` : `تأخر تسليم: ${r.name}`, body: near ? `${s.label}. ${r.from}.` : `${r.from}. ${r.back}.`, link: '/dashboard', kind: s.k === 'late' ? 'urgent' : 'warn', tone: s.k === 'late' ? 'red' : 'amber' });
         Bus.emit('notifications');
       }
     } catch (e) { console.warn('borrow bell', e); }
@@ -24883,9 +24886,91 @@ const TINK = {
     const L = TINK.lines(t);
     if (!L.length) return html`<dt>${UI.icon('monitor')} الجهاز</dt><dd>${t.deviceName || '—'}</dd>`;
     const dev = t.deviceName || [...new Set(L.map((l) => [l.brand, l.model].filter(Boolean).join(' ')).filter(Boolean))].join('، ');
-    return html`<dt>${UI.icon('printer')} الطابعة</dt><dd class="ltr-num">${dev || '—'}</dd><dt>${UI.icon('tag')} الحبر المطلوب</dt><dd><div class="tk-inks">${L.flatMap((l) => (l.inks || []).map((k) => html`<span class="tk-ink">${k.color ? html`<i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i>` : ''}<b class="ltr">${k.code}</b><small>× ${fmtNum(k.qty)}</small></span>`))}</div></dd>`;
+    const stk = INKSTK.can();
+    if (stk) INKSTK.soon();
+    return html`<dt>${UI.icon('printer')} الطابعة</dt><dd class="ltr-num">${dev || '—'}</dd><dt>${UI.icon('tag')} الحبر المطلوب</dt><dd><div class="tk-inks"${stk ? raw(` data-tkstk="${esc(t.id)}"`) : ''}>${L.flatMap((l) => (l.inks || []).map((k) => html`<span class="tk-ink">${k.color ? html`<i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i>` : ''}<b class="ltr">${k.code}</b><small>× ${fmtNum(k.qty)}</small></span>`))}</div></dd>`;
   }
 };
+
+/* ══════════ الجولة 38: المخزون المتوفر لكل حبر مطلوب في بلاغات الأحبار ══════════
+   يُطابق رقم الحبر مع أصناف المخزن (الاسم/الموديل/الرمز) مع تمييز اللون، ويُعرض المتوفر والمطلوب وحالة الكفاية
+   في تفاصيل البلاغ (قائمة بكل نوع مطلوب)، ولوحة «المخزون للأحبار المطلوبة» مع الصرف، وشارة في قائمة البلاغات. */
+const INKSTK = {
+  _c: null, _at: 0, _n: 0, _run: 0,
+  /* فريق البلاغات يرى المتوفر (من كتالوج الأصناف المتزامن لديه)؛ تفصيل المخازن والصرف لمن له صلاحيات المخزن */
+  can: () => !!Auth.user && (Auth.can('inventory.read') || Auth.can('tickets.work')),
+  norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/[\s\-_/().]+/g, ''),
+  async items() { if (!INKSTK._c || now() - INKSTK._at > 10000) { INKSTK._c = (await DB.getAll('items')).filter((x) => !x.archived); INKSTK._at = now(); } return INKSTK._c; },
+  match(all, k) {
+    const c0 = INKSTK.norm(k.code); if (c0.length < 2) return [];
+    let hits = all.filter((i) => [i.name, i.model, i.sku, i.partNo].some((v) => { const n = INKSTK.norm(v); return n && n.includes(c0); }));
+    const cn = k.color && k.color !== 'other' ? normalizeAr((INK_COLORS_MAP[k.color] || [''])[0]) : '';
+    if (hits.length > 1 && cn) { const h2 = hits.filter((i) => normalizeAr(`${i.name || ''} ${i.color || ''}`).includes(cn)); if (h2.length) hits = h2; }
+    return hits;
+  },
+  async lines(t, wh) {
+    const all = await INKSTK.items(), out = [];
+    for (const l of TINK.lines(t)) for (const k of l.inks || []) {
+      const its = INKSTK.match(all, k), have = its.reduce((a, i) => a + Math.max(0, Number(i.onHand) || 0), 0), best = its.slice().sort((x, y) => (Number(y.onHand) || 0) - (Number(x.onHand) || 0))[0] || null;
+      let where = '';
+      if (wh && its.length) { const ss = (await Promise.all(its.map((i) => DB.getAll('stock', 'itemId', KR(i.id))))).flat().filter((x) => Number(x.qty) > 0); const m = new Map(); ss.forEach((x) => m.set(x.warehouseId, (m.get(x.warehouseId) || 0) + Number(x.qty))); where = [...m].map(([w, q]) => `${Data.nameOf('warehouses', w, 'مخزن')} ${fmtNum(q)}`).join(' · '); }
+      out.push({ l, k, its, have, need: Math.max(1, Number(k.qty) || 1), best, where });
+    }
+    return out;
+  },
+  tone: (r) => (!r.its.length ? 'slate' : r.have <= 0 ? 'red' : r.have < r.need ? 'amber' : 'green'),
+  label: (r) => (!r.its.length ? 'غير مسجّل في المخزن' : r.have <= 0 ? 'نفد من المخزن' : r.have < r.need ? `المتوفر ${fmtNum(r.have)} فقط` : `متوفر ${fmtNum(r.have)}`),
+  dot: (k) => html`<i class="pc-dot" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i>`,
+  sum(rows) { const ok = rows.filter((r) => INKSTK.tone(r) === 'green').length; return ok === rows.length ? ['green', rows.length > 1 ? 'كل الأنواع متوفرة' : 'متوفر في المخزن'] : rows.some((r) => r.have > 0) ? ['amber', `${fmtNum(ok)} من ${fmtNum(rows.length)} متوفرة بالكمية`] : ['red', rows.length > 1 ? 'لا يتوفر أي نوع' : 'غير متوفر في المخزن']; },
+  /* التفاصيل: قائمة بكل نوع مطلوب ومخزونه */
+  list(rows) {
+    const [tn, tx] = INKSTK.sum(rows);
+    return html`${rows.map((r) => html`<span class="tk-ink" title="${r.its.length ? r.its.map((i) => `${i.name}: ${fmtNum(i.onHand)}`).join(' | ') : 'لا يوجد صنف مطابق في المخزن'}">${r.k.color ? INKSTK.dot(r.k) : ''}<b class="ltr">${r.k.code}</b><small>مطلوب × ${fmtNum(r.need)}</small>${rows.length > 1 && (r.l.brand || r.l.model) ? html`<small class="faint ltr">${[r.l.brand, r.l.model].filter(Boolean).join(' ')}</small>` : ''}<em class="tk-sp tone-${INKSTK.tone(r)}">${INKSTK.label(r)}</em></span>`)}<span class="tk-stkh">${UI.icon('box')} المخزون الآن: <em class="tk-sp tone-${tn}">${tx}</em></span>`;
+  },
+  /* جدول الأحبار في وصف البلاغ: عمود «المتوفر بالمخزن» لكل نوع وخلاصة في الإجمالي */
+  augment(rows) {
+    const tb = document.querySelector('.ir-sum table'); if (!tb || tb.dataset.stk) return;
+    const trs = tb.tBodies[0] ? [...tb.tBodies[0].rows] : []; if (trs.length !== rows.length) return;
+    tb.dataset.stk = '1';
+    const th = tb.tHead && tb.tHead.rows[0]; if (th) th.insertAdjacentHTML('beforeend', '<th class="c">المتوفر بالمخزن</th>');
+    trs.forEach((tr, i) => tr.insertAdjacentHTML('beforeend', String(html`<td class="c"><em class="tk-sp tone-${INKSTK.tone(rows[i])}">${INKSTK.label(rows[i])}</em></td>`)));
+    const ft = tb.tFoot && tb.tFoot.rows[0]; if (ft) { const [tn, tx] = INKSTK.sum(rows); ft.insertAdjacentHTML('beforeend', String(html`<td class="c"><em class="tk-sp tone-${tn}">${tx}</em></td>`)); }
+  },
+  chip(rows) { const [tn, tx] = INKSTK.sum(rows); return html`<span class="chip tone-${tn} tk-stkc" title="${rows.map((r) => `${r.k.code}: ${INKSTK.label(r)} (مطلوب ${r.need})`).join(' | ')}">${UI.icon('box')} ${tx}</span>`; },
+  async paint() {
+    const els = $$('[data-tkstk]:not([data-done]),[data-tkstkc]:not([data-done])'); if (!els.length) return 0;
+    els.forEach((e) => { e.dataset.done = '1'; });
+    for (const el of els) {
+      const id = el.dataset.tkstk || el.dataset.tkstkc, t = await DB.get('tickets', id); if (!t || !el.isConnected) continue;
+      const rows = await INKSTK.lines(t); if (!rows.length) continue;
+      if (el.dataset.tkstk) { el.classList.add('stk'); el.innerHTML = String(INKSTK.list(rows)); INKSTK.augment(rows); } else el.innerHTML = String(INKSTK.chip(rows));
+    }
+    return els.length;
+  },
+  soon() {
+    INKSTK._n = 8; if (INKSTK._run) return; INKSTK._run = 1;
+    const tick = async () => { let k = 0; try { k = await INKSTK.paint(); } catch (_) { /* تجاهل */ } if (k) INKSTK._n = Math.max(INKSTK._n, 3); if (--INKSTK._n > 0) setTimeout(tick, k ? 80 : 250); else INKSTK._run = 0; };
+    setTimeout(tick, 30);
+  }
+};
+Bus.on('inventory', () => { INKSTK._c = null; });
+/* شارة المخزون بجانب بلاغ الأحبار المفتوح في القوائم */
+{
+  const nc = Pages.noteChip;
+  Pages.noteChip = (t) => { const base = nc(t); if (!t || !OPEN.includes(t.status) || !INKSTK.can() || !TINK.lines(t).length) return base; INKSTK.soon(); return html`${base}<span class="tk-stkw" data-tkstkc="${t.id}"></span>`; };
+}
+/* لوحة «المخزون للأحبار المطلوبة» في صفحة البلاغ: كل نوع بمطلوبه ومتوفره ومخازنه وزر الصرف */
+{
+  const tp0 = Pages.ticketParts;
+  Pages.ticketParts = async (t) => {
+    if (!INKSTK.can() || !TINK.lines(t).length) return tp0(t);
+    const rows = await INKSTK.lines(t, true); if (!rows.length) return tp0(t);
+    const canMove = Auth.can('inventory.move') && OPEN.includes(t.status), [tn, tx] = INKSTK.sum(rows);
+    INKSTK.soon();
+    return UI.panel({ title: 'المخزون للأحبار المطلوبة', icon: 'box', sub: rows.length > 1 ? `${fmtNum(rows.length)} أنواع في البلاغ` : 'النوع المطلوب في البلاغ', tools: html`<span class="chip tone-${tn}">${tx}</span>`,
+      body: html`<div class="list">${rows.map((r) => html`<div class="list-row tk-stkr">${INKSTK.dot(r.k)}<div class="grow" style="min-width:0"><div><b class="ltr">${r.k.code}</b> <small class="faint">مطلوب × ${fmtNum(r.need)}</small></div><div class="t-sub ellipsis">${[r.l.brand, r.l.model].filter(Boolean).join(' ')}${r.its.length ? ` · ${r.its.map((i) => i.name).join('، ')}` : ''}</div>${r.where ? html`<div class="t-sub">${UI.icon('warehouse')} ${r.where}</div>` : ''}</div><div class="tk-stkv tone-${INKSTK.tone(r)}"><b>${r.its.length ? fmtNum(r.have) : '—'}</b><small>${r.its.length ? (r.have <= 0 ? 'نفد' : r.have < r.need ? 'لا يكفي' : 'متوفر') : 'غير مسجّل'}</small></div>${canMove && r.best && r.have > 0 ? html`<button class="btn btn-sm btn-ok" data-issue="${r.best.id}" data-qty="${Math.min(r.need, Number(r.best.onHand) || 0)}">${UI.icon('upload')} صرف</button>` : ''}</div>`)}</div>${canMove ? html`<button class="btn btn-ghost btn-sm btn-block mt" data-act="parts">${UI.icon('search')} صرف صنف آخر من المخزن</button>` : ''}` });
+  };
+}
 
 /* ══════════ الجولة 24: شاشة العرض — الخدمة الواحدة تظهر مرة واحدة ══════════ */
 const SVCU = (list) => {
@@ -25336,17 +25421,165 @@ document.addEventListener('click', (e) => {
 /* ══════════ الجولة 24: نموذج جاهز لكل استمارة ══════════
    لكل استمارة (الصرف، والإعارة، والنقل، والاستبدال، والإرجاع، وتسليم العهدة، والإرسال للصيانة والاستلام منها)
    نموذجها الخاص: يُنشأ من قالب بداية، ويُعدَّل، ويُعتمد بالحفظ، ويُستخدم تلقائياً في كل طباعة لاحقة. */
+/* ══════════ الجولة 38: مكتبة نماذج الاستمارات ══════════
+   كل نموذج بطاقة بمعاينته وحالته (معتمد لفئات / مسودة) وأيقونات: معاينة، تعديل، اعتماد لفئة أو أكثر، نسخ باسم جديد، إعادة تسمية، حذف.
+   «حسب الاستمارة»: لكل فئة (الصرف، الإعارة…) نموذجها المعتمد بمعاينة ببياناتها، مع تغييره أو نسخه إلى فئة أخرى.
+   الاستمارة الجديدة تُسمّى وتُحفظ مسودة ثم تُعتمد لاحقاً. كل تغيير هنا يُحفظ فوراً. */
 const VLF = {
-  async gallery(lib) {
-    const name = (id) => ((lib.tpls || []).find((t) => t.id === id) || {}).name || '';
+  kl: (k) => (VT_KINDS.find((x) => x[0] === k) || [k, k])[1],
+  kic: (k) => (VOUCHER_KIND[k] || {}).icon || 'file',
+  name: (lib, id) => ((lib.tpls || []).find((t) => t.id === id) || {}).name || '',
+  kindsOf: (lib, id) => VT_KINDS.filter(([k]) => lib.use[k] === id).map(([k]) => k),
+  official: (lib, t) => !!t && (lib.def === t.id || VT_KINDS.some(([k]) => lib.use[k] === t.id)),
+  dupName: (lib, n, except = '') => (lib.tpls || []).some((t) => t.id !== except && normalizeAr(String(t.name || '')).trim() === normalizeAr(n).trim()),
+  doc(layout, k) { try { return VL.doc(layout, Pages.vleSample(k || 'issue', 3), {}); } catch (_) { return ''; } },
+  thumb(layout, k, cls = '') { return raw(`<div class="vle-thumb vlf-th${cls ? ` ${cls}` : ''}"><div class="vle-thumbz">${VLF.doc(layout, k)}</div></div>`); },
+  pick(lib, sel, id, def) {
+    return html`<div class="vlf-kp">${VT_KINDS.map(([k, l]) => { const cur = lib.use[k], on = sel.includes(k); return html`<label class="vlf-kpi${on ? ' on' : ''}"><input type="checkbox" name="k_${k}"${on ? raw(' checked') : ''}><span class="vlf-ic">${UI.icon(VLF.kic(k))}</span><span class="vlf-kpt"><b>${l}</b><small>${cur && cur === id ? 'معتمد له حالياً' : cur ? `حالياً: «${VLF.name(lib, cur)}»` : lib.def ? `يتبع العام «${VLF.name(lib, lib.def)}»` : 'يتبع التصميم المدمج'}</small></span><i class="vlf-kpc">${UI.icon('check')}</i></label>`; })}</div>
+      <div class="vlf-kpa"><button type="button" class="btn btn-ghost btn-xs" data-kpall="1">${UI.icon('check')} تحديد الكل</button><button type="button" class="btn btn-ghost btn-xs" data-kpall="0">${UI.icon('x')} إلغاء التحديد</button>${def != null ? html`<label class="vlf-def"><input type="checkbox" name="def"${def ? raw(' checked') : ''}><span>${UI.icon('star')} وقالباً عاماً لكل استمارة ليس لها نموذج خاص</span></label>` : ''}</div>`;
+  },
+  bindPick(f) {
+    UI.on(f, 'change', '.vlf-kpi input', (e, i) => i.closest('.vlf-kpi').classList.toggle('on', i.checked));
+    UI.on(f, 'click', '[data-kpall]', (e, b) => { $$('.vlf-kpi input', f).forEach((i) => { i.checked = b.dataset.kpall === '1'; i.closest('.vlf-kpi').classList.toggle('on', i.checked); }); });
+  },
+  read(f) { return { kinds: VT_KINDS.filter(([k]) => { const i = f.querySelector(`[name="k_${k}"]`); return i && i.checked; }).map(([k]) => k), def: !!(f.querySelector('[name="def"]') || {}).checked }; },
+  assign(lib, t, kinds, def) {
+    VT_KINDS.forEach(([k]) => { if (kinds.includes(k)) lib.use[k] = t.id; else if (lib.use[k] === t.id) delete lib.use[k]; });
+    if (def != null) { if (def) lib.def = t.id; else if (lib.def === t.id) lib.def = ''; }
+    if (VLF.official(lib, t)) { t.apprAt = now(); t.apprBy = Auth.user.id; } else { delete t.apprAt; delete t.apprBy; }
+  },
+  nameOf(f, lib, except) { const n = String((f.querySelector('[name="n"]') || {}).value || '').trim(); if (!n) throw new AppError('اكتب اسماً للنموذج'); if (VLF.dupName(lib, n, except)) throw new AppError('يوجد نموذج بهذا الاسم، اختر اسماً مختلفاً'); return n; },
+  async approve(lib, t) {
+    const v = await UI.modal({ title: `اعتماد «${t.name}»`, icon: 'shield', size: 'lg',
+      body: html`<p class="muted small vlf-p">اختر الاستمارات التي تُطبع بهذا النموذج رسمياً من الآن. إن كانت لاستمارة نموذج آخر فسيحل هذا محله. إلغاء كل الاختيارات يعيده «مسودة».</p>${VLF.pick(lib, VLF.kindsOf(lib, t.id), t.id, lib.def === t.id)}`,
+      onMount: (f) => VLF.bindPick(f),
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'اعتماد', kind: 'primary', icon: 'check', handler: (f) => VLF.read(f) }] });
+    if (!v) return false;
+    VLF.assign(lib, t, v.kinds, v.def); return true;
+  },
+  async copy(lib, t) {
+    const v = await UI.modal({ title: `نسخ «${t.name}»`, icon: 'copy', size: 'lg',
+      body: html`${UI.field({ name: 'n', label: 'اسم النسخة', required: true, wide: true }, `${t.name} (نسخة)`)}<p class="muted small vlf-p mt">انقل النسخة إلى فئة أو أكثر لتُعتمد لها مباشرة، أو لا تختر شيئاً لتُحفظ مسودة في النماذج وتعتمدها لاحقاً.</p>${VLF.pick(lib, [], '', null)}<label class="vlf-open"><input type="checkbox" name="open" checked> افتح النسخة في المحرر للتعديل الآن</label>`,
+      onMount: (f) => VLF.bindPick(f),
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ النسخة', kind: 'primary', icon: 'copy', submit: true, handler: (f) => ({ n: VLF.nameOf(f, lib), ...VLF.read(f), open: f.querySelector('[name="open"]').checked }) }] });
+    if (!v) return null;
+    const nt = { id: uid('vt'), name: v.n, layout: JSON.parse(JSON.stringify(t.layout)), createdAt: now(), createdBy: Auth.user.id, from: t.id };
+    lib.tpls.push(nt); VLF.assign(lib, nt, v.kinds, null);
+    return { t: nt, open: v.open };
+  },
+  async create(lib) {
     const starters = VL_STARTERS.filter((x) => typeof VLS[x[0]] === 'function');
-    const kindIc = (k) => (VOUCHER_KIND[k] || {}).icon || 'file';
-    return UI.modal({ title: 'نماذج كل الاستمارات', icon: 'file', size: 'lg',
-      body: html`<p class="muted small" style="margin-bottom:10px">لكل استمارة نموذجها الخاص تعدّله وتعتمده، فتُطبع به تلقائياً. ما لا نموذج له يُطبع بالقالب العام${lib.def ? ` («${name(lib.def)}»)` : ' المدمج'}.</p>
-        <div class="field"><label>قالب البداية للنماذج الجديدة</label><select name="starter" class="input">${starters.map(([k, l]) => html`<option value="${k}">${l}</option>`)}</select></div>
-        <div class="vlf-list mt">${VT_KINDS.map(([k, l]) => { const own = lib.use[k]; return html`<div class="vlf-row${own ? ' own' : ''}"><span class="vlf-ic">${UI.icon(kindIc(k))}</span><div class="grow"><b>${l}</b><small>${own ? html`${UI.icon('check')} نموذج خاص: ${name(own)}` : `يتبع ${lib.def ? `«${name(lib.def)}»` : 'القالب المدمج'}`}</small></div>${own ? html`<button type="button" class="btn btn-sm btn-soft" data-vlf="edit|${k}">${UI.icon('edit')} تعديل</button><button type="button" class="btn btn-sm btn-ghost" data-vlf="unassign|${k}" title="إرجاعها للقالب العام">${UI.icon('undo')}</button>` : html`<button type="button" class="btn btn-sm btn-primary" data-vlf="new|${k}">${UI.icon('plus')} إنشاء نموذج</button>`}</div>`; })}</div>`,
-      onMount: (f, finish) => { UI.on(f, 'click', '[data-vlf]', (e, b) => { const [act, k] = b.dataset.vlf.split('|'); finish({ act, k, starter: f.querySelector('[name="starter"]').value }); }); },
-      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'إنشاء نماذج لكل الاستمارات الناقصة', kind: 'primary', icon: 'layers', handler: (f) => ({ act: 'all', starter: f.querySelector('[name="starter"]').value }) }] });
+    const v = await UI.modal({ title: 'استمارة جديدة', icon: 'plus', size: 'xl',
+      body: html`${UI.field({ name: 'n', label: 'اسم الاستمارة', required: true, wide: true, placeholder: 'مثال: سند الإعارة المعتمد' })}<div class="vlf-sub">ابدأ من</div><div class="vlf-sg">${starters.map(([k, n, d], i) => html`<label class="vlf-sgi${i ? '' : ' on'}"><input type="radio" name="st" value="${k}"${i ? '' : raw(' checked')}>${VLF.thumb(vlFix(VLS[k]()), 'issue')}<b>${n}</b><small>${d}</small></label>`)}</div><div class="vlf-sub">اعتمدها لـ <small class="faint">(اختياري — تُحفظ مسودة وتعتمدها لاحقاً من أيقونة الاعتماد)</small></div>${VLF.pick(lib, [], '', null)}`,
+      onMount: (f) => { VLF.bindPick(f); UI.on(f, 'change', '[name="st"]', () => $$('.vlf-sgi', f).forEach((x) => x.classList.toggle('on', x.querySelector('input').checked))); },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ وفتح للتعديل', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ n: VLF.nameOf(f, lib), st: (f.querySelector('[name="st"]:checked') || {}).value || 'classic', ...VLF.read(f) }) }] });
+    if (!v) return null;
+    const t = { id: uid('vt'), name: v.n, layout: vlFix(VLS[v.st]()), createdAt: now(), createdBy: Auth.user.id };
+    lib.tpls.push(t); VLF.assign(lib, t, v.kinds, null); return t;
+  },
+  async rename(lib, t) {
+    const n = await UI.modal({ title: 'إعادة تسمية النموذج', icon: 'edit', size: 'sm', body: html`${UI.field({ name: 'n', label: 'الاسم', required: true, wide: true }, t.name)}`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', submit: true, handler: (f) => VLF.nameOf(f, lib, t.id) }] });
+    if (!n || n === t.name) return false; t.name = n; return true;
+  },
+  async del(lib, t) {
+    if (lib.tpls.length < 2) { UI.toast('لا يمكن حذف النموذج الوحيد', 'warn'); return false; }
+    const ks = VLF.kindsOf(lib, t.id).map(VLF.kl);
+    if (!(await UI.confirm(`حذف النموذج «${t.name}» نهائياً؟${ks.length ? ` الاستمارات المعتمدة له (${ks.join('، ')}) ستعود إلى القالب العام.` : ''}${lib.def === t.id ? ' وهو القالب العام حالياً، فستعود الاستمارات بلا نموذج للتصميم المدمج.' : ''}`, { danger: true, ok: 'حذف' }))) return false;
+    VT_KINDS.forEach(([k]) => { if (lib.use[k] === t.id) delete lib.use[k]; }); if (lib.def === t.id) lib.def = '';
+    lib.tpls.splice(lib.tpls.indexOf(t), 1); return true;
+  },
+  preview(lib, t, k0, ro) {
+    let k = k0 || VLF.kindsOf(lib, t.id)[0] || 'issue';
+    return UI.modal({ title: t.name, icon: 'eye', size: 'xl',
+      body: html`<div class="vlf-pvk" role="group" aria-label="الاستمارة">${VT_KINDS.map(([kk, l]) => html`<button type="button" class="qchip${kk === k ? ' on' : ''}" data-pvk="${kk}">${UI.icon(VLF.kic(kk))} ${l}${lib.use[kk] === t.id ? html` <i class="vlf-okd" title="معتمد لهذه الاستمارة"></i>` : ''}</button>`)}</div><p class="small vlf-pvn" data-pvn></p><div class="vlf-pv"><div class="vlf-pvs"><div class="vlf-pvz"></div></div></div>`,
+      onMount: (f) => {
+        const z = f.querySelector('.vlf-pvz'), sz = f.querySelector('.vlf-pvs'), box = f.querySelector('.vlf-pv'), note = f.querySelector('[data-pvn]');
+        const draw = () => {
+          z.innerHTML = VLF.doc(t.layout, k);
+          const { W } = VL.dims(t.layout.page), pw = W * MMPX, sc = Math.min(1, Math.max(0.3, (box.clientWidth - 28) / pw)), pg = z.firstElementChild, ph = pg ? pg.offsetHeight : 1123;
+          z.style.width = `${pw}px`; z.style.transform = `scale(${sc})`; sz.style.width = `${pw * sc}px`; sz.style.height = `${ph * sc}px`;
+          const own = lib.use[k] === t.id, eff = lib.use[k] || lib.def;
+          note.innerHTML = String(own ? html`<span class="chip tone-green">${UI.icon('shield')} معتمد لاستمارة ${VLF.kl(k)}</span>` : eff === t.id ? html`<span class="chip tone-sky">${UI.icon('star')} تُطبع به ${VLF.kl(k)} بصفته القالب العام</span>` : html`<span class="chip tone-slate">${UI.icon('info')} ${VLF.kl(k)} تُطبع حالياً بـ ${eff ? `«${VLF.name(lib, eff)}»` : 'التصميم المدمج'} — هذه معاينة فقط</span>`);
+        };
+        requestAnimationFrame(draw);
+        UI.on(f, 'click', '[data-pvk]', (e, b) => { k = b.dataset.pvk; $$('[data-pvk]', f).forEach((x) => x.classList.toggle('on', x === b)); draw(); });
+        f._k = () => k;
+      },
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'طباعة تجريبية', kind: 'ghost', icon: 'print', handler: (f) => { VL.print(t, Pages.vleSample(f._k(), 3)); return false; } }, ...(ro ? [] : [{ label: 'تعديل في المحرر', kind: 'primary', icon: 'edit', handler: (f) => ({ act: 'edit', id: t.id, k: f._k() }) }])] });
+  },
+  library(lib, api) {
+    const st = { tab: 'tpls', q: '', f: '' }, ro = api.ro;
+    const starters = VL_STARTERS.filter((x) => typeof VLS[x[0]] === 'function');
+    const ib = (a, id, ic, tt, cls = '') => html`<button type="button" class="vlf-ib${cls ? ` ${cls}` : ''}" data-lb="${a}|${id}|" title="${tt}" aria-label="${tt}">${UI.icon(ic)}</button>`;
+    const card = (t) => {
+      const ks = VLF.kindsOf(lib, t.id), off = VLF.official(lib, t), cur = t.id === api.cur();
+      return html`<article class="vlf-card${off ? ' ok' : ''}${cur ? ' cur' : ''}" data-tid="${t.id}">
+        <button type="button" class="vlf-cth" data-lb="pv|${t.id}|" title="معاينة">${VLF.thumb(t.layout, ks[0] || 'issue')}<span class="vlf-bd ${off ? 'ok' : 'dr'}">${off ? html`${UI.icon('shield')} معتمد` : 'مسودة'}</span></button>
+        <div class="vlf-cb"><b class="vlf-cn" title="${t.name}">${t.name}</b>${cur ? html`<small class="vlf-cur">${UI.icon('edit')} مفتوح في المحرر</small>` : ''}
+          <div class="vlf-chips">${ks.map((k) => UI.chip('teal', VLF.kl(k), VLF.kic(k)))}${lib.def === t.id ? UI.chip('sky', 'قالب عام', 'star') : ''}${off ? '' : html`<small class="faint">غير معتمد لأي استمارة بعد</small>`}</div>
+          <small class="faint">${t.updatedAt ? `عُدّل ${timeAgo(t.updatedAt)}` : t.createdAt ? `أُنشئ ${timeAgo(t.createdAt)}` : ''}${off && t.apprAt ? ` · اعتمده ${Data.userName(t.apprBy)}` : ''}</small></div>
+        <div class="vlf-ca">${ib('pv', t.id, 'eye', 'معاينة بالبيانات')}${ro ? '' : html`${ib('ed', t.id, 'edit', 'تعديل')}${ib('ap', t.id, 'shield', off ? 'الاعتماد والفئات' : 'اعتماد لفئة', 'ok')}${ib('cp', t.id, 'copy', 'نسخ باسم جديد')}${ib('rn', t.id, 'tag', 'إعادة تسمية')}${ib('dl', t.id, 'trash', 'حذف', 'del')}`}</div></article>`;
+    };
+    const krow = ([k, l]) => {
+      const own = lib.use[k], eid = own || lib.def, t = eid ? lib.tpls.find((x) => x.id === eid) : null;
+      return html`<div class="vlf-krow${own ? ' own' : ''}">
+        ${t ? html`<button type="button" class="vlf-kth" data-lb="pv|${t.id}|${k}" title="معاينة ${l}">${VLF.thumb(t.layout, k, 'sm')}</button>` : html`<div class="vlf-kth none">${UI.icon('file')}<small>التصميم المدمج</small></div>`}
+        <div class="vlf-kb"><b>${UI.icon(VLF.kic(k))} ${l}</b><small>${own ? html`<span class="chip tone-green">${UI.icon('shield')} نموذج خاص معتمد: ${t.name}</span>` : t ? `تتبع القالب العام «${t.name}»` : 'تُطبع بالتصميم المدمج'}</small>
+          ${ro ? '' : html`<label class="vlf-ksel"><span>النموذج المعتمد</span><select data-kset="${k}"><option value="">${lib.def ? `القالب العام «${VLF.name(lib, lib.def)}»` : 'التصميم المدمج'}</option>${lib.tpls.map((x) => html`<option value="${x.id}"${x.id === own ? raw(' selected') : ''}>${x.name}</option>`)}</select></label>`}</div>
+        <div class="vlf-ka">${t ? html`<button type="button" class="btn btn-sm btn-ghost" data-lb="pv|${t.id}|${k}">${UI.icon('eye')} مشاهدة</button>` : ''}${ro ? '' : html`${own ? html`<button type="button" class="btn btn-sm btn-soft" data-lb="ed|${own}|${k}">${UI.icon('edit')} تعديل</button>` : html`<button type="button" class="btn btn-sm btn-primary" data-lb="mk||${k}">${UI.icon('plus')} نموذج خاص</button>`}${t ? html`<button type="button" class="btn btn-sm btn-ghost" data-lb="cp|${t.id}|${k}">${UI.icon('copy')} نسخ إلى فئة أخرى</button>` : ''}`}</div></div>`;
+    };
+    const head = () => html`<div class="vlf-head"><div class="seg sm" role="tablist"><button type="button" class="vtf-tab${st.tab === 'tpls' ? ' on' : ''}" data-lt="tpls">${UI.icon('layers')} النماذج (${fmtNum(lib.tpls.length)})</button><button type="button" class="vtf-tab${st.tab === 'kinds' ? ' on' : ''}" data-lt="kinds">${UI.icon('file')} حسب الاستمارة</button></div>
+      ${st.tab === 'tpls' ? html`<div class="search-box">${UI.icon('search')}<input type="search" data-lq placeholder="ابحث باسم النموذج" value="${st.q}"></div><div class="seg sm">${[['', 'الكل'], ['ok', 'المعتمدة'], ['dr', 'المسودات']].map(([v, x]) => html`<button type="button" class="vtf-tab${st.f === v ? ' on' : ''}" data-lf="${v}">${x}</button>`)}</div>` : ro ? '' : html`<label class="vlf-ksel"><span>بداية النموذج الخاص</span><select name="starter">${lib.def ? html`<option value="copydef">نسخة من القالب العام</option>` : ''}${starters.map(([k, x]) => html`<option value="${k}">${x}</option>`)}</select></label>`}
+      <span class="grow"></span>${ro ? '' : html`<button type="button" class="btn btn-primary btn-sm" data-lb="new||">${UI.icon('plus')} استمارة جديدة</button>`}</div>`;
+    const body = () => {
+      if (st.tab === 'kinds') return html`<div class="vlf-klist">${VT_KINDS.map(krow)}</div>`;
+      const q = normalizeAr(st.q.trim()), xs = lib.tpls.filter((t) => (!q || normalizeAr(String(t.name || '')).includes(q)) && (!st.f || (st.f === 'ok') === VLF.official(lib, t)));
+      return xs.length ? html`<div class="vlf-grid">${xs.map(card)}</div>` : UI.empty({ illu: 'file', title: 'لا توجد نماذج مطابقة', text: st.f === 'dr' ? 'كل النماذج معتمدة.' : 'غيّر البحث أو أنشئ استمارة جديدة.' });
+    };
+    const mkFor = (k, sv) => {
+      const base = sv === 'copydef' && lib.tpls.find((x) => x.id === lib.def);
+      const nt = { id: uid('vt'), name: `نموذج ${VLF.kl(k)}`, layout: base ? JSON.parse(JSON.stringify(base.layout)) : vlFix(VLS[VLS[sv] ? sv : 'classic']()), createdAt: now(), createdBy: Auth.user.id, forKind: k };
+      if (VLF.dupName(lib, nt.name)) nt.name = `${nt.name} ${fmtNum(lib.tpls.length + 1)}`;
+      lib.tpls.push(nt); VLF.assign(lib, nt, [k], null); return nt;
+    };
+    return UI.modal({ title: 'نماذج كل الاستمارات', icon: 'file', size: 'xl',
+      body: html`<div class="vlf-lib"></div>`,
+      onMount: (f, finish) => {
+        const box = f.querySelector('.vlf-lib');
+        const draw = () => { box.innerHTML = String(html`<p class="muted small vlf-p">${ro ? 'عرض فقط.' : html`النموذج <b>المعتمد</b> لفئة تُطبع به استماراتها تلقائياً، و<b>المسودة</b> محفوظة لا تُستخدم حتى تعتمدها. كل تغيير هنا يُحفظ فوراً.`}</p>${head()}<div class="vlf-body">${body()}</div>`); };
+        const drawBody = () => { const b2 = box.querySelector('.vlf-body'); if (b2) b2.innerHTML = String(body()); };
+        const save = async (msg) => { try { await api.save(msg); return true; } catch (err) { UI.error(err); return false; } finally { if (f.isConnected) draw(); } };
+        draw();
+        UI.on(f, 'click', '[data-lt]', (e, b2) => { st.tab = b2.dataset.lt; draw(); });
+        UI.on(f, 'click', '[data-lf]', (e, b2) => { st.f = b2.dataset.lf; $$('[data-lf]', f).forEach((x) => x.classList.toggle('on', x === b2)); drawBody(); });
+        UI.on(f, 'input', '[data-lq]', (e, i) => { st.q = i.value; drawBody(); });
+        UI.on(f, 'change', '[data-kset]', async (e, sl) => {
+          const k = sl.dataset.kset, t = lib.tpls.find((x) => x.id === sl.value);
+          if (t) { lib.use[k] = t.id; t.apprAt = now(); t.apprBy = Auth.user.id; } else delete lib.use[k];
+          await save(t ? `اعتُمد «${t.name}» لاستمارة ${VLF.kl(k)}` : `عادت استمارة ${VLF.kl(k)} إلى القالب العام`);
+        });
+        UI.on(f, 'click', '[data-lb]', async (e, b2) => {
+          const [act, id, k] = b2.dataset.lb.split('|'), t = lib.tpls.find((x) => x.id === id);
+          if (act === 'pv' && t) { const r = await VLF.preview(lib, t, k, ro); if (r && r.act === 'edit') finish(r); return; }
+          if (ro) return;
+          if (act === 'ed' && t) { finish({ act: 'edit', id, k: k || VLF.kindsOf(lib, id)[0] || '' }); return; }
+          if (act === 'ap' && t) { if (await VLF.approve(lib, t)) { const ks = [...VLF.kindsOf(lib, t.id).map(VLF.kl), ...(lib.def === t.id ? ['القالب العام'] : [])]; await save(ks.length ? `اعتُمد «${t.name}» لـ: ${ks.join('، ')}` : `أصبح «${t.name}» مسودة`); } return; }
+          if (act === 'cp' && t) { const r = await VLF.copy(lib, t); if (!r) return; if ((await save(`حُفظت النسخة «${r.t.name}» في النماذج`)) && r.open) finish({ act: 'edit', id: r.t.id, k: VLF.kindsOf(lib, r.t.id)[0] || k || '' }); return; }
+          if (act === 'rn' && t) { if (await VLF.rename(lib, t)) await save('حُفظ الاسم الجديد'); return; }
+          if (act === 'dl' && t) { const nm = t.name; if (await VLF.del(lib, t)) await save(`حُذف النموذج «${nm}»`); return; }
+          if (act === 'new') { const nt = await VLF.create(lib); if (nt && (await save(`حُفظت «${nt.name}» في النماذج`))) finish({ act: 'edit', id: nt.id, k: VLF.kindsOf(lib, nt.id)[0] || '' }); return; }
+          if (act === 'mk' && k) { const nt = mkFor(k, (f.querySelector('[name="starter"]') || {}).value || (lib.def ? 'copydef' : 'classic')); if (await save(`أُنشئ «${nt.name}» واعتُمد لاستمارة ${VLF.kl(k)}`)) finish({ act: 'edit', id: nt.id, k }); }
+        });
+      },
+      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(ro ? [] : [{ label: 'نموذج خاص لكل استمارة ناقصة', kind: 'soft', icon: 'layers', handler: async (f) => {
+        const miss = VT_KINDS.filter(([k]) => !lib.use[k]);
+        if (!miss.length) { UI.toast('لكل استمارة نموذجها الخاص بالفعل', 'info'); return false; }
+        if (!(await UI.confirm(`إنشاء ${fmtNum(miss.length)} من النماذج الخاصة (${miss.map(([, l]) => l).join('، ')}) واعتمادها لاستماراتها؟`, { ok: 'إنشاء', icon: 'layers' }))) return false;
+        const sv = (f.querySelector('[name="starter"]') || {}).value || (lib.def ? 'copydef' : 'classic'), made = miss.map(([k]) => mkFor(k, sv));
+        await api.save(`أُنشئت ${fmtNum(made.length)} نماذج واعتُمدت لاستماراتها`);
+        return { act: 'edit', id: made[0].id, k: made[0].forKind };
+      } }])] });
   }
 };
 
@@ -26692,7 +26925,7 @@ Object.assign(LV, {
       <button type="button" class="lp-card lp-new" data-lpnew>${UI.icon('plus')}<b>خطة إجازات جديدة</b><small>حدد الفترة والمشاركين، فيسجل كل فني رغبته وتنسّقونها معاً قبل تثبيتها في التقويم</small></button>
       ${plans.map((p) => { const ws = LV.wishes(D.recs, p.id), mem = p.members || [], done = mem.filter((id) => ws.some((w) => w.userId === id)).length, need = mem.includes(me) && LV.isOpen(p) && !ws.some((w) => w.userId === me), [sl, tone, ic] = LV.PST[p.state || 'collect'] || LV.PST.collect, cf = LV.conflicts(p, D.recs).length, dl = p.deadline ? LV.diff(LV.today(), p.deadline) : null;
         return html`<button type="button" class="lp-card${need ? ' need' : ''}" data-lpopen="${p.id}"><span class="lp-ch"><b>${p.title}</b><span class="chip tone-${tone}">${UI.icon(ic)} ${sl}</span></span>
-          <span class="lp-meta">${UI.icon('calendar')} ${LV.range(p.from, p.to)}</span><span class="lp-meta">${UI.icon('user')} وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.maxOff ? ` · بحد ${fmtNum(p.maxOff)} غائب في اليوم` : ''}</span>
+          <span class="lp-meta">${UI.icon('calendar')} ${LV.range(p.from, p.to)}</span><span class="lp-meta">${UI.icon('user')} وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.maxOff ? ` · بحد ${fmtNum(p.maxOff)} غائب في اليوم` : ''}</span>${LV.hasQ(p) ? html`<span class="lp-meta">${UI.icon('clock')} ${LV.qText(p)}</span>` : ''}
           <span class="lp-prog"><i style="width:${mem.length ? Math.round((done / mem.length) * 100) : 0}%"></i></span>
           <span class="lp-meta">سجّل ${fmtNum(done)} من ${fmtNum(mem.length)}${dl != null && LV.isOpen(p) ? ` · ${dl < 0 ? 'انتهى موعد التسجيل' : dl === 0 ? 'آخر موعد اليوم' : `آخر موعد بعد ${LV.dayW(dl)}`}` : ''}${cf ? html` · <b class="bad">${fmtNum(cf)} تعارض</b>` : ''}</span>
           ${need ? html`<span class="lp-need">${UI.icon('alert')} بانتظار رغبتك</span>` : ''}</button>`; })}
@@ -26707,7 +26940,7 @@ Object.assign(LV, {
     const [y, m] = pm.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${pm}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
     const inP = (d) => d >= p.from && d <= p.to, done = new Set(ws.map((w) => w.userId)), cf = LV.conflicts(p, D.recs), steps = ['collect', 'arrange', 'final'], yrs = new Set(months.map((x) => x.slice(0, 4))).size > 1;
     return html`<div class="lp-board">
-      <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3>${p.title}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · الحد الأقصى للغائبين في اليوم ${fmtNum(max)}` : ''}</small></div>
+      <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3>${p.title}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · الحد الأقصى للغائبين في اليوم ${fmtNum(max)}` : ''}${LV.hasQ(p) ? ` · ${LV.qText(p)}` : ''}</small></div>
         <div class="lp-acts">${LV.canWish(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-wnew="${p.id}">${UI.icon('plus')} ${(p.members || []).includes(me) && !done.has(me) ? 'أضف رغبتي' : 'رغبة'}</button>` : ''}
           ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-soft" data-lpremind="${p.id}">${UI.icon('bell')} تذكير من لم يسجّل</button>` : ''}
           ${coord && state === 'collect' ? html`<button type="button" class="btn btn-sm btn-soft" data-lpstate="arrange|${p.id}">${UI.icon('swap')} بدء التنسيق</button>` : ''}
@@ -26717,7 +26950,8 @@ Object.assign(LV, {
           ${coord ? html`<button type="button" class="icon-btn" data-lpedit="${p.id}" title="تعديل الخطة">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-lpdel="${p.id}" title="حذف الخطة">${UI.icon('trash')}</button>` : ''}</div></div>
       <ol class="lp-steps">${steps.map((k, i) => html`<li class="${k === state ? 'on' : i < steps.indexOf(state) ? 'done' : ''}">${UI.icon(LV.PST[k][2])} ${LV.PST[k][0]}</li>`)}</ol>
       ${p.note ? html`<p class="lp-note">${UI.icon('info')}<span>${p.note}</span></p>` : ''}
-      <div class="lp-people">${mem.map((u) => html`<span class="lp-p${done.has(u.id) ? ' ok' : ''}" title="${done.has(u.id) ? 'سجّل رغبته' : 'لم يسجّل بعد'}">${LV.who(u, D.styOf(u.id), 'sm')}${UI.icon(done.has(u.id) ? 'check' : 'clock')}</span>`)}<small class="faint">سجّل ${fmtNum(mem.filter((u) => done.has(u.id)).length)} من ${fmtNum(mem.length)}</small></div>
+      <div class="lp-people">${mem.map((u) => { const qu = LV.quota(p) ? LV.used(D.recs, p, u.id, 1) : 0; return html`<span class="lp-p${done.has(u.id) ? ' ok' : ''}" title="${done.has(u.id) ? 'سجّل رغبته' : 'لم يسجّل بعد'}${LV.quota(p) ? ` · ${fmtNum(qu)} من ${fmtNum(LV.quota(p))}` : ''}">${LV.who(u, D.styOf(u.id), 'sm')}${LV.quota(p) ? html`<small class="lp-pq ${LV.qCls(qu, p)}">${fmtNum(qu)}/${fmtNum(LV.quota(p))}</small>` : ''}${UI.icon(done.has(u.id) ? 'check' : 'clock')}</span>`; })}<small class="faint">سجّل ${fmtNum(mem.filter((u) => done.has(u.id)).length)} من ${fmtNum(mem.length)}</small></div>
+      ${LV.quota(p) && (p.members || []).includes(me) ? LV.qBar(D.recs, p, me) : ''}
       <div class="lp-strip" role="img" aria-label="الغائبون في كل يوم من الفترة">${LV.days(p.from, p.to).map((d) => { const k = (off.get(d) || new Set()).size; return html`<i class="${!LV.work(d) ? 'we' : max && k > max ? 'bad' : max && k === max ? 'mid' : k ? 'h' : ''}${d.slice(0, 7) === pm ? ' cur' : ''}" data-lpday="${d}" title="${LV.fmtY(d)}: ${fmtNum(k)} غائب"></i>`; })}</div>
       <div class="lp-mnav">${months.map((mm) => html`<button type="button" class="${mm === pm ? 'on' : ''}" data-lpm="${mm}">${LV.MONTHS[Number(mm.slice(5)) - 1]}${yrs ? ` ${mm.slice(0, 4)}` : ''}</button>`)}</div>
       <div class="lv-tlw"><div class="lv-tl lp-tl" style="--n:${n}">
@@ -26728,7 +26962,7 @@ Object.assign(LV, {
             ${ul.map((r) => { const a = r.from > first ? r.from : first, b = r.to < last ? r.to : last; return html`<span class="lp-ctx" style="grid-column:${LV.diff(first, a) + 2} / ${LV.diff(first, b) + 3}" title="إجازة مسجلة في التقويم: ${LV.T(r).label} ${LV.range(r.from, r.to)}"></span>`; })}
             ${uw.map((w) => { const a = w.from > first ? w.from : first, b = w.to < last ? w.to : last, c1 = LV.diff(first, a) + 2, c2 = LV.diff(first, b) + 2, T = LV.TYPES[w.type] || LV.TYPES.annual, mv = LV.canWish(p, w) && !w.leaveId, alt = LV.pri(w) === 2;
               return html`<button type="button" class="lv-barx lp-w${alt ? ' alt' : ''}${w.state === 'agreed' || w.leaveId ? ' agreed' : ''}${w.orig ? ' moved' : ''}${w.from < first ? ' cs' : ''}${w.to > last ? ' ce' : ''}${mv ? ' mv' : ''}" data-wopen="${w.id}"${mv ? raw(` data-wmove="${w.id}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${s.color}" title="${LV.wtip(w, u)}">${alt ? html`<em>2</em>` : UI.icon(T.icon)}<span>${c2 - c1 >= 2 ? (alt ? 'بديلة' : w.title || T.short) : ''}</span>${w.state === 'agreed' || w.leaveId ? UI.icon('check', 'lp-ok') : w.orig ? UI.icon('swap', 'lp-mv') : ''}</button>`; })}
-            <span class="lv-tt" style="grid-column:${n + 2}">${tot ? fmtNum(tot) : '—'}</span></div>`; })}
+            <span class="lv-tt${LV.quota(p) ? ` ${LV.qCls(tot, p)}` : ''}" style="grid-column:${n + 2}"${LV.quota(p) ? raw(` title="${fmtNum(tot)} من ${fmtNum(LV.quota(p))}"`) : ''}>${tot ? fmtNum(tot) : '—'}${LV.quota(p) ? html`<small>/${fmtNum(LV.quota(p))}</small>` : ''}</span></div>`; })}
         <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} الغائبون</span>${days.map((d, i) => { if (!inP(d) || !LV.work(d)) return html`<span class="lv-tc ${inP(d) ? 'we' : 'outp'}" style="grid-column:${i + 2}"></span>`; const set = off.get(d) || new Set(), k = set.size; return html`<span class="lv-tc ${max && k > max ? 'cov-bad' : max && k === max ? 'cov-mid' : 'cov-ok'}" style="grid-column:${i + 2}" title="${[...set].map((id) => Data.userName(id)).join('، ')}">${k ? fmtNum(k) : ''}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
       </div></div>
       <div class="lp-keys"><span><i class="k"></i>الرغبة الأولى</span>${p.allowAlt ? html`<span><i class="k alt"></i>رغبة بديلة</span>` : ''}<span>${UI.icon('check')} متفق عليها</span><span>${UI.icon('swap')} عدّلها واضع الخطة</span><span><i class="k ctx"></i>إجازة مسجلة في التقويم</span>${LV.canWish(p) ? html`<span class="lp-tip">${UI.icon('info')} اسحب على أيام ${coord ? 'أي صف' : 'صفك'} لإضافة رغبة${coord ? '، واسحب أي رغبة لتحريكها' : '، واسحب رغبتك لتحريكها'}</span>` : ''}</div>
@@ -26746,12 +26980,31 @@ Object.assign(LV, {
   },
   awaiting: (recs) => { const me = LV.me(); return LV.plans(recs).filter((p) => LV.isOpen(p) && (p.members || []).includes(me) && !LV.wishes(recs, p.id).some((w) => w.userId === me)).length; },
 
+  /* ── الجولة 39: حصة الأيام في الخطة ──
+     quota: عدد الأيام لكل مشارك (0 = بدون إلزام المدة)، qexact: يجب استكمالها، split: 0 متصلة أو مجزأة، 1 متصلة فقط، n حتى n فترات.
+     تُحسب الأيام كما في إعدادات الإجازات (أيام العمل أو التقويمية)، ولكل أولوية (الأولى/البديلة) حصتها. */
+  quota: (p) => Math.max(0, Math.floor(Number(p && p.quota) || 0)),
+  qUnit: () => (LV.cfg().countBy === 'cal' ? '' : ' عمل'),
+  splitTxt: (p) => { const x = Number(p && p.split) || 0; return x === 1 ? 'متصلة في فترة واحدة' : x === 2 ? 'حتى فترتين' : x > 2 ? `حتى ${fmtNum(x)} فترات` : 'متصلة أو مجزأة'; },
+  qText: (p) => (LV.quota(p) ? `${LV.dayW(LV.quota(p))}${LV.qUnit()} لكل مشارك ${p.qexact ? '(إلزامية)' : 'كحد أقصى'} · ${LV.splitTxt(p)}` : `بدون إلزام المدة · ${LV.splitTxt(p)}`),
+  hasQ: (p) => !!(LV.quota(p) || Number(p && p.split)),
+  used: (recs, p, uid, pri = 1, skip = '') => LV.wishes(recs, p.id).filter((w) => w.userId === uid && LV.pri(w) === pri && w.id !== skip).reduce((a, w) => a + LV.count(w.from, w.to), 0),
+  parts: (recs, p, uid, pri = 1, skip = '') => LV.wishes(recs, p.id).filter((w) => w.userId === uid && LV.pri(w) === pri && w.id !== skip).length,
+  qCls: (t, p) => { const q = LV.quota(p); return !q ? '' : t > q ? 'q-over' : t === q ? 'q-full' : t ? 'q-part' : 'q-none'; },
+  /* نهاية فترة تبدأ من «from» وتضم n يوماً محسوباً (تتخطى العطل إن كان العد بأيام العمل) */
+  fitEnd(from, n, max) { const cal = LV.cfg().countBy === 'cal'; let k = 0, d = from, last = from; for (let i = 0; i < 400 && d <= max; i++) { if (cal || LV.work(d)) { k++; last = d; if (k >= n) break; } d = LV.add(d, 1); } return last; },
+  qBar(recs, p, uid) {
+    const q = LV.quota(p), u = LV.used(recs, p, uid, 1), r = q - u;
+    return html`<div class="lp-mine"><span>${UI.icon('clock')} حصتك ${LV.dayW(q)}${LV.qUnit()}${p.qexact ? ' — يجب استكمالها' : ''}</span><div class="lp-qbar"><i class="${u > q ? 'over' : u === q ? 'full' : ''}" style="width:${Math.min(100, Math.round((u / q) * 100))}%"></i></div><b class="${LV.qCls(u, p)}">${u > q ? `تجاوزت الحصة: الزيادة ${fmtNum(u - q)}` : r ? `سجّلت ${fmtNum(u)} · المتبقي ${fmtNum(r)}` : 'اكتملت حصتك'}</b></div>`;
+  },
+
   /* ── نافذة الخطة ── */
   async planEdit(id) {
     const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
     const old = id ? recs.find((r) => r.id === id && r.kind === 'lplan') : null; if (id && (!old || !LV.isCoord(old))) return null;
     const me = LV.me(), cands = LV.candidates(), now0 = new Date(), y = now0.getFullYear() + (now0.getMonth() > 6 ? 1 : 0);
-    const r0 = old || { title: `إجازات صيف ${y}`, from: `${y}-06-01`, to: `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), allowAlt: 1, members: cands.map((u) => u.id), note: '' };
+    const r0 = old || { title: `إجازات صيف ${y}`, from: `${y}-06-01`, to: `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), allowAlt: 1, members: cands.map((u) => u.id), note: '', quota: 0, qexact: 0, split: 0 };
+    const q0 = LV.quota(r0), sp0 = Number(r0.split) || 0;
     const res = await UI.modal({ title: old ? 'تعديل خطة الإجازات' : 'خطة إجازات جديدة', icon: 'lv-team', size: 'lg',
       body: html`<div class="lvm">
         <div class="field"><label>عنوان الخطة</label><input class="input" name="title" maxlength="120" value="${r0.title}" placeholder="مثلاً: إجازات صيف 2027" required></div>
@@ -26759,10 +27012,22 @@ Object.assign(LV, {
         <div class="lv-grid2"><div class="field"><label>آخر موعد لتسجيل الرغبات <small class="faint">(اختياري)</small></label><input class="input" type="date" name="deadline" value="${r0.deadline || ''}"></div>
           <div class="field"><label>الحد الأقصى للغائبين في اليوم</label><input class="input" type="number" min="0" max="50" name="maxOff" value="${r0.maxOff}"><p class="hint">اليوم الذي يتجاوزه يُعلَّم بالأحمر وتُقترح الحلول. 0 = بلا حد.</p></div></div>
         <label class="chk"><input type="checkbox" name="allowAlt"${r0.allowAlt ? raw(' checked') : ''}> يسجل كل فني رغبة بديلة إلى جانب رغبته الأولى (تساعد على حل التعارض)</label>
+        <fieldset class="lp-qf"><legend>${UI.icon('clock')} أيام كل مشارك</legend>
+          <div class="seg sm"><label><input type="radio" name="qon" value="0"${q0 ? '' : raw(' checked')}><span>بدون إلزام المدة</span></label><label><input type="radio" name="qon" value="1"${q0 ? raw(' checked') : ''}><span>عدد أيام محدد</span></label></div>
+          <div class="lp-qrow" data-qbox${q0 ? '' : raw(' hidden')}><div class="field"><label>عدد الأيام</label><input class="input" type="number" min="1" max="365" name="quota" value="${q0 || 10}"></div>
+            <div class="field"><label>الالتزام بالعدد</label><div class="seg sm"><label><input type="radio" name="qexact" value="0"${r0.qexact ? '' : raw(' checked')}><span>حتى هذا العدد</span></label><label><input type="radio" name="qexact" value="1"${r0.qexact ? raw(' checked') : ''}><span>العدد كاملاً</span></label></div></div>
+            <p class="hint">تُحسب ${LV.cfg().countBy === 'cal' ? 'بالأيام التقويمية' : 'بأيام العمل (دون عطلة نهاية الأسبوع والعطل الرسمية)'} كما في إعدادات الإجازات، ولا يستطيع أحد تسجيل أكثر منها.</p></div>
+          <div class="field"><label>طريقة أخذ الأيام</label><div class="seg sm lp-split"><label><input type="radio" name="split" value="0"${sp0 ? '' : raw(' checked')}><span>متصلة أو مجزأة</span></label><label><input type="radio" name="split" value="1"${sp0 === 1 ? raw(' checked') : ''}><span>متصلة فقط</span></label><label><input type="radio" name="split" value="n"${sp0 > 1 ? raw(' checked') : ''}><span>مجزأة بحد أقصى</span></label></div>
+            <span class="lp-parts" data-pbox${sp0 > 1 ? '' : raw(' hidden')}><input class="input" type="number" min="2" max="20" name="parts" value="${sp0 > 1 ? sp0 : 2}"> فترات</span></div>
+        </fieldset>
         <div class="field mt"><label>المشاركون <button type="button" class="btn btn-xs btn-ghost" data-lpall>الكل</button><button type="button" class="btn btn-xs btn-ghost" data-lpnone>لا أحد</button></label><div class="lv-share lp-mem">${cands.map((u) => html`<label class="lv-pick"><input type="checkbox" name="members" value="${u.id}"${(r0.members || []).includes(u.id) ? raw(' checked') : ''}><span>${u.name}${u.id === me ? ' (أنا)' : ''}<small>${ROLES[u.role] || ''}</small></span></label>`)}</div></div>
         <div class="field"><label>قواعد الخطة وملاحظاتها <small class="faint">— تظهر لكل المشاركين</small></label><textarea class="input" name="note" rows="3" maxlength="2000" placeholder="مثلاً: الأولوية لمن لم يأخذ إجازة الصيف الماضي، ولا تزيد الإجازة الواحدة على 3 أسابيع">${r0.note || ''}</textarea></div>
         ${old ? '' : html`<label class="chk"><input type="checkbox" name="notify" checked> إشعار المشاركين بالخطة الآن</label>`}</div>`,
-      onMount: (form) => { UI.on(form, 'click', '[data-lpall]', () => $$('[name="members"]', form).forEach((x) => { x.checked = true; })); UI.on(form, 'click', '[data-lpnone]', () => $$('[name="members"]', form).forEach((x) => { x.checked = false; })); },
+      onMount: (form) => {
+        UI.on(form, 'click', '[data-lpall]', () => $$('[name="members"]', form).forEach((x) => { x.checked = true; })); UI.on(form, 'click', '[data-lpnone]', () => $$('[name="members"]', form).forEach((x) => { x.checked = false; }));
+        const sync = () => { const on = (form.querySelector('[name="qon"]:checked') || {}).value === '1', sp = (form.querySelector('[name="split"]:checked') || {}).value; form.querySelector('[data-qbox]').hidden = !on; form.querySelector('[data-pbox]').hidden = sp !== 'n'; };
+        UI.on(form, 'change', '[name="qon"],[name="split"]', sync);
+      },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: old ? 'حفظ' : 'إنشاء الخطة', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
         const g = (k) => (f.querySelector(`[name="${k}"]`) || {}).value || '';
         const title = g('title').trim(), from = g('from'), to = g('to'), deadline = g('deadline');
@@ -26770,14 +27035,19 @@ Object.assign(LV, {
         if (!LV.okDay(from) || !LV.okDay(to) || to < from) throw new AppError('حدد فترة صحيحة للخطة');
         if (LV.diff(from, to) > 399) throw new AppError('أطول فترة للخطة 13 شهراً');
         const members = $$('[name="members"]:checked', f).map((x) => x.value); if (!members.length) throw new AppError('اختر المشاركين في الخطة');
-        return { title, from, to, deadline: LV.okDay(deadline) ? deadline : '', maxOff: clamp(Math.floor(Number(g('maxOff')) || 0), 0, 50), allowAlt: $('[name="allowAlt"]', f).checked ? 1 : 0, members, note: g('note').trim(), notify: !!(f.querySelector('[name="notify"]') || {}).checked };
+        const ck = (k) => (f.querySelector(`[name="${k}"]:checked`) || {}).value || '', qon = ck('qon') === '1', quota = qon ? clamp(Math.floor(Number(g('quota')) || 0), 0, 365) : 0, spv = ck('split');
+        if (qon && !quota) throw new AppError('اكتب عدد الأيام لكل مشارك، أو اختر «بدون إلزام المدة»');
+        const split = spv === '1' ? 1 : spv === 'n' ? clamp(Math.floor(Number(g('parts')) || 2), 2, 20) : 0;
+        return { title, from, to, deadline: LV.okDay(deadline) ? deadline : '', maxOff: clamp(Math.floor(Number(g('maxOff')) || 0), 0, 50), allowAlt: $('[name="allowAlt"]', f).checked ? 1 : 0, members, note: g('note').trim(), quota, qexact: quota && ck('qexact') === '1' ? 1 : 0, split, notify: !!(f.querySelector('[name="notify"]') || {}).checked };
       } }] });
     if (!res) return null;
     const t = now(), { notify, ...v } = res, rec = { ...(old || {}), ...v, id: old ? old.id : uid('lpl'), kind: 'lplan', state: old ? old.state || 'collect' : 'collect', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
     await DB.put('leaves', rec);
     await Data.log(old ? 'update' : 'create', 'leaves', rec.id, `${old ? 'تعديل' : 'إنشاء'} خطة الإجازات «${rec.title}»`);
     const added = rec.members.filter((x) => !((old && old.members) || []).includes(x));
-    if ((old || notify) && added.length) await Data.notify(added, { title: `دعاك ${Auth.user.name} إلى خطة الإجازات «${rec.title}»`, body: `سجّل رغبتك في الفترة ${LV.range(rec.from, rec.to)}${rec.deadline ? ` قبل ${LV.fmtY(rec.deadline)}` : ''}`, link: LV.link(rec.id), kind: 'info' });
+    if ((old || notify) && added.length) await Data.notify(added, { title: `دعاك ${Auth.user.name} إلى خطة الإجازات «${rec.title}»`, body: `سجّل رغبتك في الفترة ${LV.range(rec.from, rec.to)}${rec.deadline ? ` قبل ${LV.fmtY(rec.deadline)}` : ''}${LV.hasQ(rec) ? ` — ${LV.qText(rec)}` : ''}`, link: LV.link(rec.id), kind: 'info' });
+    /* تغيّر الحصة أو طريقة الأخذ: يُشعر المشاركون السابقون */
+    if (old && (LV.quota(old) !== LV.quota(rec) || (Number(old.split) || 0) !== (Number(rec.split) || 0) || !!old.qexact !== !!rec.qexact)) { const keep = rec.members.filter((x) => (old.members || []).includes(x)); if (keep.length) await Data.notify(keep, { title: `تغيّرت أيام كل مشارك في «${rec.title}»`, body: LV.qText(rec), link: LV.link(rec.id), kind: 'info' }); }
     Bus.emit('leaves', {}); UI.toast(old ? 'حُفظت الخطة' : `أُنشئت الخطة${notify && added.filter((x) => x !== me).length ? ' وأُشعر المشاركون' : ''}`); return rec;
   },
 
@@ -26796,7 +27066,9 @@ Object.assign(LV, {
     const cl = (d) => (d < p.from ? p.from : d > p.to ? p.to : d);
     const uid0 = old ? old.userId : coord && preset.userId && (p.members || []).includes(preset.userId) ? preset.userId : (p.members || []).includes(me) ? me : (p.members || [])[0];
     const has1 = (u) => LV.wishes(recs, p.id).some((w) => w.userId === u && LV.pri(w) === 1);
-    const r0 = old || { userId: uid0, type: 'annual', from: cl(preset.from || p.from), to: cl(preset.to || preset.from || p.from), pri: p.allowAlt && has1(uid0) ? 2 : 1, note: '', state: 'wish' };
+    /* «متصلة فقط» بلا رغبة بديلة: الإضافة تفتح الفترة المسجلة لتعديلها بالأيام المختارة */
+    if (!old && Number(p.split) === 1 && !p.allowAlt) { const ex = LV.wishes(recs, p.id).find((w) => w.userId === uid0 && LV.pri(w) === 1); if (ex && LV.canWish(p, ex)) { UI.toast('الخطة تسمح بفترة واحدة متصلة — عدّل فترتك المسجلة', 'info'); return LV.wishEdit(pid, ex.id, preset.from ? { ...preset, move: 1 } : {}); } }
+    const r0 = old ? (preset.move && preset.from ? { ...old, from: cl(preset.from), to: cl(preset.to || preset.from) } : old) : { userId: uid0, type: 'annual', from: cl(preset.from || p.from), to: cl(preset.to || preset.from || p.from), pri: p.allowAlt && has1(uid0) ? 2 : 1, note: '', state: 'wish' };
     const res = await UI.modal({ title: old ? 'تعديل الرغبة' : 'رغبة في الإجازة', icon: 'lv-team',
       body: html`<div class="lvm"><p class="hint lp-in">${UI.icon('lv-team')} ${p.title} · الفترة ${LV.range(p.from, p.to)}</p>
         ${coord && !old ? html`<div class="field"><label>الفني</label><select class="input" name="userId">${mem.map((u) => html`<option value="${u.id}"${u.id === r0.userId ? raw(' selected') : ''}>${u.name}${u.id === me ? ' (أنا)' : ''}</option>`)}</select></div>` : html`<input type="hidden" name="userId" value="${r0.userId}">${r0.userId !== me ? html`<p class="lv-vrow">${UI.icon('user')} رغبة <b>${Data.userName(r0.userId)}</b></p>` : ''}`}
@@ -26804,7 +27076,7 @@ Object.assign(LV, {
         <div class="field"><label>اسم الإجازة <small class="faint">— اختياري</small></label><input class="input" name="title" maxlength="60" list="lpTitles" value="${r0.title || ''}" placeholder="مثلاً: إجازة زواج"><datalist id="lpTitles">${LV.titles(recs).map((x) => html`<option value="${x}"></option>`)}</datalist></div>
         <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div></div>
         ${p.allowAlt ? html`<div class="field"><label>الأولوية</label><div class="seg sm"><label><input type="radio" name="pri" value="1"${LV.pri(r0) === 1 ? raw(' checked') : ''}><span>الرغبة الأولى</span></label><label><input type="radio" name="pri" value="2"${LV.pri(r0) === 2 ? raw(' checked') : ''}><span>رغبة بديلة</span></label></div><p class="hint">البديلة تُستعمل إن تعارضت الأولى مع زملائك، ولا تُحسب في الغائبين.</p></div>` : html`<input type="hidden" name="pri" value="1">`}
-        <div class="lv-check" data-lpcheck></div>
+        <div data-lpq></div><div class="lv-check" data-lpcheck></div>
         <div class="field"><label>ملاحظة <small class="faint">— يراها المشاركون</small></label><textarea class="input" name="note" rows="2" maxlength="1000" placeholder="مثلاً: مرتبطة بحجز سفر، ويمكن تأخيرها أسبوعاً">${r0.note || ''}</textarea></div>
         ${old && old.userId !== me ? html`<div class="field"><label>سبب التعديل <small class="faint">— يصل صاحب الرغبة مع الأصل والجديد</small></label><input class="input" name="changeNote" maxlength="500" value="" placeholder="مثلاً: حتى لا يغيب ثلاثة في الأسبوع نفسه"></div>` : ''}
         ${coord ? html`<label class="chk"><input type="checkbox" name="agreed"${r0.state === 'agreed' ? raw(' checked') : ''}> متفق عليها</label>` : ''}
@@ -26827,6 +27099,21 @@ Object.assign(LV, {
             ${reg.length ? html`<div class="lv-warn">${UI.icon('calendar')} له إجازة مسجلة في التقويم: ${reg.map((r) => `${LV.T(r).short} ${LV.range(r.from, r.to)}`).join('، ')}</div>` : ''}`);
         };
         check(); form.addEventListener('input', check); form.addEventListener('change', check);
+        /* الحصة: المسجل والمتبقي، وزر يضبط النهاية على المتبقي تماماً */
+        const qb = $('[data-lpq]', form), qn = LV.quota(p), sp = Number(p.split) || 0;
+        const qcheck = () => {
+          if (!qn && !sp) { qb.innerHTML = ''; return; }
+          const from = v('from'), to = v('to'), u = v('userId'), pri = Number(v('pri')) === 2 ? 2 : 1, ok = LV.okDay(from) && LV.okDay(to) && to >= from, oid = old && old.id;
+          const used = LV.used(recs, p, u, pri, oid), parts = LV.parts(recs, p, u, pri, oid), cnt = ok ? LV.count(from, to) : 0, rem = qn ? Math.max(0, qn - used) : 0, prev = old && LV.pri(old) === pri ? used + LV.count(old.from, old.to) : used;
+          const over = qn && used + cnt > qn && used + cnt > prev, pbad = sp && parts + 1 > sp && !(old && LV.pri(old) === pri), mine = u === me ? (pri === 2 ? 'رغباتك البديلة الأخرى' : 'فتراتك الأخرى') : (pri === 2 ? 'بديلاته الأخرى' : 'فتراته الأخرى');
+          qb.innerHTML = String(html`<div class="lp-qi${over || pbad ? ' bad' : ''}"><div class="lp-qh">${UI.icon('clock')}<b>${qn ? `الحصة ${LV.dayW(qn)}${LV.qUnit()}` : 'بدون إلزام المدة'}</b><span>${LV.splitTxt(p)}${qn ? ` · ${p.qexact ? 'يجب استكمالها' : 'كحد أقصى'}` : ''}${pri === 2 ? ' · للرغبات البديلة حصتها' : ''}</span></div>
+            ${qn ? html`<div class="lp-qbar"><i class="${over ? 'over' : used + cnt === qn ? 'full' : ''}" style="width:${Math.min(100, Math.round(((used + cnt) / qn) * 100))}%"></i><em style="width:${Math.min(100, Math.round((used / qn) * 100))}%"></em></div>
+            <div class="lp-qn"><span>${mine}: <b>${fmtNum(used)}</b></span><span>هذه: <b>${fmtNum(cnt)}</b></span><span>${over ? html`<b class="bad">الزيادة ${fmtNum(used + cnt - qn)}</b>` : html`المتبقي بعدها: <b>${fmtNum(Math.max(0, qn - used - cnt))}</b>`}</span>${rem > 0 && ok && cnt !== rem ? html`<button type="button" class="btn btn-xs btn-soft" data-lpfit="${rem}">${UI.icon('calendar')} اجعلها ${fmtNum(rem)}${LV.qUnit() ? ' أيام عمل' : ' أيام'}</button>` : ''}</div>` : ''}
+            ${pbad ? html`<div class="lv-warn bad">${UI.icon('alert')} ${sp === 1 ? 'الخطة تسمح بفترة واحدة متصلة، وله فترة مسجلة؛ عدّلها بدل إضافة أخرى' : `الحد الأقصى ${sp === 2 ? 'فترتان' : `${fmtNum(sp)} فترات`}، وكلها مسجلة`}</div>` : ''}
+            ${qn && p.qexact && !over && used + cnt < qn ? html`<p class="hint">${UI.icon('info')} يتبقى ${fmtNum(qn - used - cnt)} لاستكمال الحصة${sp === 1 ? '؛ مُدّ هذه الفترة' : '؛ أضفها في هذه الفترة أو في فترة أخرى'}</p>` : ''}</div>`);
+        };
+        qcheck(); form.addEventListener('input', qcheck); form.addEventListener('change', qcheck);
+        UI.on(form, 'click', '[data-lpfit]', (e, b) => { const fi = form.querySelector('[name="from"]'), ti = form.querySelector('[name="to"]'); if (!LV.okDay(fi.value)) return; ti.value = LV.fitEnd(fi.value, Number(b.dataset.lpfit), p.to); ti.dispatchEvent(new Event('input', { bubbles: true })); ti.dispatchEvent(new Event('change', { bubbles: true })); });
       },
       actions: [...(old && LV.canWish(p, old) ? [{ label: 'حذف', kind: 'ghost', icon: 'trash', value: 'del' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
         const v = (k) => (f.querySelector(`[name="${k}"]:checked`) || f.querySelector(`[name="${k}"]`) || {}).value || '';
@@ -26835,6 +27122,9 @@ Object.assign(LV, {
         if (from < p.from || to > p.to) throw new AppError(`الرغبة خارج فترة الخطة (${LV.range(p.from, p.to)})`);
         const dup = LV.wishes(recs, p.id).find((w) => w.id !== (old && old.id) && w.userId === userId && LV.pri(w) === pri && LV.over(w, from, to));
         if (dup) throw new AppError(`تتداخل مع رغبة أخرى لصاحبها (${LV.range(dup.from, dup.to)})`);
+        const qn = LV.quota(p), sp = Number(p.split) || 0, oid = old && old.id, same = old && LV.pri(old) === pri;
+        if (sp && !same && LV.parts(recs, p, userId, pri, oid) + 1 > sp) throw new AppError(sp === 1 ? 'الخطة تسمح بفترة واحدة متصلة لكل مشارك؛ عدّل الفترة المسجلة أو احذفها' : `الحد الأقصى ${sp === 2 ? 'فترتان' : `${fmtNum(sp)} فترات`} لكل مشارك`);
+        if (qn) { const used = LV.used(recs, p, userId, pri, oid), tot = used + LV.count(from, to), prev = same ? used + LV.count(old.from, old.to) : used; if (tot > qn && tot > prev) throw new AppError(`تتجاوز أيام الخطة (${LV.dayW(qn)}${LV.qUnit()}): الزيادة ${LV.dayW(tot - qn)}، والمتبقي ${qn > used ? LV.dayW(qn - used) : 'لا شيء'}`); }
         return { userId, from, to, pri, type: v('type') || 'annual', title: (v('title') || '').trim().slice(0, 60), note: v('note').trim(), changeNote: (v('changeNote') || '').trim(), agreed: !!(f.querySelector('[name="agreed"]') || {}).checked };
       } }] });
     if (res === 'del') { if (await UI.confirm('حذف هذه الرغبة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); if (old.userId !== me) await Data.notify([old.userId], { title: `حذف ${Auth.user.name} رغبتك من «${p.title}»`, body: LV.range(old.from, old.to), link: LV.link(p.id), kind: 'info' }); Bus.emit('leaves', {}); UI.toast('حُذفت الرغبة'); return 'del'; } return null; }
@@ -26860,6 +27150,7 @@ Object.assign(LV, {
     const from = LV.add(w.from, delta), to = LV.add(w.to, delta), me = LV.me();
     if (from < p.from || to > p.to) { UI.toast('خارج فترة الخطة', 'warn'); return; }
     if (recs.some((r) => r.kind === 'wish' && r.planId === p.id && r.userId === w.userId && r.id !== w.id && LV.pri(r) === LV.pri(w) && LV.over(r, from, to))) { UI.toast('تتداخل مع رغبة أخرى لصاحبها', 'warn'); return; }
+    { const qn = LV.quota(p); if (qn) { const used = LV.used(recs, p, w.userId, LV.pri(w), w.id), tot = used + LV.count(from, to); if (tot > qn && tot > used + LV.count(w.from, w.to)) { UI.toast(`بعد التحريك تصبح ${LV.dayW(LV.count(from, to))}${LV.qUnit()} فتتجاوز أيام الخطة (${LV.dayW(qn)})`, 'warn'); return; } } }
     let reason = '';
     if (w.userId !== me) {
       const v = await UI.modal({ title: 'تحريك رغبة زميل', icon: 'swap', size: 'sm', body: html`<p class="muted">${Data.userName(w.userId)}: ${LV.range(w.from, w.to)} ← <b>${LV.range(from, to)}</b></p><div class="field"><label>سبب التعديل <small class="faint">— يصل صاحب الرغبة</small></label><input class="input" name="r" maxlength="500" placeholder="مثلاً: حتى لا يغيب ثلاثة في الأسبوع نفسه"></div>`, actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تحريك', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ r: $('[name="r"]', f).value.trim() }) }] });
@@ -26911,6 +27202,7 @@ Object.assign(LV, {
       body: html`<div class="lvm"><p class="muted">تتحول الرغبات إلى إجازات في تقويم كل فني باسمه، وتُغلق الخطة للتسجيل (ويمكن إعادة فتحها).</p>
         ${cf.length ? html`<div class="lv-warn bad">${UI.icon('alert')} ما زال في الخطة ${fmtNum(cf.length)} تعارض مع الحد الأقصى للغائبين</div>` : html`<div class="lv-ok">${UI.icon('check')} لا تعارض في الخطة</div>`}
         ${late.length ? html`<div class="lv-warn">${UI.icon('clock')} لم يسجّل بعد: ${late.map((id) => Data.userName(id)).join('، ')}</div>` : ''}
+        ${LV.quota(p) ? (() => { const q = LV.quota(p), off = (p.members || []).map((id) => [id, LV.used(recs, p, id, 1)]).filter(([, u]) => (p.qexact ? u !== q : u > q)); return off.length ? html`<div class="lv-warn">${UI.icon('clock')} ${p.qexact ? 'لم يطابق' : 'تجاوز'} أيام الخطة (${LV.dayW(q)}${LV.qUnit()}): ${off.map(([id, u]) => `${Data.userName(id)} ${fmtNum(u)}`).join('، ')}</div>` : html`<div class="lv-ok">${UI.icon('check')} ${p.qexact ? 'كل المشاركين استكملوا أيامهم' : 'لا أحد تجاوز أيام الخطة'}</div>`; })() : ''}
         <div class="field"><label>ما الذي يُثبَّت؟</label><div class="seg sm"><label><input type="radio" name="which" value="first" checked><span>كل الرغبات الأولى (${fmtNum(ws.length)})</span></label><label><input type="radio" name="which" value="agreed"${agreed.length ? '' : raw(' disabled')}><span>المتفق عليها فقط (${fmtNum(agreed.length)})</span></label></div></div>
         <div class="field"><label>حالة الإجازات</label><div class="seg sm"><label><input type="radio" name="st" value="pending" checked><span>تُرسل للإدارة للاعتماد</span></label><label><input type="radio" name="st" value="plan"><span>خطة مبدئية</span></label></div></div>
         <div class="field"><label>من يراها</label><div class="seg sm">${['team', 'busy', 'mgr'].map((k) => html`<label><input type="radio" name="vis" value="${k}"${k === 'team' ? raw(' checked') : ''}><span>${LV.VIS[k][0]}</span></label>`)}</div></div></div>`,
@@ -27351,6 +27643,139 @@ Object.assign(LV, {
     on('[data-lvbalcell]', (b) => { const [bid, u] = b.dataset.lvbalcell.split('|'); return LV.balCell(bid, u); });
   }
 });
+
+/* ══════════ الجولة 40: «ما أعرته» — المُعير يتابع عهده لدى الآخرين ══════════
+   من سلّم صنفاً أو جهازاً إعارةً (من المخزن) أو استخداماً مؤقتاً (من عهدة الإدارة) يراه في لوحة القيادة:
+   عند من، ومنذ متى، وموعد الإرجاع، والمدة المتبقية بشريط تقدّم، مع زر «تذكير» يُشعر المستلم.
+   ويصله إشعار بقرب انتهاء المدة (يومان فأقل)، ويوم الموعد، وعند انتهائها؛ والمستلم ينبَّه كذلك (لوحة «عهدي المستعارة»). */
+const LW = {
+  async mine() {
+    const u = Auth.user; if (!u) return [];
+    const [loans, lends] = await Promise.all([DB.getAll('loans', 'status', KR('active')).catch(() => []), DB.getAll('deptLends').catch(() => [])]);
+    const myLoans = loans.filter((l) => l.userId === u.id && l.qty - (l.returnedQty || 0) > 0 && l.borrowerId !== u.id), myLends = lends.filter((l) => l.by === u.id && !l.returnedAt && l.holderId !== u.id);
+    if (!myLoans.length && !myLends.length) return [];
+    const items = new Map((await Promise.all([...new Set([...myLends, ...myLoans].map((l) => l.itemId))].map((id) => DB.get('items', id).catch(() => null)))).filter(Boolean).map((i) => [i.id, i]));
+    const out = [];
+    myLoans.forEach((l) => out.push({ key: `ln:${l.id}`, kind: 'loan', id: l.id, itemId: l.itemId, item: items.get(l.itemId), name: l.itemName || 'صنف', ref: l.number || '', qty: l.qty - (l.returnedQty || 0), since: l.issuedAt || 0, dueAt: l.dueAt || 0, whoId: l.borrowerId || '', who: l.borrowerId ? Data.userName(l.borrowerId) : l.borrower || '—', dep: l.departmentId || '', how: 'إعارة من المخزن' }));
+    myLends.forEach((l) => out.push({ key: `dl:${l.id}`, kind: 'lend', id: l.id, itemId: l.itemId, item: items.get(l.itemId), name: (items.get(l.itemId) || {}).name || 'جهاز', ref: '', qty: l.qty || 1, since: l.at || 0, dueAt: l.dueAt || 0, whoId: l.holderId || '', who: l.holderId ? Data.userName(l.holderId) : l.unitId ? Data.nameOf('deptUnits', l.unitId, 'فرع في الإدارة') : 'الإدارة', dep: l.departmentId || '', how: 'استخدام مؤقت من عهدة الإدارة' }));
+    return out.sort((a, b) => BW.rank(a) - BW.rank(b) || (a.dueAt || Infinity) - (b.dueAt || Infinity));
+  },
+  card(r) {
+    const s = BW.state(r), it = r.item || { name: r.name, categoryId: '' }, dl = BW.daysLeft(r), ping = r.whoId && dl != null && dl <= 2;
+    return html`<div class="bw-card lw-card tone-${s.tone}"><span class="bw-ic">${UI.illu(cmIllu(it), 'mini')}</span><div class="grow"><b>${r.name}${r.qty > 1 ? html` <small>×${fmtNum(r.qty)}</small>` : ''}</b>
+      <small class="lw-who">${UI.icon('user')} عند <b>${r.who}</b>${r.dep ? ` · ${Data.nameOf('departments', r.dep, '')}` : ''}${r.ref ? ` · ${r.ref}` : ''}</small>
+      <div class="bw-dates"><span>${UI.icon('calendar')} ${r.kind === 'lend' ? 'سلّمته' : 'أعرته'} ${fmtDate(r.since)}</span>${r.dueAt ? html`<span>${UI.icon('flag')} الإرجاع ${fmtDate(r.dueAt)}</span>` : ''}<span class="faint">${r.how}</span></div>
+      ${r.dueAt ? html`<div class="bw-bar"><i style="width:${BW.pct(r).toFixed(0)}%"></i></div>` : ''}</div>
+      <div class="lw-side"><span class="bw-st">${UI.icon(s.icon)} ${s.k === 'today' ? 'موعد إرجاعه اليوم' : s.k === 'soon' ? 'يُرجَع غداً' : s.label}</span>${ping ? html`<button type="button" class="btn btn-xs btn-soft" data-lwping="${r.key}" title="إشعار ${r.who} بموعد الإرجاع">${UI.icon('bell')} تذكير</button>` : ''}</div></div>`;
+  },
+  async panel() {
+    const list = await LW.mine(); if (!list.length) return '';
+    const k = (x) => list.filter((r) => BW.state(r).k === x).length, late = k('late'), soon = list.filter((r) => { const d = BW.daysLeft(r); return d != null && d >= 0 && d <= 2; }).length, top = list.slice(0, 6);
+    return UI.panel({ title: 'ما أعرته', icon: 'swap', sub: 'عهد سلّمتها للآخرين مؤقتاً، والمدة المتبقية لإرجاع كل منها', tools: Auth.can('inventory.read') ? html`<a class="btn btn-ghost btn-sm" href="#/inventory/loans">الكل ${UI.icon('chevron-left')}</a>` : '',
+      body: html`<div class="lw-sum"><span class="chip tone-sky">${UI.icon('clipboard')} ${fmtNum(list.length)} لدى الآخرين</span>${soon ? html`<span class="chip tone-amber">${UI.icon('clock')} ${fmtNum(soon)} تنتهي خلال يومين</span>` : ''}${late ? html`<span class="chip tone-red">${UI.icon('alert')} ${fmtNum(late)} انتهت مدتها</span>` : ''}</div><div class="bw-list">${top.map(LW.card)}</div>${list.length > top.length ? html`<p class="faint small mt">و${fmtNum(list.length - top.length)} أخرى في صفحة العهد والإعارات</p>` : ''}` });
+  },
+  /* إشعارات المُعير: تُنشأ على جهازه بمعرّف ثابت لكل مرحلة فلا تتكرر */
+  async bell() {
+    const u = Auth.user; if (!u) return;
+    try {
+      const d = new Date(), day = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`, mgr = canUser(u, 'loans.manage');
+      for (const r of await LW.mine()) {
+        const dl = BW.daysLeft(r); if (dl == null || dl > 2) continue;
+        if (dl < 0 && r.kind === 'loan' && mgr) continue; /* يصله إشعار التأخر العام للعهد */
+        const st = dl < 0 ? 'late' : dl === 0 ? `today${day}` : 'near', id = `nt:lw:${r.key}:${st}:${u.id}`;
+        if (await DB.get('notifications', id).catch(() => null)) continue;
+        const s = BW.state(r);
+        await DB.put('notifications', { id, userId: u.id, at: now(), read: 0, title: dl < 0 ? `انتهت مدة ما أعرته: ${r.name}` : dl === 0 ? `اليوم موعد إرجاع ما أعرته: ${r.name}` : `يقترب موعد إرجاع ما أعرته: ${r.name}`, body: `عند ${r.who}${r.ref ? ` (${r.ref})` : ''} — ${dl < 0 ? s.label : dl === 0 ? 'يُرجَع اليوم' : `متبقٍ ${arCount(dl, AR.day)}`}`, link: '/dashboard', kind: dl < 0 ? 'urgent' : 'warn', tone: dl < 0 ? 'red' : 'amber' });
+        Bus.emit('notifications');
+      }
+    } catch (e) { console.warn('lend bell', e); }
+  }
+};
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-lwping]'); if (!b || b.disabled) return;
+  e.preventDefault();
+  const r = (await LW.mine()).find((x) => x.key === b.dataset.lwping); if (!r || !r.whoId) return;
+  const key = `sq_lwping_${r.key}`; let last = 0; try { last = Number(localStorage.getItem(key)) || 0; } catch (_) { /* تجاهل */ }
+  if (now() - last < 6 * HOUR) { UI.toast(`أرسلت تذكيراً إلى ${r.who} ${timeAgo(last)}`, 'info'); return; }
+  const s = BW.state(r);
+  await Data.notify([r.whoId], { title: `تذكير بإرجاع: ${r.name}`, body: `${s.k === 'late' ? s.label : r.dueAt ? `موعد الإرجاع ${fmtDate(r.dueAt)}` : 'يُرجى إرجاعه'}${r.ref ? ` (${r.ref})` : ''} — من ${Auth.user.name}`, link: '/dashboard', kind: 'inventory', tone: s.k === 'late' ? 'urgent' : '' });
+  try { localStorage.setItem(key, String(now())); } catch (_) { /* تجاهل */ }
+  b.disabled = true; b.innerHTML = String(html`${UI.icon('check')} أُرسل`); UI.toast(`أُرسل التذكير إلى ${r.who}`);
+});
+setTimeout(() => LW.bell(), 25000);
+setInterval(() => LW.bell(), 30 * MIN);
+Bus.on('inventory', debounce(() => LW.bell(), 4000));
+
+/* ══════════ الجولة 40: معاينة الخط بالتمرير قبل اختياره ══════════
+   قوائم الخطوط في مصمم الاستمارات (الشريط والخصائص) والتعبئة الفورية تُفتح قائمةً مخصصة: كل خط مكتوب بخطه
+   مع نص العنصر المحدد نفسه، والتمرير على الخط (أو التنقل بالأسهم) يغيّر خط العنصر المحدد في اللوحة فوراً للمعاينة،
+   ولا يُعتمد إلا بالنقر أو Enter؛ والخروج من القائمة يعيد المعاينة للخط الحالي، وEsc أو النقر خارجها يلغي دون تغيير. */
+const FMENU = {
+  SEL: 'select.vle-font, .vtf-sel select, select[data-ffont]',
+  el: null, sel: null, hi: null,
+  page: (sel) => /^P\.font/.test(sel.dataset.k || ''),
+  target(sel) { if (sel.matches('[data-ffont]')) return '.ff-a.sel'; if (FMENU.page(sel)) return '.vle-zoom .vl-page'; return '.vle-zoom .vl-el.sel'; },
+  pv(v) {
+    let st = document.getElementById('fmenu-pv'); if (!st) { st = document.createElement('style'); st.id = 'fmenu-pv'; document.head.appendChild(st); }
+    if (v == null || !FMENU.sel) { st.textContent = ''; return; }
+    const t = FMENU.target(FMENU.sel), fam = v ? VTF.css(v) : FMENU.page(FMENU.sel) ? VTF.css('') : 'inherit';
+    st.textContent = FMENU.page(FMENU.sel) ? `${t}{font-family:${fam}!important}` : `${t},${t} *{font-family:${fam}!important}`;
+    if (v) VTF.ready([v]);
+  },
+  sample(sel) { const n = document.querySelector(FMENU.target(sel)); const tx = n && !FMENU.page(sel) ? String(n.textContent || '').replace(/\s+/g, ' ').trim() : ''; return (tx || 'أقر باستلام الأجهزة ١٢٣').slice(0, 26); },
+  open(sel) {
+    FMENU.close();
+    FMENU.sel = sel;
+    const items = []; [...sel.children].forEach((ch) => { if (ch.tagName === 'OPTGROUP') { items.push({ g: ch.label }); [...ch.children].forEach((o) => items.push({ v: o.value, l: o.textContent })); } else items.push({ v: ch.value, l: ch.textContent }); });
+    const smp = FMENU.sample(sel), m = document.createElement('div');
+    m.className = 'fmenu'; m.dir = 'rtl';
+    m.innerHTML = String(html`<div class="fmenu-q">${UI.icon('search')}<input type="search" placeholder="ابحث عن خط…" aria-label="ابحث عن خط" autocomplete="off"></div><div class="fmenu-l" role="listbox">${items.map((o) => (o.g != null ? html`<div class="fmenu-g">${o.g}</div>` : html`<button type="button" class="fmenu-o${o.v === sel.value ? ' on' : ''}" data-fv="${o.v}" role="option" aria-selected="${o.v === sel.value ? 'true' : 'false'}" style="font-family:${o.v ? VTF.css(o.v) : 'inherit'}"><span>${o.l}</span><small dir="auto">${o.v ? smp : ''}</small></button>`))}</div><div class="fmenu-f">${UI.icon('eye')}<span data-fmf>مرّر على أي خط لمعاينته على العنصر المحدد، وانقر لاعتماده</span></div>`);
+    document.body.appendChild(m); FMENU.el = m;
+    const r = sel.getBoundingClientRect(), W = Math.max(r.width, 300), vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    m.style.width = `${Math.min(W, vw - 16)}px`;
+    m.style.left = `${Math.max(8, Math.min(r.right - W, vw - W - 8))}px`;
+    const below = vh - r.bottom - 12, above = r.top - 12, H = Math.min(440, Math.max(below, above));
+    m.style.maxHeight = `${H}px`;
+    if (below >= Math.min(320, above)) m.style.top = `${r.bottom + 4}px`; else m.style.bottom = `${vh - r.top + 4}px`;
+    const cur = m.querySelector('.fmenu-o.on'); if (cur) { cur.scrollIntoView({ block: 'center' }); FMENU.mark(cur, false); }
+    const q = m.querySelector('input'); setTimeout(() => q.focus(), 0);
+    m.addEventListener('mouseover', (e) => { const o = e.target.closest('.fmenu-o'); if (o && o !== FMENU.hi) FMENU.mark(o, true); });
+    m.querySelector('.fmenu-l').addEventListener('mouseleave', () => { FMENU.pv(null); FMENU.foot(''); });
+    m.addEventListener('click', (e) => { const o = e.target.closest('.fmenu-o'); if (o) FMENU.commit(o.dataset.fv); });
+    q.addEventListener('input', () => {
+      const t = normalizeAr(q.value.trim()).toLowerCase();
+      $$('.fmenu-o', m).forEach((o) => { o.hidden = !!t && !normalizeAr(o.textContent).toLowerCase().includes(t); });
+      $$('.fmenu-g', m).forEach((g) => { let n = g.nextElementSibling, any = false; while (n && !n.classList.contains('fmenu-g')) { if (!n.hidden) any = true; n = n.nextElementSibling; } g.hidden = !any; });
+    });
+    q.addEventListener('keydown', (e) => {
+      const vis = $$('.fmenu-o', m).filter((o) => !o.hidden), i = vis.indexOf(FMENU.hi);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = vis[e.key === 'ArrowDown' ? Math.min(vis.length - 1, i + 1) : Math.max(0, i - 1)]; if (n) { FMENU.mark(n, true); n.scrollIntoView({ block: 'nearest' }); } }
+      else if (e.key === 'Enter') { e.preventDefault(); const o = FMENU.hi && !FMENU.hi.hidden ? FMENU.hi : vis[0]; if (o) FMENU.commit(o.dataset.fv); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); const s0 = FMENU.sel; FMENU.close(); if (s0 && s0.isConnected) s0.focus(); }
+    });
+  },
+  mark(o, preview) { if (FMENU.hi) FMENU.hi.classList.remove('hi'); FMENU.hi = o; o.classList.add('hi'); if (preview) { FMENU.pv(o.dataset.fv); FMENU.foot(o.querySelector('span').textContent); } },
+  foot(name) { const f = FMENU.el && FMENU.el.querySelector('[data-fmf]'); if (f) f.textContent = name ? `معاينة: ${name} — انقر أو Enter لاعتماده، Esc للإلغاء` : 'مرّر على أي خط لمعاينته على العنصر المحدد، وانقر لاعتماده'; },
+  commit(v) {
+    const sel = FMENU.sel; FMENU.close(); if (!sel || !sel.isConnected) return;
+    if (v && ![...sel.options].some((o) => o.value === v)) sel.add(new Option(VTF.label(v), v));
+    if (sel.value === v) return;
+    sel.value = v; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true }));
+  },
+  close() { FMENU.pv(null); if (FMENU.el) FMENU.el.remove(); FMENU.el = null; FMENU.sel = null; FMENU.hi = null; }
+};
+document.addEventListener('mousedown', (e) => {
+  if (FMENU.el && !FMENU.el.contains(e.target)) { const same = e.target.closest && e.target.closest(FMENU.SEL) === FMENU.sel; FMENU.close(); if (same) { e.preventDefault(); return; } }
+  const sel = e.button === 0 && e.target.closest && e.target.closest(FMENU.SEL); if (!sel || sel.disabled || sel.multiple) return;
+  e.preventDefault(); sel.focus(); FMENU.open(sel);
+}, true);
+document.addEventListener('keydown', (e) => {
+  const sel = e.target && e.target.matches && e.target.matches(FMENU.SEL) ? e.target : null; if (!sel || sel.disabled || FMENU.el) return;
+  if (e.key === 'Enter' || e.key === ' ' || e.key === 'F4' || (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp'))) { e.preventDefault(); FMENU.open(sel); }
+}, true);
+window.addEventListener('scroll', (e) => { if (FMENU.el && !FMENU.el.contains(e.target)) FMENU.close(); }, true);
+window.addEventListener('resize', () => FMENU.close());
+window.addEventListener('hashchange', () => FMENU.close());
 
 boot();
 })();
