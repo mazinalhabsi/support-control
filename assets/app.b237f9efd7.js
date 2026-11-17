@@ -26119,7 +26119,7 @@ const LV = {
   /* الفريق: الفنيون والإداريون ومن مُنح التقويم، ومن له إجازة مسجلة. الحسابات الافتراضية تدخل الفريق إن استُعملت (لها إجازة أو هي الحساب الحالي)،
      فلا يُحسب في التغطية حساب تجريبي لا يعمل عليه أحد. صاحب الحساب أولاً */
   team(recs) {
-    const has = new Set(recs.filter(LV.isLeave).map((r) => r.userId)), me = LV.me();
+    const has = new Set([...recs.filter(LV.isLeave).map((r) => r.userId), ...recs.filter((r) => r.kind === 'lplan').flatMap((r) => r.members || [])]), me = LV.me();
     return Data.list('users').filter((u) => u.active && u.role !== 'monitor' && (['technician', 'support_manager'].includes(u.role) || (u.extraPerms || []).includes('leaves') || has.has(u.id)) && (!isSysAccount(u) || has.has(u.id) || u.id === me))
       .sort((a, b) => (b.id === me) - (a.id === me) || AR_COLL.compare(String(a.name), String(b.name)));
   },
@@ -26350,11 +26350,11 @@ const LV = {
 
 Pages.leaves = async (ctx) => {
   const q = ctx.query || {}, me = LV.me();
-  const st = { view: ['month', 'timeline', 'year', 'list'].includes(q.v) ? q.v : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' } };
+  const st = { plan: String(q.p || ''), pm: '', view: ['month', 'timeline', 'year', 'list', 'plans'].includes(q.v) ? q.v : q.p ? 'plans' : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' } };
   let D = null, drag = null, skipClick = false, pop = null;
-  const sync = () => { try { history.replaceState(history.state, '', `#/leaves?v=${st.view}&m=${st.month}${st.day ? `&d=${st.day}` : ''}`); } catch (_) { /* تجاهل */ } };
+  const sync = () => { try { history.replaceState(history.state, '', `#/leaves?v=${st.view}&m=${st.month}${st.day ? `&d=${st.day}` : ''}${st.view === 'plans' && st.plan ? `&p=${st.plan}` : ''}`); } catch (_) { /* تجاهل */ } };
   const load = async () => {
-    const recs = await DB.getAll('leaves'); await LV.loadCfg();
+    const recs = await DB.getAll('leaves'); await LV.loadCfg(); LV._recs = recs;
     const team = LV.team(recs), sty = LV.styles(team, recs), users = Data.c.users;
     const show = (r) => !st.hide.has(r.userId) && (!st.mine || r.userId === me);
     const leaves = recs.filter((r) => LV.live(r) && show(r)), notes = recs.filter((r) => r.kind === 'note');
@@ -26432,7 +26432,7 @@ Pages.leaves = async (ctx) => {
         <div class="lv-acts"><button type="button" class="btn btn-sm btn-primary" data-lvnew="${d}">${UI.icon('plus')} إجازة من هذا اليوم</button><button type="button" class="btn btn-sm btn-soft" data-lvnoteadd="${d}">${UI.icon('lv-note')} ملاحظة</button></div></div>`;
     }
     const bal = LV.balance(me, Number(st.month.slice(0, 4)), D.recs);
-    return html`${dayCard}
+    return html`${dayCard}${LV.planSide(D)}
       ${pend.length ? html`<div class="card lv-card lv-pend"><h4>${UI.icon('clock')} بانتظار الاعتماد <small>${fmtNum(pend.length)}</small></h4><ul class="lv-ul">${pend.map((r) => { const u = D.users.get(r.userId); return html`<li class="lv-pi">${LV.who(u, D.styOf(r.userId))}<span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).short} · ${LV.range(r.from, r.to)} · ${fmtNum(LV.workDays(r.from, r.to))} عمل</span><span class="lv-pa"><button type="button" class="btn btn-xs btn-soft" data-lvdec="approved|${r.id}">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-xs btn-ghost" data-lvdec="rejected|${r.id}">رفض</button><button type="button" class="icon-btn" data-lvopen="${r.id}" title="فتح">${UI.icon('eye')}</button></span></li>`; })}</ul></div>` : ''}
       <div class="card lv-card"><h4>${UI.icon('lv-palm')} رصيدي ${st.month.slice(0, 4)}</h4><div class="lv-balg"><span><b>${fmtNum(bal.ent)}</b><small>الرصيد</small></span><span><b>${fmtNum(bal.used)}</b><small>معتمد</small></span><span><b>${fmtNum(bal.pend)}</b><small>معلّق</small></span><span class="${bal.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(bal.left)}</b><small>متبقٍ</small></span></div>${bal.plan ? html`<p class="hint">وفي الخطط المبدئية ${LV.dayW(bal.plan)}.</p>` : ''}</div>
       <div class="card lv-card"><h4>${UI.icon('calendar')} إجازاتي القادمة</h4>${myNext.length ? html`<ul class="lv-ul">${myNext.map((r) => html`<li><button type="button" data-lvopen="${r.id}"><span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).label}</span><span>${LV.range(r.from, r.to)}</span>${LV.stChip(r)}</button></li>`)}</ul>` : html`<p class="faint small">لا إجازات قادمة. اسحب على أيام التقويم لتحديد إجازة.</p>`}</div>`;
@@ -26451,15 +26451,15 @@ Pages.leaves = async (ctx) => {
         ${mgr ? html`<div class="lv-kpi${D.recs.some((r) => r.status === 'pending' && LV.isLeave(r)) ? ' hot' : ''}"><span class="lv-ki">${UI.icon('clock')}</span><div><small>بانتظار الاعتماد</small><b>${fmtNum(D.recs.filter((r) => LV.isLeave(r) && r.status === 'pending').length)}</b></div></div>` : ''}
       </div>
       <div class="lv-bar">
-        <div class="lv-nav"><button type="button" class="icon-btn" data-lvm="-1" aria-label="السابق">${UI.icon('chevron-right')}</button><b class="lv-title">${title}</b><button type="button" class="icon-btn" data-lvm="1" aria-label="التالي">${UI.icon('chevron-left')}</button><button type="button" class="btn btn-sm btn-ghost" data-lvm="0">اليوم</button></div>
-        <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
+        <div class="lv-nav"${st.view === 'plans' ? raw(' hidden') : ''}><button type="button" class="icon-btn" data-lvm="-1" aria-label="السابق">${UI.icon('chevron-right')}</button><b class="lv-title">${title}</b><button type="button" class="icon-btn" data-lvm="1" aria-label="التالي">${UI.icon('chevron-left')}</button><button type="button" class="btn btn-sm btn-ghost" data-lvm="0">اليوم</button></div>
+        <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu'], ['plans', 'خطط الإجازات', 'lv-team']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
         <span class="grow"></span>
         <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}</div>
       </div>
       <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}">${UI.icon(s.icon)}<span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون والأيقونة">${UI.icon('palette')}</i>` : ''}</button>`; })}
         <label class="chk lv-mine"><input type="checkbox" data-lvmine${st.mine ? raw(' checked') : ''}> إجازاتي فقط</label>
         <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب</span></div>
-      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
+      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
     if (q.l && !st._opened) { st._opened = true; const r = D.recs.find((x) => x.id === q.l); if (r) setTimeout(() => open(r.id), 60); }
   };
   const open = async (id) => { const r = D.recs.find((x) => x.id === id) || (await DB.get('leaves', id)); if (!r) return; if (r.kind === 'note') { await LV.noteEdit(id); return; } if (LV.canEdit(r)) await LV.edit(id); else await LV.view(r); };
@@ -26480,17 +26480,17 @@ Pages.leaves = async (ctx) => {
     if (e.button !== 0 || e.pointerType === 'touch') return;
     const c = e.target.closest('[data-day]'); if (!c || e.target.closest('[data-lvopen], button, a, input, select')) return;
     if (c.closest('.lv-year')) return;
-    if (c.dataset.u && c.dataset.u !== me && !LV.mgr()) return;
-    closePop(); drag = { a: c.dataset.day, b: c.dataset.day, u: c.dataset.u || '', moved: false }; paint(); e.preventDefault();
+    if (c.dataset.u && c.dataset.u !== me && !LV.mgr() && !(c.dataset.wp && LV.isCoord(c.dataset.wp))) return;
+    closePop(); drag = { a: c.dataset.day, b: c.dataset.day, u: c.dataset.u || '', wp: c.dataset.wp || '', moved: false }; paint(); e.preventDefault();
   });
   ctx.view.addEventListener('pointermove', (e) => { if (!drag) return; const el = document.elementFromPoint(e.clientX, e.clientY), c = el && el.closest && el.closest('[data-day]'); if (!c || !ctx.view.contains(c) || (drag.u && c.dataset.u !== drag.u)) return; if (c.dataset.day !== drag.b) { drag.b = c.dataset.day; drag.moved = true; paint(); } });
-  const up = (e) => { if (!drag) return; const d = drag; drag = null; skipClick = true; setTimeout(() => { skipClick = false; }, 50); const [a, b] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a]; if (!d.moved) { paint(); st.day = st.day === a && !d.u ? '' : a; sync(); go(draw); return; } rangeMenu(a, b, d.u, e); };
+  const up = (e) => { if (!drag) return; const d = drag; drag = null; skipClick = true; setTimeout(() => { skipClick = false; }, 50); const [a, b] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a]; if (d.wp) { paint(); go(async () => { if (await LV.wishEdit(d.wp, '', { from: a, to: b, userId: d.u })) draw(); }); return; } if (!d.moved) { paint(); st.day = st.day === a && !d.u ? '' : a; sync(); go(draw); return; } rangeMenu(a, b, d.u, e); };
   const outside = (e) => { if (pop && !pop.contains(e.target)) closePop(); };
   const esc = (e) => { if (e.key === 'Escape') { if (drag) { drag = null; paint(); } closePop(); } };
   document.addEventListener('pointerup', up); document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', esc);
   ctx.onCleanup(() => { document.removeEventListener('pointerup', up); document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', esc); closePop(); });
 
-  UI.on(ctx.view, 'click', '[data-day]', (e, c) => { if (skipClick || e.target.closest('[data-lvopen]')) return; if (c.closest('.lv-year')) { st.month = c.dataset.day.slice(0, 7); st.day = c.dataset.day; st.view = 'month'; LV.setPref('view', 'month'); sync(); go(draw); return; } st.day = c.dataset.day; sync(); go(draw); });
+  UI.on(ctx.view, 'click', '[data-day]', (e, c) => { if (skipClick || e.target.closest('[data-lvopen]')) return; if (c.dataset.wp) { if (c.dataset.u === me || LV.isCoord(c.dataset.wp)) go(async () => { if (await LV.wishEdit(c.dataset.wp, '', { from: c.dataset.day, userId: c.dataset.u })) draw(); }); return; } if (c.closest('.lv-year')) { st.month = c.dataset.day.slice(0, 7); st.day = c.dataset.day; st.view = 'month'; LV.setPref('view', 'month'); sync(); go(draw); return; } st.day = c.dataset.day; sync(); go(draw); });
   UI.on(ctx.view, 'click', '[data-lvopen]', (e, b) => { e.stopPropagation(); go(async () => { await open(b.dataset.lvopen); if (ctx.alive()) draw(); }); });
   UI.on(ctx.view, 'click', '[data-lvnew]', (e, b) => go(async () => { if (await LV.edit('', b.dataset.lvnew ? { from: b.dataset.lvnew } : {})) draw(); }));
   UI.on(ctx.view, 'click', '[data-lvnoteadd]', (e, b) => go(async () => { if (await LV.noteEdit('', { from: b.dataset.lvnoteadd || st.day || LV.today() })) draw(); }));
@@ -26546,6 +26546,7 @@ Pages.leaves = async (ctx) => {
 
   ctx.onCleanup(Bus.on('leaves', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 300)));
   ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 600)));
+  LV.planBind(ctx, st, draw, sync, go);
   sync(); await draw();
 };
 
@@ -26564,7 +26565,7 @@ STORE_EVENTS.leaves = ['leaves'];
     return g;
   };
   const rb = Shell.refreshBadges.bind(Shell);
-  Shell.refreshBadges = async function () { await rb(); try { const b = $('[data-badge="leaves"]'); if (!b) return; const n = LV.mgr() ? (await DB.getAll('leaves')).filter((r) => LV.isLeave(r) && r.status === 'pending' && r.userId !== LV.me()).length : 0; b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); } catch (_) { /* تجاهل */ } };
+  Shell.refreshBadges = async function () { await rb(); try { const b = $('[data-badge="leaves"]'); if (!b) return; const all = await DB.getAll('leaves'), n = (LV.mgr() ? all.filter((r) => LV.isLeave(r) && r.status === 'pending' && r.userId !== LV.me()).length : 0) + LV.awaiting(all); b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); } catch (_) { /* تجاهل */ } };
   Bus.on('leaves', debounce(() => { if (Shell.mounted) Shell.refreshBadges(); }, 500));
 }
 Router.add('/leaves', 'leaves|leaves.manage', Pages.leaves, 'إجازات الفنيين');
@@ -26572,6 +26573,353 @@ Bus.on('users', async () => {
   if (!Auth.user) return;
   const fresh = await DB.get('users', Auth.user.id); if (!fresh) return;
   if (!canUser(fresh, 'leaves') && !canUser(fresh, 'leaves.manage')) { try { if ((await DB.getAll('leaves')).length) { await DB.clear('leaves'); Bus.emit('leaves', {}); } } catch (_) { /* تجاهل */ } }
+});
+
+/* ══════════ الجولة 32: خطط الإجازات ══════════
+   يضع أي فني خطة (مثل «إجازات صيف 2027») بفترتها وآخر موعد للتسجيل والحد الأقصى للغائبين في اليوم، ويختار المشاركين فتصلهم.
+   يسجل كل مشارك رغباته فيها (الأولى والبديلة) ويرى رغبات زملائه والتعارض لحظياً. واضع الخطة ينسّق: يحرّك رغبات الآخرين
+   بالسحب أو من النافذة مع سبب التعديل (ويصل صاحبها إشعار بالأصل والجديد)، ويطبّق الرغبة البديلة لحل تعارض، ويعلّم المتفق عليه،
+   ثم يثبّت الخطة فتصبح إجازات في التقويم باسم كل فني (بانتظار الاعتماد أو خطة مبدئية). */
+Object.assign(LV, {
+  PST: { collect: ['جمع الرغبات', 'sky', 'lv-note'], arrange: ['التنسيق', 'amber', 'swap'], final: ['ثُبّتت في التقويم', 'teal', 'check'], closed: ['مغلقة', 'slate', 'lock'] },
+  plans: (recs) => recs.filter((r) => r.kind === 'lplan'),
+  plan: (id) => (LV._recs || []).find((r) => r.id === id && r.kind === 'lplan'),
+  isCoord(p) { p = typeof p === 'string' ? LV.plan(p) : p; return !!p && (p.createdBy === LV.me() || LV.mgr()); },
+  isOpen: (p) => ['collect', 'arrange'].includes(p.state || 'collect'),
+  wishes: (recs, pid) => recs.filter((r) => r.kind === 'wish' && r.planId === pid),
+  pri: (w) => (Number(w.pri) === 2 ? 2 : 1),
+  pmembers(p) { const me = LV.me(); return [...new Set(p.members || [])].map((id) => Data.c.users.get(id)).filter(Boolean).sort((a, b) => (b.id === me) - (a.id === me) || AR_COLL.compare(String(a.name), String(b.name))); },
+  candidates() { const me = LV.me(); return LV.people().filter((u) => ['technician', 'support_manager'].includes(u.role) || (u.extraPerms || []).includes('leaves') || u.id === me).sort((a, b) => (b.id === me) - (a.id === me) || AR_COLL.compare(String(a.name), String(b.name))); },
+  /* من يسجل أو يعدّل: واضع الخطة (والإدارة) دائماً، وصاحب الرغبة ما دامت الخطة مفتوحة */
+  canWish(p, w) { const me = LV.me(); if (LV.isCoord(p)) return true; if (!LV.isOpen(p)) return false; return w ? w.userId === me : (p.members || []).includes(me); },
+  /* الغائبون في كل يوم من الفترة: الرغبات الأولى والإجازات المسجلة للمشاركين */
+  offMap(p, recs) {
+    const m = new Map(), mem = new Set(p.members || []), add = (a, b, uid) => LV.days(a > p.from ? a : p.from, b < p.to ? b : p.to).forEach((d) => { if (!m.has(d)) m.set(d, new Set()); m.get(d).add(uid); });
+    LV.wishes(recs, p.id).filter((w) => LV.pri(w) === 1).forEach((w) => add(w.from, w.to, w.userId));
+    recs.filter((r) => LV.live(r) && mem.has(r.userId) && LV.over(r, p.from, p.to)).forEach((r) => add(r.from, r.to, r.userId));
+    return m;
+  },
+  /* أيام العمل التي يتجاوز فيها الغائبون الحد الأقصى، مجمّعة في مدد متصلة بالأشخاص أنفسهم */
+  conflicts(p, recs) {
+    const max = Number(p.maxOff) || 0; if (!max) return [];
+    const m = LV.offMap(p, recs), out = []; let cur = null;
+    LV.days(p.from, p.to).forEach((d) => {
+      if (!LV.work(d)) return;
+      const s = m.get(d);
+      if (s && s.size > max) { const key = [...s].sort().join(','); if (cur && cur.key === key) cur.to = d; else { cur = { from: d, to: d, key, users: [...s] }; out.push(cur); } } else cur = null;
+    });
+    return out;
+  },
+  /* اقتراح الحل: رغبة بديلة لأحد المتعارضين لا تُحدث تعارضاً جديداً */
+  suggest(p, recs, c) {
+    const max = Number(p.maxOff) || 0, out = [];
+    c.users.forEach((uid) => {
+      const alts = LV.wishes(recs, p.id).filter((w) => w.userId === uid && LV.pri(w) === 2); if (!alts.length) return;
+      const m = LV.offMap(p, recs.filter((r) => !(r.kind === 'wish' && r.planId === p.id && r.userId === uid && LV.pri(r) === 1 && LV.over(r, c.from, c.to))));
+      const ok = alts.find((a) => LV.days(a.from, a.to).filter(LV.work).every((d) => { const s = new Set(m.get(d) || []); s.add(uid); return s.size <= max; }));
+      if (ok) out.push({ uid, alt: ok });
+    });
+    return out;
+  },
+  wtip(w, u) { const T = LV.TYPES[w.type] || LV.TYPES.annual; return `${u ? u.name : ''} — ${LV.pri(w) === 2 ? 'رغبة بديلة' : 'الرغبة الأولى'} — ${T.label} — ${LV.range(w.from, w.to)}${w.leaveId ? ' — ثُبّتت في التقويم' : w.state === 'agreed' ? ' — متفق عليها' : ''}${w.orig ? `\nعدّلها ${Data.userName(w.changedBy)}، وكانت ${LV.range(w.orig.from, w.orig.to)}${w.changeNote ? `: ${w.changeNote}` : ''}` : ''}${w.note ? `\n${w.note}` : ''}`; },
+  link: (pid) => `/leaves?v=plans&p=${pid}`,
+
+  /* ── قائمة الخطط ── */
+  planList(D, plans) {
+    const me = LV.me();
+    return html`<div class="lp-list">
+      <button type="button" class="lp-card lp-new" data-lpnew>${UI.icon('plus')}<b>خطة إجازات جديدة</b><small>حدد الفترة والمشاركين، فيسجل كل فني رغبته وتنسّقونها معاً قبل تثبيتها في التقويم</small></button>
+      ${plans.map((p) => { const ws = LV.wishes(D.recs, p.id), mem = p.members || [], done = mem.filter((id) => ws.some((w) => w.userId === id)).length, need = mem.includes(me) && LV.isOpen(p) && !ws.some((w) => w.userId === me), [sl, tone, ic] = LV.PST[p.state || 'collect'] || LV.PST.collect, cf = LV.conflicts(p, D.recs).length, dl = p.deadline ? LV.diff(LV.today(), p.deadline) : null;
+        return html`<button type="button" class="lp-card${need ? ' need' : ''}" data-lpopen="${p.id}"><span class="lp-ch"><b>${p.title}</b><span class="chip tone-${tone}">${UI.icon(ic)} ${sl}</span></span>
+          <span class="lp-meta">${UI.icon('calendar')} ${LV.range(p.from, p.to)}</span><span class="lp-meta">${UI.icon('user')} وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.maxOff ? ` · بحد ${fmtNum(p.maxOff)} غائب في اليوم` : ''}</span>
+          <span class="lp-prog"><i style="width:${mem.length ? Math.round((done / mem.length) * 100) : 0}%"></i></span>
+          <span class="lp-meta">سجّل ${fmtNum(done)} من ${fmtNum(mem.length)}${dl != null && LV.isOpen(p) ? ` · ${dl < 0 ? 'انتهى موعد التسجيل' : dl === 0 ? 'آخر موعد اليوم' : `آخر موعد بعد ${LV.dayW(dl)}`}` : ''}${cf ? html` · <b class="bad">${fmtNum(cf)} تعارض</b>` : ''}</span>
+          ${need ? html`<span class="lp-need">${UI.icon('alert')} بانتظار رغبتك</span>` : ''}</button>`; })}
+    </div>${plans.length ? '' : html`<p class="hint mt">مثال: «إجازات صيف 2027» من يونيو إلى سبتمبر بحد أقصى فنيين غائبين في اليوم. يسجل كل فني رغبته الأولى والبديلة، ويرى الجميع التعارض فوراً، ثم ينسّقها واضع الخطة ويثبّتها في التقويم.</p>`}`;
+  },
+
+  /* ── لوحة الخطة: صف لكل مشارك وعمود لكل يوم من الشهر المختار، وشريط الفترة كلها، والتعارض والحلول ── */
+  planBoard(D, st, p) {
+    const me = LV.me(), coord = LV.isCoord(p), ws = LV.wishes(D.recs, p.id), mem = LV.pmembers(p), off = LV.offMap(p, D.recs), max = Number(p.maxOff) || 0, state = p.state || 'collect';
+    const months = []; for (let mm = p.from.slice(0, 7); mm <= p.to.slice(0, 7) && months.length < 14;) { months.push(mm); const [yy, mo] = mm.split('-').map(Number), d = new Date(yy, mo, 1); mm = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+    const pm = months.includes(st.pm) ? st.pm : months.includes(LV.today().slice(0, 7)) ? LV.today().slice(0, 7) : months[0];
+    const [y, m] = pm.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${pm}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
+    const inP = (d) => d >= p.from && d <= p.to, done = new Set(ws.map((w) => w.userId)), cf = LV.conflicts(p, D.recs), steps = ['collect', 'arrange', 'final'], yrs = new Set(months.map((x) => x.slice(0, 4))).size > 1;
+    return html`<div class="lp-board">
+      <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3>${p.title}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · الحد الأقصى للغائبين في اليوم ${fmtNum(max)}` : ''}</small></div>
+        <div class="lp-acts">${LV.canWish(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-wnew="${p.id}">${UI.icon('plus')} ${(p.members || []).includes(me) && !done.has(me) ? 'أضف رغبتي' : 'رغبة'}</button>` : ''}
+          ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-soft" data-lpremind="${p.id}">${UI.icon('bell')} تذكير من لم يسجّل</button>` : ''}
+          ${coord && state === 'collect' ? html`<button type="button" class="btn btn-sm btn-soft" data-lpstate="arrange|${p.id}">${UI.icon('swap')} بدء التنسيق</button>` : ''}
+          ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-lpfinal="${p.id}">${UI.icon('check')} تثبيت في التقويم</button>` : ''}
+          ${coord && !LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-ghost" data-lpstate="arrange|${p.id}">${UI.icon('undo')} إعادة فتح</button>` : ''}
+          <button type="button" class="icon-btn" data-lpprint="${p.id}" title="طباعة الخطة">${UI.icon('print')}</button><button type="button" class="icon-btn" data-lpxl="${p.id}" title="Excel">${UI.icon('download')}</button>
+          ${coord ? html`<button type="button" class="icon-btn" data-lpedit="${p.id}" title="تعديل الخطة">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-lpdel="${p.id}" title="حذف الخطة">${UI.icon('trash')}</button>` : ''}</div></div>
+      <ol class="lp-steps">${steps.map((k, i) => html`<li class="${k === state ? 'on' : i < steps.indexOf(state) ? 'done' : ''}">${UI.icon(LV.PST[k][2])} ${LV.PST[k][0]}</li>`)}</ol>
+      ${p.note ? html`<p class="lp-note">${UI.icon('info')}<span>${p.note}</span></p>` : ''}
+      <div class="lp-people">${mem.map((u) => html`<span class="lp-p${done.has(u.id) ? ' ok' : ''}" title="${done.has(u.id) ? 'سجّل رغبته' : 'لم يسجّل بعد'}">${LV.who(u, D.styOf(u.id), 'sm')}${UI.icon(done.has(u.id) ? 'check' : 'clock')}</span>`)}<small class="faint">سجّل ${fmtNum(mem.filter((u) => done.has(u.id)).length)} من ${fmtNum(mem.length)}</small></div>
+      <div class="lp-strip" role="img" aria-label="الغائبون في كل يوم من الفترة">${LV.days(p.from, p.to).map((d) => { const k = (off.get(d) || new Set()).size; return html`<i class="${!LV.work(d) ? 'we' : max && k > max ? 'bad' : max && k === max ? 'mid' : k ? 'h' : ''}${d.slice(0, 7) === pm ? ' cur' : ''}" data-lpday="${d}" title="${LV.fmtY(d)}: ${fmtNum(k)} غائب"></i>`; })}</div>
+      <div class="lp-mnav">${months.map((mm) => html`<button type="button" class="${mm === pm ? 'on' : ''}" data-lpm="${mm}">${LV.MONTHS[Number(mm.slice(5)) - 1]}${yrs ? ` ${mm.slice(0, 4)}` : ''}</button>`)}</div>
+      <div class="lv-tlw"><div class="lv-tl lp-tl" style="--n:${n}">
+        <div class="lv-tr lv-th"><span class="lv-tw">${LV.MONTHS[m - 1]} ${y}</span>${days.map((d) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? '' : 'outp'}" title="${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}"><b>${LV.pd(d).getDate()}</b><small>${LV.WD1[LV.pd(d).getDay()]}</small></span>`)}<span class="lv-tt">أيام</span></div>
+        ${mem.map((u) => {
+          const s = D.styOf(u.id), uw = ws.filter((w) => w.userId === u.id && LV.over(w, first, last)), ul = D.all.filter((r) => r.userId === u.id && LV.over(r, first, last) && !ws.some((w) => w.leaveId === r.id)), can = coord || (u.id === me && LV.isOpen(p)), tot = ws.filter((w) => w.userId === u.id && LV.pri(w) === 1).reduce((a, w) => a + LV.count(w.from, w.to), 0);
+          return html`<div class="lv-tr${u.id === me ? ' me' : ''}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? (can ? 'can' : '') : 'outp'}"${inP(d) ? raw(` data-day="${d}" data-u="${u.id}" data-wp="${p.id}"`) : ''} style="grid-column:${i + 2}"></span>`)}
+            ${ul.map((r) => { const a = r.from > first ? r.from : first, b = r.to < last ? r.to : last; return html`<span class="lp-ctx" style="grid-column:${LV.diff(first, a) + 2} / ${LV.diff(first, b) + 3}" title="إجازة مسجلة في التقويم: ${LV.T(r).label} ${LV.range(r.from, r.to)}"></span>`; })}
+            ${uw.map((w) => { const a = w.from > first ? w.from : first, b = w.to < last ? w.to : last, c1 = LV.diff(first, a) + 2, c2 = LV.diff(first, b) + 2, T = LV.TYPES[w.type] || LV.TYPES.annual, mv = LV.canWish(p, w) && !w.leaveId, alt = LV.pri(w) === 2;
+              return html`<button type="button" class="lv-barx lp-w${alt ? ' alt' : ''}${w.state === 'agreed' || w.leaveId ? ' agreed' : ''}${w.orig ? ' moved' : ''}${w.from < first ? ' cs' : ''}${w.to > last ? ' ce' : ''}${mv ? ' mv' : ''}" data-wopen="${w.id}"${mv ? raw(` data-wmove="${w.id}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${s.color}" title="${LV.wtip(w, u)}">${alt ? html`<em>2</em>` : UI.icon(T.icon)}<span>${c2 - c1 >= 2 ? (alt ? 'بديلة' : T.short) : ''}</span>${w.state === 'agreed' || w.leaveId ? UI.icon('check', 'lp-ok') : w.orig ? UI.icon('swap', 'lp-mv') : ''}</button>`; })}
+            <span class="lv-tt" style="grid-column:${n + 2}">${tot ? fmtNum(tot) : '—'}</span></div>`; })}
+        <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} الغائبون</span>${days.map((d, i) => { if (!inP(d) || !LV.work(d)) return html`<span class="lv-tc ${inP(d) ? 'we' : 'outp'}" style="grid-column:${i + 2}"></span>`; const set = off.get(d) || new Set(), k = set.size; return html`<span class="lv-tc ${max && k > max ? 'cov-bad' : max && k === max ? 'cov-mid' : 'cov-ok'}" style="grid-column:${i + 2}" title="${[...set].map((id) => Data.userName(id)).join('، ')}">${k ? fmtNum(k) : ''}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
+      </div></div>
+      <div class="lp-keys"><span><i class="k"></i>الرغبة الأولى</span>${p.allowAlt ? html`<span><i class="k alt"></i>رغبة بديلة</span>` : ''}<span>${UI.icon('check')} متفق عليها</span><span>${UI.icon('swap')} عدّلها واضع الخطة</span><span><i class="k ctx"></i>إجازة مسجلة في التقويم</span>${LV.canWish(p) ? html`<span class="lp-tip">${UI.icon('info')} اسحب على أيام ${coord ? 'أي صف' : 'صفك'} لإضافة رغبة${coord ? '، واسحب أي رغبة لتحريكها' : '، واسحب رغبتك لتحريكها'}</span>` : ''}</div>
+      ${cf.length ? html`<div class="lp-cf"><h4>${UI.icon('alert')} تعارض مع الحد الأقصى (${fmtNum(max)} في اليوم)</h4><ul>${cf.map((c) => { const sug = coord && LV.isOpen(p) ? LV.suggest(p, D.recs, c) : []; return html`<li><button type="button" class="lp-cfr" data-lpday="${c.from}"><b>${LV.range(c.from, c.to)}</b>: ${c.users.map((id) => Data.userName(id)).join('، ')} (${fmtNum(c.users.length)})</button>${sug.map((x) => html`<button type="button" class="btn btn-xs btn-soft" data-lpsug="${x.alt.id}|${c.from}|${c.to}" title="تصبح رغبته البديلة هي الأولى">${UI.icon('swap')} رغبة ${LV.first(Data.userName(x.uid))} البديلة: ${LV.range(x.alt.from, x.alt.to)}</button>`)}${coord && !sug.length ? html`<small class="faint">حرّك إحدى الرغبات بالسحب، أو اطلب من أحدهم رغبة بديلة</small>` : ''}</li>`; })}</ul></div>` : max && ws.length ? html`<div class="lv-ok">${UI.icon('check')} لا تعارض: لا يتجاوز الغائبون ${fmtNum(max)} في أي يوم عمل من الفترة</div>` : ''}
+    </div>`;
+  },
+  planView(D, st) {
+    const plans = LV.plans(D.recs).sort((a, b) => LV.isOpen(b) - LV.isOpen(a) || String(b.from).localeCompare(String(a.from)));
+    const p = st.plan ? plans.find((x) => x.id === st.plan) : null;
+    return p ? LV.planBoard(D, st, p) : LV.planList(D, plans);
+  },
+  planSide(D) {
+    const me = LV.me(), list = LV.plans(D.recs).filter((p) => LV.isOpen(p) && ((p.members || []).includes(me) || p.createdBy === me)); if (!list.length) return '';
+    return html`<div class="card lv-card"><h4>${UI.icon('lv-team')} خطط الإجازات</h4><ul class="lv-ul">${list.map((p) => { const has = LV.wishes(D.recs, p.id).some((w) => w.userId === me); return html`<li><button type="button" data-lpopen="${p.id}"><b>${p.title}</b><span class="faint small">${LV.range(p.from, p.to)}</span>${(p.members || []).includes(me) ? (has ? html`<span class="chip tone-teal">سجّلت رغبتك</span>` : html`<span class="chip tone-amber">بانتظار رغبتك</span>`) : html`<span class="chip">واضع الخطة</span>`}</button></li>`; })}</ul></div>`;
+  },
+  awaiting: (recs) => { const me = LV.me(); return LV.plans(recs).filter((p) => LV.isOpen(p) && (p.members || []).includes(me) && !LV.wishes(recs, p.id).some((w) => w.userId === me)).length; },
+
+  /* ── نافذة الخطة ── */
+  async planEdit(id) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const old = id ? recs.find((r) => r.id === id && r.kind === 'lplan') : null; if (id && (!old || !LV.isCoord(old))) return null;
+    const me = LV.me(), cands = LV.candidates(), now0 = new Date(), y = now0.getFullYear() + (now0.getMonth() > 6 ? 1 : 0);
+    const r0 = old || { title: `إجازات صيف ${y}`, from: `${y}-06-01`, to: `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), allowAlt: 1, members: cands.map((u) => u.id), note: '' };
+    const res = await UI.modal({ title: old ? 'تعديل خطة الإجازات' : 'خطة إجازات جديدة', icon: 'lv-team', size: 'lg',
+      body: html`<div class="lvm">
+        <div class="field"><label>عنوان الخطة</label><input class="input" name="title" maxlength="120" value="${r0.title}" placeholder="مثلاً: إجازات صيف 2027" required></div>
+        <div class="lv-dates"><div class="field"><label>الفترة من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div></div>
+        <div class="lv-grid2"><div class="field"><label>آخر موعد لتسجيل الرغبات <small class="faint">(اختياري)</small></label><input class="input" type="date" name="deadline" value="${r0.deadline || ''}"></div>
+          <div class="field"><label>الحد الأقصى للغائبين في اليوم</label><input class="input" type="number" min="0" max="50" name="maxOff" value="${r0.maxOff}"><p class="hint">اليوم الذي يتجاوزه يُعلَّم بالأحمر وتُقترح الحلول. 0 = بلا حد.</p></div></div>
+        <label class="chk"><input type="checkbox" name="allowAlt"${r0.allowAlt ? raw(' checked') : ''}> يسجل كل فني رغبة بديلة إلى جانب رغبته الأولى (تساعد على حل التعارض)</label>
+        <div class="field mt"><label>المشاركون <button type="button" class="btn btn-xs btn-ghost" data-lpall>الكل</button><button type="button" class="btn btn-xs btn-ghost" data-lpnone>لا أحد</button></label><div class="lv-share lp-mem">${cands.map((u) => html`<label class="lv-pick"><input type="checkbox" name="members" value="${u.id}"${(r0.members || []).includes(u.id) ? raw(' checked') : ''}><span>${u.name}${u.id === me ? ' (أنا)' : ''}<small>${ROLES[u.role] || ''}</small></span></label>`)}</div></div>
+        <div class="field"><label>قواعد الخطة وملاحظاتها <small class="faint">— تظهر لكل المشاركين</small></label><textarea class="input" name="note" rows="3" maxlength="2000" placeholder="مثلاً: الأولوية لمن لم يأخذ إجازة الصيف الماضي، ولا تزيد الإجازة الواحدة على 3 أسابيع">${r0.note || ''}</textarea></div>
+        ${old ? '' : html`<label class="chk"><input type="checkbox" name="notify" checked> إشعار المشاركين بالخطة الآن</label>`}</div>`,
+      onMount: (form) => { UI.on(form, 'click', '[data-lpall]', () => $$('[name="members"]', form).forEach((x) => { x.checked = true; })); UI.on(form, 'click', '[data-lpnone]', () => $$('[name="members"]', form).forEach((x) => { x.checked = false; })); },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: old ? 'حفظ' : 'إنشاء الخطة', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
+        const g = (k) => (f.querySelector(`[name="${k}"]`) || {}).value || '';
+        const title = g('title').trim(), from = g('from'), to = g('to'), deadline = g('deadline');
+        if (!title) throw new AppError('اكتب عنوان الخطة');
+        if (!LV.okDay(from) || !LV.okDay(to) || to < from) throw new AppError('حدد فترة صحيحة للخطة');
+        if (LV.diff(from, to) > 399) throw new AppError('أطول فترة للخطة 13 شهراً');
+        const members = $$('[name="members"]:checked', f).map((x) => x.value); if (!members.length) throw new AppError('اختر المشاركين في الخطة');
+        return { title, from, to, deadline: LV.okDay(deadline) ? deadline : '', maxOff: clamp(Math.floor(Number(g('maxOff')) || 0), 0, 50), allowAlt: $('[name="allowAlt"]', f).checked ? 1 : 0, members, note: g('note').trim(), notify: !!(f.querySelector('[name="notify"]') || {}).checked };
+      } }] });
+    if (!res) return null;
+    const t = now(), { notify, ...v } = res, rec = { ...(old || {}), ...v, id: old ? old.id : uid('lpl'), kind: 'lplan', state: old ? old.state || 'collect' : 'collect', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
+    await DB.put('leaves', rec);
+    await Data.log(old ? 'update' : 'create', 'leaves', rec.id, `${old ? 'تعديل' : 'إنشاء'} خطة الإجازات «${rec.title}»`);
+    const added = rec.members.filter((x) => !((old && old.members) || []).includes(x));
+    if ((old || notify) && added.length) await Data.notify(added, { title: `دعاك ${Auth.user.name} إلى خطة الإجازات «${rec.title}»`, body: `سجّل رغبتك في الفترة ${LV.range(rec.from, rec.to)}${rec.deadline ? ` قبل ${LV.fmtY(rec.deadline)}` : ''}`, link: LV.link(rec.id), kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(old ? 'حُفظت الخطة' : `أُنشئت الخطة${notify && added.filter((x) => x !== me).length ? ' وأُشعر المشاركون' : ''}`); return rec;
+  },
+
+  /* ── نافذة الرغبة ── */
+  async wishEdit(pid, id, preset = {}) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const p = recs.find((r) => r.id === pid && r.kind === 'lplan'); if (!p) throw new AppError('لم تعد هذه الخطة موجودة');
+    const old = id ? recs.find((r) => r.id === id && r.kind === 'wish') : null; if (id && !old) throw new AppError('لم تعد هذه الرغبة موجودة');
+    const me = LV.me(), coord = LV.isCoord(p), mem = LV.pmembers(p);
+    if (old && !LV.canWish(p, old)) {
+      const u = Data.c.users.get(old.userId);
+      await UI.modal({ title: LV.pri(old) === 2 ? 'رغبة بديلة' : 'الرغبة الأولى', icon: 'calendar', size: 'sm', body: html`<div class="lv-viewm">${LV.who(u, { color: '#64748b', icon: 'user' })}<div class="lv-vrow">${UI.icon((LV.TYPES[old.type] || LV.TYPES.annual).icon)} ${(LV.TYPES[old.type] || LV.TYPES.annual).label} · ${LV.range(old.from, old.to)}</div>${old.note ? html`<p class="lv-vnote">${old.note}</p>` : ''}${old.orig ? html`<p class="hint">${UI.icon('swap')} عدّلها ${Data.userName(old.changedBy)}، وكانت ${LV.range(old.orig.from, old.orig.to)}${old.changeNote ? `: ${old.changeNote}` : ''}</p>` : ''}</div>`, actions: [{ label: 'إغلاق', kind: 'ghost', value: null }] });
+      return null;
+    }
+    if (!old && !LV.canWish(p)) { UI.toast(LV.isOpen(p) ? 'لست مشاركاً في هذه الخطة' : 'الخطة مغلقة للتسجيل', 'warn'); return null; }
+    const cl = (d) => (d < p.from ? p.from : d > p.to ? p.to : d);
+    const uid0 = old ? old.userId : coord && preset.userId && (p.members || []).includes(preset.userId) ? preset.userId : (p.members || []).includes(me) ? me : (p.members || [])[0];
+    const has1 = (u) => LV.wishes(recs, p.id).some((w) => w.userId === u && LV.pri(w) === 1);
+    const r0 = old || { userId: uid0, type: 'annual', from: cl(preset.from || p.from), to: cl(preset.to || preset.from || p.from), pri: p.allowAlt && has1(uid0) ? 2 : 1, note: '', state: 'wish' };
+    const res = await UI.modal({ title: old ? 'تعديل الرغبة' : 'رغبة في الإجازة', icon: 'lv-team',
+      body: html`<div class="lvm"><p class="hint lp-in">${UI.icon('lv-team')} ${p.title} · الفترة ${LV.range(p.from, p.to)}</p>
+        ${coord && !old ? html`<div class="field"><label>الفني</label><select class="input" name="userId">${mem.map((u) => html`<option value="${u.id}"${u.id === r0.userId ? raw(' selected') : ''}>${u.name}${u.id === me ? ' (أنا)' : ''}</option>`)}</select></div>` : html`<input type="hidden" name="userId" value="${r0.userId}">${r0.userId !== me ? html`<p class="lv-vrow">${UI.icon('user')} رغبة <b>${Data.userName(r0.userId)}</b></p>` : ''}`}
+        <div class="field"><label>نوع الإجازة</label><div class="lv-types">${Object.entries(LV.TYPES).map(([k, t]) => html`<label class="lv-type"><input type="radio" name="type" value="${k}"${k === r0.type ? raw(' checked') : ''}><span>${UI.icon(t.icon)}${t.short}</span></label>`)}</div></div>
+        <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div></div>
+        ${p.allowAlt ? html`<div class="field"><label>الأولوية</label><div class="seg sm"><label><input type="radio" name="pri" value="1"${LV.pri(r0) === 1 ? raw(' checked') : ''}><span>الرغبة الأولى</span></label><label><input type="radio" name="pri" value="2"${LV.pri(r0) === 2 ? raw(' checked') : ''}><span>رغبة بديلة</span></label></div><p class="hint">البديلة تُستعمل إن تعارضت الأولى مع زملائك، ولا تُحسب في الغائبين.</p></div>` : html`<input type="hidden" name="pri" value="1">`}
+        <div class="lv-check" data-lpcheck></div>
+        <div class="field"><label>ملاحظة <small class="faint">— يراها المشاركون</small></label><textarea class="input" name="note" rows="2" maxlength="1000" placeholder="مثلاً: مرتبطة بحجز سفر، ويمكن تأخيرها أسبوعاً">${r0.note || ''}</textarea></div>
+        ${old && old.userId !== me ? html`<div class="field"><label>سبب التعديل <small class="faint">— يصل صاحب الرغبة مع الأصل والجديد</small></label><input class="input" name="changeNote" maxlength="500" value="" placeholder="مثلاً: حتى لا يغيب ثلاثة في الأسبوع نفسه"></div>` : ''}
+        ${coord ? html`<label class="chk"><input type="checkbox" name="agreed"${r0.state === 'agreed' ? raw(' checked') : ''}> متفق عليها</label>` : ''}
+        ${old && old.orig ? html`<p class="hint">${UI.icon('swap')} عدّلها ${Data.userName(old.changedBy)}، وكانت ${LV.range(old.orig.from, old.orig.to)}${old.changeNote ? `: ${old.changeNote}` : ''}</p>` : ''}
+        ${old && old.leaveId ? html`<p class="hint">${UI.icon('check')} ثُبّتت في التقويم؛ تعديلها هنا لا يغيّر الإجازة المسجلة.</p>` : ''}</div>`,
+      onMount: (form) => {
+        const box = $('[data-lpcheck]', form), v = (k) => (form.querySelector(`[name="${k}"]:checked`) || form.querySelector(`[name="${k}"]`) || {}).value || '';
+        const check = () => {
+          const from = v('from'), to = v('to'), u = v('userId'), pri = Number(v('pri')) === 2 ? 2 : 1, max = Number(p.maxOff) || 0;
+          if (!LV.okDay(from) || !LV.okDay(to)) { box.innerHTML = ''; return; }
+          if (to < from) { box.innerHTML = String(html`<div class="lv-warn bad">${UI.icon('alert')} تاريخ النهاية قبل البداية</div>`); return; }
+          const outP = from < p.from || to > p.to, others = LV.wishes(recs, p.id).filter((w) => w.id !== (old && old.id)), mine = others.filter((w) => w.userId === u && LV.pri(w) === pri && LV.over(w, from, to));
+          const peers = others.filter((w) => w.userId !== u && LV.pri(w) === 1 && LV.over(w, from, to)), reg = recs.filter((r) => LV.live(r) && r.userId === u && LV.over(r, from, to));
+          const m = LV.offMap(p, recs.filter((r) => r.id !== (old && old.id))), over = pri === 1 && max ? LV.days(from, to).filter((d) => LV.work(d) && d >= p.from && d <= p.to && new Set([...(m.get(d) || []), u]).size > max) : [];
+          box.innerHTML = String(html`<div class="lv-span"><b>${LV.dayW(LV.days(from, to).length)}</b><span>${fmtNum(LV.workDays(from, to))} أيام عمل</span></div>
+            ${outP ? html`<div class="lv-warn bad">${UI.icon('alert')} خارج فترة الخطة (${LV.range(p.from, p.to)})</div>` : ''}
+            ${mine.length ? html`<div class="lv-warn bad">${UI.icon('alert')} تتداخل مع ${pri === 2 ? 'رغبة بديلة' : 'رغبة أولى'} أخرى لصاحبها: ${mine.map((w) => LV.range(w.from, w.to)).join('، ')}</div>` : ''}
+            ${peers.length ? html`<div class="lv-warn">${UI.icon('users')}<span>يرغب في الفترة نفسها: ${peers.map((w) => `${Data.userName(w.userId)} (${LV.range(w.from > from ? w.from : from, w.to < to ? w.to : to)})`).join('، ')}</span></div>` : html`<div class="lv-ok">${UI.icon('check')} لا يرغب أحد من المشاركين في هذه الأيام</div>`}
+            ${over.length ? html`<div class="lv-warn bad">${UI.icon('alert')}<span>يتجاوز الغائبون الحد الأقصى (${fmtNum(max)}) في ${LV.dayW(over.length)} عمل: ${over.slice(0, 6).map(LV.fmt).join('، ')}${over.length > 6 ? '…' : ''}</span></div>` : ''}
+            ${reg.length ? html`<div class="lv-warn">${UI.icon('calendar')} له إجازة مسجلة في التقويم: ${reg.map((r) => `${LV.T(r).short} ${LV.range(r.from, r.to)}`).join('، ')}</div>` : ''}`);
+        };
+        check(); form.addEventListener('input', check); form.addEventListener('change', check);
+      },
+      actions: [...(old && LV.canWish(p, old) ? [{ label: 'حذف', kind: 'ghost', icon: 'trash', value: 'del' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
+        const v = (k) => (f.querySelector(`[name="${k}"]:checked`) || f.querySelector(`[name="${k}"]`) || {}).value || '';
+        const from = v('from'), to = v('to'), userId = v('userId'), pri = Number(v('pri')) === 2 ? 2 : 1;
+        if (!LV.okDay(from) || !LV.okDay(to) || to < from) throw new AppError('حدد مدة صحيحة');
+        if (from < p.from || to > p.to) throw new AppError(`الرغبة خارج فترة الخطة (${LV.range(p.from, p.to)})`);
+        const dup = LV.wishes(recs, p.id).find((w) => w.id !== (old && old.id) && w.userId === userId && LV.pri(w) === pri && LV.over(w, from, to));
+        if (dup) throw new AppError(`تتداخل مع رغبة أخرى لصاحبها (${LV.range(dup.from, dup.to)})`);
+        return { userId, from, to, pri, type: v('type') || 'annual', note: v('note').trim(), changeNote: (v('changeNote') || '').trim(), agreed: !!(f.querySelector('[name="agreed"]') || {}).checked };
+      } }] });
+    if (res === 'del') { if (await UI.confirm('حذف هذه الرغبة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); if (old.userId !== me) await Data.notify([old.userId], { title: `حذف ${Auth.user.name} رغبتك من «${p.title}»`, body: LV.range(old.from, old.to), link: LV.link(p.id), kind: 'info' }); Bus.emit('leaves', {}); UI.toast('حُذفت الرغبة'); return 'del'; } return null; }
+    if (!res) return null;
+    const t = now(), { agreed, ...v } = res, moved = old && (old.from !== v.from || old.to !== v.to), other = (old ? old.userId : v.userId) !== me;
+    const rec = { ...(old || {}), ...v, id: old ? old.id : uid('lpw'), kind: 'wish', planId: p.id, state: coord ? (agreed ? 'agreed' : 'wish') : moved ? 'wish' : (old && old.state) || 'wish', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
+    if (moved && other) { rec.orig = old.orig || { from: old.from, to: old.to }; rec.changedBy = me; rec.changedAt = t; }
+    else if (moved) { rec.orig = null; rec.changedBy = ''; rec.changedAt = 0; rec.changeNote = ''; }
+    else if (!other) rec.changeNote = (old && old.changeNote) || '';
+    await DB.put('leaves', rec);
+    /* الإشعارات: تسجيل رغبة لواضع الخطة، والتعديل والإضافة والاتفاق لصاحب الرغبة */
+    if (!old && !other && p.createdBy !== me) await Data.notify([p.createdBy], { title: `سجّل ${Auth.user.name} رغبته في «${p.title}»`, body: `${LV.pri(rec) === 2 ? 'بديلة' : 'الأولى'}: ${LV.range(rec.from, rec.to)}`, link: LV.link(p.id), kind: 'info' });
+    if (!old && other) await Data.notify([rec.userId], { title: `أضاف ${Auth.user.name} رغبة لك في «${p.title}»`, body: LV.range(rec.from, rec.to), link: LV.link(p.id), kind: 'info' });
+    if (moved && other) await Data.notify([rec.userId], { title: `عدّل ${Auth.user.name} رغبتك في «${p.title}»`, body: `${LV.range(old.from, old.to)} ← ${LV.range(rec.from, rec.to)}${rec.changeNote ? ` — ${rec.changeNote}` : ''}`, link: LV.link(p.id), kind: 'info', tone: 'urgent' });
+    if (coord && other && rec.state === 'agreed' && (!old || old.state !== 'agreed')) await Data.notify([rec.userId], { title: `اتُّفق على رغبتك في «${p.title}»`, body: LV.range(rec.from, rec.to), link: LV.link(p.id), kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(moved && other ? 'حُفظت، وأُشعر صاحب الرغبة بالتعديل' : 'حُفظت الرغبة'); return rec;
+  },
+  async openWish(id) { const recs = await DB.getAll('leaves'), w = recs.find((r) => r.id === id); if (w) return LV.wishEdit(w.planId, id); return null; },
+  /* تحريك رغبة بالسحب: لزميل يُطلب سبب التعديل ويصله إشعار */
+  async moveWish(id, delta) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs;
+    const w = recs.find((r) => r.id === id), p = w && recs.find((r) => r.id === w.planId); if (!w || !p || !delta || !LV.canWish(p, w)) return;
+    const from = LV.add(w.from, delta), to = LV.add(w.to, delta), me = LV.me();
+    if (from < p.from || to > p.to) { UI.toast('خارج فترة الخطة', 'warn'); return; }
+    if (recs.some((r) => r.kind === 'wish' && r.planId === p.id && r.userId === w.userId && r.id !== w.id && LV.pri(r) === LV.pri(w) && LV.over(r, from, to))) { UI.toast('تتداخل مع رغبة أخرى لصاحبها', 'warn'); return; }
+    let reason = '';
+    if (w.userId !== me) {
+      const v = await UI.modal({ title: 'تحريك رغبة زميل', icon: 'swap', size: 'sm', body: html`<p class="muted">${Data.userName(w.userId)}: ${LV.range(w.from, w.to)} ← <b>${LV.range(from, to)}</b></p><div class="field"><label>سبب التعديل <small class="faint">— يصل صاحب الرغبة</small></label><input class="input" name="r" maxlength="500" placeholder="مثلاً: حتى لا يغيب ثلاثة في الأسبوع نفسه"></div>`, actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تحريك', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ r: $('[name="r"]', f).value.trim() }) }] });
+      if (!v) return; reason = v.r;
+    }
+    const t = now(), rec = { ...w, from, to, updatedAt: t };
+    if (w.userId !== me) { rec.orig = w.orig || { from: w.from, to: w.to }; rec.changedBy = me; rec.changedAt = t; rec.changeNote = reason; }
+    else { rec.orig = null; rec.changedBy = ''; rec.changedAt = 0; rec.changeNote = ''; if (!LV.isCoord(p)) rec.state = 'wish'; }
+    await DB.put('leaves', rec);
+    if (w.userId !== me) await Data.notify([w.userId], { title: `عدّل ${Auth.user.name} رغبتك في «${p.title}»`, body: `${LV.range(w.from, w.to)} ← ${LV.range(from, to)}${reason ? ` — ${reason}` : ''}`, link: LV.link(p.id), kind: 'info', tone: 'urgent' });
+    Bus.emit('leaves', {}); UI.toast(w.userId !== me ? 'حُرّكت الرغبة وأُشعر صاحبها' : 'حُرّكت رغبتك');
+  },
+  async applyAlt(altId, a, b) {
+    const recs = await DB.getAll('leaves'), alt = recs.find((r) => r.id === altId); if (!alt) return;
+    const p = recs.find((r) => r.id === alt.planId), firsts = recs.filter((r) => r.kind === 'wish' && r.planId === alt.planId && r.userId === alt.userId && LV.pri(r) === 1 && LV.over(r, a, b)), t = now();
+    for (const w of firsts) await DB.put('leaves', { ...w, pri: 2, state: 'wish', updatedAt: t });
+    await DB.put('leaves', { ...alt, pri: 1, updatedAt: t });
+    if (alt.userId !== LV.me()) await Data.notify([alt.userId], { title: `طُبّقت رغبتك البديلة في «${p ? p.title : 'خطة الإجازات'}»`, body: `${LV.range(alt.from, alt.to)} بدل ${firsts.map((w) => LV.range(w.from, w.to)).join('، ')} لحل تعارض`, link: LV.link(alt.planId), kind: 'info', tone: 'urgent' });
+    Bus.emit('leaves', {}); UI.toast('طُبّقت الرغبة البديلة');
+  },
+  async setPlanState(pid, state) {
+    const p = await DB.get('leaves', pid); if (!p || !LV.isCoord(p)) return;
+    await DB.put('leaves', { ...p, state, updatedAt: now() });
+    if (state === 'arrange' && (p.state || 'collect') === 'collect') await Data.notify(p.members || [], { title: `بدأ تنسيق خطة «${p.title}»`, body: 'يمكنك متابعة رغباتك وتعديلها إلى أن تُثبَّت الخطة', link: LV.link(pid), kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(state === 'arrange' ? ((p.state || 'collect') === 'collect' ? 'بدأ التنسيق' : 'أُعيد فتح الخطة') : 'حُفظت حالة الخطة');
+  },
+  async remind(pid) {
+    const recs = await DB.getAll('leaves'), p = recs.find((r) => r.id === pid); if (!p) return;
+    const late = (p.members || []).filter((id) => id !== LV.me() && !LV.wishes(recs, pid).some((w) => w.userId === id));
+    if (!late.length) { UI.toast('سجّل كل المشاركين رغباتهم', 'ok'); return; }
+    await Data.notify(late, { title: `تذكير: سجّل رغبتك في خطة «${p.title}»`, body: `الفترة ${LV.range(p.from, p.to)}${p.deadline ? ` — آخر موعد ${LV.fmtY(p.deadline)}` : ''}`, link: LV.link(pid), kind: 'info' });
+    UI.toast(`أُرسل التذكير إلى ${fmtNum(late.length)}: ${late.map((id) => Data.userName(id)).join('، ')}`);
+  },
+  async delPlan(pid) {
+    const recs = await DB.getAll('leaves'), p = recs.find((r) => r.id === pid); if (!p || !LV.isCoord(p)) return false;
+    const ws = LV.wishes(recs, pid);
+    if (!(await UI.confirm(`حذف خطة «${p.title}» و${fmtNum(ws.length)} رغبة فيها؟ الإجازات التي ثُبّتت منها تبقى في التقويم.`, { ok: 'حذف الخطة', danger: true }))) return false;
+    for (const w of ws) await DB.del('leaves', w.id);
+    await DB.del('leaves', pid); await Data.log('delete', 'leaves', pid, `حذف خطة الإجازات «${p.title}»`);
+    Bus.emit('leaves', {}); UI.toast('حُذفت الخطة'); return true;
+  },
+  /* تثبيت الخطة: الرغبات الأولى (أو المتفق عليها) تصبح إجازات في التقويم باسم كل فني */
+  async planFinal(pid) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs;
+    const p = recs.find((r) => r.id === pid); if (!p || !LV.isCoord(p)) return;
+    const ws = LV.wishes(recs, pid).filter((w) => LV.pri(w) === 1 && !w.leaveId), agreed = ws.filter((w) => w.state === 'agreed'), cf = LV.conflicts(p, recs), late = (p.members || []).filter((id) => !LV.wishes(recs, pid).some((w) => w.userId === id));
+    if (!ws.length) { UI.toast('لا رغبات أولى لتثبيتها', 'warn'); return; }
+    const res = await UI.modal({ title: 'تثبيت الخطة في التقويم', icon: 'check',
+      body: html`<div class="lvm"><p class="muted">تتحول الرغبات إلى إجازات في تقويم كل فني باسمه، وتُغلق الخطة للتسجيل (ويمكن إعادة فتحها).</p>
+        ${cf.length ? html`<div class="lv-warn bad">${UI.icon('alert')} ما زال في الخطة ${fmtNum(cf.length)} تعارض مع الحد الأقصى للغائبين</div>` : html`<div class="lv-ok">${UI.icon('check')} لا تعارض في الخطة</div>`}
+        ${late.length ? html`<div class="lv-warn">${UI.icon('clock')} لم يسجّل بعد: ${late.map((id) => Data.userName(id)).join('، ')}</div>` : ''}
+        <div class="field"><label>ما الذي يُثبَّت؟</label><div class="seg sm"><label><input type="radio" name="which" value="first" checked><span>كل الرغبات الأولى (${fmtNum(ws.length)})</span></label><label><input type="radio" name="which" value="agreed"${agreed.length ? '' : raw(' disabled')}><span>المتفق عليها فقط (${fmtNum(agreed.length)})</span></label></div></div>
+        <div class="field"><label>حالة الإجازات</label><div class="seg sm"><label><input type="radio" name="st" value="pending" checked><span>تُرسل للإدارة للاعتماد</span></label><label><input type="radio" name="st" value="plan"><span>خطة مبدئية</span></label></div></div>
+        <div class="field"><label>من يراها</label><div class="seg sm">${['team', 'busy', 'mgr'].map((k) => html`<label><input type="radio" name="vis" value="${k}"${k === 'team' ? raw(' checked') : ''}><span>${LV.VIS[k][0]}</span></label>`)}</div></div></div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تثبيت', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ which: f.querySelector('[name="which"]:checked').value, st: f.querySelector('[name="st"]:checked').value, vis: f.querySelector('[name="vis"]:checked').value }) }] });
+    if (!res) return;
+    const list = res.which === 'agreed' ? agreed : ws, t = now(), me = LV.me(), skipped = [], made = [];
+    for (const w of list) {
+      const clash = recs.find((r) => LV.live(r) && r.userId === w.userId && LV.over(r, w.from, w.to));
+      if (clash) { skipped.push(`${Data.userName(w.userId)} (${LV.range(w.from, w.to)})`); continue; }
+      const lv = { id: uid('lv'), kind: 'leave', planId: p.id, userId: w.userId, type: w.type || 'annual', from: w.from, to: w.to, status: res.st, vis: res.vis, share: [], note: [w.note, `من خطة «${p.title}»`].filter(Boolean).join(' — '), dayNotes: {}, createdBy: me, createdAt: t, updatedAt: t };
+      await DB.put('leaves', lv); recs.push(lv); made.push(lv);
+      await DB.put('leaves', { ...w, leaveId: lv.id, state: 'agreed', updatedAt: t });
+    }
+    await DB.put('leaves', { ...p, state: 'final', updatedAt: t });
+    await Data.log('update', 'leaves', p.id, `تثبيت خطة الإجازات «${p.title}»: ${made.length} إجازة`);
+    if (made.length) await Data.notify([...new Set(made.map((l) => l.userId))], { title: `ثُبّتت خطة الإجازات «${p.title}»`, body: `أُضيفت إجازتك إلى التقويم${res.st === 'pending' ? ' وأُرسلت للإدارة للاعتماد' : ' خطةً مبدئية'}`, link: `/leaves?v=month&m=${made[0].from.slice(0, 7)}`, kind: 'info' });
+    if (res.st === 'pending' && made.length) await Data.notify(LV.managers().map((u) => u.id), { title: `طلبات إجازة من خطة «${p.title}»`, body: `${fmtNum(made.length)} إجازة بانتظار الاعتماد`, link: '/leaves?v=list', kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(`ثُبّتت ${fmtNum(made.length)} إجازة في التقويم${skipped.length ? ` · تُركت ${fmtNum(skipped.length)} لتداخلها مع إجازات مسجلة: ${skipped.join('، ')}` : ''}`, skipped.length ? 'warn' : 'ok', 7000);
+  },
+  async printPlan(pid) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const p = recs.find((r) => r.id === pid); if (!p) return;
+    const ws = LV.wishes(recs, pid).sort((a, b) => LV.pri(a) - LV.pri(b) || a.from.localeCompare(b.from)), mem = LV.pmembers(p), cf = LV.conflicts(p, recs), nm = (id) => Data.userName(id);
+    const css = '.lpp table{width:100%;border-collapse:collapse;font-size:11px}.lpp th,.lpp td{border:1px solid #cbd5e1;padding:4px 6px;text-align:right;vertical-align:top}.lpp th{background:#f1f5f9}.lpp .bad{color:#b91c1c;font-weight:700}.lpp .meta{color:#475569;margin:0 0 8px}';
+    UI.print(html`<style>${raw(css)}</style><div class="lpp"><h2>${p.title}</h2><p class="meta">الفترة: ${LV.range(p.from, p.to)} · وضعها ${nm(p.createdBy)} · الحالة: ${(LV.PST[p.state || 'collect'] || LV.PST.collect)[0]}${p.maxOff ? ` · الحد الأقصى للغائبين في اليوم: ${p.maxOff}` : ''}${p.deadline ? ` · آخر موعد للتسجيل: ${LV.fmtY(p.deadline)}` : ''}</p>${p.note ? html`<p>${p.note}</p>` : ''}
+      <table><thead><tr><th>الفني</th><th>الرغبة</th><th>النوع</th><th>المدة</th><th>الأيام</th><th>الحالة</th><th>ملاحظات</th></tr></thead><tbody>${mem.map((u) => { const uw = ws.filter((w) => w.userId === u.id); if (!uw.length) return html`<tr><td><b>${u.name}</b></td><td colspan="6" class="bad">لم يسجّل رغبته</td></tr>`; return uw.map((w, i) => html`<tr>${i ? '' : html`<td rowspan="${uw.length}"><b>${u.name}</b></td>`}<td>${LV.pri(w) === 2 ? 'بديلة' : 'الأولى'}</td><td>${(LV.TYPES[w.type] || LV.TYPES.annual).label}</td><td>${LV.range(w.from, w.to)}</td><td>${LV.days(w.from, w.to).length} (${LV.workDays(w.from, w.to)} عمل)</td><td>${w.leaveId ? 'ثُبّتت' : w.state === 'agreed' ? 'متفق عليها' : 'رغبة'}</td><td>${[w.note, w.orig ? `عدّلها ${nm(w.changedBy)}، وكانت ${LV.range(w.orig.from, w.orig.to)}${w.changeNote ? `: ${w.changeNote}` : ''}` : ''].filter(Boolean).join(' — ')}</td></tr>`); })}</tbody></table>
+      ${cf.length ? html`<h3>التعارض مع الحد الأقصى</h3><ul>${cf.map((c) => html`<li class="bad">${LV.range(c.from, c.to)}: ${c.users.map(nm).join('، ')}</li>`)}</ul>` : ''}
+      ${UI.signBlock([{ title: 'واضع الخطة', userId: p.createdBy }, { title: 'رئيس القسم' }])}</div>`, p.title);
+  },
+  async xlPlan(pid) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const p = recs.find((r) => r.id === pid); if (!p) return;
+    const ws = LV.wishes(recs, pid), mem = LV.pmembers(p), cf = LV.conflicts(p, recs), nm = (id) => Data.userName(id);
+    const rows = mem.flatMap((u) => { const uw = ws.filter((w) => w.userId === u.id).sort((a, b) => LV.pri(a) - LV.pri(b) || a.from.localeCompare(b.from)); return uw.length ? uw.map((w) => [u.name, LV.pri(w) === 2 ? 'بديلة' : 'الأولى', (LV.TYPES[w.type] || LV.TYPES.annual).label, w.from, w.to, LV.days(w.from, w.to).length, LV.workDays(w.from, w.to), w.leaveId ? 'ثُبّتت' : w.state === 'agreed' ? 'متفق عليها' : 'رغبة', [w.note, w.orig ? `عدّلها ${nm(w.changedBy)} من ${w.orig.from} — ${w.orig.to}${w.changeNote ? `: ${w.changeNote}` : ''}` : ''].filter(Boolean).join(' | ')]) : [[u.name, 'لم يسجّل', '', '', '', '', '', '', '']]; });
+    downloadBlob(XL.write([{ name: 'الرغبات', widths: [24, 10, 16, 12, 12, 8, 10, 12, 44], rows: [['الفني', 'الرغبة', 'النوع', 'من', 'إلى', 'الأيام', 'أيام العمل', 'الحالة', 'ملاحظات'], ...rows] }, { name: 'التعارض', widths: [12, 12, 50, 8], rows: [['من', 'إلى', 'الغائبون', 'العدد'], ...cf.map((c) => [c.from, c.to, c.users.map(nm).join('، '), c.users.length])] }]), `${p.title}.xlsx`);
+  },
+  /* أحداث لوحة الخطط داخل صفحة الإجازات */
+  planBind(ctx, st, draw, sync, go) {
+    const on = (sel, fn) => UI.on(ctx.view, 'click', sel, (e, b) => { e.stopPropagation(); go(() => fn(b, e)); });
+    on('[data-lpopen]', (b) => { st.view = 'plans'; st.plan = b.dataset.lpopen; st.pm = ''; LV.setPref('view', 'plans'); sync(); return draw(); });
+    on('[data-lpback]', () => { st.plan = ''; sync(); return draw(); });
+    on('[data-lpnew]', async () => { const r = await LV.planEdit(''); if (r) { st.view = 'plans'; st.plan = r.id; st.pm = ''; sync(); } return draw(); });
+    on('[data-lpedit]', async (b) => { await LV.planEdit(b.dataset.lpedit); return draw(); });
+    on('[data-lpstate]', async (b) => { const [s, id] = b.dataset.lpstate.split('|'); await LV.setPlanState(id, s); return draw(); });
+    on('[data-lpfinal]', async (b) => { await LV.planFinal(b.dataset.lpfinal); return draw(); });
+    on('[data-lpremind]', (b) => LV.remind(b.dataset.lpremind));
+    on('[data-lpdel]', async (b) => { if (await LV.delPlan(b.dataset.lpdel)) { st.plan = ''; sync(); } return draw(); });
+    on('[data-lpprint]', (b) => LV.printPlan(b.dataset.lpprint));
+    on('[data-lpxl]', (b) => LV.xlPlan(b.dataset.lpxl));
+    on('[data-wnew]', async (b) => { if (await LV.wishEdit(b.dataset.wnew, '')) return draw(); return null; });
+    on('[data-lpm]', (b) => { st.pm = b.dataset.lpm; return draw(); });
+    on('[data-lpday]', (b) => { st.pm = b.dataset.lpday.slice(0, 7); return draw(); });
+    on('[data-lpsug]', async (b) => { const [id, a, c] = b.dataset.lpsug.split('|'); await LV.applyAlt(id, a, c); return draw(); });
+    /* الرغبة: ضغطة تفتحها، وسحبها يحرّكها بالأيام (لصاحبها أثناء التسجيل، ولواضع الخطة دائماً) */
+    let mv = null, skip = false;
+    ctx.view.addEventListener('pointerdown', (e) => {
+      const bar = e.target.closest && e.target.closest('[data-wmove]'); if (!bar || e.button !== 0 || e.pointerType === 'touch') return;
+      const cells = $$('[data-day]', bar.closest('.lv-tr')); if (!cells.length) return;
+      const at = (x) => { const c = cells.find((k) => { const r = k.getBoundingClientRect(); return x >= r.left && x <= r.right; }); return c ? c.dataset.day : ''; };
+      const [a, b] = bar.style.gridColumn.split('/').map((x) => parseInt(x, 10));
+      mv = { id: bar.dataset.wmove, bar, at, d0: at(e.clientX), delta: 0, a, b, n: cells.length }; e.preventDefault();
+    }, true);
+    ctx.view.addEventListener('pointermove', (e) => {
+      if (!mv || !mv.d0) return; const d = mv.at(e.clientX); if (!d) return;
+      const delta = LV.diff(mv.d0, d); if (delta === mv.delta) return; mv.delta = delta;
+      const sh = clamp(delta, 2 - mv.a, mv.n + 2 - mv.b); mv.bar.style.gridColumn = `${mv.a + sh} / ${mv.b + sh}`; mv.bar.classList.add('moving');
+    });
+    const up = () => { if (!mv) return; const m = mv; mv = null; skip = true; setTimeout(() => { skip = false; }, 60); if (!m.delta) { go(async () => { await LV.openWish(m.id); if (ctx.alive()) draw(); }); return; } go(async () => { await LV.moveWish(m.id, m.delta); if (ctx.alive()) draw(); }); };
+    document.addEventListener('pointerup', up); ctx.onCleanup(() => document.removeEventListener('pointerup', up));
+    on('[data-wopen]', async (b) => { if (skip) return; await LV.openWish(b.dataset.wopen); if (ctx.alive()) draw(); });
+  }
 });
 
 boot();
