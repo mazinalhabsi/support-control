@@ -27227,12 +27227,17 @@ Object.assign(LV, {
 Object.assign(LV, {
   bals: (recs, uid) => recs.filter((r) => r.kind === 'bal' && (!uid || (r.userIds || []).includes(uid))),
   balDays: (b, uid) => { const p = b.per && b.per[uid]; return Number(p != null && p !== '' ? p : b.days) || 0; },
-  balFits: (b, uid, type, from) => (b.userIds || []).includes(uid) && (b.type === 'any' || b.type === type) && b.from <= from && b.to >= from,
+  /* المرضية والدورات والمهام الرسمية لا تُخصم من رصيد «كل الأنواع»؛ تُخصم فقط من رصيد مخصص لنوعها */
+  consumes: (t) => !['sick', 'training', 'mission'].includes(t),
+  balFits: (b, uid, type, from) => (b.userIds || []).includes(uid) && (b.type === type || (b.type === 'any' && LV.consumes(type))) && b.from <= from && b.to >= from,
   balUse(b, uid, recs, skipId = '') {
-    const sum = (st) => recs.filter((r) => LV.isLeave(r) && r.userId === uid && r.balId === b.id && r.status === st && r.id !== skipId).reduce((a, r) => a + LV.count(r.from, r.to), 0);
+    /* الإجازة غير المربوطة برصيد (ومنها ما سُجّل قبل منح الأرصدة) تُحسب من أول رصيد مناسب لنوعها وتاريخها؛ و«لا يُخصم» لا تُحسب */
+    const mine = (r) => r.balId === b.id || (!r.balId && LV.autoBal(uid, r.type, r.from, recs) === b.id);
+    const sum = (st) => recs.filter((r) => LV.isLeave(r) && r.userId === uid && r.status === st && r.id !== skipId && mine(r)).reduce((a, r) => a + LV.count(r.from, r.to), 0);
     const total = LV.balDays(b, uid), used = sum('approved'), pend = sum('pending'), plan = sum('plan');
     return { total, used, pend, plan, left: total - used - pend };
   },
+  autoBal(uid, type, from, recs) { const fit = LV.bals(recs, uid).filter((b) => LV.balFits(b, uid, type, from)).sort((a, b) => (a.type === 'any') - (b.type === 'any') || String(a.from).localeCompare(String(b.from))); return (fit[0] || {}).id || ''; },
   /* الرصيد الذي تُخصم منه الإجازة: المختار صراحة، أو أول رصيد مناسب يتسع للمدة، أو أول رصيد مناسب */
   resolveBal(uid, type, from, cnt, want, recs, skipId = '') {
     if (want === 'none') return 'none';
@@ -27266,7 +27271,7 @@ Object.assign(LV, {
       body: html`<div class="lvm">
         <div class="field"><label>عنوان الرصيد</label><input class="input" name="title" maxlength="80" list="lvBalTitles" value="${r0.title}" required placeholder="مثلاً: الإجازة السنوية ${y}"><datalist id="lvBalTitles">${titles.map((t) => html`<option value="${t}"></option>`)}</datalist></div>
         <div class="lv-grid2"><div class="field"><label>عدد الأيام</label><input class="input" type="number" name="days" min="0" max="365" step="0.5" value="${r0.days}" required><p class="hint">تُحسب الإجازات منه ${LV.cfg().countBy === 'cal' ? 'بالأيام التقويمية' : 'بأيام العمل'} (من الإعدادات).</p></div>
-          <div class="field"><label>يُخصم منه</label><select class="input" name="type"><option value="any"${r0.type === 'any' ? raw(' selected') : ''}>كل أنواع الإجازة</option>${Object.entries(LV.TYPES).map(([k, t]) => html`<option value="${k}"${r0.type === k ? raw(' selected') : ''}>${t.label}</option>`)}</select></div></div>
+          <div class="field"><label>يُخصم منه</label><select class="input" name="type"><option value="any"${r0.type === 'any' ? raw(' selected') : ''}>كل الأنواع عدا المرضية والدورات والمهام</option>${Object.entries(LV.TYPES).map(([k, t]) => html`<option value="${k}"${r0.type === k ? raw(' selected') : ''}>${t.label}</option>`)}</select></div></div>
         <div class="lv-dates"><div class="field"><label>صالح من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">سنة كاملة:</small>${[y - 1, y, y + 1].map((x) => html`<button type="button" class="qchip" data-lvyr="${x}">${x}</button>`)}</div></div>
         <div class="field"><label>لمن؟ <small class="faint">— الكل أو عدد محدد</small> <button type="button" class="btn btn-xs btn-ghost" data-pkall>الكل</button><button type="button" class="btn btn-xs btn-ghost" data-pknone>لا أحد</button></label>${LV.pickHTML(owners, new Set(r0.userIds || []))}</div>
         <div class="field"><label>ملاحظة <small class="faint">— تظهر لأصحاب الرصيد</small></label><input class="input" name="note" maxlength="500" value="${r0.note || ''}" placeholder="مثلاً: يسقط ما لم يُستعمل حتى نهاية السنة"></div>
@@ -27320,7 +27325,7 @@ Object.assign(LV, {
   balView(D, st) {
     const y = Number(st.month.slice(0, 4)), y0 = `${y}-01-01`, y1 = `${y}-12-31`, me = LV.me(), mgr = LV.mgr();
     const bals = D.recs.filter((r) => r.kind === 'bal' && r.from <= y1 && r.to >= y0).sort((a, b) => String(a.from).localeCompare(String(b.from)) || AR_COLL.compare(String(a.title), String(b.title)));
-    const card = (b, uid) => { const x = LV.balUse(b, uid, D.recs), pc = x.total ? clamp(Math.round(((x.used + x.pend) / x.total) * 100), 0, 100) : 0; return html`<div class="card lv-bcard"><h4>${UI.icon('lv-palm')} ${b.title}</h4><small class="faint">${b.type === 'any' ? 'كل أنواع الإجازة' : (LV.TYPES[b.type] || LV.TYPES.other).label} · ${LV.range(b.from, b.to)}</small><div class="lv-bprog"><i style="width:${pc}%"></i></div><div class="lv-balg"><span><b>${fmtNum(x.total)}</b><small>الرصيد</small></span><span><b>${fmtNum(x.used)}</b><small>معتمد</small></span><span><b>${fmtNum(x.pend)}</b><small>معلّق</small></span><span class="${x.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(x.left)}</b><small>متبقٍ</small></span></div>${b.note ? html`<p class="hint">${b.note}</p>` : ''}</div>`; };
+    const card = (b, uid) => { const x = LV.balUse(b, uid, D.recs), pc = x.total ? clamp(Math.round(((x.used + x.pend) / x.total) * 100), 0, 100) : 0; return html`<div class="card lv-bcard"><h4>${UI.icon('lv-palm')} ${b.title}</h4><small class="faint">${b.type === 'any' ? 'كل الأنواع عدا المرضية والدورات والمهام' : (LV.TYPES[b.type] || LV.TYPES.other).label} · ${LV.range(b.from, b.to)}</small><div class="lv-bprog"><i style="width:${pc}%"></i></div><div class="lv-balg"><span><b>${fmtNum(x.total)}</b><small>الرصيد</small></span><span><b>${fmtNum(x.used)}</b><small>معتمد</small></span><span><b>${fmtNum(x.pend)}</b><small>معلّق</small></span><span class="${x.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(x.left)}</b><small>متبقٍ</small></span></div>${b.note ? html`<p class="hint">${b.note}</p>` : ''}</div>`; };
     if (!mgr) {
       const mine = bals.filter((b) => (b.userIds || []).includes(me));
       return html`<div class="lv-balh"><div><h3>أرصدتي ${y}</h3><small class="faint">يمنحها المشرف، وتُخصم منها إجازاتك تلقائياً أو بما تختاره في نافذة الإجازة</small></div></div>${mine.length ? html`<div class="lv-balcards">${mine.map((b) => card(b, me))}</div>` : html`<div class="empty">${UI.illu('calendar')}<p>لا أرصدة ممنوحة لك لسنة ${y}.</p><p class="faint small">يُستعمل الرصيد السنوي الافتراضي (${fmtNum(LV.cfg().entitle)} يوماً) إلى أن يمنحك المشرف رصيداً.</p></div>`}`;
