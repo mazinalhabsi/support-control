@@ -191,7 +191,7 @@ const STORE_EVENTS = {
 
 /* ── قاعدة البيانات IndexedDB ───────────────────────────────── */
 const DB = (() => {
-  const NAME = 'sqapa_it_system', VERSION = 16;
+  const NAME = 'sqapa_it_system', VERSION = 17;
   const SCHEMA = {
     meta: { key: 'key' },
     users: { key: 'id', idx: { username: { path: 'username' }, role: 'role' } },
@@ -233,7 +233,8 @@ const DB = (() => {
     extmaint: { key: 'id', idx: { status: 'status', sentAt: 'sentAt', assetId: 'assetId', batch: 'batch' } },
     vault: { key: 'id', idx: { type: 'type', updatedAt: 'updatedAt' } },
     noteGroups: { key: 'id' },
-    noteReads: { key: 'id', idx: { noteId: 'noteId' } }
+    noteReads: { key: 'id', idx: { noteId: 'noteId' } },
+    leaves: { key: 'id', idx: { userId: 'userId', kind: 'kind' } }
   };
   let db = null;
   const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -20660,7 +20661,7 @@ Pages.custodyMap = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-pq1]', (e, b) => { const l = lineOf(b); l.qty = Math.max(1, l.qty + Number(b.dataset.pq1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast('بلغت المتبقي في العهدة العامة', 'warn'); } } CM.keep(); after(); });
   ctx.view.addEventListener('change', (e) => {
     const t = e.target; if (!t.closest('[data-pk]')) return; const l = lineOf(t);
-    if (t.matches('[data-pqty]')) { l.qty = Math.max(1, Math.floor(Number(t.value) || 1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast(`المتبقي في العهدة العامة: ${fmtNum(av)}`, 'warn'); } } CM.keep(); after(); }
+    if (t.matches('[data-pqty]')) { l.qty = Math.max(1, Math.floor(Number(t.value) || 1)); if (l.kind === 'assign') { const av = availAssign(l); if (l.qty > av) { l.qty = Math.max(1, av); UI.toast(`المتبقي في العهدة العامة: ${fmtNum(av)}`, 'warn'); } } CM.keep(); after(); CMSN.rerender(); }
     else if (t.matches('[data-psn]')) { l.sn = t.value; const n = snSplit(l.sn).length; if (n > l.qty) { l.qty = n; after(); } CM.keep(); }
     else if (t.matches('[data-ptemp]')) { l.temp = t.checked; CM.keep(); after(); }
     else if (t.matches('[data-pdue]')) { l.due = t.value; CM.keep(); }
@@ -22976,38 +22977,38 @@ document.addEventListener('click', (e) => { const b = e.target.closest && e.targ
    جدول بعدد الأجهزة: تلصق قائمة الأرقام التسلسلية ثم قائمة أرقام التاج، فيقابل كل رقم تاج جهازه نفسه بالترتيب.
    ولصق عمود من Excel داخل أي خانة يوزّعه على الخانات التي تحتها */
 const SNE = {
-  open({ title = 'أرقام الأجهزة', qty = 0, pairs = [], max = 2000 } = {}) {
-    let rows = Array.from({ length: Math.max(qty, pairs.length) }, (_, i) => ({ serial: '', tag: '', ...(pairs[i] || {}) }));
+  open({ title = 'أرقام الأجهزة', qty = 0, pairs = [], max = 2000, host = false } = {}) {
+    let rows = Array.from({ length: Math.max(qty, pairs.length) }, (_, i) => ({ serial: '', tag: '', host: '', ...(pairs[i] || {}) }));
     return UI.modal({
       title, icon: 'tag', size: 'lg',
       body: html`<div class="sne">
         <div class="sne-top"><label class="sne-q">عدد الأجهزة <input class="input" type="number" min="0" max="${max}" data-sneq value="${rows.length}"></label><span class="sne-cnt" data-snecnt></span></div>
-        <div class="sne-acts"><button type="button" class="btn btn-soft btn-sm" data-snep="serial">${UI.icon('clip')} لصق الأرقام التسلسلية</button><button type="button" class="btn btn-soft btn-sm" data-snep="tag">${UI.icon('clip')} لصق أرقام التاج</button><button type="button" class="btn btn-ghost btn-sm" data-snep="pair">${UI.icon('grid')} عمودان من Excel</button><span class="grow"></span><button type="button" class="btn btn-ghost btn-sm" data-sneclr="tag">مسح التاج</button><button type="button" class="btn btn-ghost btn-sm" data-sneclr="all">${UI.icon('x')} مسح الكل</button></div>
-        <p class="hint sne-hint">${UI.icon('info')} الصق قائمة الأرقام التسلسلية، ثم قائمة أرقام التاج بالترتيب نفسه: يصبح لكل جهاز رقمه التسلسلي ورقم تاجه. ويمكن لصق عمود من Excel في أي خانة فيتوزع على ما تحتها.</p>
+        <div class="sne-acts"><button type="button" class="btn btn-soft btn-sm" data-snep="serial">${UI.icon('clip')} لصق الأرقام التسلسلية</button><button type="button" class="btn btn-soft btn-sm" data-snep="tag">${UI.icon('clip')} لصق أرقام التاج</button>${host ? html`<button type="button" class="btn btn-soft btn-sm" data-snep="host">${UI.icon('clip')} لصق أسماء الأجهزة</button>` : ''}<button type="button" class="btn btn-ghost btn-sm" data-snep="pair">${UI.icon('grid')} عمودان من Excel</button><span class="grow"></span><button type="button" class="btn btn-ghost btn-sm" data-sneclr="tag">مسح التاج</button><button type="button" class="btn btn-ghost btn-sm" data-sneclr="all">${UI.icon('x')} مسح الكل</button></div>
+        <p class="hint sne-hint">${UI.icon('info')} الصق قائمة الأرقام التسلسلية، ثم قائمة أرقام التاج بالترتيب نفسه: يصبح لكل جهاز رقمه التسلسلي ورقم تاجه. ويمكن لصق عمود من Excel في أي خانة فيتوزع على ما تحتها${host ? '، أو ثلاثة أعمدة (التسلسلي، التاج، اسم الجهاز) في خانة الرقم التسلسلي' : ''}.</p>
         <div class="sne-t" data-snet></div></div>`,
       onMount: (form) => {
         const tbox = $('[data-snet]', form), cnt = $('[data-snecnt]', form), qi = $('[data-sneq]', form);
-        const read = () => { $$('[data-sr]', tbox).forEach((tr) => { const i = Number(tr.dataset.sr); if (!rows[i]) return; rows[i].serial = $('[data-ss]', tr).value.trim(); rows[i].tag = $('[data-st]', tr).value.trim(); }); };
-        const count = () => { const s = rows.filter((r) => r.serial).length, t = rows.filter((r) => r.tag).length, N = Data.assets.norm, seen = new Map(); let dup = 0; rows.forEach((r) => [r.serial, r.tag].forEach((v) => { const k = N(v); if (!k) return; if (seen.has(k)) dup++; seen.set(k, 1); })); cnt.innerHTML = String(html`<span class="chip tone-${s === rows.length && s ? 'teal' : 'sky'}">S/N ${fmtNum(s)} / ${fmtNum(rows.length)}</span><span class="chip tone-${t === rows.length && t ? 'teal' : 'violet'}">TAG ${fmtNum(t)} / ${fmtNum(rows.length)}</span>${dup ? html`<span class="chip tone-red">${fmtNum(dup)} مكرر</span>` : ''}`); };
-        const draw = () => { tbox.innerHTML = String(html`<table class="table sne-tbl"><thead><tr><th style="width:44px">#</th><th>الرقم التسلسلي S/N</th><th>رقم الأصل (التاج)</th></tr></thead><tbody>${rows.map((r, i) => html`<tr data-sr="${i}"><td class="faint">${fmtNum(i + 1)}</td><td><input class="input ltr" data-ss value="${r.serial}" autocomplete="off"></td><td><input class="input ltr" data-st value="${r.tag}" autocomplete="off"></td></tr>`)}</tbody></table>`); count(); };
-        const resize = (n) => { n = clamp(Math.floor(Number(n) || 0), 0, max); read(); if (n > rows.length) rows = rows.concat(Array.from({ length: n - rows.length }, () => ({ serial: '', tag: '' }))); else rows = rows.slice(0, n); qi.value = n; draw(); };
+        const read = () => { $$('[data-sr]', tbox).forEach((tr) => { const i = Number(tr.dataset.sr); if (!rows[i]) return; rows[i].serial = $('[data-ss]', tr).value.trim(); rows[i].tag = $('[data-st]', tr).value.trim(); const h = $('[data-sh]', tr); if (h) rows[i].host = h.value.trim(); }); };
+        const count = () => { const s = rows.filter((r) => r.serial).length, t = rows.filter((r) => r.tag).length, N = Data.assets.norm, seen = new Map(); let dup = 0; rows.forEach((r) => [r.serial, r.tag].forEach((v) => { const k = N(v); if (!k) return; if (seen.has(k)) dup++; seen.set(k, 1); })); const hn = rows.filter((r) => r.host).length; cnt.innerHTML = String(html`<span class="chip tone-${s === rows.length && s ? 'teal' : 'sky'}">S/N ${fmtNum(s)} / ${fmtNum(rows.length)}</span><span class="chip tone-${t === rows.length && t ? 'teal' : 'violet'}">TAG ${fmtNum(t)} / ${fmtNum(rows.length)}</span>${host ? html`<span class="chip tone-${hn === rows.length && hn ? 'teal' : 'sky'}">اسم الجهاز ${fmtNum(hn)} / ${fmtNum(rows.length)}</span>` : ''}${dup ? html`<span class="chip tone-red">${fmtNum(dup)} مكرر</span>` : ''}`); };
+        const draw = () => { tbox.innerHTML = String(html`<table class="table sne-tbl"><thead><tr><th style="width:44px">#</th><th>الرقم التسلسلي S/N</th><th>رقم الأصل (التاج)</th>${host ? html`<th>اسم الجهاز في المجال</th>` : ''}</tr></thead><tbody>${rows.map((r, i) => html`<tr data-sr="${i}"><td class="faint">${fmtNum(i + 1)}</td><td><input class="input ltr" data-ss value="${r.serial}" autocomplete="off"></td><td><input class="input ltr" data-st value="${r.tag}" autocomplete="off"></td>${host ? html`<td><input class="input ltr" data-sh value="${r.host || ''}" autocomplete="off" placeholder="IT-PC-…"></td>` : ''}</tr>`)}</tbody></table>`); count(); };
+        const resize = (n) => { n = clamp(Math.floor(Number(n) || 0), 0, max); read(); if (n > rows.length) rows = rows.concat(Array.from({ length: n - rows.length }, () => ({ serial: '', tag: '', host: '' }))); else rows = rows.slice(0, n); qi.value = n; draw(); };
         qi.addEventListener('change', () => resize(qi.value));
         tbox.addEventListener('input', () => { read(); count(); });
         /* لصق عمود داخل خانة: يتوزع على الخانات التي تحتها ويزيد العدد عند الحاجة */
         tbox.addEventListener('paste', (e) => {
-          const inp = e.target.closest('[data-ss], [data-st]'); if (!inp) return;
+          const inp = e.target.closest('[data-ss], [data-st], [data-sh]'); if (!inp) return;
           const txt = (e.clipboardData || window.clipboardData).getData('text'), pr0 = SNDist.split(txt); if (!SNDist.many(pr0)) return;
           e.preventDefault(); read();
-          const i0 = Number(inp.closest('[data-sr]').dataset.sr), col = inp.matches('[data-ss]') ? 'serial' : 'tag';
+          const i0 = Number(inp.closest('[data-sr]').dataset.sr), col = inp.matches('[data-ss]') ? 'serial' : inp.matches('[data-sh]') ? 'host' : 'tag';
           const lines = pr0;
-          if (rows.length < i0 + lines.length) rows = rows.concat(Array.from({ length: i0 + lines.length - rows.length }, () => ({ serial: '', tag: '' })));
-          lines.forEach((p, j) => { const r = rows[i0 + j]; if (col === 'serial') { r.serial = p[0] || ''; if (p[1]) r.tag = p[1]; } else r.tag = p[0] || ''; });
+          if (rows.length < i0 + lines.length) rows = rows.concat(Array.from({ length: i0 + lines.length - rows.length }, () => ({ serial: '', tag: '', host: '' })));
+          lines.forEach((p, j) => { const r = rows[i0 + j]; if (col === 'serial') { r.serial = p[0] || ''; if (p[1]) r.tag = p[1]; if (host && p[2]) r.host = p[2]; } else if (col === 'host') r.host = p[0] || ''; else { r.tag = p[0] || ''; if (host && p[1]) r.host = p[1]; } });
           qi.value = rows.length; draw(); UI.toast(`وُزّع ${fmtNum(lines.length)} رقماً`);
         });
         UI.on(form, 'click', '[data-snep]', async (e, b) => {
           read(); const mode = b.dataset.snep;
-          const r = await SNP.open({ need: rows.length, current: rows.map((x) => ({ serial: x.serial, tag: x.tag, host: '' })), fields: [mode], max });
-          if (!r) return; rows = r.rows.map((x) => ({ serial: x.serial || '', tag: x.tag || '' })); qi.value = rows.length; draw();
+          const r = await SNP.open({ need: rows.length, current: rows.map((x) => ({ serial: x.serial, tag: x.tag, host: x.host || '' })), fields: [mode], max });
+          if (!r) return; rows = r.rows.map((x) => ({ serial: x.serial || '', tag: x.tag || '', host: x.host || '' })); qi.value = rows.length; draw();
           const t = rows.filter((x) => x.tag).length, s = rows.filter((x) => x.serial).length;
           if (mode === 'serial' && t < rows.length) UI.toast(`عُبّئت ${fmtNum(s)} أرقام تسلسلية — الآن الصق أرقام التاج بالترتيب نفسه`, 'info', 6000);
         });
@@ -23015,8 +23016,9 @@ const SNE = {
         draw();
       },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ الأرقام', kind: 'primary', icon: 'check', submit: true, handler: (form) => {
-        const tb = $('[data-snet]', form); const out = $$('[data-sr]', tb).map((tr) => ({ serial: $('[data-ss]', tr).value.trim(), tag: $('[data-st]', tr).value.trim() }));
-        const N = Data.assets.norm, seen = new Set(); for (const r of out) for (const v of [r.serial, r.tag]) { const k = N(v); if (!k) continue; if (seen.has(k)) throw new AppError(`الرقم «${v}» مكرر في الجدول`); seen.add(k); }
+        const tb = $('[data-snet]', form); const out = $$('[data-sr]', tb).map((tr) => ({ serial: $('[data-ss]', tr).value.trim(), tag: $('[data-st]', tr).value.trim(), ...(host ? { host: ($('[data-sh]', tr) || {}).value ? $('[data-sh]', tr).value.trim() : '' } : {}) }));
+        const N = Data.assets.norm, seen = new Set(); for (const r of out) for (const v of [r.serial, r.tag, r.host]) { const k = N(v); if (!k) continue; if (seen.has(k)) throw new AppError(`«${v}» مكرر في الجدول`); seen.add(k); }
+        const orphan = out.findIndex((r) => r.host && !r.serial && !r.tag); if (orphan >= 0) throw new AppError(`الجهاز ${fmtNum(orphan + 1)}: اسم الجهاز بلا رقم تسلسلي أو تاج`);
         return { qty: out.length, pairs: out.filter((r) => r.serial || r.tag) };
       } }]
     });
@@ -23054,7 +23056,7 @@ document.addEventListener('click', async (e) => {
   const b = e.target.closest && e.target.closest('[data-psne]'); if (!b) return;
   e.preventDefault(); e.stopPropagation();
   const tr = b.closest('[data-pk]'), l = tr && CM.pend.find((x) => x.k === tr.dataset.pk); if (!l) return;
-  const res = await SNE.open({ title: 'أرقام الأجهزة في قائمة التوزيع', qty: Math.max(l.qty, CMP.pairs(l).length), pairs: CMP.pairs(l) }); if (!res) return;
+  const res = await SNE.open({ title: 'أرقام الأجهزة في قائمة التوزيع', qty: Math.max(l.qty, CMP.pairs(l).length), pairs: CMP.pairs(l), host: l.kind !== 'store' }); if (!res) return;
   l.pairs = res.pairs; l.sn = res.pairs.map((p) => p.serial || p.tag).join('، '); l.pairsShown = l.sn; l.qty = Math.max(res.qty, res.pairs.length || 1); CM.keep();
   const inp = $('[data-psn]', tr); if (inp) { inp.value = l.sn; inp.dispatchEvent(new Event('input', { bubbles: true })); }
   const q = $('[data-pqty]', tr); if (q) { q.value = l.qty; q.dispatchEvent(new Event('change', { bubbles: true })); }
@@ -25540,8 +25542,10 @@ const CMSN = {
     const ps = CMSN.pairs(l), m = CMSN.mode(), need = Math.max(0, (Number(l.qty) || 0) - ps.filter((p) => p.serial || p.tag).length);
     return html`<div class="cmsn${pop ? ' pop' : ''}" data-cmsn="${l.k}">
       ${pop ? html`<div class="cmsn-top">${UI.icon('check')}<span class="grow">أُضيف إلى ${CMSN.place || 'المحطة'}</span><button type="button" class="icon-btn" data-cmsnx aria-label="إغلاق">${UI.icon('x')}</button></div>` : ''}
-      <div class="cmsn-h">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it)}</b><small>${[DNM.brand(it), pop ? '' : 'بانتظار الحفظ'].filter(Boolean).join(' · ')}</small></div><span class="cmsn-q" title="العدد">×${fmtNum(l.qty)}</span></div>
+      <div class="cmsn-h">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it)}</b><small>${[DNM.brand(it), pop ? '' : 'بانتظار الحفظ'].filter(Boolean).join(' · ')}</small></div><div class="cmsn-qty" title="عدد الأجهزة"><button type="button" data-cmsnq="-1" aria-label="إنقاص العدد">−</button><input type="number" min="1" max="500" inputmode="numeric" value="${l.qty}" data-cmsnqv aria-label="عدد الأجهزة"><button type="button" data-cmsnq="1" aria-label="زيادة العدد">+</button></div></div>
+      ${Number(l.qty) > 1 ? html`<div class="cmsn-prog" title="المرقّم من العدد"><i style="width:${Math.round((Math.min(ps.filter((p) => p.serial || p.tag).length, l.qty) / l.qty) * 100)}%"></i><small>مرقّم ${fmtNum(Math.min(ps.filter((p) => p.serial || p.tag).length, l.qty))} من ${fmtNum(l.qty)}</small></div>` : ''}
       <div class="cmsn-in"><button type="button" class="cmsn-mode ${m}" data-cmsnmode title="تبديل: الرقم التسلسلي ← التاج ← اسم الجهاز في المجال (أو Shift+Enter)"><b>${CMSN.LBL[m]}</b>${UI.icon('swap')}</button><input class="input ltr" data-cmsnv autocomplete="off" spellcheck="false" placeholder="${CMSN.PH[m]} ثم Enter"><button type="button" class="btn btn-sm btn-primary" data-cmsnadd>${UI.icon('plus')} إضافة</button></div>
+      <div class="cmsn-tools"><button type="button" class="btn btn-xs btn-soft" data-cmsntbl title="جدول بعدد الأجهزة: الرقم التسلسلي والتاج واسم الجهاز لكل جهاز، مع لصق الأعمدة من Excel">${UI.icon('grid')} جدول الأرقام ولصق القوائم</button><small class="faint">${UI.icon('clip')} أو الصق عموداً من Excel في الخانة مباشرة</small></div>
       ${ps.length || need ? html`<div class="cmsn-list">${ps.map((p, i) => html`<span class="cmsn-p"><em>${fmtNum(i + 1)}</em>${p.serial ? html`<code title="الرقم التسلسلي">S/N ${p.serial}</code>` : html`<code class="miss" title="لم يُكتب الرقم التسلسلي">S/N —</code>`}${p.tag ? html`<code class="tag" title="رقم التاج">TAG ${p.tag}</code>` : ''}${p.host ? html`<code class="host" title="اسم الجهاز في المجال">${p.host}</code>` : ''}<button type="button" data-cmsndel="${i}" title="حذف" aria-label="حذف">${UI.icon('x')}</button></span>`)}${need ? html`<span class="cmsn-need">${UI.icon('info')} ${fmtNum(need)} ${need === 1 ? 'جهاز' : 'أجهزة'} بلا رقم</span>` : ''}</div>` : ''}
       ${pop ? html`<div class="cmsn-foot"><small class="faint">Enter يضيف ويبقى جاهزاً للتالي · Shift+Enter يضيف وينتقل إلى ${CMSN.LBL[CMSN.next(m)]}</small><span class="grow"></span><button type="button" class="btn btn-sm btn-ghost" data-cmsnx>تم</button><button type="button" class="btn btn-sm btn-soft" data-cmsnsave>${UI.icon('check')} حفظ التوزيع الآن</button></div>` : ''}
     </div>`;
@@ -25573,14 +25577,56 @@ const CMSN = {
   },
   close() { if (CMSN.at) { CMSN.at.remove(); CMSN.at = null; } },
   rerender() {
-    $$('[data-cmsn]').forEach((n) => {
+    /* إزالة الخانة المركّز عليها تطلق «change» فيعاد الرسم من داخل الرسم نفسه */
+    if (CMSN._rr) return; CMSN._rr = 1;
+    try { $$('[data-cmsn]').forEach((n) => {
+      if (!n.isConnected) return;
       const l = CMSN.line(n.dataset.cmsn), it = l && CMSN.its.get(l.itemId), pop = n.classList.contains('pop');
       if (!l || !it) { if (pop) CMSN.close(); else n.remove(); return; }
       const t = document.createElement('div'); t.innerHTML = String(CMSN.view(l, it, pop)); n.replaceWith(t.firstElementChild);
-    });
+    }); } finally { CMSN._rr = 0; }
   },
   syncTray(k) { const l = CMSN.line(k), tr = l && document.querySelector(`[data-pk="${k}"]`); if (!tr) return; const a = tr.querySelector('[data-psn]'); if (a) a.value = l.sn; const q = tr.querySelector('[data-pqty]'); if (q) q.value = l.qty; },
   refocus(k) { const sel = CMSN.lastFocus === 'pop' ? '.cmsn.pop' : '.cmsn:not(.pop)', inp = document.querySelector(`${sel}[data-cmsn="${k}"] [data-cmsnv]`) || document.querySelector(`[data-cmsn="${k}"] [data-cmsnv]`); if (inp) inp.focus(); },
+  /* العدد: لا يقل عن عدد الأجهزة المرقّمة */
+  setQty(k, v) {
+    const l = CMSN.line(k); if (!l) return;
+    const ps = CMSN.pairs(l).filter((p) => p.serial || p.tag), n = clamp(Math.floor(Number(v) || 1), 1, 500);
+    if (n < ps.length) UI.toast(`في القائمة ${fmtNum(ps.length)} أرقام؛ احذف بعضها أولاً لإنقاص العدد`, 'warn');
+    const q = Math.max(n, ps.length, 1); if (q === Number(l.qty)) { CMSN.rerender(); return; }
+    l.qty = q; CM.keep(); CMSN.rerender(); CMSN.syncTray(k); document.dispatchEvent(new CustomEvent('cmsn:change', { detail: k }));
+  },
+  /* لصق قائمة (عمود أو أعمدة من Excel): العمود الأول للنمط الحالي، والتالية بالترتيب S/N ← TAG ← اسم الجهاز */
+  paste(inp, rows) {
+    const c = inp.closest('[data-cmsn]'), k = c && c.dataset.cmsn, l = k && CMSN.line(k); if (!l) return;
+    const m = CMSN.mode(), cols = { sn: ['serial', 'tag', 'host'], tag: ['tag', 'host'], host: ['host'] }[m], ps = CMSN.pairs(l), N = CMSN.norm;
+    const others = new Set(CM.pend.filter((x) => x.k !== k).flatMap((x) => CMSN.pairs(x).flatMap((p) => [p.serial, p.tag, p.host])).filter(Boolean).map(N));
+    const mine = new Set(ps.flatMap((p) => [p.serial, p.tag, p.host]).filter(Boolean).map(N));
+    let n = 0, dup = 0, orphan = 0, at = 0;
+    const slot = (fld) => { for (let i = at; i < ps.length; i++) { const p = ps[i]; if (!p[fld] && (fld !== 'host' || p.serial || p.tag)) { at = i; return p; } } if (fld === 'host') return null; const p = { serial: '', tag: '', host: '' }; ps.push(p); at = ps.length - 1; return p; };
+    rows.forEach((r) => {
+      const vals = cols.map((fld, i) => [fld, String(r[i] || '').trim()]).filter(([, v]) => v);
+      if (!vals.length) return;
+      if (vals.some(([, v]) => others.has(N(v)) || mine.has(N(v)))) { dup++; return; }
+      const p = slot(vals[0][0]); if (!p) { orphan++; return; }
+      vals.forEach(([fld, v]) => { if (fld === 'host' && !(p.serial || p.tag) && vals[0][0] === 'host') return; p[fld] = v; mine.add(N(v)); });
+      n++; at++;
+    });
+    const q0 = l.qty; if (n) CMSN.set(l, ps);
+    CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline';
+    CMSN.rerender(); CMSN.syncTray(k);
+    if (n && l.qty !== q0) document.dispatchEvent(new CustomEvent('cmsn:change', { detail: k }));
+    UI.toast([n ? `أُضيف ${fmtNum(n)} ${m === 'host' ? 'اسم جهاز' : 'رقماً'}${cols.length > 1 && rows.some((r) => r.filter(Boolean).length > 1) ? ' بأعمدتها' : ''}` : 'لم يُضف شيء', dup ? `${fmtNum(dup)} مكرر تُجوهل` : '', orphan ? `${fmtNum(orphan)} اسم بلا جهاز مرقّم` : '', l.qty !== q0 ? `صار العدد ${fmtNum(l.qty)}` : ''].filter(Boolean).join(' · '), n ? 'ok' : 'warn', 4200);
+    CMSN.refocus(k);
+  },
+  /* جدول الأرقام: الرقم التسلسلي والتاج واسم الجهاز لكل جهاز بعدد السطر */
+  async table(k) {
+    const l = CMSN.line(k), it = l && CMSN.its.get(l.itemId); if (!l) return;
+    const res = await SNE.open({ title: `أرقام الأجهزة${it ? `: ${DNM.model(it)}` : ''}`, qty: Math.max(Number(l.qty) || 1, CMSN.pairs(l).length), pairs: CMSN.pairs(l), host: true, max: 500 }); if (!res) return;
+    CMSN.set(l, res.pairs); l.qty = Math.max(res.qty, l.pairs.length, 1); CM.keep();
+    CMSN.rerender(); CMSN.syncTray(k); document.dispatchEvent(new CustomEvent('cmsn:change', { detail: k }));
+    UI.toast(`حُفظت أرقام ${fmtNum(l.pairs.length)} من ${fmtNum(l.qty)} جهاز`);
+  },
   commit(inp, flip = false) {
     const c = inp.closest('[data-cmsn]'), k = c && c.dataset.cmsn, l = k && CMSN.line(k); if (!l) return;
     if (!inp.value.trim()) { inp.focus(); return; }
@@ -25595,12 +25641,14 @@ const CMSN = {
 document.addEventListener('keydown', (e) => {
   const inp = e.target.closest && e.target.closest('[data-cmsnv]');
   if (inp && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); CMSN.commit(inp, e.shiftKey); return; }
+  const qv = e.target.closest && e.target.closest('[data-cmsnqv]');
+  if (qv && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); const c = qv.closest('[data-cmsn]'); CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline'; CMSN.setQty(c.dataset.cmsn, qv.value); CMSN.refocus(c.dataset.cmsn); return; }
   if (e.key === 'Escape' && CMSN.at && CMSN.at.contains(e.target)) { e.preventDefault(); e.stopPropagation(); CMSN.close(); }
 }, true);
 document.addEventListener('click', (e) => {
   const c = e.target.closest && e.target.closest('[data-cmsn]'); if (!c) return;
   e.stopPropagation();
-  const t = e.target.closest('[data-cmsnmode],[data-cmsnadd],[data-cmsndel],[data-cmsnx],[data-cmsnsave]'); if (!t) return;
+  const t = e.target.closest('[data-cmsnmode],[data-cmsnadd],[data-cmsndel],[data-cmsnx],[data-cmsnsave],[data-cmsnq],[data-cmsntbl]'); if (!t) return;
   e.preventDefault();
   const k = c.dataset.cmsn, l = CMSN.line(k); CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline';
   if (t.matches('[data-cmsnx]')) { CMSN.close(); return; }
@@ -25608,9 +25656,17 @@ document.addEventListener('click', (e) => {
   if (!l) { CMSN.rerender(); return; }
   if (t.matches('[data-cmsnmode]')) { CMSN.setMode(CMSN.next(CMSN.mode())); CMSN.rerender(); CMSN.refocus(k); return; }
   if (t.matches('[data-cmsnadd]')) { CMSN.commit(c.querySelector('[data-cmsnv]')); return; }
+  if (t.matches('[data-cmsnq]')) { CMSN.setQty(k, (Number(l.qty) || 1) + Number(t.dataset.cmsnq)); const b = document.querySelector(`[data-cmsn="${k}"]${CMSN.lastFocus === 'pop' ? '.pop' : ':not(.pop)'} [data-cmsnq="${t.dataset.cmsnq}"]`); if (b) b.focus(); return; }
+  if (t.matches('[data-cmsntbl]')) { CMSN.table(k).catch((ex) => UI.error(ex)); return; }
   if (t.matches('[data-cmsndel]')) { const ps = CMSN.pairs(l); ps.splice(Number(t.dataset.cmsndel), 1); CMSN.set(l, ps); CMSN.rerender(); CMSN.syncTray(k); CMSN.refocus(k); }
 }, true);
 window.addEventListener('hashchange', () => CMSN.close());
+document.addEventListener('change', (e) => { const qv = e.target.closest && e.target.closest('[data-cmsnqv]'); if (!qv || CMSN._rr) return; const c = qv.closest('[data-cmsn]'), l = c && CMSN.line(c.dataset.cmsn); if (!l || Number(qv.value) === Number(l.qty)) return; CMSN.lastFocus = c.classList.contains('pop') ? 'pop' : 'inline'; CMSN.setQty(c.dataset.cmsn, qv.value); }, true);
+document.addEventListener('paste', (e) => {
+  const inp = e.target.closest && e.target.closest('[data-cmsnv]'); if (!inp) return;
+  const rows = SNDist.split((e.clipboardData || window.clipboardData).getData('text')); if (!SNDist.many(rows)) return;
+  e.preventDefault(); e.stopPropagation(); CMSN.paste(inp, rows);
+}, true);
 Bus.on('inventory', () => { if (CMSN.at && !CMSN.line(CMSN.at.dataset.cmsnFor)) CMSN.close(); });
 
 /* ══════════ الجولة 26: تفاصيل التقارير عند الطباعة وفي Excel ══════════
@@ -25969,6 +26025,554 @@ const CMU = {
     return (list[i] || {}).serial || '';
   }
 };
+
+/* ══════════ الجولة 31: إجازات الفنيين ══════════
+   تقويم مشترك: يحدد كل فني إجازاته (من — إلى) ونوعها، بلونه وأيقونته، فيراها زملاؤه ويخططون إجازاتهم على ضوئها.
+   ظهور كل إجازة يختاره صاحبها: الجميع بالتفاصيل، أو «غائب» فقط دون النوع والملاحظات، أو الإدارة فقط، أو له وحده؛
+   ومشاركة صريحة مع أشخاص بعينهم (المشرف أو المدير مثلاً) يصلهم إشعار. ملاحظات على أيام داخل الإجازة، وملاحظات مستقلة
+   على أي تاريخ أو مدة. قبل الحفظ: الإجازات المتداخلة، ونقص التغطية عن الحد الأدنى، والعطل الرسمية، والرصيد السنوي.
+   للإدارة: الاعتماد والرفض، والعطل الرسمية، والعطلة الأسبوعية، والحد الأدنى للتغطية، والرصيد السنوي لكل فني.
+   الخادم يفرض من يرى ماذا (ما لا يحق لأحد لا يصل جهازه أصلاً، و«غائب» يصله بلا تفاصيل)، ومن يعتمد. */
+const LV_IC = {
+  'lv-palm': '<path d="M12 21v-8.5"/><path d="M12 12.5c-.8-3.2-3.8-4.9-7.5-4.4 1.9-2.8 5.4-3.4 7.5-1.2 2.1-2.2 5.6-1.6 7.5 1.2-3.7-.5-6.7 1.2-7.5 4.4z"/><path d="M8 21h8"/>',
+  'lv-plane': '<path d="M3 12.5l18-7.5-5 14.5-3.6-5.6z"/><path d="M12.4 13.9L21 5"/>',
+  'lv-heart': '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>',
+  'lv-bolt': '<path d="M13.5 2.5L5 13.5h6l-1 8 8.5-11h-6z"/>',
+  'lv-grad': '<path d="M2.5 9.5L12 5l9.5 4.5L12 14z"/><path d="M6.5 11.6v4.6c1.5 1.3 3.4 1.9 5.5 1.9s4-.6 5.5-1.9v-4.6M21.5 9.5V15"/>',
+  'lv-brief': '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5C8.5 4.7 9.2 4 10 4h4c.8 0 1.5.7 1.5 1.5V7M3 12.5h18"/>',
+  'lv-coffee': '<path d="M4 9h12v4.5A5.5 5.5 0 0 1 10.5 19h-1A5.5 5.5 0 0 1 4 13.5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5V6M12 3.5V6"/>',
+  'lv-mount': '<path d="M2.5 19.5l7-12 4.2 7 2.3-3.5 5.5 8.5z"/>',
+  'lv-anchor': '<circle cx="12" cy="5.5" r="2"/><path d="M12 7.5v13M8 11h8M4.5 13.5a7.5 7.5 0 0 0 15 0"/>',
+  'lv-rocket': '<path d="M12 2.5c3.2 2.2 5 5.8 5 10.5l-2 3H9l-2-3c0-4.7 1.8-8.3 5-10.5z"/><circle cx="12" cy="10" r="1.7"/><path d="M9.5 16l-2 4.5M14.5 16l2 4.5M12 16v4"/>',
+  'lv-crown': '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/>',
+  'lv-leaf': '<path d="M5 19C5 11 10 6 19.5 5c0 9.5-5 14-13.5 14z"/><path d="M5 19c3-4.2 6.2-6.8 9.5-8.5"/>',
+  'lv-music': '<path d="M9 18V5.5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16.5" r="2.5"/>',
+  'lv-umb': '<path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6.5a2 2 0 0 1-4 0M12 3v.5"/>',
+  'lv-ball': '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5l4 3-1.5 4.5h-5L8 10.5z"/>',
+  'lv-cam': '<rect x="3" y="7" width="18" height="12.5" rx="2.5"/><circle cx="12" cy="13.2" r="3.5"/><path d="M8.5 7l1.3-2.5h4.4L15.5 7"/>',
+  'lv-game': '<rect x="2.5" y="8" width="19" height="10" rx="5"/><path d="M7.5 11v4M5.5 13h4"/><circle cx="15.5" cy="12" r=".9"/><circle cx="17.8" cy="14.3" r=".9"/>',
+  'lv-car': '<path d="M5 16.5V12l1.8-4.6A2 2 0 0 1 8.7 6h6.6a2 2 0 0 1 1.9 1.4L19 12v4.5"/><path d="M3.5 12.5h17v4h-17z"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="16.5" cy="18" r="1.5"/>',
+  'lv-note': '<path d="M5 3.5h10l4 4V20.5H5z"/><path d="M15 3.5v4h4M8.5 11.5h7M8.5 15h7"/>',
+  'lv-team': '<circle cx="8" cy="8.5" r="2.8"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M2.8 19c.4-3.2 2.6-5.2 5.2-5.2s4.8 2 5.2 5.2M13.6 14.6c.9-.6 1.9-.9 2.9-.9 2.3 0 4.2 1.8 4.6 4.8"/>'
+};
+document.body.insertAdjacentHTML('beforeend', `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">${Object.entries(LV_IC).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24" data-ic="1">${v}</symbol>`).join('')}</svg>`);
+
+const LV = {
+  TYPES: {
+    annual: { label: 'إجازة سنوية', short: 'سنوية', icon: 'lv-palm', ab: 'س', bal: 1 },
+    sick: { label: 'إجازة مرضية', short: 'مرضية', icon: 'lv-heart', ab: 'م' },
+    emergency: { label: 'إجازة طارئة', short: 'طارئة', icon: 'lv-bolt', ab: 'ط' },
+    training: { label: 'دورة أو تدريب', short: 'تدريب', icon: 'lv-grad', ab: 'د' },
+    mission: { label: 'مهمة رسمية', short: 'مهمة', icon: 'lv-brief', ab: 'هـ' },
+    comp: { label: 'بدل راحة', short: 'بدل راحة', icon: 'lv-coffee', ab: 'ب' },
+    other: { label: 'أخرى', short: 'أخرى', icon: 'calendar', ab: 'أ' }
+  },
+  BUSY: { label: 'غائب', short: 'غائب', icon: 'eye-off', ab: '•' },
+  ST: { plan: ['خطة مبدئية', 'slate'], pending: ['بانتظار الاعتماد', 'amber'], approved: ['معتمدة', 'teal'], rejected: ['مرفوضة', 'red'] },
+  VIS: {
+    team: ['الجميع يرى التفاصيل', 'lv-team', 'الزملاء والإدارة يرون النوع والمدة والملاحظات'],
+    busy: ['الزملاء يرون «غائب» فقط', 'eye-off', 'تظهر المدة ليخطط الزملاء، دون النوع والملاحظات. والإدارة ترى التفاصيل'],
+    mgr: ['الإدارة فقط', 'shield', 'لا يراها الزملاء؛ يراها من يدير الإجازات'],
+    private: ['لي وحدي', 'lock', 'لا يراها أحد، إلا من تشاركه بالاسم أدناه']
+  },
+  COLORS: ['#0f8a5f', '#2563eb', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d', '#dc2626', '#9333ea', '#0d9488', '#ea580c', '#4f46e5', '#be123c', '#15803d', '#b45309', '#475569'],
+  ICONSET: ['lv-palm', 'lv-plane', 'lv-coffee', 'lv-mount', 'lv-anchor', 'lv-rocket', 'lv-crown', 'lv-leaf', 'lv-music', 'lv-umb', 'lv-ball', 'lv-cam', 'lv-game', 'lv-car', 'star', 'sun', 'moon', 'shield', 'key', 'monitor', 'tools', 'lv-heart', 'lv-bolt', 'book'],
+  MONTHS: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+  WD: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+  WD1: ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'],
+  _cfg: {},
+  pref(k, d) { try { const v = localStorage.getItem(`sq_lv_${k}`); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+  setPref(k, v) { try { localStorage.setItem(`sq_lv_${k}`, JSON.stringify(v)); } catch (_) { /* تجاهل */ } },
+  /* التواريخ نصوص «YYYY-MM-DD» بالتوقيت المحلي: لا انزياح يوم بين الأجهزة ولا مع الخادم */
+  ds: (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+  pd: (s) => { const [y, m, d] = String(s || '').split('-').map(Number); return new Date(y || 1970, (m || 1) - 1, d || 1); },
+  add: (s, n) => { const d = LV.pd(s); d.setDate(d.getDate() + n); return LV.ds(d); },
+  diff: (a, b) => Math.round((LV.pd(b) - LV.pd(a)) / DAY),
+  today: () => LV.ds(new Date()),
+  okDay: (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && LV.ds(LV.pd(s)) === s,
+  days(from, to) { const out = []; if (!LV.okDay(from) || !LV.okDay(to)) return out; for (let s = from, i = 0; s <= to && i < 400; s = LV.add(s, 1), i++) out.push(s); return out; },
+  fmt: (s) => { const d = LV.pd(s); return `${d.getDate()} ${LV.MONTHS[d.getMonth()]}`; },
+  fmtY: (s) => `${LV.fmt(s)} ${LV.pd(s).getFullYear()}`,
+  range: (a, b) => (a === b ? LV.fmtY(a) : LV.pd(a).getFullYear() === LV.pd(b).getFullYear() ? `${LV.fmt(a)} — ${LV.fmtY(b)}` : `${LV.fmtY(a)} — ${LV.fmtY(b)}`),
+  dayW: (n) => (n === 1 ? 'يوم واحد' : n === 2 ? 'يومان' : arUnit(n, '', '', 'أيام', 'يوماً')),
+  hash: (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; },
+  /* إعدادات الإدارة (meta/leavecfg) */
+  cfg() { return { minCover: 2, weekend: [5, 6], holidays: [], entitle: 30, perUser: {}, approval: 1, countBy: 'work', ...(LV._cfg || {}) }; },
+  async loadCfg() { const m = await DB.get('meta', 'leavecfg'); LV._cfg = (m && m.value) || {}; return LV.cfg(); },
+  async saveCfg(patch) { const v = { ...LV.cfg(), ...patch }; await DB.put('meta', { key: 'leavecfg', value: v }); LV._cfg = v; await Data.log('update', 'leaves', 'leavecfg', 'تحديث إعدادات الإجازات'); Bus.emit('leaves', {}); },
+  holiday(s) { const h = (LV.cfg().holidays || []).find((x) => x.from && x.from <= s && s <= (x.to || x.from)); return h ? h.name || 'عطلة رسمية' : ''; },
+  weekend: (s) => (LV.cfg().weekend || [5, 6]).map(Number).includes(LV.pd(s).getDay()),
+  work: (s) => !LV.weekend(s) && !LV.holiday(s),
+  workDays: (from, to) => LV.days(from, to).filter(LV.work).length,
+  count: (from, to) => (LV.cfg().countBy === 'cal' ? LV.days(from, to).length : LV.workDays(from, to)),
+  T: (r) => (r.masked || r.type === 'busy' ? LV.BUSY : LV.TYPES[r.type] || LV.TYPES.other),
+  me: () => (Auth.user ? Auth.user.id : ''),
+  mgr: () => Auth.can('leaves.manage'),
+  isLeave: (r) => !!r && (r.kind || 'leave') === 'leave',
+  canEdit(r) { if (!r || r.masked) return false; const me = LV.me(); return r.kind === 'note' ? r.createdBy === me || LV.mgr() : r.userId === me || LV.mgr(); },
+  live: (r) => LV.isLeave(r) && r.status !== 'rejected',
+  over: (r, a, b) => r.from <= b && r.to >= a,
+  first: (name) => String(name || '').trim().split(/\s+/)[0] || '—',
+  /* الحسابات الافتراضية (المشرف والإداري) حسابات دخول فعلية: تصلها الطلبات وتظهر في المشاركة */
+  managers: () => Data.list('users').filter((u) => u.active && u.role !== 'monitor' && canUser(u, 'leaves.manage')),
+  people: () => Data.list('users').filter((u) => u.active && u.role !== 'monitor' && (canUser(u, 'leaves') || canUser(u, 'leaves.manage'))),
+  /* الفريق: الفنيون والإداريون ومن مُنح التقويم، ومن له إجازة مسجلة. الحسابات الافتراضية تدخل الفريق إن استُعملت (لها إجازة أو هي الحساب الحالي)،
+     فلا يُحسب في التغطية حساب تجريبي لا يعمل عليه أحد. صاحب الحساب أولاً */
+  team(recs) {
+    const has = new Set(recs.filter(LV.isLeave).map((r) => r.userId)), me = LV.me();
+    return Data.list('users').filter((u) => u.active && u.role !== 'monitor' && (['technician', 'support_manager'].includes(u.role) || (u.extraPerms || []).includes('leaves') || has.has(u.id)) && (!isSysAccount(u) || has.has(u.id) || u.id === me))
+      .sort((a, b) => (b.id === me) - (a.id === me) || AR_COLL.compare(String(a.name), String(b.name)));
+  },
+  /* لون كل فني وأيقونته: ما اختاره، وإلا لون متمايز بترتيب ثابت */
+  styles(team, recs) {
+    const custom = new Map(recs.filter((r) => r.kind === 'style').map((r) => [r.userId, r])), used = new Set([...custom.values()].map((r) => r.color).filter(Boolean)), out = new Map();
+    let ci = 0;
+    [...team].sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach((u) => {
+      const c = custom.get(u.id) || {}; let color = c.color;
+      if (!color) { let k = 0; while (used.has(LV.COLORS[ci % LV.COLORS.length]) && k++ < LV.COLORS.length) ci++; color = LV.COLORS[ci++ % LV.COLORS.length]; used.add(color); }
+      out.set(u.id, { color, icon: c.icon || LV.ICONSET[LV.hash(u.id) % LV.ICONSET.length], custom: !!c.color });
+    });
+    return out;
+  },
+  who(u, s, cls = '') { return html`<span class="lv-who ${cls}" style="--c:${s.color}">${UI.icon(s.icon)}<b>${u ? u.name : 'مستخدم'}</b></span>`; },
+  stChip(r) { const [l, t] = LV.ST[r.status] || LV.ST.plan; return html`<span class="chip tone-${t} lv-st">${l}</span>`; },
+  /* الرصيد السنوي (الإجازات السنوية فقط): المعتمد والمعلّق والمخطط في سنة التاريخ */
+  balance(uid, year, recs, skipId = '') {
+    const c = LV.cfg(), ent = Number((c.perUser || {})[uid] ?? c.entitle) || 0, y0 = `${year}-01-01`, y1 = `${year}-12-31`;
+    const sum = (st) => recs.filter((r) => LV.isLeave(r) && r.userId === uid && r.type === 'annual' && r.status === st && r.id !== skipId && LV.over(r, y0, y1)).reduce((a, r) => a + LV.count(r.from > y0 ? r.from : y0, r.to < y1 ? r.to : y1), 0);
+    const used = sum('approved'), pend = sum('pending'), plan = sum('plan');
+    return { ent, used, pend, plan, left: ent - used - pend };
+  },
+  away(day, recs) { return recs.filter((r) => LV.live(r) && r.from <= day && r.to >= day); },
+  async notifyMgrs(rec, title, body) { const ids = [...new Set([...LV.managers().map((u) => u.id), ...(rec.share || [])])].filter((x) => x !== rec.userId); await Data.notify(ids, { title, body, link: `/leaves?d=${rec.from}&l=${rec.id}`, kind: 'info' }); },
+
+  /* ── نافذة الإجازة: إضافة وتعديل، مع فحص التداخل والتغطية والرصيد قبل الحفظ ── */
+  async edit(id, preset = {}) {
+    const recs = await DB.getAll('leaves'); await LV.loadCfg();
+    const old = id ? recs.find((r) => r.id === id) : null; if (id && !old) throw new AppError('لم تعد هذه الإجازة موجودة');
+    if (old && !LV.canEdit(old)) return LV.view(old);
+    const me = LV.me(), mgr = LV.mgr(), cfg = LV.cfg(), team = LV.team(recs), sty = LV.styles(team, recs);
+    const r0 = old || { userId: preset.userId || me, type: 'annual', from: preset.from || LV.today(), to: preset.to || preset.from || LV.today(), status: cfg.approval ? 'pending' : 'plan', vis: LV.pref('vis', 'team'), share: [], note: '', dayNotes: {} };
+    const owners = mgr ? LV.people().filter((u) => team.some((t) => t.id === u.id) || u.id === r0.userId || u.id === me) : [];
+    const sharable = LV.people().filter((u) => u.id !== r0.userId).sort((a, b) => canUser(b, 'leaves.manage') - canUser(a, 'leaves.manage') || AR_COLL.compare(String(a.name), String(b.name)));
+    const dn = Object.entries(r0.dayNotes || {}).map(([d, t]) => ({ d, t }));
+    const res = await UI.modal({
+      title: old ? 'تعديل الإجازة' : 'إجازة جديدة', icon: 'calendar', size: 'lg',
+      body: html`<div class="lvm">
+        ${mgr ? html`<div class="field"><label>الفني</label><select class="input" name="userId">${owners.map((u) => html`<option value="${u.id}"${u.id === r0.userId ? raw(' selected') : ''}>${u.name}${u.id === me ? ' (أنا)' : ''}</option>`)}</select></div>` : html`<input type="hidden" name="userId" value="${r0.userId}">`}
+        <div class="field"><label>نوع الإجازة</label><div class="lv-types" role="radiogroup">${Object.entries(LV.TYPES).map(([k, t]) => html`<label class="lv-type"><input type="radio" name="type" value="${k}"${k === r0.type ? raw(' checked') : ''}><span>${UI.icon(t.icon)}${t.label}</span></label>`)}</div></div>
+        <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">مدة سريعة:</small>${[[1, 'يوم'], [3, '3 أيام'], [5, '5 أيام عمل', 'w'], [7, 'أسبوع'], [14, 'أسبوعان'], [30, 'شهر']].map(([n, l, w]) => html`<button type="button" class="qchip" data-lvq="${n}${w ? 'w' : ''}">${l}</button>`)}</div></div>
+        <div class="lv-check" data-lvcheck></div>
+        <div class="field"><label>الحالة</label><div class="seg sm lv-stseg">${['plan', 'pending', ...(mgr ? ['approved', 'rejected'] : old && ['approved', 'rejected'].includes(old.status) ? [old.status] : [])].map((k) => html`<label><input type="radio" name="status" value="${k}"${k === r0.status ? raw(' checked') : ''}><span>${LV.ST[k][0]}</span></label>`)}</div>
+          <p class="hint">«خطة مبدئية» يراها الزملاء للتخطيط دون أن تصل الإدارة طلباً، و«بانتظار الاعتماد» تصل الإدارة للاعتماد.${old && old.status === 'approved' && !mgr ? ' تغيير مدة إجازة معتمدة أو نوعها يعيدها إلى «بانتظار الاعتماد».' : ''}</p>
+          ${mgr ? html`<div class="field mt" data-lvdec${['approved', 'rejected'].includes(r0.status) ? '' : raw(' hidden')}><label>ملاحظة القرار <small class="faint">— تصل صاحب الإجازة</small></label><input class="input" name="decisionNote" value="${r0.decisionNote || ''}" maxlength="500"></div>` : ''}</div>
+        <div class="field"><label>من يرى هذه الإجازة؟</label><div class="lv-vis">${Object.entries(LV.VIS).map(([k, [l, ic, d]]) => html`<label class="lv-visc"><input type="radio" name="vis" value="${k}"${k === (r0.vis || 'team') ? raw(' checked') : ''}><span>${UI.icon(ic)}<b>${l}</b><small>${d}</small></span></label>`)}</div></div>
+        <div class="field"><label>مشاركة مع <small class="faint">— يرون التفاصيل كاملة ويصلهم إشعار، مهما كان الظهور</small></label><div class="lv-share">${sharable.map((u) => html`<label class="lv-pick"><input type="checkbox" name="share" value="${u.id}"${(r0.share || []).includes(u.id) ? raw(' checked') : ''}><span>${canUser(u, 'leaves.manage') ? UI.icon('shield') : ''}${u.name}<small>${ROLES[u.role] || ''}</small></span></label>`)}</div></div>
+        <div class="field"><label>ملاحظة</label><textarea class="input" name="note" rows="2" maxlength="2000" placeholder="مثلاً: السفر خارج السلطنة، والبديل في المهام العاجلة فلان">${r0.note || ''}</textarea></div>
+        <div class="field"><label>ملاحظات على أيام محددة <small class="faint">— تظهر على اليوم نفسه في التقويم</small></label><div class="lv-dns" data-lvdns></div><button type="button" class="btn btn-soft btn-sm mt" data-lvdnadd>${UI.icon('plus')} ملاحظة ليوم</button></div>
+      </div>`,
+      onMount: (form) => {
+        const box = $('[data-lvcheck]', form), dnBox = $('[data-lvdns]', form);
+        const val = (n) => (form.querySelector(`[name="${n}"]:checked`) || form.querySelector(`[name="${n}"]`) || {}).value || '';
+        const readDn = () => $$('.lv-dn', dnBox).map((row) => ({ d: $('select', row).value, t: $('input', row).value }));
+        const drawDn = () => { const ds = LV.days(val('from'), val('to')).slice(0, 120); dnBox.innerHTML = String(html`${dn.map((x, i) => html`<div class="lv-dn" data-i="${i}"><select class="input">${ds.map((d) => html`<option value="${d}"${d === x.d ? raw(' selected') : ''}>${LV.WD[LV.pd(d).getDay()]} ${LV.fmt(d)}</option>`)}</select><input class="input" value="${x.t}" maxlength="500" placeholder="مثلاً: متاح على الهاتف للطوارئ"><button type="button" class="icon-btn" data-lvdnx="${i}" aria-label="حذف">${UI.icon('x')}</button></div>`)}`); };
+        const check = () => {
+          const from = val('from'), to = val('to'), uid = val('userId'), type = val('type');
+          if (!LV.okDay(from) || !LV.okDay(to)) { box.innerHTML = ''; return; }
+          if (to < from) { box.innerHTML = String(html`<div class="lv-warn bad">${UI.icon('alert')} تاريخ النهاية قبل البداية</div>`); return; }
+          const days = LV.days(from, to), wd = days.filter(LV.work).length, hol = [...new Set(days.map(LV.holiday).filter(Boolean))], others = recs.filter((r) => LV.live(r) && r.id !== (old && old.id) && LV.over(r, from, to));
+          const mine = others.filter((r) => r.userId === uid), peers = others.filter((r) => r.userId !== uid);
+          const inTeam = team.some((u) => u.id === uid), low = days.filter((d) => LV.work(d) && team.length - LV.away(d, others).length - (inTeam && !LV.away(d, mine).length ? 1 : 0) < cfg.minCover);
+          const y = LV.pd(from).getFullYear(), b = type === 'annual' ? LV.balance(uid, y, recs, old && old.id) : null, cnt = LV.count(from, to), after = b ? b.left - cnt : 0;
+          box.innerHTML = String(html`<div class="lv-span"><b>${LV.dayW(days.length)}</b><span>${fmtNum(wd)} أيام عمل</span>${days.length - wd ? html`<span class="faint">${fmtNum(days.length - wd)} عطلة أسبوعية أو رسمية</span>` : ''}${hol.length ? html`<span class="chip tone-violet">${UI.icon('star')} ${hol.join('، ')}</span>` : ''}</div>
+            ${mine.length ? html`<div class="lv-warn bad">${UI.icon('alert')} لديه إجازة في هذه الفترة: ${mine.map((r) => `${LV.T(r).short} ${LV.range(r.from, r.to)}`).join('، ')}</div>` : ''}
+            ${peers.length ? html`<div class="lv-warn">${UI.icon('users')} <span>يتداخل مع: ${peers.map((r) => { const u = Data.c.users.get(r.userId), n = LV.days(r.from > from ? r.from : from, r.to < to ? r.to : to).length; return html`<b class="lv-ov" style="--c:${(sty.get(r.userId) || {}).color || '#64748b'}">${u ? u.name : '—'} (${LV.T(r).short}، ${LV.dayW(n)})</b>`; })}</span></div>` : html`<div class="lv-ok">${UI.icon('check')} لا يتداخل مع إجازات الزملاء الظاهرة لك</div>`}
+            ${low.length ? html`<div class="lv-warn bad">${UI.icon('alert')} <span>ينخفض المتاحون عن الحد الأدنى (${fmtNum(cfg.minCover)}) في ${LV.dayW(low.length)} عمل: ${low.slice(0, 6).map(LV.fmt).join('، ')}${low.length > 6 ? '…' : ''}</span></div>` : ''}
+            ${b ? html`<div class="lv-bal${after < 0 ? ' bad' : ''}">${UI.icon('lv-palm')} الرصيد السنوي ${y}: ${fmtNum(b.ent)} · المعتمد ${fmtNum(b.used)} · المعلّق ${fmtNum(b.pend)} · هذه ${fmtNum(cnt)} → <b>المتبقي ${fmtNum(after)}</b>${cfg.countBy === 'cal' ? ' (بالأيام التقويمية)' : ' (بأيام العمل)'}</div>` : ''}`);
+        };
+        drawDn(); check();
+        form.addEventListener('input', (e) => { if (e.target.closest('[data-lvdns]')) { const row = e.target.closest('.lv-dn'); dn[Number(row.dataset.i)].t = $('input', row).value; return; } check(); });
+        form.addEventListener('change', (e) => {
+          if (e.target.closest('[data-lvdns]')) { const row = e.target.closest('.lv-dn'); dn[Number(row.dataset.i)].d = $('select', row).value; return; }
+          if (['from', 'to'].includes(e.target.name)) { const f = $('[name="from"]', form), t = $('[name="to"]', form); if (f.value && t.value && t.value < f.value) t.value = f.value; dn.splice(0, dn.length, ...readDn().filter((x) => x.d >= f.value && x.d <= t.value)); drawDn(); }
+          if (e.target.name === 'status') { const d = $('[data-lvdec]', form); if (d) d.hidden = !['approved', 'rejected'].includes(e.target.value); }
+          check();
+        });
+        UI.on(form, 'click', '[data-lvq]', (e, b) => { const f = $('[name="from"]', form), t = $('[name="to"]', form), w = b.dataset.lvq.endsWith('w'), n = parseInt(b.dataset.lvq, 10); if (!f.value) f.value = LV.today(); if (w) { let s = f.value, k = LV.work(s) ? 1 : 0; while (k < n) { s = LV.add(s, 1); if (LV.work(s)) k++; } t.value = s; } else t.value = LV.add(f.value, n - 1); t.dispatchEvent(new Event('change', { bubbles: true })); });
+        UI.on(form, 'click', '[data-lvdnadd]', () => { Object.assign(dn, readDn()); const ds = LV.days(val('from'), val('to')); if (!ds.length) { UI.toast('حدد المدة أولاً', 'warn'); return; } const free = ds.find((d) => !dn.some((x) => x.d === d)) || ds[0]; dn.push({ d: free, t: '' }); drawDn(); const last = $$('.lv-dn input', dnBox).pop(); if (last) last.focus(); });
+        UI.on(form, 'click', '[data-lvdnx]', (e, b) => { Object.assign(dn, readDn()); dn.splice(Number(b.dataset.lvdnx), 1); drawDn(); });
+      },
+      actions: [
+        ...(old ? [{ label: 'حذف', kind: 'ghost', icon: 'trash', value: 'del' }] : []),
+        { label: 'إلغاء', kind: 'ghost', value: null },
+        { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (form) => {
+          const v = (n) => (form.querySelector(`[name="${n}"]:checked`) || form.querySelector(`[name="${n}"]`) || {}).value || '';
+          const from = v('from'), to = v('to'), userId = v('userId') || me;
+          if (!LV.okDay(from) || !LV.okDay(to)) throw new AppError('حدد تاريخ البداية والنهاية');
+          if (to < from) throw new AppError('تاريخ النهاية قبل البداية');
+          if (LV.diff(from, to) > 365) throw new AppError('أطول مدة للإجازة الواحدة سنة');
+          const clash = recs.find((r) => LV.live(r) && r.userId === userId && r.id !== (old && old.id) && LV.over(r, from, to));
+          if (clash) throw new AppError(`توجد إجازة أخرى في هذه الفترة (${LV.T(clash).short} ${LV.range(clash.from, clash.to)}). عدّلها أو اختر مدة أخرى`);
+          const dayNotes = {}; $$('.lv-dn', form).forEach((row) => { const d = $('select', row).value, t = $('input', row).value.trim(); if (t && d >= from && d <= to) dayNotes[d] = dayNotes[d] ? `${dayNotes[d]} — ${t}` : t; });
+          let status = v('status') || 'plan', vis = v('vis') || 'team';
+          if (status === 'pending' && vis === 'private') vis = 'mgr';
+          return { userId, type: v('type') || 'annual', from, to, status, vis, share: $$('[name="share"]:checked', form).map((x) => x.value), note: v('note').trim(), dayNotes, decisionNote: (v('decisionNote') || '').trim() };
+        } }
+      ]
+    });
+    if (res === 'del') { if (await UI.confirm('حذف هذه الإجازة نهائياً؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); await Data.log('delete', 'leaves', old.id, `حذف إجازة ${Data.userName(old.userId)}: ${LV.range(old.from, old.to)}`); Bus.emit('leaves', {}); UI.toast('حُذفت الإجازة'); return 'del'; } return null; }
+    if (!res) return null;
+    const t = now(), rec = { ...(old || {}), ...res, id: old ? old.id : uid('lv'), kind: 'leave', updatedAt: t, createdAt: old ? old.createdAt || t : t, createdBy: old ? old.createdBy || me : me };
+    const core = (r) => [r.userId, r.type, r.from, r.to].join('|');
+    if (!mgr && old && old.status === 'approved' && core(old) !== core(rec) && rec.status === 'approved') rec.status = 'pending';
+    if (!mgr && !['plan', 'pending'].includes(rec.status) && !(old && old.status === rec.status && core(old) === core(rec))) rec.status = 'pending';
+    if (mgr && ['approved', 'rejected'].includes(rec.status) && (!old || old.status !== rec.status)) { rec.decidedBy = me; rec.decidedAt = t; }
+    if (rec.vis !== 'private') LV.setPref('vis', rec.vis);
+    await DB.put('leaves', rec);
+    const who = Data.userName(rec.userId), T = LV.T(rec), span = `${T.label}: ${LV.range(rec.from, rec.to)} (${LV.dayW(LV.workDays(rec.from, rec.to))} عمل)`;
+    await Data.log(old ? 'update' : 'create', 'leaves', rec.id, `${old ? 'تعديل' : 'إضافة'} إجازة ${who}: ${LV.range(rec.from, rec.to)}`);
+    /* الإشعارات: طلب اعتماد جديد أو معدّل للإدارة، ومشاركة جديدة لأصحابها، والقرار لصاحب الإجازة */
+    if (rec.status === 'pending' && (!old || old.status !== 'pending' || core(old) !== core(rec))) await LV.notifyMgrs(rec, `طلب إجازة: ${who}`, span);
+    const added = (rec.share || []).filter((x) => !((old && old.share) || []).includes(x));
+    if (added.length && !(rec.status === 'pending')) await Data.notify(added, { title: `شاركك ${who} إجازته`, body: span, link: `/leaves?d=${rec.from}&l=${rec.id}`, kind: 'info' });
+    if (mgr && rec.userId !== me && ['approved', 'rejected'].includes(rec.status) && (!old || old.status !== rec.status)) await Data.notify([rec.userId], { title: rec.status === 'approved' ? 'اعتُمدت إجازتك' : 'رُفضت إجازتك', body: `${span}${rec.decisionNote ? ` — ${rec.decisionNote}` : ''}`, link: `/leaves?d=${rec.from}&l=${rec.id}`, kind: 'info', tone: rec.status === 'rejected' ? 'urgent' : '' });
+    Bus.emit('leaves', {});
+    UI.toast(old && old.status === 'approved' && rec.status === 'pending' ? 'حُفظت، وعادت إلى «بانتظار الاعتماد» لأن مدتها أو نوعها تغيّر' : `حُفظت الإجازة${rec.status === 'pending' ? ' وأُرسل طلب الاعتماد' : ''}`, 'ok', 4000);
+    return rec;
+  },
+  /* عرض إجازة لا يملك الحساب تعديلها (أو المعروضة «غائب» فقط) */
+  async view(r) {
+    const recs = await DB.getAll('leaves'), team = LV.team(recs), s = LV.styles(team, recs).get(r.userId) || { color: '#64748b', icon: 'user' }, u = Data.c.users.get(r.userId), T = LV.T(r);
+    const dn = Object.entries(r.dayNotes || {}).sort();
+    return UI.modal({ title: r.masked ? 'غائب' : T.label, icon: 'calendar', size: 'sm', body: html`<div class="lv-viewm">${LV.who(u, s)}
+      <div class="lv-vrow">${UI.icon(T.icon)} <b>${r.masked ? 'التفاصيل خاصة بصاحبها' : T.label}</b> ${LV.stChip(r)}</div>
+      <div class="lv-vrow">${UI.icon('calendar')} ${LV.range(r.from, r.to)} · ${LV.dayW(LV.days(r.from, r.to).length)} (${fmtNum(LV.workDays(r.from, r.to))} عمل)</div>
+      ${r.note ? html`<p class="lv-vnote">${r.note}</p>` : ''}${dn.length ? html`<ul class="lv-vdn">${dn.map(([d, t]) => html`<li><b>${LV.fmt(d)}</b> ${t}</li>`)}</ul>` : ''}
+      ${r.decidedBy ? html`<p class="hint">${r.status === 'approved' ? 'اعتمدها' : 'رفضها'} ${Data.userName(r.decidedBy)} ${r.decidedAt ? fmtDate(r.decidedAt) : ''}${r.decisionNote ? ` — ${r.decisionNote}` : ''}</p>` : ''}</div>`,
+    actions: [{ label: 'إغلاق', kind: 'ghost', value: null }] });
+  },
+  /* اعتماد أو رفض سريع من قائمة الطلبات */
+  async decide(id, status) {
+    const r = await DB.get('leaves', id); if (!r || !LV.mgr()) return;
+    let note = '';
+    if (status === 'rejected') { const v = await UI.modal({ title: 'رفض الإجازة', icon: 'x', size: 'sm', body: html`<p class="muted">${Data.userName(r.userId)} — ${LV.T(r).label} ${LV.range(r.from, r.to)}</p><div class="field"><label>السبب <small class="faint">— يصل صاحب الإجازة</small></label><input class="input" name="n" maxlength="500" placeholder="مثلاً: تتعارض مع فترة الجرد السنوي"></div>`, actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'رفض', kind: 'danger', submit: true, handler: (f) => ({ n: $('[name="n"]', f).value.trim() }) }] }); if (!v) return; note = v.n; }
+    const t = now(), rec = { ...r, status, decidedBy: LV.me(), decidedAt: t, decisionNote: note, updatedAt: t };
+    await DB.put('leaves', rec);
+    await Data.log('update', 'leaves', id, `${status === 'approved' ? 'اعتماد' : 'رفض'} إجازة ${Data.userName(r.userId)}: ${LV.range(r.from, r.to)}`);
+    if (r.userId !== LV.me()) await Data.notify([r.userId], { title: status === 'approved' ? 'اعتُمدت إجازتك' : 'رُفضت إجازتك', body: `${LV.T(r).label}: ${LV.range(r.from, r.to)}${note ? ` — ${note}` : ''}`, link: `/leaves?d=${r.from}&l=${r.id}`, kind: 'info', tone: status === 'rejected' ? 'urgent' : '' });
+    Bus.emit('leaves', {}); UI.toast(status === 'approved' ? 'اعتُمدت الإجازة' : 'رُفضت الإجازة', status === 'approved' ? 'ok' : 'warn');
+  },
+  /* ملاحظة على تاريخ أو مدة (مستقلة عن الإجازات) */
+  async noteEdit(id, preset = {}) {
+    const old = id ? await DB.get('leaves', id) : null; if (id && !old) return null;
+    if (old && !LV.canEdit(old)) { await UI.modal({ title: 'ملاحظة', icon: 'lv-note', size: 'sm', body: html`<p class="lv-vnote">${old.text}</p><p class="hint">${Data.userName(old.createdBy)} · ${LV.range(old.date, old.to || old.date)}</p>`, actions: [{ label: 'إغلاق', kind: 'ghost', value: null }] }); return null; }
+    const me = LV.me(), r0 = old || { date: preset.from || LV.today(), to: preset.to || '', text: '', vis: 'team', share: [], tone: 'sky' };
+    const sharable = LV.people().filter((u) => u.id !== me);
+    const TONES = [['sky', '#0284c7'], ['amber', '#d97706'], ['red', '#dc2626'], ['teal', '#0f8a5f'], ['violet', '#7c3aed']];
+    const res = await UI.modal({
+      title: old ? 'تعديل الملاحظة' : 'ملاحظة على تاريخ', icon: 'lv-note',
+      body: html`<div class="lvm"><div class="lv-dates"><div class="field"><label>التاريخ</label><input class="input" type="date" name="date" value="${r0.date}" required></div><div class="field"><label>حتى <small class="faint">(اختياري)</small></label><input class="input" type="date" name="to" value="${r0.to && r0.to !== r0.date ? r0.to : ''}"></div></div>
+        <div class="field"><label>الملاحظة</label><textarea class="input" name="text" rows="3" maxlength="1000" required placeholder="مثلاً: جرد سنوي — يُفضّل ألا يغيب أكثر من فني">${r0.text}</textarea></div>
+        <div class="field"><label>اللون</label><div class="lv-tones">${TONES.map(([k, c]) => html`<label><input type="radio" name="tone" value="${k}"${k === (r0.tone || 'sky') ? raw(' checked') : ''}><span style="--c:${c}"></span></label>`)}</div></div>
+        <div class="field"><label>من يراها؟</label><div class="seg sm">${['team', 'mgr', 'private'].map((k) => html`<label><input type="radio" name="vis" value="${k}"${k === (r0.vis || 'team') ? raw(' checked') : ''}><span>${UI.icon(LV.VIS[k][1])} ${LV.VIS[k][0]}</span></label>`)}</div></div>
+        <div class="field"><label>مشاركة مع</label><div class="lv-share">${sharable.map((u) => html`<label class="lv-pick"><input type="checkbox" name="share" value="${u.id}"${(r0.share || []).includes(u.id) ? raw(' checked') : ''}><span>${canUser(u, 'leaves.manage') ? UI.icon('shield') : ''}${u.name}</span></label>`)}</div></div></div>`,
+      actions: [...(old ? [{ label: 'حذف', kind: 'ghost', icon: 'trash', value: 'del' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
+        const g = (n) => (f.querySelector(`[name="${n}"]:checked`) || f.querySelector(`[name="${n}"]`) || {}).value || '';
+        const date = g('date'), to = g('to'), text = g('text').trim();
+        if (!LV.okDay(date)) throw new AppError('اختر التاريخ'); if (!text) throw new AppError('اكتب الملاحظة');
+        if (to && (!LV.okDay(to) || to < date)) throw new AppError('تاريخ «حتى» قبل التاريخ'); if (to && LV.diff(date, to) > 365) throw new AppError('أطول مدة سنة');
+        return { date, to: to && to !== date ? to : '', text, tone: g('tone') || 'sky', vis: g('vis') || 'team', share: $$('[name="share"]:checked', f).map((x) => x.value) };
+      } }]
+    });
+    if (res === 'del') { if (await UI.confirm('حذف هذه الملاحظة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); Bus.emit('leaves', {}); UI.toast('حُذفت الملاحظة'); } return null; }
+    if (!res) return null;
+    const t = now(), rec = { ...(old || {}), ...res, id: old ? old.id : uid('lvn'), kind: 'note', userId: old ? old.userId || old.createdBy : me, createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
+    await DB.put('leaves', rec);
+    const added = (rec.share || []).filter((x) => !((old && old.share) || []).includes(x));
+    if (added.length) await Data.notify(added, { title: `ملاحظة من ${Auth.user.name} على ${LV.range(rec.date, rec.to || rec.date)}`, body: rec.text.slice(0, 140), link: `/leaves?d=${rec.date}`, kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast('حُفظت الملاحظة'); return rec;
+  },
+  /* لون الفني وأيقونته */
+  async styleEdit(uid0) {
+    const recs = await DB.getAll('leaves'), team = LV.team(recs), cur = LV.styles(team.some((u) => u.id === uid0) ? team : [...team, Data.c.users.get(uid0)].filter(Boolean), recs).get(uid0) || { color: LV.COLORS[0], icon: LV.ICONSET[0] };
+    const u = Data.c.users.get(uid0), st = { ...cur };
+    const res = await UI.modal({ title: uid0 === LV.me() ? 'لوني وأيقونتي في التقويم' : `لون ${u ? u.name : ''} وأيقونته`, icon: 'palette',
+      body: html`<div class="lv-sty"><div class="lv-sty-prev" data-lvprev></div>
+        <div class="field"><label>اللون</label><div class="lv-colors">${LV.COLORS.map((c) => html`<button type="button" class="lv-col${c === st.color ? ' on' : ''}" data-lvcol="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div></div>
+        <div class="field"><label>الأيقونة</label><div class="lv-icons">${LV.ICONSET.map((i) => html`<button type="button" class="lv-ico${i === st.icon ? ' on' : ''}" data-lvico="${i}">${UI.icon(i)}</button>`)}</div></div></div>`,
+      onMount: (form) => {
+        const prev = () => { $('[data-lvprev]', form).innerHTML = String(html`${LV.who(u, st)}<span class="lv-barx s-approved" style="--c:${st.color}">${UI.icon(st.icon)}<span>${LV.first(u && u.name)} · سنوية</span></span>`); $$('[data-lvcol]', form).forEach((b) => b.classList.toggle('on', b.dataset.lvcol === st.color)); $$('[data-lvico]', form).forEach((b) => { b.classList.toggle('on', b.dataset.lvico === st.icon); b.style.setProperty('--c', st.color); }); };
+        UI.on(form, 'click', '[data-lvcol]', (e, b) => { st.color = b.dataset.lvcol; prev(); });
+        UI.on(form, 'click', '[data-lvico]', (e, b) => { st.icon = b.dataset.lvico; prev(); });
+        prev();
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: () => st }] });
+    if (!res) return;
+    await DB.put('leaves', { id: `lvs:${uid0}`, kind: 'style', userId: uid0, color: res.color, icon: res.icon, updatedAt: now() });
+    Bus.emit('leaves', {}); UI.toast('حُفظ اللون والأيقونة');
+  },
+  /* إعدادات الإدارة: التغطية، والعطلة الأسبوعية، والعطل الرسمية، والرصيد */
+  async settings() {
+    const recs = await DB.getAll('leaves'), c = await LV.loadCfg(), team = LV.team(recs);
+    let hol = (c.holidays || []).map((h) => ({ ...h }));
+    const res = await UI.modal({ title: 'إعدادات الإجازات', icon: 'sliders', size: 'lg',
+      body: html`<div class="lvm">
+        <div class="lv-grid2"><div class="field"><label>الحد الأدنى للفنيين المتاحين في يوم العمل</label><input class="input" type="number" min="0" max="50" name="minCover" value="${c.minCover}"><p class="hint">ينبَّه الفني قبل حفظ إجازة تُنزل المتاحين عنه، ويُعلَّم اليوم بالأحمر.</p></div>
+          <div class="field"><label>الرصيد السنوي الافتراضي (للإجازة السنوية)</label><input class="input" type="number" min="0" max="365" name="entitle" value="${c.entitle}"><div class="seg sm mt"><label><input type="radio" name="countBy" value="work"${c.countBy !== 'cal' ? raw(' checked') : ''}><span>تُحسب بأيام العمل</span></label><label><input type="radio" name="countBy" value="cal"${c.countBy === 'cal' ? raw(' checked') : ''}><span>بالأيام التقويمية</span></label></div></div></div>
+        <div class="field"><label>العطلة الأسبوعية</label><div class="chip-pick">${LV.WD.map((d, i) => html`<label><input type="checkbox" name="weekend" value="${i}"${(c.weekend || []).map(Number).includes(i) ? raw(' checked') : ''}><span>${d}</span></label>`)}</div></div>
+        <div class="field"><label class="chk"><input type="checkbox" name="approval"${c.approval ? raw(' checked') : ''}> الإجازة الجديدة تُرسل «بانتظار الاعتماد» افتراضياً</label><p class="hint">وإلا تبدأ «خطة مبدئية» يرسلها صاحبها للاعتماد متى أراد.</p></div>
+        <div class="field"><label>العطل الرسمية <small class="faint">— تظهر على التقويم ولا تُحسب من الرصيد</small></label><div data-lvhol></div><button type="button" class="btn btn-soft btn-sm mt" data-lvholadd>${UI.icon('plus')} عطلة</button></div>
+        <div class="field"><label>رصيد خاص لكل فني <small class="faint">— فارغ = الافتراضي</small></label><div class="lv-ents">${team.map((u) => html`<label><span>${u.name}</span><input class="input" type="number" min="0" max="365" name="ent_${u.id}" value="${(c.perUser || {})[u.id] ?? ''}" placeholder="${c.entitle}"></label>`)}</div></div>
+      </div>`,
+      onMount: (form) => {
+        const box = $('[data-lvhol]', form);
+        const read = () => { hol = $$('.lv-hol-r', box).map((r) => ({ name: $('[data-hn]', r).value.trim(), from: $('[data-hf]', r).value, to: $('[data-ht]', r).value })); };
+        const draw = () => { box.innerHTML = String(html`${hol.map((h, i) => html`<div class="lv-hol-r"><input class="input" data-hn value="${h.name || ''}" placeholder="مثلاً: العيد الوطني"><input class="input" type="date" data-hf value="${h.from || ''}"><input class="input" type="date" data-ht value="${h.to || ''}"><button type="button" class="icon-btn" data-lvholx="${i}" aria-label="حذف">${UI.icon('x')}</button></div>`)}${hol.length ? '' : html`<p class="hint">لا عطل مسجلة.</p>`}`); };
+        UI.on(form, 'click', '[data-lvholadd]', () => { read(); hol.push({ name: '', from: '', to: '' }); draw(); const n = $$('[data-hn]', box).pop(); if (n) n.focus(); });
+        UI.on(form, 'click', '[data-lvholx]', (e, b) => { read(); hol.splice(Number(b.dataset.lvholx), 1); draw(); });
+        draw();
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
+        const holidays = $$('.lv-hol-r', f).map((r) => ({ name: $('[data-hn]', r).value.trim(), from: $('[data-hf]', r).value, to: $('[data-ht]', r).value || $('[data-hf]', r).value })).filter((h) => LV.okDay(h.from));
+        if (holidays.some((h) => h.to < h.from)) throw new AppError('في العطل الرسمية: تاريخ النهاية قبل البداية');
+        const perUser = {}; team.forEach((u) => { const x = f.querySelector(`[name="ent_${u.id}"]`); if (x && x.value !== '') perUser[u.id] = clamp(Number(x.value) || 0, 0, 365); });
+        return { minCover: clamp(Math.floor(Number($('[name="minCover"]', f).value) || 0), 0, 50), entitle: clamp(Number($('[name="entitle"]', f).value) || 0, 0, 365), countBy: (f.querySelector('[name="countBy"]:checked') || {}).value || 'work', weekend: $$('[name="weekend"]:checked', f).map((x) => Number(x.value)), approval: $('[name="approval"]', f).checked ? 1 : 0, holidays: holidays.sort((a, b) => a.from.localeCompare(b.from)), perUser };
+      } }] });
+    if (res) { await LV.saveCfg(res); UI.toast('حُفظت إعدادات الإجازات'); }
+  },
+  /* تصدير إجازاتي إلى التقويم (Outlook وGoogle) بملف ics */
+  ics(list) {
+    const e = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, (m) => `\\${m}`).replace(/\r?\n/g, '\\n'), st = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const ev = list.map((r) => ['BEGIN:VEVENT', `UID:${r.id}@sqapa`, `DTSTAMP:${st}`, `DTSTART;VALUE=DATE:${r.from.replace(/-/g, '')}`, `DTEND;VALUE=DATE:${LV.add(r.to, 1).replace(/-/g, '')}`, `SUMMARY:${e(`${LV.T(r).label} (${(LV.ST[r.status] || LV.ST.plan)[0]})`)}`, ...(r.note ? [`DESCRIPTION:${e(r.note)}`] : []), 'TRANSP:OPAQUE', 'END:VEVENT'].join('\r\n'));
+    downloadBlob(new Blob([['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SQAPA//Leaves//AR', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n')], { type: 'text/calendar;charset=utf-8' }), 'إجازاتي.ics');
+  }
+};
+
+Pages.leaves = async (ctx) => {
+  const q = ctx.query || {}, me = LV.me();
+  const st = { view: ['month', 'timeline', 'year', 'list'].includes(q.v) ? q.v : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' } };
+  let D = null, drag = null, skipClick = false, pop = null;
+  const sync = () => { try { history.replaceState(history.state, '', `#/leaves?v=${st.view}&m=${st.month}${st.day ? `&d=${st.day}` : ''}`); } catch (_) { /* تجاهل */ } };
+  const load = async () => {
+    const recs = await DB.getAll('leaves'); await LV.loadCfg();
+    const team = LV.team(recs), sty = LV.styles(team, recs), users = Data.c.users;
+    const show = (r) => !st.hide.has(r.userId) && (!st.mine || r.userId === me);
+    const leaves = recs.filter((r) => LV.live(r) && show(r)), notes = recs.filter((r) => r.kind === 'note');
+    const styOf = (id) => sty.get(id) || { color: '#64748b', icon: 'user' };
+    D = { recs, team, sty, styOf, users, leaves, notes, all: recs.filter(LV.live), cfg: LV.cfg() };
+  };
+  const notesOn = (day) => D.notes.filter((n) => n.date <= day && (n.to || n.date) >= day);
+  const coverOf = (day) => { const away = new Set(LV.away(day, D.all).map((r) => r.userId)); return { avail: D.team.filter((u) => !away.has(u.id)).length, tot: D.team.length }; };
+  const dayCls = (s) => [LV.weekend(s) ? 'we' : '', LV.holiday(s) ? 'hol' : '', s === LV.today() ? 'today' : '', s === st.day ? 'pick' : ''].filter(Boolean).join(' ');
+  const barLabel = (r) => { const u = D.users.get(r.userId); return `${u ? u.name : '—'} — ${LV.T(r).label} — ${LV.range(r.from, r.to)} — ${(LV.ST[r.status] || LV.ST.plan)[0]}${r.note ? `\n${r.note}` : ''}`; };
+
+  /* ── الشهر: أسابيع بأشرطة ممتدة (المسار نفسه للإجازة على طول الأسبوع) ── */
+  const monthView = () => {
+    const [y, m] = st.month.split('-').map(Number), first = `${st.month}-01`, last = LV.ds(new Date(y, m, 0)), start = LV.add(first, -LV.pd(first).getDay()), LANES = 3, weeks = [];
+    for (let ws = start; ws <= last; ws = LV.add(ws, 7)) weeks.push(ws);
+    return html`<div class="lv-month"><div class="lv-wh">${LV.WD.map((d, i) => html`<span class="${(D.cfg.weekend || []).map(Number).includes(i) ? 'we' : ''}">${d}</span>`)}</div>
+      ${weeks.map((ws) => {
+        const we = LV.add(ws, 6), days = LV.days(ws, we), list = D.leaves.filter((r) => LV.over(r, ws, we)).sort((a, b) => a.from.localeCompare(b.from) || LV.diff(b.from, b.to) - LV.diff(a.from, a.to) || String(a.userId).localeCompare(String(b.userId)));
+        const lanes = [], bars = [], hidden = new Map();
+        list.forEach((r) => { const a = r.from > ws ? r.from : ws, b = r.to < we ? r.to : we; let L = lanes.findIndex((end) => end < a); if (L < 0) { L = lanes.length; lanes.push(b); } else lanes[L] = b; if (L < LANES) bars.push({ r, L, c1: LV.diff(ws, a) + 1, c2: LV.diff(ws, b) + 1, cs: r.from < ws, ce: r.to > we }); else LV.days(a, b).forEach((d) => hidden.set(d, (hidden.get(d) || 0) + 1)); });
+        return html`<div class="lv-week" style="--lanes:${Math.max(1, Math.min(LANES, lanes.length))}">
+          ${days.map((s, i) => { const out = s.slice(0, 7) !== st.month, ns = notesOn(s), h = LV.holiday(s), cv = !out && LV.work(s) && D.team.length ? coverOf(s) : null, low = cv && cv.avail < D.cfg.minCover, more = hidden.get(s) || 0;
+            return html`<div class="lv-day ${dayCls(s)}${out ? ' out' : ''}${low ? ' low' : ''}" data-day="${s}" style="grid-column:${i + 1}" title="${h || ''}"><span class="lv-dnum">${LV.pd(s).getDate()}</span>${h ? html`<small class="lv-hol">${h}</small>` : ''}<span class="lv-dmk">${ns.length ? html`<span class="lv-nt tone-${ns[0].tone || 'sky'}" title="${ns.map((n) => n.text).join('\n')}">${UI.icon('lv-note')}${ns.length > 1 ? fmtNum(ns.length) : ''}</span>` : ''}${low ? html`<span class="lv-lowb" title="المتاحون ${cv.avail} من ${cv.tot}، والحد الأدنى ${D.cfg.minCover}">${UI.icon('alert')}${fmtNum(cv.avail)}</span>` : ''}${more ? html`<span class="lv-moren">+${fmtNum(more)}</span>` : ''}</span></div>`; })}
+          ${bars.map(({ r, L, c1, c2, cs, ce }) => { const s = D.styOf(r.userId), u = D.users.get(r.userId), T = LV.T(r), dn = r.dayNotes && Object.keys(r.dayNotes).length;
+            return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}" style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${s.color}" title="${barLabel(r)}">${UI.icon(s.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}</button>`; })}
+        </div>`; })}</div>`;
+  };
+
+  /* ── جدول الفريق: صف لكل فني وعمود لكل يوم، وصف المتاحين في الأسفل ── */
+  const timelineView = () => {
+    const [y, m] = st.month.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${st.month}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
+    const rows = D.team.filter((u) => !st.hide.has(u.id) && (!st.mine || u.id === me));
+    const tot = (uid) => D.leaves.filter((r) => r.userId === uid && LV.over(r, first, last)).reduce((a, r) => a + LV.days(r.from > first ? r.from : first, r.to < last ? r.to : last).length, 0);
+    return html`<div class="lv-tlw"><div class="lv-tl" style="--n:${n}">
+      <div class="lv-tr lv-th"><span class="lv-tw">الفني</span>${days.map((d) => html`<span class="lv-tc ${dayCls(d)}" title="${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}"><b>${LV.pd(d).getDate()}</b><small>${LV.WD1[LV.pd(d).getDay()]}</small></span>`)}<span class="lv-tt">أيام</span></div>
+      ${rows.map((u) => { const s = D.styOf(u.id), list = D.leaves.filter((r) => r.userId === u.id && LV.over(r, first, last)), can = u.id === me || LV.mgr();
+        return html`<div class="lv-tr${u.id === me ? ' me' : ''}" data-tlu="${u.id}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => { const ns = notesOn(d).filter((x) => x.createdBy === u.id); return html`<span class="lv-tc ${dayCls(d)}${can ? ' can' : ''}" data-day="${d}" data-u="${u.id}" style="grid-column:${i + 2}">${ns.length ? UI.icon('lv-note', 'lv-tn') : ''}</span>`; })}
+          ${list.map((r) => { const a = r.from > first ? r.from : first, b = r.to < last ? r.to : last, c1 = LV.diff(first, a) + 2, c2 = LV.diff(first, b) + 2, T = LV.T(r); return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${r.from < first ? ' cs' : ''}${r.to > last ? ' ce' : ''}" data-lvopen="${r.id}" style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${s.color}" title="${barLabel(r)}">${UI.icon(T.icon)}<span>${c2 - c1 >= 1 ? T.short : ''}</span></button>`; })}
+          <span class="lv-tt" style="grid-column:${n + 2}">${fmtNum(tot(u.id))}</span></div>`; })}
+      <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} المتاحون</span>${days.map((d, i) => { if (!LV.work(d) || !D.team.length) return html`<span class="lv-tc ${dayCls(d)}" style="grid-column:${i + 2}"></span>`; const c = coverOf(d), k = c.avail < D.cfg.minCover ? 'bad' : c.avail === D.cfg.minCover ? 'mid' : 'ok'; return html`<span class="lv-tc cov-${k}" style="grid-column:${i + 2}" title="المتاحون ${c.avail} من ${c.tot}">${fmtNum(c.avail)}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
+    </div></div>`;
+  };
+
+  /* ── السنة: اثنا عشر شهراً مصغّراً، لون اليوم بعدد الغائبين، وإجازاتي بإطار ── */
+  const yearView = () => {
+    const y = Number(st.month.slice(0, 4)), max = Math.max(1, D.team.length);
+    return html`<div class="lv-year">${LV.MONTHS.map((mn, mi) => {
+      const mm = `${y}-${pad(mi + 1)}`, first = `${mm}-01`, n = new Date(y, mi + 1, 0).getDate(), lead = LV.pd(first).getDay();
+      return html`<div class="lv-ym"><button type="button" class="lv-ymh" data-lvmonth="${mm}">${mn}</button><div class="lv-ymg">${LV.WD1.map((d) => html`<i>${d}</i>`)}${Array.from({ length: lead }, () => html`<span></span>`)}${Array.from({ length: n }, (_, i) => { const d = `${mm}-${pad(i + 1)}`, aw = LV.away(d, D.leaves), mine = aw.some((r) => r.userId === me), k = aw.length ? Math.min(4, Math.ceil((aw.length / max) * 4)) : 0;
+        return html`<span class="lv-yd h${k} ${dayCls(d)}${mine ? ' mine' : ''}" data-day="${d}" title="${LV.fmtY(d)}${aw.length ? ` — ${aw.map((r) => (D.users.get(r.userId) || {}).name).join('، ')}` : ''}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}">${i + 1}</span>`; })}</div></div>`; })}</div>`;
+  };
+
+  /* ── القائمة: كل إجازات السنة بفلاتر، وإجراءات الاعتماد ── */
+  const listRows = () => { const y = st.month.slice(0, 4); return D.recs.filter((r) => LV.isLeave(r) && LV.over(r, `${y}-01-01`, `${y}-12-31`) && (!st.lf.st || r.status === st.lf.st) && (!st.lf.type || r.type === st.lf.type) && (!st.lf.u || r.userId === st.lf.u) && !st.hide.has(r.userId) && (!st.mine || r.userId === me)).sort((a, b) => a.from.localeCompare(b.from)); };
+  const listView = () => {
+    const rows = listRows();
+    return html`<div class="lv-lf"><select class="input" data-lf="u"><option value="">كل الفريق</option>${D.team.map((u) => html`<option value="${u.id}"${st.lf.u === u.id ? raw(' selected') : ''}>${u.name}</option>`)}</select><select class="input" data-lf="type"><option value="">كل الأنواع</option>${Object.entries(LV.TYPES).map(([k, t]) => html`<option value="${k}"${st.lf.type === k ? raw(' selected') : ''}>${t.label}</option>`)}</select><select class="input" data-lf="st"><option value="">كل الحالات</option>${Object.entries(LV.ST).map(([k, [l]]) => html`<option value="${k}"${st.lf.st === k ? raw(' selected') : ''}>${l}</option>`)}</select><span class="faint">${fmtNum(rows.length)} إجازة في ${st.month.slice(0, 4)}</span></div>
+      ${rows.length ? html`<div class="table-wrap"><table class="table lv-lt"><thead><tr><th>الفني</th><th>النوع</th><th>المدة</th><th>الأيام</th><th>الحالة</th><th>الظهور</th><th>ملاحظة</th><th></th></tr></thead><tbody>${rows.map((r) => { const u = D.users.get(r.userId), T = LV.T(r);
+        return html`<tr><td>${LV.who(u, D.styOf(r.userId))}</td><td><span class="lv-tp">${UI.icon(T.icon)} ${T.label}</span></td><td class="nowrap">${LV.range(r.from, r.to)}</td><td class="nowrap">${fmtNum(LV.days(r.from, r.to).length)} <small class="faint">(${fmtNum(LV.workDays(r.from, r.to))} عمل)</small></td><td>${LV.stChip(r)}</td><td><span class="lv-vi" title="${(LV.VIS[r.vis] || LV.VIS.team)[2]}">${UI.icon((LV.VIS[r.vis] || LV.VIS.team)[1])}</span>${(r.share || []).length ? html` <small class="faint">+${fmtNum(r.share.length)}</small>` : ''}</td><td class="lv-ln">${r.note || ''}</td>
+          <td class="nowrap">${LV.mgr() && r.status === 'pending' ? html`<button type="button" class="btn btn-xs btn-soft" data-lvdec="approved|${r.id}">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-xs btn-ghost" data-lvdec="rejected|${r.id}">رفض</button>` : ''}<button type="button" class="icon-btn" data-lvopen="${r.id}" title="${LV.canEdit(r) ? 'تعديل' : 'عرض'}">${UI.icon(LV.canEdit(r) ? 'edit' : 'eye')}</button></td></tr>`; })}</tbody></table></div>` : html`<div class="empty">${UI.illu('calendar')}<p>لا إجازات بهذه الفلاتر</p></div>`}`;
+  };
+
+  /* ── الجانب: اليوم المختار، وطلبات الاعتماد، وإجازاتي القادمة ── */
+  const side = () => {
+    const t = LV.today(), pend = LV.mgr() ? D.recs.filter((r) => LV.isLeave(r) && r.status === 'pending' && !r.masked).sort((a, b) => a.from.localeCompare(b.from)) : [];
+    const myNext = D.recs.filter((r) => LV.live(r) && r.userId === me && r.to >= t).sort((a, b) => a.from.localeCompare(b.from)).slice(0, 5);
+    const d = st.day;
+    let dayCard = '';
+    if (d) {
+      const aw = LV.away(d, D.all), ns = notesOn(d), cv = D.team.length ? coverOf(d) : null, h = LV.holiday(d);
+      dayCard = html`<div class="card lv-card lv-dayc"><div class="lv-ch"><h4>${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}</h4><button type="button" class="icon-btn" data-lvday="" aria-label="إغلاق">${UI.icon('x')}</button></div>
+        <div class="lv-tags">${h ? html`<span class="chip tone-violet">${UI.icon('star')} ${h}</span>` : ''}${LV.weekend(d) ? html`<span class="chip">عطلة أسبوعية</span>` : ''}${cv && LV.work(d) ? html`<span class="chip tone-${cv.avail < D.cfg.minCover ? 'red' : 'teal'}">${UI.icon('lv-team')} متاح ${fmtNum(cv.avail)} من ${fmtNum(cv.tot)}</span>` : ''}</div>
+        <h5>في إجازة ${aw.length ? html`<small>${fmtNum(aw.length)}</small>` : ''}</h5>${aw.length ? html`<ul class="lv-ul">${aw.map((r) => { const u = D.users.get(r.userId), T = LV.T(r), dn = (r.dayNotes || {})[d]; return html`<li><button type="button" data-lvopen="${r.id}">${LV.who(u, D.styOf(r.userId))}<span class="lv-tp">${UI.icon(T.icon)} ${T.short} · ${LV.range(r.from, r.to)}</span>${LV.stChip(r)}${dn ? html`<em class="lv-dnote">${UI.icon('lv-note')} ${dn}</em>` : ''}</button></li>`; })}</ul>` : html`<p class="faint small">الفريق كامل في هذا اليوم.</p>`}
+        <h5>ملاحظات ${ns.length ? html`<small>${fmtNum(ns.length)}</small>` : ''}</h5>${ns.length ? html`<ul class="lv-ul">${ns.map((n) => html`<li><button type="button" data-lvnote="${n.id}" class="lv-nli tone-${n.tone || 'sky'}"><span>${n.text}</span><small class="faint">${Data.userName(n.createdBy)}${n.to ? ` · ${LV.range(n.date, n.to)}` : ''} ${n.vis !== 'team' ? UI.icon((LV.VIS[n.vis] || LV.VIS.team)[1]) : ''}</small></button></li>`)}</ul>` : html`<p class="faint small">لا ملاحظات.</p>`}
+        <div class="lv-acts"><button type="button" class="btn btn-sm btn-primary" data-lvnew="${d}">${UI.icon('plus')} إجازة من هذا اليوم</button><button type="button" class="btn btn-sm btn-soft" data-lvnoteadd="${d}">${UI.icon('lv-note')} ملاحظة</button></div></div>`;
+    }
+    const bal = LV.balance(me, Number(st.month.slice(0, 4)), D.recs);
+    return html`${dayCard}
+      ${pend.length ? html`<div class="card lv-card lv-pend"><h4>${UI.icon('clock')} بانتظار الاعتماد <small>${fmtNum(pend.length)}</small></h4><ul class="lv-ul">${pend.map((r) => { const u = D.users.get(r.userId); return html`<li class="lv-pi">${LV.who(u, D.styOf(r.userId))}<span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).short} · ${LV.range(r.from, r.to)} · ${fmtNum(LV.workDays(r.from, r.to))} عمل</span><span class="lv-pa"><button type="button" class="btn btn-xs btn-soft" data-lvdec="approved|${r.id}">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-xs btn-ghost" data-lvdec="rejected|${r.id}">رفض</button><button type="button" class="icon-btn" data-lvopen="${r.id}" title="فتح">${UI.icon('eye')}</button></span></li>`; })}</ul></div>` : ''}
+      <div class="card lv-card"><h4>${UI.icon('lv-palm')} رصيدي ${st.month.slice(0, 4)}</h4><div class="lv-balg"><span><b>${fmtNum(bal.ent)}</b><small>الرصيد</small></span><span><b>${fmtNum(bal.used)}</b><small>معتمد</small></span><span><b>${fmtNum(bal.pend)}</b><small>معلّق</small></span><span class="${bal.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(bal.left)}</b><small>متبقٍ</small></span></div>${bal.plan ? html`<p class="hint">وفي الخطط المبدئية ${LV.dayW(bal.plan)}.</p>` : ''}</div>
+      <div class="card lv-card"><h4>${UI.icon('calendar')} إجازاتي القادمة</h4>${myNext.length ? html`<ul class="lv-ul">${myNext.map((r) => html`<li><button type="button" data-lvopen="${r.id}"><span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).label}</span><span>${LV.range(r.from, r.to)}</span>${LV.stChip(r)}</button></li>`)}</ul>` : html`<p class="faint small">لا إجازات قادمة. اسحب على أيام التقويم لتحديد إجازة.</p>`}</div>`;
+  };
+
+  const draw = async () => {
+    await load();
+    const t = LV.today(), awayT = LV.away(t, D.all), soon = D.all.filter((r) => r.from > t && r.from <= LV.add(t, 14)), [y, m] = st.month.split('-').map(Number), mgr = LV.mgr();
+    const title = st.view === 'year' || st.view === 'list' ? `${y}` : `${LV.MONTHS[m - 1]} ${y}`;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إجازات الفنيين', sub: 'خطط إجازتك على تقويم الفريق: اسحب على الأيام لتحديد المدة، واختر من يراها، وأضف ملاحظاتك. التداخل مع الزملاء ونقص التغطية يظهران قبل الحفظ', illu: 'calendar',
+      actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon(D.styOf(me).icon)} لوني وأيقونتي</button>` })}
+      <div class="lv-kpis">
+        <div class="lv-kpi"><span class="lv-ki">${UI.icon('lv-plane')}</span><div><small>في إجازة اليوم</small><b>${awayT.length ? fmtNum(awayT.length) : 'الفريق كامل'}</b><div class="lv-kw">${awayT.slice(0, 4).map((r) => LV.who(D.users.get(r.userId), D.styOf(r.userId), 'sm'))}</div></div></div>
+        <div class="lv-kpi"><span class="lv-ki">${UI.icon('calendar')}</span><div><small>تبدأ خلال 14 يوماً</small><b>${fmtNum(soon.length)}</b><div class="lv-kw">${soon.slice(0, 3).map((r) => html`<span class="faint small">${LV.first((D.users.get(r.userId) || {}).name)} ${LV.fmt(r.from)}</span>`)}</div></div></div>
+        <div class="lv-kpi"><span class="lv-ki">${UI.icon('lv-team')}</span><div><small>المتاحون اليوم</small><b>${D.team.length ? `${fmtNum(coverOf(t).avail)} / ${fmtNum(D.team.length)}` : '—'}</b><small class="faint">الحد الأدنى ${fmtNum(D.cfg.minCover)}</small></div></div>
+        ${mgr ? html`<div class="lv-kpi${D.recs.some((r) => r.status === 'pending' && LV.isLeave(r)) ? ' hot' : ''}"><span class="lv-ki">${UI.icon('clock')}</span><div><small>بانتظار الاعتماد</small><b>${fmtNum(D.recs.filter((r) => LV.isLeave(r) && r.status === 'pending').length)}</b></div></div>` : ''}
+      </div>
+      <div class="lv-bar">
+        <div class="lv-nav"><button type="button" class="icon-btn" data-lvm="-1" aria-label="السابق">${UI.icon('chevron-right')}</button><b class="lv-title">${title}</b><button type="button" class="icon-btn" data-lvm="1" aria-label="التالي">${UI.icon('chevron-left')}</button><button type="button" class="btn btn-sm btn-ghost" data-lvm="0">اليوم</button></div>
+        <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
+        <span class="grow"></span>
+        <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}</div>
+      </div>
+      <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}">${UI.icon(s.icon)}<span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون والأيقونة">${UI.icon('palette')}</i>` : ''}</button>`; })}
+        <label class="chk lv-mine"><input type="checkbox" data-lvmine${st.mine ? raw(' checked') : ''}> إجازاتي فقط</label>
+        <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب</span></div>
+      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
+    if (q.l && !st._opened) { st._opened = true; const r = D.recs.find((x) => x.id === q.l); if (r) setTimeout(() => open(r.id), 60); }
+  };
+  const open = async (id) => { const r = D.recs.find((x) => x.id === id) || (await DB.get('leaves', id)); if (!r) return; if (r.kind === 'note') { await LV.noteEdit(id); return; } if (LV.canEdit(r)) await LV.edit(id); else await LV.view(r); };
+  const go = (fn) => Promise.resolve().then(fn).catch((ex) => UI.error(ex));
+
+  /* ── التحديد بالسحب على الأيام: إجازة أو ملاحظة للمدة ── */
+  const paint = () => { if (!drag) { $$('.lv-sel', ctx.view).forEach((x) => x.classList.remove('lv-sel')); return; } const [a, b] = drag.a <= drag.b ? [drag.a, drag.b] : [drag.b, drag.a]; $$('[data-day]', ctx.view).forEach((x) => x.classList.toggle('lv-sel', x.dataset.day >= a && x.dataset.day <= b && (!drag.u || x.dataset.u === drag.u))); };
+  const closePop = () => { if (pop) { pop.remove(); pop = null; } $$('.lv-sel', ctx.view).forEach((x) => x.classList.remove('lv-sel')); };
+  const rangeMenu = (a, b, u, e) => {
+    closePop(); const n = LV.days(a, b).length;
+    pop = document.createElement('div'); pop.className = 'lv-pop'; pop.setAttribute('role', 'menu');
+    pop.innerHTML = String(html`<b>${LV.range(a, b)}</b><small class="faint">${LV.dayW(n)} · ${fmtNum(LV.workDays(a, b))} عمل</small><button type="button" class="btn btn-sm btn-primary" data-rm="leave">${UI.icon('plus')} إجازة لهذه الأيام</button><button type="button" class="btn btn-sm btn-soft" data-rm="note">${UI.icon('lv-note')} ملاحظة على هذه الأيام</button><button type="button" class="btn btn-sm btn-ghost" data-rm="x">إلغاء</button>`);
+    document.body.appendChild(pop);
+    const w = pop.offsetWidth, h = pop.offsetHeight; pop.style.left = `${clamp(e.clientX - w / 2, 8, innerWidth - w - 8)}px`; pop.style.top = `${clamp(e.clientY + 12, 8, innerHeight - h - 8)}px`;
+    pop.addEventListener('click', (ev) => { const bt = ev.target.closest('[data-rm]'); if (!bt) return; const k = bt.dataset.rm; closePop(); if (k === 'leave') go(async () => { if (await LV.edit('', { from: a, to: b, userId: u || me })) draw(); }); else if (k === 'note') go(async () => { if (await LV.noteEdit('', { from: a, to: b })) draw(); }); });
+  };
+  ctx.view.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.pointerType === 'touch') return;
+    const c = e.target.closest('[data-day]'); if (!c || e.target.closest('[data-lvopen], button, a, input, select')) return;
+    if (c.closest('.lv-year')) return;
+    if (c.dataset.u && c.dataset.u !== me && !LV.mgr()) return;
+    closePop(); drag = { a: c.dataset.day, b: c.dataset.day, u: c.dataset.u || '', moved: false }; paint(); e.preventDefault();
+  });
+  ctx.view.addEventListener('pointermove', (e) => { if (!drag) return; const el = document.elementFromPoint(e.clientX, e.clientY), c = el && el.closest && el.closest('[data-day]'); if (!c || !ctx.view.contains(c) || (drag.u && c.dataset.u !== drag.u)) return; if (c.dataset.day !== drag.b) { drag.b = c.dataset.day; drag.moved = true; paint(); } });
+  const up = (e) => { if (!drag) return; const d = drag; drag = null; skipClick = true; setTimeout(() => { skipClick = false; }, 50); const [a, b] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a]; if (!d.moved) { paint(); st.day = st.day === a && !d.u ? '' : a; sync(); go(draw); return; } rangeMenu(a, b, d.u, e); };
+  const outside = (e) => { if (pop && !pop.contains(e.target)) closePop(); };
+  const esc = (e) => { if (e.key === 'Escape') { if (drag) { drag = null; paint(); } closePop(); } };
+  document.addEventListener('pointerup', up); document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', esc);
+  ctx.onCleanup(() => { document.removeEventListener('pointerup', up); document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', esc); closePop(); });
+
+  UI.on(ctx.view, 'click', '[data-day]', (e, c) => { if (skipClick || e.target.closest('[data-lvopen]')) return; if (c.closest('.lv-year')) { st.month = c.dataset.day.slice(0, 7); st.day = c.dataset.day; st.view = 'month'; LV.setPref('view', 'month'); sync(); go(draw); return; } st.day = c.dataset.day; sync(); go(draw); });
+  UI.on(ctx.view, 'click', '[data-lvopen]', (e, b) => { e.stopPropagation(); go(async () => { await open(b.dataset.lvopen); if (ctx.alive()) draw(); }); });
+  UI.on(ctx.view, 'click', '[data-lvnew]', (e, b) => go(async () => { if (await LV.edit('', b.dataset.lvnew ? { from: b.dataset.lvnew } : {})) draw(); }));
+  UI.on(ctx.view, 'click', '[data-lvnoteadd]', (e, b) => go(async () => { if (await LV.noteEdit('', { from: b.dataset.lvnoteadd || st.day || LV.today() })) draw(); }));
+  UI.on(ctx.view, 'click', '[data-lvnote]', (e, b) => go(async () => { await LV.noteEdit(b.dataset.lvnote); draw(); }));
+  UI.on(ctx.view, 'click', '[data-lvsty]', (e, b) => { e.stopPropagation(); go(async () => { await LV.styleEdit(b.dataset.lvsty); draw(); }); });
+  UI.on(ctx.view, 'click', '[data-lvdec]', (e, b) => { const [s, id] = b.dataset.lvdec.split('|'); go(async () => { await LV.decide(id, s); draw(); }); });
+  UI.on(ctx.view, 'click', '[data-lvday]', () => { st.day = ''; sync(); go(draw); });
+  UI.on(ctx.view, 'click', '[data-lvmonth]', (e, b) => { st.month = b.dataset.lvmonth; st.view = 'month'; LV.setPref('view', 'month'); sync(); go(draw); });
+  UI.on(ctx.view, 'click', '[data-lvhide]', (e, b) => { if (e.target.closest('[data-lvsty]')) return; const id = b.dataset.lvhide; if (st.hide.has(id)) st.hide.delete(id); else st.hide.add(id); LV.setPref('hide', [...st.hide]); go(draw); });
+  UI.on(ctx.view, 'click', '[data-lvm]', (e, b) => {
+    const k = Number(b.dataset.lvm), yearly = st.view === 'year' || st.view === 'list';
+    if (!k) { st.month = LV.today().slice(0, 7); st.day = LV.today(); } else { const [y, m] = st.month.split('-').map(Number), d = new Date(y, m - 1 + (yearly ? 12 * k : k), 1); st.month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+    sync(); go(draw);
+  });
+  UI.on(ctx.view, 'click', '[data-lvx]', (e, b) => go(async () => {
+    const k = b.dataset.lvx;
+    if (k === 'cfg') { await LV.settings(); draw(); return; }
+    if (k === 'ics') { const mine = D.recs.filter((r) => LV.live(r) && r.userId === me); if (!mine.length) { UI.toast('لا إجازات لك لتصديرها', 'warn'); return; } LV.ics(mine); UI.toast(`صُدّرت ${fmtNum(mine.length)} إجازة: افتح الملف لإضافتها إلى تقويمك`); return; }
+    if (k === 'xlsx') return exportXlsx();
+    if (k === 'print') return printMonth();
+  }));
+  ctx.view.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.name === 'lvview') { st.view = t.value; LV.setPref('view', st.view); sync(); go(draw); }
+    else if (t.matches('[data-lvmine]')) { st.mine = t.checked; go(draw); }
+    else if (t.matches('[data-lf]')) { st.lf[t.dataset.lf] = t.value; go(draw); }
+  });
+
+  /* ── Excel: الإجازات، والأرصدة، وجدول الشهر ── */
+  const exportXlsx = () => {
+    const y = Number(st.month.slice(0, 4)), rows = D.recs.filter((r) => LV.isLeave(r) && LV.over(r, `${y}-01-01`, `${y}-12-31`) && !st.hide.has(r.userId)).sort((a, b) => a.from.localeCompare(b.from));
+    const [yy, mm] = st.month.split('-').map(Number), n = new Date(yy, mm, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${st.month}-${pad(i + 1)}`);
+    downloadBlob(XL.write([
+      { name: 'الإجازات', widths: [26, 16, 14, 14, 10, 10, 16, 22, 40], rows: [['الفني', 'النوع', 'من', 'إلى', 'الأيام', 'أيام العمل', 'الحالة', 'الظهور', 'الملاحظة'], ...rows.map((r) => [Data.userName(r.userId), LV.T(r).label, r.from, r.to, LV.days(r.from, r.to).length, LV.workDays(r.from, r.to), (LV.ST[r.status] || LV.ST.plan)[0], (LV.VIS[r.vis] || LV.VIS.team)[0], [r.note, ...Object.entries(r.dayNotes || {}).map(([d, t]) => `${d}: ${t}`)].filter(Boolean).join(' | ')])] },
+      { name: `الأرصدة ${y}`, widths: [26, 10, 10, 10, 10, 10, 10, 10], rows: [['الفني', 'الرصيد', 'المعتمد', 'المعلّق', 'المخطط', 'المتبقي', 'مرضية', 'أخرى'], ...D.team.map((u) => { const b = LV.balance(u.id, y, D.recs), other = (t) => D.recs.filter((r) => LV.isLeave(r) && r.userId === u.id && r.status !== 'rejected' && (t === 'sick' ? r.type === 'sick' : !['annual', 'sick'].includes(r.type)) && LV.over(r, `${y}-01-01`, `${y}-12-31`)).reduce((a, r) => a + LV.days(r.from, r.to).length, 0); return [u.name, b.ent, b.used, b.pend, b.plan, b.left, other('sick'), other('x')]; })] },
+      { name: `جدول ${LV.MONTHS[mm - 1]}`, widths: [24, ...days.map(() => 4)], rows: [['الفني', ...days.map((d) => LV.pd(d).getDate())], ...D.team.map((u) => [u.name, ...days.map((d) => { const r = LV.away(d, D.all).find((x) => x.userId === u.id); return r ? LV.T(r).ab : LV.holiday(d) ? 'ع' : LV.weekend(d) ? '-' : ''; })]), ['المتاحون', ...days.map((d) => (LV.work(d) ? coverOf(d).avail : ''))], [], ['الرموز: ' + Object.values(LV.TYPES).map((t) => `${t.ab} ${t.short}`).join('، ') + '، • غائب، ع عطلة رسمية، - عطلة أسبوعية']] }
+    ]), `الإجازات-${st.month}.xlsx`);
+  };
+  /* ── طباعة الشهر: جدول الفريق بالأيام، ثم تفاصيل الإجازات ── */
+  const printMonth = () => {
+    const [y, m] = st.month.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${st.month}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
+    const team = D.team.filter((u) => !st.hide.has(u.id)), list = D.recs.filter((r) => LV.isLeave(r) && r.status !== 'rejected' && LV.over(r, first, last) && !st.hide.has(r.userId)).sort((a, b) => a.from.localeCompare(b.from)), ns = D.notes.filter((x) => x.date <= last && (x.to || x.date) >= first);
+    const css = '@page{size:A4 landscape;margin:10mm}.lvp{font-size:10.5px}.lvp table{width:100%;border-collapse:collapse}.lvp th,.lvp td{border:1px solid #cbd5e1;padding:2px 3px;text-align:center}.lvp td.n{text-align:right;white-space:nowrap;font-weight:700}.lvp .we{background:#f1f5f9}.lvp .hol{background:#ede9fe}.lvp .lvc{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:800;color:#fff}.lvp .bad{color:#b91c1c;font-weight:800}.lvp .key{margin:6px 0;color:#475569}.lvp h3{margin:12px 0 4px}';
+    UI.print(html`<style>${raw(css)}</style><div class="lvp"><h2>إجازات الفنيين — ${LV.MONTHS[m - 1]} ${y}</h2>
+      <table><thead><tr><th>الفني</th>${days.map((d) => html`<th class="${LV.weekend(d) ? 'we' : ''}${LV.holiday(d) ? ' hol' : ''}">${LV.pd(d).getDate()}<br><small>${LV.WD1[LV.pd(d).getDay()]}</small></th>`)}<th>الأيام</th></tr></thead><tbody>
+      ${team.map((u) => { const s = D.styOf(u.id); let tot = 0; return html`<tr><td class="n">${u.name}</td>${days.map((d) => { const r = LV.away(d, D.all).find((x) => x.userId === u.id); if (r) tot++; return r ? html`<td class="lvc" style="background:${s.color}${r.status === 'approved' ? '' : 'aa'}">${LV.T(r).ab}</td>` : html`<td class="${LV.weekend(d) ? 'we' : ''}${LV.holiday(d) ? ' hol' : ''}"></td>`; })}<td><b>${tot}</b></td></tr>`; })}
+      <tr><td class="n">المتاحون</td>${days.map((d) => { if (!LV.work(d)) return html`<td class="we"></td>`; const c = coverOf(d); return html`<td class="${c.avail < D.cfg.minCover ? 'bad' : ''}">${c.avail}</td>`; })}<td></td></tr></tbody></table>
+      <p class="key">الرموز: ${Object.values(LV.TYPES).map((t) => `${t.ab} = ${t.short}`).join('، ')}، • = غائب. اللون الفاتح: غير معتمدة بعد. الحد الأدنى للمتاحين: ${D.cfg.minCover}.${(D.cfg.holidays || []).filter((h) => h.from <= last && (h.to || h.from) >= first).map((h) => ` عطلة: ${h.name} (${LV.range(h.from, h.to || h.from)}).`).join('')}</p>
+      ${list.length ? html`<h3>تفاصيل الإجازات</h3><table><thead><tr><th>الفني</th><th>النوع</th><th>المدة</th><th>الأيام</th><th>الحالة</th><th>الملاحظة</th></tr></thead><tbody>${list.map((r) => html`<tr><td class="n">${Data.userName(r.userId)}</td><td>${LV.T(r).label}</td><td>${LV.range(r.from, r.to)}</td><td>${LV.days(r.from, r.to).length} (${LV.workDays(r.from, r.to)} عمل)</td><td>${(LV.ST[r.status] || LV.ST.plan)[0]}</td><td style="text-align:right">${[r.note, ...Object.entries(r.dayNotes || {}).map(([d, t]) => `${LV.fmt(d)}: ${t}`)].filter(Boolean).join(' — ')}</td></tr>`)}</tbody></table>` : ''}
+      ${ns.length ? html`<h3>ملاحظات الشهر</h3><table><tbody>${ns.map((x) => html`<tr><td class="n">${LV.range(x.date, x.to || x.date)}</td><td style="text-align:right">${x.text}</td><td>${Data.userName(x.createdBy)}</td></tr>`)}</tbody></table>` : ''}
+      ${UI.signBlock([{ title: 'مُعدّ الكشف', userId: me }, { title: 'رئيس القسم' }])}</div>`, `إجازات ${LV.MONTHS[m - 1]} ${y}`);
+  };
+
+  ctx.onCleanup(Bus.on('leaves', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 300)));
+  ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 600)));
+  sync(); await draw();
+};
+
+/* ── التسجيل: الصلاحيات، والقائمة، والمسار، والشارة، وتنظيف الجهاز عند سحب الصلاحية ── */
+PERMS.technician.push('leaves');
+PERMS.support_manager.push('leaves', 'leaves.manage');
+PERM_GROUPS.push({ title: 'الإجازات', icon: 'calendar', items: [['leaves', 'تقويم الإجازات', 'تحديد إجازاته وملاحظاته، ورؤية إجازات الزملاء التي يتيحونها'], ['leaves.manage', 'إدارة الإجازات', 'اعتماد الطلبات ورفضها، ورؤية ما يُشارَك مع الإدارة، والعطل الرسمية والحد الأدنى للتغطية والأرصدة']] });
+PERM_KEYS.add('leaves'); PERM_KEYS.add('leaves.manage'); PERM_LABEL.leaves = 'تقويم الإجازات'; PERM_LABEL['leaves.manage'] = 'إدارة الإجازات';
+PERM_PRESETS.push({ id: 'leaves', label: 'إدارة الإجازات', icon: 'calendar', perms: ['leaves', 'leaves.manage'] });
+STORE_EVENTS.leaves = ['leaves'];
+{
+  const na = Shell.navAll;
+  Shell.navAll = function () {
+    const g = na.call(this), ops = g.find((x) => x.group === 'العمليات') || g[0], item = { path: '/leaves', label: 'إجازات الفنيين', icon: 'calendar', perm: 'leaves|leaves.manage', badge: 'leaves' };
+    if (ops && !ops.items.some((i) => i.path === '/leaves')) { const at = ops.items.findIndex((i) => i.path === '/works'); ops.items.splice(at < 0 ? ops.items.length : at + 1, 0, item); }
+    return g;
+  };
+  const rb = Shell.refreshBadges.bind(Shell);
+  Shell.refreshBadges = async function () { await rb(); try { const b = $('[data-badge="leaves"]'); if (!b) return; const n = LV.mgr() ? (await DB.getAll('leaves')).filter((r) => LV.isLeave(r) && r.status === 'pending' && r.userId !== LV.me()).length : 0; b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n); } catch (_) { /* تجاهل */ } };
+  Bus.on('leaves', debounce(() => { if (Shell.mounted) Shell.refreshBadges(); }, 500));
+}
+Router.add('/leaves', 'leaves|leaves.manage', Pages.leaves, 'إجازات الفنيين');
+Bus.on('users', async () => {
+  if (!Auth.user) return;
+  const fresh = await DB.get('users', Auth.user.id); if (!fresh) return;
+  if (!canUser(fresh, 'leaves') && !canUser(fresh, 'leaves.manage')) { try { if ((await DB.getAll('leaves')).length) { await DB.clear('leaves'); Bus.emit('leaves', {}); } } catch (_) { /* تجاهل */ } }
+});
 
 boot();
 })();

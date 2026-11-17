@@ -266,7 +266,7 @@ function survey_private_rows(array $rows, array $user): array {
  * كان كل جهاز يستلم نسخة كاملة من قاعدة البيانات (كل البلاغات والمحادثات والإشعارات وسجل النشاط)،
  * فتكبر قاعدة كل جهاز بلا حد ويعيد كل جهاز رسم صفحاته مع كل تغيير في أي مكان.
  */
-const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads'];
+const SELF_SKIP = ['activity', 'worklog', 'workFolders', 'workItems', 'movements', 'stock', 'deptStock', 'unitStock', 'workstations', 'backups', 'handles', 'extmaint', 'mtrack', 'vault', 'noteGroups', 'noteReads', 'leaves'];
 /*
  * الموظف الذي مُنح صلاحيات إضافية: ما تحتاجه صلاحياته من الجداول كاملاً، وبقية البيانات له وحده كأي موظف.
  * كان يُعامل كالفنيين فيستلم جهازه بلاغات الجميع واستفساراتهم وإشعاراتهم وسجل النشاط، ولو مُنح صلاحية صغيرة مثل كتابة المقالات.
@@ -285,6 +285,7 @@ function pull_full(array $u): array {
   /* صيانة الأجهزة: البحث بالرقم التسلسلي في كل الوحدات، وسجل الصيانة كله */
   $grant(['maint.work'], ['maintenance', 'assets']);
   $grant(['vault.read', 'vault.manage'], ['vault', 'noteGroups', 'noteReads']);
+  $grant(['leaves', 'leaves.manage'], ['leaves']);
   $grant(['surveys.manage', 'reports'], ['surveyResponses', 'surveyMarks']);
   $grant(['org.manage'], ['orgLog']);
   return $full;
@@ -470,6 +471,114 @@ function vault_rows(array $rows, array $user): array {
     $out[] = $r;
   }
   return $out;
+}
+/* ── الإجازات: من يرى كل إجازة أو ملاحظة ──
+   team: كل من يصل إلى التقويم بالتفاصيل. busy: يرى الزملاء «غائب» بالمدة فقط (بلا نوع ولا ملاحظات)، والإدارة ومن شوركت معه بالتفاصيل.
+   mgr: صاحبها والإدارة (إدارة الإجازات) ومن شوركت معه. private: صاحبها ومن شاركه بالاسم فقط، ولا تصل غيرهم ولو كانوا مشرفين.
+   ما لا يحق للحساب يُرسل له حذفاً (فيُمسح من جهازه إن تغيّر الظهور)، و«غائب» يصله بلا تفاصيل. */
+const LEAVE_TYPES = ['annual', 'sick', 'emergency', 'training', 'mission', 'comp', 'other'];
+function leave_access(array $d, array $u): string {
+  if (!can_any($u, ['leaves', 'leaves.manage'])) return '';
+  $kind = (string) ($d['kind'] ?? 'leave');
+  if ($kind === 'style') return 'full';
+  $me = (string) ($u['id'] ?? '');
+  $owner = (string) ($kind === 'note' ? ($d['createdBy'] ?? '') : ($d['userId'] ?? ''));
+  if ($owner === $me) return 'full';
+  if (in_array($me, array_map('strval', (array) ($d['share'] ?? [])), true)) return 'full';
+  $vis = (string) ($d['vis'] ?? 'team');
+  if ($vis === 'private') return '';
+  if (can($u, 'leaves.manage')) return 'full';
+  if ($vis === 'mgr') return '';
+  if ($vis === 'busy') return $kind === 'note' ? '' : 'busy';
+  return 'full';
+}
+function leave_mask(array $d): array {
+  return ['id' => (string) ($d['id'] ?? ''), 'kind' => 'leave', 'userId' => (string) ($d['userId'] ?? ''), 'from' => (string) ($d['from'] ?? ''), 'to' => (string) ($d['to'] ?? ''),
+    'type' => 'busy', 'status' => (string) ($d['status'] ?? 'plan'), 'vis' => 'busy', 'masked' => 1, 'updatedAt' => (int) ($d['updatedAt'] ?? 0)];
+}
+function leave_rows(array $rows, array $user): array {
+  foreach ($rows as $i => $r) {
+    if ($r['store'] !== 'leaves' || (int) $r['deleted'] || !is_array($r['_d'])) continue;
+    $a = leave_access($r['_d'], $user);
+    if ($a === '') { $rows[$i]['deleted'] = 1; $rows[$i]['_d'] = null; }
+    elseif ($a === 'busy') $rows[$i]['_d'] = leave_mask($r['_d']);
+  }
+  return $rows;
+}
+function leave_day(string $s): bool { return (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $s) && checkdate((int) substr($s, 5, 2), (int) substr($s, 8, 2), (int) substr($s, 0, 4)); }
+function leave_span_ok(string $a, string $b): bool { return $b >= $a && (strtotime($b . ' 12:00:00') - strtotime($a . ' 12:00:00')) / 86400 <= 366; }
+function leave_ids($x, int $n): array { return array_values(array_slice(array_unique(array_filter(array_map('strval', (array) $x), fn($v) => $v !== '' && strlen($v) <= 120)), 0, $n)); }
+/** حقول معروفة بأحجام معقولة؛ null إن كانت البيانات غير صالحة */
+function leave_clean(array $d, string $kind): ?array {
+  $id = (string) ($d['id'] ?? ''); if ($id === '' || strlen($id) > 120) return null;
+  $vis = (string) ($d['vis'] ?? 'team');
+  $base = ['id' => $id, 'kind' => $kind, 'share' => leave_ids($d['share'] ?? [], 60), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
+  if ($kind === 'note') {
+    $date = (string) ($d['date'] ?? ''); $to = (string) ($d['to'] ?? '');
+    if (!leave_day($date)) return null;
+    if ($to !== '' && (!leave_day($to) || !leave_span_ok($date, $to))) return null;
+    $text = cut(trim((string) ($d['text'] ?? '')), 1000); if ($text === '') return null;
+    $tone = (string) ($d['tone'] ?? 'sky');
+    return $base + ['date' => $date, 'to' => $to === $date ? '' : $to, 'text' => $text, 'tone' => in_array($tone, ['sky', 'amber', 'red', 'teal', 'violet'], true) ? $tone : 'sky', 'vis' => in_array($vis, ['team', 'mgr', 'private'], true) ? $vis : 'team', 'userId' => (string) ($d['userId'] ?? '')];
+  }
+  $from = (string) ($d['from'] ?? ''); $to = (string) ($d['to'] ?? '');
+  if (!leave_day($from) || !leave_day($to) || !leave_span_ok($from, $to)) return null;
+  $type = (string) ($d['type'] ?? 'annual'); if (!in_array($type, LEAVE_TYPES, true)) $type = 'other';
+  $st = (string) ($d['status'] ?? 'plan'); if (!in_array($st, ['plan', 'pending', 'approved', 'rejected'], true)) $st = 'plan';
+  $dn = [];
+  foreach ((array) ($d['dayNotes'] ?? []) as $k => $v) { $k = (string) $k; $v = cut(trim((string) $v), 500); if ($v !== '' && leave_day($k) && $k >= $from && $k <= $to && count($dn) < 400) $dn[$k] = $v; }
+  return $base + ['userId' => (string) ($d['userId'] ?? ''), 'from' => $from, 'to' => $to, 'type' => $type, 'status' => $st, 'vis' => in_array($vis, ['team', 'busy', 'mgr', 'private'], true) ? $vis : 'team',
+    'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'dayNotes' => (object) $dn, 'decidedBy' => (string) ($d['decidedBy'] ?? ''), 'decidedAt' => (int) ($d['decidedAt'] ?? 0), 'decisionNote' => cut(trim((string) ($d['decisionNote'] ?? '')), 500)];
+}
+/** كتابة الإجازات: صاحب الإجازة يضيفها ويعدّلها ويحذفها، ومن يملك «إدارة الإجازات» يعتمد ويرفض ويعدّل ما يراه.
+    الاعتماد والرفض للإدارة وحدها، وتغيير مدة إجازة معتمدة أو نوعها أو صاحبها يعيدها «بانتظار الاعتماد» */
+function leave_write(array $user, ?array $old, $new, bool $deleted) {
+  if (!can_any($user, ['leaves', 'leaves.manage'])) return null;
+  $me = (string) ($user['id'] ?? ''); $mgr = can($user, 'leaves.manage');
+  $data = is_array($new) ? $new : [];
+  $src = $old ?: $data; $kind = (string) ($src['kind'] ?? 'leave');
+  if (!in_array($kind, ['leave', 'note', 'style'], true)) return null;
+  if ($old && !$deleted && (string) ($data['kind'] ?? 'leave') !== $kind) return null;
+  if ($kind === 'style') {
+    $uid = (string) ($src['userId'] ?? '');
+    if ((string) ($src['id'] ?? '') !== 'lvs:' . $uid || ($uid !== $me && !$mgr)) return null;
+    if ($deleted) return $new;
+    if ((string) ($data['userId'] ?? '') !== $uid || (string) ($data['id'] ?? '') !== 'lvs:' . $uid) return null;
+    $color = (string) ($data['color'] ?? ''); $icon = (string) ($data['icon'] ?? '');
+    return ['id' => 'lvs:' . $uid, 'kind' => 'style', 'userId' => $uid, 'color' => preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '', 'icon' => preg_match('/^[a-z0-9-]{1,30}$/', $icon) ? $icon : '', 'updatedAt' => (int) ($data['updatedAt'] ?? now_ms())];
+  }
+  $owner = fn(array $d) => (string) ($kind === 'note' ? ($d['createdBy'] ?? '') : ($d['userId'] ?? ''));
+  if ($old) {
+    if ($owner($old) !== $me && !($mgr && leave_access($old, $user) === 'full')) return null;
+    if ($deleted) return $new;
+  } elseif ($deleted) return null;
+  $c = leave_clean($data, $kind); if ($c === null) return null;
+  if ($old && $c['id'] !== (string) ($old['id'] ?? '')) return null;
+  if ($kind === 'note') {
+    $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? $me) : $me;
+    $c['userId'] = $c['createdBy'];
+    $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
+    return $c;
+  }
+  if (!$old && $c['userId'] !== $me && !$mgr) return null;
+  if ($old && $c['userId'] !== (string) ($old['userId'] ?? '') && !$mgr) return null;
+  if ($c['userId'] === '') return null;
+  $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? '') : $me;
+  $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
+  $prev = $old ? (string) ($old['status'] ?? 'plan') : '';
+  $core = fn(array $d) => implode('|', [(string) ($d['userId'] ?? ''), (string) ($d['type'] ?? ''), (string) ($d['from'] ?? ''), (string) ($d['to'] ?? '')]);
+  $same = $old && $core($old) === $core($c);
+  if (!$mgr) {
+    /* القرار ليس لصاحب الإجازة: يبقى كما كان ما دامت المدة والنوع كما هما، وإلا تعود الإجازة طلباً */
+    if (in_array($c['status'], ['approved', 'rejected'], true) && !($same && $prev === $c['status'])) $c['status'] = 'pending';
+    if ($prev === 'approved' && !$same && $c['status'] === 'approved') $c['status'] = 'pending';
+    foreach (['decidedBy', 'decidedAt', 'decisionNote'] as $k) $c[$k] = $old ? ($old[$k] ?? ($k === 'decidedAt' ? 0 : '')) : ($k === 'decidedAt' ? 0 : '');
+  } elseif (in_array($c['status'], ['approved', 'rejected'], true) && $prev !== $c['status']) {
+    $c['decidedBy'] = $me; $c['decidedAt'] = now_ms();
+  } elseif ($old) {
+    foreach (['decidedBy', 'decidedAt'] as $k) $c[$k] = $old[$k] ?? ($k === 'decidedAt' ? 0 : '');
+  }
+  return $c;
 }
 /** صيانة الملاحظات مع النبضات (مرة في الدقيقة على الأكثر): تُحذف المؤقتة المنتهية من الخادم ومن كل الأجهزة،
     وتُحوَّل «المشتركة» القديمة إلى قائمة صريحة بمن كان يراها، فتظهر في محرر الملاحظة ويمكن تعديلها */
@@ -659,8 +768,8 @@ const TECH_PERMS = ['dashboard', 'tickets.view', 'tickets.create', 'tickets.work
 function role_perms(string $role): array {
   switch ($role) {
     case 'department': return ['dashboard', 'tickets.view', 'tickets.create', 'kb.read', 'forms', 'profile', 'notifications'];
-    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage', 'maint.work', 'leaderboard']);
-    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work', 'leaderboard']);
+    case 'technician': return array_merge(TECH_PERMS, ['vault.read', 'vault.manage', 'maint.work', 'leaderboard', 'leaves']);
+    case 'support_manager': return array_merge(TECH_PERMS, ['reports', 'worklog.all', 'works', 'vault.read', 'vault.manage', 'extmaint.read', 'extmaint.manage', 'maint.work', 'leaderboard', 'leaves', 'leaves.manage']);
     case 'supervisor': return ['*'];
     case 'monitor': return ['monitor'];
   }
@@ -915,6 +1024,7 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
     case 'settings': return can($user, 'settings') ? $new : null;
     case 'surveys': return can($user, 'surveys.manage') ? $new : null;
     case 'extmaint': return can($user, 'extmaint.manage') ? $new : null;
+    case 'leaves': return leave_write($user, $old, $new, $deleted);
     /* قسم الإرسال إلى الصيانة: الكتابة لمن يملك إدارته فقط، والعرض وحده لا يكتب شيئاً */
     case 'mtrack': return can($user, 'mtrack.manage') ? $new : null;
     /* الملاحظات: الإضافة والتعديل لمن يملك «إضافة الملاحظات وتعديلها» ويرى الملاحظة. من يرى الملاحظة يعدّل محتواها (مثل إنجاز مهمة)،
@@ -1007,6 +1117,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       /* إظهار السندات للموظفين: يفتحه المشرف ويغلقه وحده */
       if ($key === 'vselfcfg') return is_sup($user) ? $new : null;
       if ($key === 'rcperm') return can_any($user, ['settings', 'users.manage']) ? $new : null;
+      /* إعدادات الإجازات: العطل الرسمية والعطلة الأسبوعية والحد الأدنى للتغطية والأرصدة */
+      if ($key === 'leavecfg') return can_any($user, ['settings', 'leaves.manage']) ? $new : null;
       /* سجل الخطوط المرفوعة: من يصمم الاستمارات أو يدير الإعدادات */
       if ($key === 'vfonts') return can_any($user, ['settings', 'vouchers.design', 'forms.manage']) ? $new : null;
       if ($key === 'formfill') return can_any($user, ['settings', 'formfill.manage', 'forms.manage']) ? $new : null;
@@ -1513,8 +1625,8 @@ case 'pull': {
   if (!$more) $max = max($max, $head);
   /* الملاحظات الخاصة لكاتبها وحده في النطاقين: كان الحساب الإداري (نطاق الموظف) الممنوح «الاطلاع» يستلم جدول الملاحظات كاملاً بلا تصفية،
      فتصل جهازَه ملاحظات غيره الخاصة */
-  if ($self) $rows = mtrack_rows(vault_rows(visible_rows($rows, $user, $full), $user), $user);
-  else $rows = mtrack_rows(vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user), $user);
+  if ($self) $rows = leave_rows(mtrack_rows(vault_rows(visible_rows($rows, $user, $full), $user), $user), $user);
+  else $rows = leave_rows(mtrack_rows(vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user), $user), $user);
   foreach ($rows as $row) {
     $data = $row['_d'];
     if ($self && empty($full['tickets']) && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
@@ -1819,6 +1931,7 @@ case 'wipe': {
     'extmaint' => ['extmaint'],
     'mtrack' => ['mtrack'],
     'vault' => ['vault', 'noteGroups', 'noteReads'],
+    'leaves' => ['leaves'],
     'org' => ['departments', 'deptUnits', 'locations', 'orgLog'],
     'catalog' => ['itemCategories', 'warehouses', 'printers', 'brandIcons'],
     'kb' => ['kb', 'replies', 'templates'],
