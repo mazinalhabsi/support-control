@@ -525,6 +525,14 @@ function leave_wish_sibs(string $pid, string $uid, int $pri, string $except): ar
   return $out;
 }
 function leave_plan(string $id): ?array { if ($id === '') return null; $d = doc_data('leaves', $id); return is_array($d) && ($d['kind'] ?? '') === 'lplan' ? $d : null; }
+/** من يرى الخطة: واضعها ومشاركوها ومن شُورِكت معه ومعتمِدها المختار، والإدارة إلا إن جُعلت «للمعنيين فقط» */
+function leave_plan_sees(array $p, array $u): bool {
+  $me = (string) ($u['id'] ?? ''); if ($me === '') return false;
+  if (leave_in_plan($p, $me)) return true;
+  if (in_array($me, array_map('strval', (array) ($p['share'] ?? [])), true)) return true;
+  if ((string) ($p['approver'] ?? '') === $me) return true;
+  return can($u, 'leaves.manage') && (string) ($p['vis'] ?? 'team') !== 'members';
+}
 function leave_in_plan(?array $p, string $uid): bool { return $p !== null && $uid !== '' && ((string) ($p['createdBy'] ?? '') === $uid || in_array($uid, array_map('strval', (array) ($p['members'] ?? [])), true)); }
 /** $plan: خطة الرغبة إن كانت معروفة (false = يُبحث عنها) */
 function leave_access(array $d, array $u, $plan = false): string {
@@ -532,13 +540,16 @@ function leave_access(array $d, array $u, $plan = false): string {
   $kind = (string) ($d['kind'] ?? 'leave');
   if ($kind === 'style') return 'full';
   $me = (string) ($u['id'] ?? '');
-  if ($kind === 'lplan') return (can($u, 'leaves.manage') || leave_in_plan($d, $me)) ? 'full' : '';
+  if ($kind === 'lplan') return leave_plan_sees($d, $u) ? 'full' : '';
+  /* قائمة أسماء الإجازات المشتركة: للجميع */
+  if ($kind === 'ttl') return 'full';
   /* الرصيد الممنوح: للإدارة ولأصحابه */
   if ($kind === 'bal') return (can($u, 'leaves.manage') || in_array($me, array_map('strval', (array) ($d['userIds'] ?? [])), true)) ? 'full' : '';
   if ($kind === 'wish') {
-    if (can($u, 'leaves.manage') || (string) ($d['userId'] ?? '') === $me) return 'full';
+    if ((string) ($d['userId'] ?? '') === $me) return 'full';
     if ($plan === false) $plan = leave_plan((string) ($d['planId'] ?? ''));
-    return leave_in_plan(is_array($plan) ? $plan : null, $me) ? 'full' : '';
+    if (!is_array($plan)) return can($u, 'leaves.manage') ? 'full' : '';
+    return leave_plan_sees($plan, $u) ? 'full' : '';
   }
   $owner = (string) ($kind === 'note' ? ($d['createdBy'] ?? '') : ($d['userId'] ?? ''));
   if ($owner === $me) return 'full';
@@ -601,7 +612,10 @@ function leave_clean(array $d, string $kind): ?array {
     $dl = (string) ($d['deadline'] ?? ''); $ps = (string) ($d['state'] ?? 'collect');
     return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
-      'maxHard' => empty($d['maxHard']) ? 0 : 1, 'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))), 'qexact' => empty($d['qexact']) || empty($d['quota']) ? 0 : 1, 'split' => max(0, min(20, (int) ($d['split'] ?? 0))),
+      'maxHard' => empty($d['maxHard']) ? 0 : 1, 'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))),
+      'vis' => (string) ($d['vis'] ?? 'team') === 'members' ? 'members' : 'team', 'share' => leave_ids($d['share'] ?? [], 100), 'approver' => cut((string) ($d['approver'] ?? ''), 120),
+      'apprState' => in_array((string) ($d['apprState'] ?? ''), ['pending', 'approved', 'rejected'], true) ? (string) $d['apprState'] : '', 'apprBy' => cut((string) ($d['apprBy'] ?? ''), 120), 'apprAt' => (int) ($d['apprAt'] ?? 0),
+      'apprNote' => cut(trim((string) ($d['apprNote'] ?? '')), 500), 'apprReqBy' => cut((string) ($d['apprReqBy'] ?? ''), 120), 'apprReqAt' => (int) ($d['apprReqAt'] ?? 0), 'apprReqNote' => cut(trim((string) ($d['apprReqNote'] ?? '')), 500), 'qexact' => empty($d['qexact']) || empty($d['quota']) ? 0 : 1, 'split' => max(0, min(20, (int) ($d['split'] ?? 0))),
       'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
   if ($kind === 'bal') {
@@ -635,7 +649,15 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
   $me = (string) ($user['id'] ?? ''); $mgr = can($user, 'leaves.manage');
   $data = is_array($new) ? $new : [];
   $src = $old ?: $data; $kind = (string) ($src['kind'] ?? 'leave');
-  if (!in_array($kind, ['leave', 'note', 'style', 'lplan', 'wish', 'bal'], true)) return null;
+  if (!in_array($kind, ['leave', 'note', 'style', 'lplan', 'wish', 'bal', 'ttl'], true)) return null;
+  /* أسماء الإجازات المشتركة: يضيفها الجميع، ويحذفها مُضيفها أو الإدارة */
+  if ($kind === 'ttl') {
+    if ($deleted) return $old && ((string) ($old['createdBy'] ?? '') === $me || $mgr) ? $new : null;
+    $id = (string) ($data['id'] ?? ''); $nm = cut(trim((string) ($data['name'] ?? '')), 80);
+    if ($nm === '' || strpos($id, 'ttl:') !== 0 || strlen($id) > 120) return null;
+    if ($old) return ((string) ($old['createdBy'] ?? '') === $me || $mgr) ? array_merge($old, ['name' => $nm, 'updatedAt' => now_ms()]) : $old;
+    return ['id' => $id, 'kind' => 'ttl', 'name' => $nm, 'createdBy' => $me, 'createdAt' => now_ms(), 'updatedAt' => now_ms()];
+  }
   /* الأرصدة يمنحها ويعدّلها ويحذفها من يملك «إدارة الإجازات» وحده */
   if ($kind === 'bal') {
     if (!$mgr) return null;
@@ -657,12 +679,29 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
   }
   /* الخطة: ينشئها من يصل إلى التقويم، ويعدّلها ويحذفها واضعها والإدارة */
   if ($kind === 'lplan') {
-    if ($old) { if ((string) ($old['createdBy'] ?? '') !== $me && !$mgr) return null; if ($deleted) return $new; }
+    $coordP = !$old || (string) ($old['createdBy'] ?? '') === $me || ($mgr && leave_plan_sees($old, $user));
+    if ($old && !$coordP) {
+      /* المعتمِد المختار (فني أو إداري أو مشرف): يقرر فقط — اعتماد أو رد مع ملاحظة — ما دام الطلب قائماً */
+      if ($deleted || (string) ($old['approver'] ?? '') !== $me || (string) ($old['apprState'] ?? '') !== 'pending') return null;
+      $st = (string) ($data['apprState'] ?? ''); if (!in_array($st, ['approved', 'rejected'], true)) return null;
+      return array_merge($old, ['apprState' => $st, 'apprBy' => $me, 'apprAt' => now_ms(), 'apprNote' => cut(trim((string) ($data['apprNote'] ?? '')), 500), 'updatedAt' => (int) ($data['updatedAt'] ?? now_ms())]);
+    }
+    if ($old) { if ($deleted) return $new; }
     elseif ($deleted) return null;
     $c = leave_clean($data, 'lplan'); if ($c === null) return null;
     if ($old && $c['id'] !== (string) ($old['id'] ?? '')) return null;
     $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? $me) : $me;
     $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
+    /* حالة الاعتماد: يطلبها واضع الخطة أو يلغيها، ولا يقررها إلا المعتمِد المختار */
+    $o = $old ?: [];
+    $same = (string) ($o['approver'] ?? '') === $c['approver'] && (string) ($o['apprState'] ?? '') === $c['apprState'];
+    $decide = in_array($c['apprState'], ['approved', 'rejected'], true);
+    if ($decide && $c['approver'] === $me && (string) ($o['approver'] ?? '') === $me && (string) ($o['apprState'] ?? '') === 'pending') { $c['apprBy'] = $me; $c['apprAt'] = now_ms(); }
+    elseif ($decide || $same) {
+      if (!$same) { $c['apprState'] = (string) ($o['apprState'] ?? ''); $c['approver'] = (string) ($o['approver'] ?? ''); }
+      foreach (['apprBy', 'apprNote', 'apprReqBy', 'apprReqNote'] as $k) $c[$k] = (string) ($o[$k] ?? '');
+      foreach (['apprAt', 'apprReqAt'] as $k) $c[$k] = (int) ($o[$k] ?? 0);
+    } else { $c['apprBy'] = ''; $c['apprAt'] = 0; $c['apprNote'] = ''; $c['apprReqBy'] = $c['apprState'] === 'pending' ? $me : ''; $c['apprReqAt'] = $c['apprState'] === 'pending' ? now_ms() : 0; if ($c['apprState'] === '') { $c['approver'] = ''; $c['apprReqNote'] = ''; } }
     return $c;
   }
   /* الرغبة: يسجلها المشارك لنفسه ما دامت الخطة مفتوحة، ويضيفها واضع الخطة لأي مشارك ويعدّلها في أي وقت.
@@ -670,7 +709,7 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
   if ($kind === 'wish') {
     $p = leave_plan((string) ($src['planId'] ?? ''));
     if ($p === null) return ($deleted && $old && ((string) ($old['userId'] ?? '') === $me || $mgr)) ? $new : null;
-    $coord = (string) ($p['createdBy'] ?? '') === $me || $mgr;
+    $coord = (string) ($p['createdBy'] ?? '') === $me || ($mgr && leave_plan_sees($p, $user));
     $open = in_array((string) ($p['state'] ?? 'collect'), ['collect', 'arrange'], true);
     if ($old) {
       $own = (string) ($old['userId'] ?? '') === $me;
