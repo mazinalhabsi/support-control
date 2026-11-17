@@ -26296,7 +26296,7 @@ const LV = {
   async styleEdit(uid0) {
     const recs = await DB.getAll('leaves'), team = LV.team(recs), cur = LV.styles(team.some((u) => u.id === uid0) ? team : [...team, Data.c.users.get(uid0)].filter(Boolean), recs).get(uid0) || { color: LV.COLORS[0], icon: LV.ICONSET[0] };
     const u = Data.c.users.get(uid0), st = { ...cur };
-    const res = await UI.modal({ title: uid0 === LV.me() ? 'لوني وأيقونتي في التقويم' : `لون ${u ? u.name : ''} وأيقونته`, icon: 'palette',
+    const res = await UI.modal({ title: uid0 === LV.me() ? 'اللون والأيقونة في التقويم' : `لون ${u ? u.name : ''} وأيقونته`, icon: 'palette',
       body: html`<div class="lv-sty"><div class="lv-sty-prev" data-lvprev></div>
         <div class="field"><label>اللون</label><div class="lv-colors">${LV.COLORS.map((c) => html`<button type="button" class="lv-col${c === st.color ? ' on' : ''}" data-lvcol="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div></div>
         <div class="field"><label>الأيقونة</label><div class="lv-icons">${LV.ICONSET.map((i) => html`<button type="button" class="lv-ico${i === st.icon ? ' on' : ''}" data-lvico="${i}">${UI.icon(i)}</button>`)}</div></div></div>`,
@@ -26443,7 +26443,7 @@ Pages.leaves = async (ctx) => {
     const t = LV.today(), awayT = LV.away(t, D.all), soon = D.all.filter((r) => r.from > t && r.from <= LV.add(t, 14)), [y, m] = st.month.split('-').map(Number), mgr = LV.mgr();
     const title = st.view === 'year' || st.view === 'list' ? `${y}` : `${LV.MONTHS[m - 1]} ${y}`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إجازات الفنيين', sub: 'خطط إجازتك على تقويم الفريق: اسحب على الأيام لتحديد المدة، واختر من يراها، وأضف ملاحظاتك. التداخل مع الزملاء ونقص التغطية يظهران قبل الحفظ', illu: 'calendar',
-      actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon(D.styOf(me).icon)} لوني وأيقونتي</button>` })}
+      actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon(D.styOf(me).icon)} اللون والأيقونة</button>` })}
       <div class="lv-kpis">
         <div class="lv-kpi"><span class="lv-ki">${UI.icon('lv-plane')}</span><div><small>في إجازة اليوم</small><b>${awayT.length ? fmtNum(awayT.length) : 'الفريق كامل'}</b><div class="lv-kw">${awayT.slice(0, 4).map((r) => LV.who(D.users.get(r.userId), D.styOf(r.userId), 'sm'))}</div></div></div>
         <div class="lv-kpi"><span class="lv-ki">${UI.icon('calendar')}</span><div><small>تبدأ خلال 14 يوماً</small><b>${fmtNum(soon.length)}</b><div class="lv-kw">${soon.slice(0, 3).map((r) => html`<span class="faint small">${LV.first((D.users.get(r.userId) || {}).name)} ${LV.fmt(r.from)}</span>`)}</div></div></div>
