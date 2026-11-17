@@ -7101,3 +7101,47 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lv-barx:hover .lv-grip,.lv-barx.moving .lv-grip{opacity:1}
 .lv-grip.gs{inset-inline-start:1px}
 .lv-grip.ge{inset-inline-end:1px}
+
+/* ══════════ الجولة 37: السحب بين الأشهر، والأرصدة الممنوحة ══════════ */
+.lv-dragging,.lv-dragging *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
+.lv-dragging .lv-barx{pointer-events:none}
+.lv-dragging .lv-barx.moving{opacity:.35}
+.lv-day.lv-gh,.lv-tc.lv-gh{background:rgba(var(--accent),.22)!important;box-shadow:inset 0 0 0 1px rgba(var(--accent),.55)}
+.lv-week .lv-barx[data-lvmove]{cursor:grab}
+.lv-dtip{position:fixed;z-index:80;display:flex;flex-direction:column;gap:1px;padding:7px 10px;border-radius:10px;background:var(--ink);color:var(--surface-solid);font-size:12px;pointer-events:none;box-shadow:0 10px 24px -10px rgba(0,0,0,.5);max-width:260px}
+.lv-dtip small{opacity:.85}
+.lv-dtip em{font-style:normal;font-size:10.5px;opacity:.6}
+.lv-dz{position:fixed;z-index:79;display:flex;flex-direction:column;align-items:center;gap:4px;width:74px;padding:14px 6px;border-radius:14px;background:color-mix(in srgb,var(--surface-solid) 90%,transparent);border:1.5px dashed rgba(var(--accent),.55);color:rgb(var(--accent));font-size:11.5px;font-weight:800;text-align:center;box-shadow:0 10px 26px -14px rgba(0,0,0,.45);transition:transform .15s,background .15s}
+.lv-dz .ic{width:22px;height:22px}
+.lv-dz.hot{background:rgba(var(--accent),.18);transform:scale(1.06)}
+.lv-dz.on{animation:lvDzFlash .4s ease-out}
+@keyframes lvDzFlash{from{background:rgba(var(--accent),.45)}to{background:rgba(var(--accent),.18)}}
+.lv-balh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.lv-balh h3{margin:0 0 2px;font-size:16px}
+.lv-balt th,.lv-balt td{vertical-align:middle}
+.lv-bth{display:flex;flex-direction:column;gap:2px;min-width:140px}
+.lv-bth small{font-size:10.5px;color:var(--ink-3);font-weight:600}
+.lv-bth span{display:flex;gap:2px}
+.lv-bc{padding:4px!important}
+.lv-bc button{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;min-width:96px;padding:6px 8px 9px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface-solid);font:inherit;cursor:pointer;overflow:hidden;color:var(--ink)}
+.lv-bc button:hover{border-color:rgba(var(--accent),.5)}
+.lv-bc b{font-size:16px;font-weight:800;color:#0f8a5f}
+.lv-bc b.neg{color:#dc2626}
+.lv-bc small{font-size:10.5px;color:var(--ink-3)}
+.lv-bc button i{position:absolute;inset-inline-start:0;bottom:0;height:3px;background:rgba(var(--accent),.65)}
+.lv-bc.na button{border-style:dashed;color:var(--ink-3);padding:10px}
+.lv-bc.na .ic{width:14px;height:14px}
+.lv-balcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.lv-bcard{padding:12px 14px}
+.lv-bcard h4{display:flex;align-items:center;gap:6px;margin:0 0 2px;font-size:14px}
+.lv-bcard h4 .ic{width:16px;height:16px}
+.lv-bprog{display:block;height:5px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin:8px 0}
+.lv-bprog i{display:block;height:100%;background:rgb(var(--accent));border-radius:999px}
+.lv-bside{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lv-bside li{display:flex;align-items:center;gap:8px}
+.lv-bside li b{display:block;font-size:12.5px}
+.lv-bside li small{display:block;font-size:10.5px}
+.lv-bside .lv-bprog{margin:4px 0 0}
+.lv-bleft{display:flex;flex-direction:column;align-items:center;min-width:52px;padding:4px 6px;border-radius:10px;background:var(--surface-2)}
+.lv-bleft b{font-size:16px;color:#0f8a5f}
+.lv-bleft.bad b{color:#dc2626}

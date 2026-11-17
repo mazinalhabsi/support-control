@@ -26169,6 +26169,7 @@ const LV = {
         <div class="field"><label>أيقونة الإجازة <small class="faint">— اختيارية: تظهر على أيام هذه الإجازة في التقويم، وبدونها تظهر أيقونة النوع</small></label><div class="lv-icons lv-licons" role="radiogroup"><button type="button" class="lv-ico lv-ico-none${r0.icon ? '' : ' on'}" data-lvic="" aria-pressed="${r0.icon ? 'false' : 'true'}">بلا</button>${LV.LICONS.map((i) => html`<button type="button" class="lv-ico${r0.icon === i ? ' on' : ''}" data-lvic="${i}" aria-pressed="${r0.icon === i ? 'true' : 'false'}">${UI.icon(i)}</button>`)}</div><input type="hidden" name="icon" value="${r0.icon || ''}"></div>
         <div class="field"><label>لون الشريط <small class="faint">— اختياري: بدونه يظهر الشريط بلون الفني</small></label><div class="lv-colors lv-lcols"><button type="button" class="lv-col lv-col-none${r0.color ? '' : ' on'}" data-lvcl="" title="لون الفني" style="--c:${(sty.get(r0.userId) || {}).color || '#64748b'}"></button>${LV.COLORS.map((c) => html`<button type="button" class="lv-col${r0.color === c ? ' on' : ''}" data-lvcl="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div><input type="hidden" name="color" value="${r0.color || ''}"></div>
         <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">مدة سريعة:</small>${[[1, 'يوم'], [3, '3 أيام'], [5, '5 أيام عمل', 'w'], [7, 'أسبوع'], [14, 'أسبوعان'], [30, 'شهر']].map(([n, l, w]) => html`<button type="button" class="qchip" data-lvq="${n}${w ? 'w' : ''}">${l}</button>`)}</div></div>
+        <div class="field lv-balf" data-lvbalf hidden><label>يُخصم من رصيد</label><select class="input" name="balId"><option value="${r0.balId || ''}" selected>${r0.balId === 'none' ? 'لا يُخصم من أي رصيد' : 'تلقائي'}</option></select></div>
         <div class="lv-check" data-lvcheck></div>
         <div class="field"><label>الحالة</label><div class="seg sm lv-stseg">${['plan', 'pending', ...(mgr ? ['approved', 'rejected'] : old && ['approved', 'rejected'].includes(old.status) ? [old.status] : [])].map((k) => html`<label><input type="radio" name="status" value="${k}"${k === r0.status ? raw(' checked') : ''}><span>${LV.ST[k][0]}</span></label>`)}</div>
           <p class="hint">«خطة مبدئية» يراها الزملاء للتخطيط دون أن تصل الإدارة طلباً، و«بانتظار الاعتماد» تصل الإدارة للاعتماد.${old && old.status === 'approved' && !mgr ? ' تغيير مدة إجازة معتمدة أو نوعها يعيدها إلى «بانتظار الاعتماد».' : ''}</p>
@@ -26193,12 +26194,15 @@ const LV = {
           const days = LV.days(from, to), wd = days.filter(LV.work).length, hol = [...new Set(days.map(LV.holiday).filter(Boolean))], skip = new Set([old && old.id, ...grpRecs.map((r) => r.id)].filter(Boolean)), others = recs.filter((r) => LV.live(r) && !skip.has(r.id) && LV.over(r, from, to));
           const many = uids.length > 1, mine = others.filter((r) => uids.includes(r.userId)), peers = others.filter((r) => !uids.includes(r.userId));
           const low = days.filter((d) => { if (!LV.work(d)) return false; const away = new Set(LV.away(d, others).map((r) => r.userId)); uids.forEach((u) => away.add(u)); return team.length - team.filter((t) => away.has(t.id)).length < cfg.minCover; });
-          const y = LV.pd(from).getFullYear(), cnt = LV.count(from, to), bals = type === 'annual' ? uids.map((u) => ({ u, b: LV.balance(u, y, recs, old && old.id) })) : [];
+          const y = LV.pd(from).getFullYear(), cnt = LV.count(from, to), bsel = $('[name="balId"]', form), skipB = old && old.id;
+          const avail = [...new Map(uids.flatMap((u) => LV.bals(recs, u).filter((bb) => LV.balFits(bb, u, type, from))).map((bb) => [bb.id, bb])).values()];
+          if (bsel) { const cur = bsel.value; bsel.innerHTML = String(html`<option value="">تلقائي${avail.length ? ' (أول رصيد مناسب)' : ' — لا رصيد مناسب'}</option>${avail.map((bb) => html`<option value="${bb.id}"${cur === bb.id ? raw(' selected') : ''}>${bb.title}</option>`)}<option value="none"${cur === 'none' ? raw(' selected') : ''}>لا يُخصم من أي رصيد</option>`); if (cur && cur !== 'none' && !avail.some((bb) => bb.id === cur)) bsel.value = ''; bsel.closest('[data-lvbalf]').hidden = !LV.bals(recs).length; }
+          const blines = uids.map((u) => { const id = LV.resolveBal(u, type, from, cnt, bsel ? bsel.value : '', recs, skipB); const bb = id && id !== 'none' ? recs.find((r) => r.id === id) : null; if (bb) { const x = LV.balUse(bb, u, recs, skipB); return { u, t: bb.title, left: x.left - cnt, total: x.total }; } if (id === 'none') return { u, none: 1 }; if (type === 'annual' && !LV.bals(recs, u).length) { const lb = LV.balance(u, y, recs, skipB); return { u, t: `الرصيد السنوي ${y}`, left: lb.left - cnt, total: lb.ent }; } return null; }).filter(Boolean);
           box.innerHTML = String(html`<div class="lv-span">${many ? html`<span class="chip tone-sky">${UI.icon('users')} ${fmtNum(uids.length)} فنيين</span>` : ''}<b>${LV.dayW(days.length)}</b><span>${fmtNum(wd)} أيام عمل</span>${days.length - wd ? html`<span class="faint">${fmtNum(days.length - wd)} عطلة أسبوعية أو رسمية</span>` : ''}${hol.length ? html`<span class="chip tone-violet">${UI.icon('star')} ${hol.join('، ')}</span>` : ''}</div>
             ${mine.length ? html`<div class="lv-warn bad">${UI.icon('alert')}<span>${many ? 'لديهم إجازات في هذه الفترة' : 'لديه إجازة في هذه الفترة'}: ${mine.map((r) => `${many ? `${nm(r.userId)} — ` : ''}${LV.T(r).short} ${LV.range(r.from, r.to)}`).join('، ')}</span></div>` : ''}
             ${peers.length ? html`<div class="lv-warn">${UI.icon('users')} <span>يتداخل مع: ${peers.map((r) => { const n = LV.days(r.from > from ? r.from : from, r.to < to ? r.to : to).length; return html`<b class="lv-ov" style="--c:${(sty.get(r.userId) || {}).color || '#64748b'}">${nm(r.userId)} (${LV.T(r).short}، ${LV.dayW(n)})</b>`; })}</span></div>` : html`<div class="lv-ok">${UI.icon('check')} لا يتداخل مع إجازات الزملاء الظاهرة لك</div>`}
             ${low.length ? html`<div class="lv-warn bad">${UI.icon('alert')} <span>ينخفض المتاحون عن الحد الأدنى (${fmtNum(cfg.minCover)}) في ${LV.dayW(low.length)} عمل: ${low.slice(0, 6).map(LV.fmt).join('، ')}${low.length > 6 ? '…' : ''}</span></div>` : ''}
-            ${bals.length === 1 ? (() => { const bb = bals[0].b, after = bb.left - cnt; return html`<div class="lv-bal${after < 0 ? ' bad' : ''}">${UI.icon('lv-palm')} الرصيد السنوي ${y}: ${fmtNum(bb.ent)} · المعتمد ${fmtNum(bb.used)} · المعلّق ${fmtNum(bb.pend)} · هذه ${fmtNum(cnt)} → <b>المتبقي ${fmtNum(after)}</b>${cfg.countBy === 'cal' ? ' (بالأيام التقويمية)' : ' (بأيام العمل)'}</div>`; })() : bals.length ? html`<div class="lv-bal${bals.some((x) => x.b.left - cnt < 0) ? ' bad' : ''}">${UI.icon('lv-palm')} <span>المتبقي من الرصيد السنوي ${y} بعد هذه الإجازة (${fmtNum(cnt)}): ${bals.map((x) => html`<b class="lv-bn${x.b.left - cnt < 0 ? ' neg' : ''}">${LV.first(nm(x.u))} ${fmtNum(x.b.left - cnt)}</b>`)}</span></div>` : ''}`);
+            ${blines.length ? html`<div class="lv-bal${blines.some((x) => !x.none && x.left < 0) ? ' bad' : ''}">${UI.icon('lv-palm')}<span>${blines.length === 1 ? (blines[0].none ? 'لا يُخصم من أي رصيد' : html`«${blines[0].t}»: ${fmtNum(blines[0].total)} · هذه ${fmtNum(cnt)} → <b>المتبقي ${fmtNum(blines[0].left)}</b>${cfg.countBy === 'cal' ? ' (بالأيام التقويمية)' : ' (بأيام العمل)'}`) : html`المتبقي بعد هذه الإجازة (${fmtNum(cnt)}): ${blines.map((x) => html`<b class="lv-bn${!x.none && x.left < 0 ? ' neg' : ''}">${LV.first(nm(x.u))}: ${x.none ? 'لا يُخصم' : `${fmtNum(x.left)} من «${x.t}»`}</b>`)}`}</span></div>` : ''}`);
         };
         drawDn(); check();
         form.addEventListener('input', (e) => { if (e.target.closest('[data-lvdns]')) { const row = e.target.closest('.lv-dn'); dn[Number(row.dataset.i)].t = $('input', row).value; return; } check(); });
@@ -26234,7 +26238,7 @@ const LV = {
           const dayNotes = {}; $$('.lv-dn', form).forEach((row) => { const d = $('select', row).value, t = $('input', row).value.trim(); if (t && d >= from && d <= to) dayNotes[d] = dayNotes[d] ? `${dayNotes[d]} — ${t}` : t; });
           let status = v('status') || 'plan', vis = v('vis') || 'team';
           if (status === 'pending' && vis === 'private') vis = 'mgr';
-          return { userId, userIds: uids, applyGrp, title: (v('title') || '').trim().slice(0, 60), icon: v('icon') || '', color: v('color') || '', type: v('type') || 'annual', from, to, status, vis, share: $$('[name="share"]:checked', form).map((x) => x.value), note: v('note').trim(), dayNotes, decisionNote: (v('decisionNote') || '').trim() };
+          return { userId, userIds: uids, applyGrp, title: (v('title') || '').trim().slice(0, 60), icon: v('icon') || '', color: v('color') || '', balId: v('balId') || '', type: v('type') || 'annual', from, to, status, vis, share: $$('[name="share"]:checked', form).map((x) => x.value), note: v('note').trim(), dayNotes, decisionNote: (v('decisionNote') || '').trim() };
         } }
       ]
     });
@@ -26244,6 +26248,7 @@ const LV = {
     if (!old && userIds.length > 1) return LV.saveGroup(one, userIds);
     if (old && applyGrp && grpRecs.length) await LV.applyGroup(grpRecs, one);
     const t = now(), rec = { ...(old || {}), ...one, id: old ? old.id : uid('lv'), kind: 'leave', updatedAt: t, createdAt: old ? old.createdAt || t : t, createdBy: old ? old.createdBy || me : me };
+    rec.balId = LV.resolveBal(rec.userId, rec.type, rec.from, LV.count(rec.from, rec.to), one.balId || '', recs, old && old.id);
     const core = (r) => [r.userId, r.type, r.from, r.to].join('|');
     if (!mgr && old && old.status === 'approved' && core(old) !== core(rec) && rec.status === 'approved') rec.status = 'pending';
     if (!mgr && !['plan', 'pending'].includes(rec.status) && !(old && old.status === rec.status && core(old) === core(rec))) rec.status = 'pending';
@@ -26265,7 +26270,7 @@ const LV = {
   async saveGroup(base, uids) {
     const me = LV.me(), t = now(), grp = uid('lvg'), made = [];
     for (const u of uids) {
-      const rec = { ...base, userId: u, id: uid('lv'), kind: 'leave', grp, share: (base.share || []).filter((x) => x !== u), updatedAt: t, createdAt: t, createdBy: me };
+      const rec = { ...base, balId: LV.resolveBal(u, base.type, base.from, LV.count(base.from, base.to), base.balId || '', LV._recs || [], ''), userId: u, id: uid('lv'), kind: 'leave', grp, share: (base.share || []).filter((x) => x !== u), updatedAt: t, createdAt: t, createdBy: me };
       if (['approved', 'rejected'].includes(rec.status)) { rec.decidedBy = me; rec.decidedAt = t; }
       await DB.put('leaves', rec); made.push(rec);
     }
@@ -26397,7 +26402,7 @@ const LV = {
 
 Pages.leaves = async (ctx) => {
   const q = ctx.query || {}, me = LV.me();
-  const st = { plan: String(q.p || ''), pm: '', view: ['month', 'timeline', 'year', 'list', 'plans'].includes(q.v) ? q.v : q.p ? 'plans' : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' }, sel: new Set() };
+  const st = { plan: String(q.p || ''), pm: '', view: ['month', 'timeline', 'year', 'list', 'plans', 'bal'].includes(q.v) ? q.v : q.p ? 'plans' : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' }, sel: new Set() };
   let D = null, drag = null, skipClick = false, pop = null;
   const sync = () => { try { history.replaceState(history.state, '', `#/leaves?v=${st.view}&m=${st.month}${st.day ? `&d=${st.day}` : ''}${st.view === 'plans' && st.plan ? `&p=${st.plan}` : ''}`); } catch (_) { /* تجاهل */ } };
   const load = async () => {
@@ -26426,7 +26431,7 @@ Pages.leaves = async (ctx) => {
           ${days.map((s, i) => { const out = s.slice(0, 7) !== st.month, ns = notesOn(s), h = LV.holiday(s), cv = !out && LV.work(s) && D.team.length ? coverOf(s) : null, low = cv && cv.avail < D.cfg.minCover, more = hidden.get(s) || 0;
             return html`<div class="lv-day ${dayCls(s)}${out ? ' out' : ''}${low ? ' low' : ''}" data-day="${s}" style="grid-column:${i + 1}" title="${h || ''}"><span class="lv-dnum">${LV.pd(s).getDate()}</span>${h ? html`<small class="lv-hol">${h}</small>` : ''}<span class="lv-dmk">${ns.length ? html`<span class="lv-nt tone-${ns[0].tone || 'sky'}" title="${ns.map((n) => n.text).join('\n')}">${UI.icon('lv-note')}${ns.length > 1 ? fmtNum(ns.length) : ''}</span>` : ''}${low ? html`<span class="lv-lowb" title="المتاحون ${cv.avail} من ${cv.tot}، والحد الأدنى ${D.cfg.minCover}">${UI.icon('alert')}${fmtNum(cv.avail)}</span>` : ''}${more ? html`<span class="lv-moren">+${fmtNum(more)}</span>` : ''}</span></div>`; })}
           ${bars.map(({ r, L, c1, c2, cs, ce }) => { const s = D.styOf(r.userId), u = D.users.get(r.userId), T = LV.T(r), dn = r.dayNotes && Object.keys(r.dayNotes).length;
-            return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}" style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${r.color || s.color}" title="${barLabel(r)}">${UI.icon(T.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}</button>`; })}
+            return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}"${LV.canEdit(r) ? raw(` data-lvmove="${r.id}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${r.color || s.color}" title="${barLabel(r)}${LV.canEdit(r) ? '\nاسحبها إلى أيام أخرى (ولو في شهر آخر)، أو اسحب طرفها لتغيير عدد الأيام' : ''}">${UI.icon(T.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}${LV.canEdit(r) && !cs ? html`<i class="lv-grip gs" data-lvrs="from" aria-hidden="true"></i>` : ''}${LV.canEdit(r) && !ce ? html`<i class="lv-grip ge" data-lvrs="to" aria-hidden="true"></i>` : ''}</button>`; })}
         </div>`; })}</div>`;
   };
 
@@ -26482,14 +26487,14 @@ Pages.leaves = async (ctx) => {
     const bal = LV.balance(me, Number(st.month.slice(0, 4)), D.recs);
     return html`${dayCard}${LV.planSide(D)}
       ${pend.length ? html`<div class="card lv-card lv-pend"><h4>${UI.icon('clock')} بانتظار الاعتماد <small>${fmtNum(pend.length)}</small></h4><ul class="lv-ul">${pend.map((r) => { const u = D.users.get(r.userId); return html`<li class="lv-pi">${LV.who(u, D.styOf(r.userId))}<span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).short} · ${LV.range(r.from, r.to)} · ${fmtNum(LV.workDays(r.from, r.to))} عمل</span><span class="lv-pa"><button type="button" class="btn btn-xs btn-soft" data-lvdec="approved|${r.id}">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-xs btn-ghost" data-lvdec="rejected|${r.id}">رفض</button><button type="button" class="icon-btn" data-lvopen="${r.id}" title="فتح">${UI.icon('eye')}</button></span></li>`; })}</ul></div>` : ''}
-      <div class="card lv-card"><h4>${UI.icon('lv-palm')} رصيدي ${st.month.slice(0, 4)}</h4><div class="lv-balg"><span><b>${fmtNum(bal.ent)}</b><small>الرصيد</small></span><span><b>${fmtNum(bal.used)}</b><small>معتمد</small></span><span><b>${fmtNum(bal.pend)}</b><small>معلّق</small></span><span class="${bal.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(bal.left)}</b><small>متبقٍ</small></span></div>${bal.plan ? html`<p class="hint">وفي الخطط المبدئية ${LV.dayW(bal.plan)}.</p>` : ''}</div>
+      ${LV.balSide(D, me, Number(st.month.slice(0, 4)), bal)}
       <div class="card lv-card"><h4>${UI.icon('calendar')} إجازاتي القادمة</h4>${myNext.length ? html`<ul class="lv-ul">${myNext.map((r) => html`<li><button type="button" data-lvopen="${r.id}"><span class="lv-tp">${UI.icon(LV.T(r).icon)} ${LV.T(r).label}</span><span>${LV.range(r.from, r.to)}</span>${LV.stChip(r)}</button></li>`)}</ul>` : html`<p class="faint small">لا إجازات قادمة. اسحب على أيام التقويم لتحديد إجازة.</p>`}</div>`;
   };
 
   const draw = async () => {
     await load();
     const t = LV.today(), awayT = LV.away(t, D.all), soon = D.all.filter((r) => r.from > t && r.from <= LV.add(t, 14)), [y, m] = st.month.split('-').map(Number), mgr = LV.mgr();
-    const title = st.view === 'year' || st.view === 'list' ? `${y}` : `${LV.MONTHS[m - 1]} ${y}`;
+    const title = st.view === 'year' || st.view === 'list' || st.view === 'bal' ? `${y}` : `${LV.MONTHS[m - 1]} ${y}`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إجازات الفنيين', sub: 'خطط إجازتك على تقويم الفريق: اسحب على الأيام لتحديد المدة، واختر من يراها، وأضف ملاحظاتك. التداخل مع الزملاء ونقص التغطية يظهران قبل الحفظ', illu: 'calendar',
       actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon('palette')} اللون</button>` })}
       <div class="lv-kpis">
@@ -26500,14 +26505,14 @@ Pages.leaves = async (ctx) => {
       </div>
       <div class="lv-bar">
         <div class="lv-nav"${st.view === 'plans' ? raw(' hidden') : ''}><button type="button" class="icon-btn" data-lvm="-1" aria-label="السابق">${UI.icon('chevron-right')}</button><b class="lv-title">${title}</b><button type="button" class="icon-btn" data-lvm="1" aria-label="التالي">${UI.icon('chevron-left')}</button><button type="button" class="btn btn-sm btn-ghost" data-lvm="0">اليوم</button></div>
-        <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu'], ['plans', 'خطط الإجازات', 'lv-team']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
+        <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu'], ['plans', 'خطط الإجازات', 'lv-team'], ['bal', 'الأرصدة', 'lv-palm']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
         <span class="grow"></span>
         <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}</div>
       </div>
       <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}"><span class="lv-dot"></span><span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون">${UI.icon('palette')}</i>` : ''}</button>`; })}
         <label class="chk lv-mine"><input type="checkbox" data-lvmine${st.mine ? raw(' checked') : ''}> إجازاتي فقط</label>
         <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب</span></div>
-      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
+      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'bal' ? LV.balView(D, st) : st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
     if (q.l && !st._opened) { st._opened = true; const r = D.recs.find((x) => x.id === q.l); if (r) setTimeout(() => open(r.id), 60); }
   };
   const open = async (id) => { const r = D.recs.find((x) => x.id === id) || (await DB.get('leaves', id)); if (!r) return; if (r.kind === 'note') { await LV.noteEdit(id); return; } if (LV.canEdit(r)) await LV.edit(id); else await LV.view(r); };
@@ -26551,7 +26556,7 @@ Pages.leaves = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-lvmonth]', (e, b) => { st.month = b.dataset.lvmonth; st.view = 'month'; LV.setPref('view', 'month'); sync(); go(draw); });
   UI.on(ctx.view, 'click', '[data-lvhide]', (e, b) => { if (e.target.closest('[data-lvsty]')) return; const id = b.dataset.lvhide; if (st.hide.has(id)) st.hide.delete(id); else st.hide.add(id); LV.setPref('hide', [...st.hide]); go(draw); });
   UI.on(ctx.view, 'click', '[data-lvm]', (e, b) => {
-    const k = Number(b.dataset.lvm), yearly = st.view === 'year' || st.view === 'list';
+    const k = Number(b.dataset.lvm), yearly = st.view === 'year' || st.view === 'list' || st.view === 'bal';
     if (!k) { st.month = LV.today().slice(0, 7); st.day = LV.today(); } else { const [y, m] = st.month.split('-').map(Number), d = new Date(y, m - 1 + (yearly ? 12 * k : k), 1); st.month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
     sync(); go(draw);
   });
@@ -26578,6 +26583,7 @@ Pages.leaves = async (ctx) => {
     downloadBlob(XL.write([
       { name: 'الإجازات', widths: [26, 16, 14, 14, 10, 10, 16, 22, 40], rows: [['الفني', 'النوع', 'من', 'إلى', 'الأيام', 'أيام العمل', 'الحالة', 'الظهور', 'الملاحظة'], ...rows.map((r) => [Data.userName(r.userId), LV.T(r).kind ? `${LV.T(r).label} (${LV.T(r).kind})` : LV.T(r).label, r.from, r.to, LV.days(r.from, r.to).length, LV.workDays(r.from, r.to), (LV.ST[r.status] || LV.ST.plan)[0], (LV.VIS[r.vis] || LV.VIS.team)[0], [r.note, ...Object.entries(r.dayNotes || {}).map(([d, t]) => `${d}: ${t}`)].filter(Boolean).join(' | ')])] },
       { name: `الأرصدة ${y}`, widths: [26, 10, 10, 10, 10, 10, 10, 10], rows: [['الفني', 'الرصيد', 'المعتمد', 'المعلّق', 'المخطط', 'المتبقي', 'مرضية', 'أخرى'], ...D.team.map((u) => { const b = LV.balance(u.id, y, D.recs), other = (t) => D.recs.filter((r) => LV.isLeave(r) && r.userId === u.id && r.status !== 'rejected' && (t === 'sick' ? r.type === 'sick' : !['annual', 'sick'].includes(r.type)) && LV.over(r, `${y}-01-01`, `${y}-12-31`)).reduce((a, r) => a + LV.days(r.from, r.to).length, 0); return [u.name, b.ent, b.used, b.pend, b.plan, b.left, other('sick'), other('x')]; })] },
+      ...(() => { const bs = D.recs.filter((r) => r.kind === 'bal' && LV.over(r, `${y}-01-01`, `${y}-12-31`)); return bs.length ? [{ name: 'الأرصدة الممنوحة', widths: [26, 30, 10, 10, 10, 10, 24], rows: [['الفني', 'الرصيد', 'الأيام', 'المعتمد', 'المعلّق', 'المتبقي', 'الصلاحية'], ...bs.flatMap((b) => (b.userIds || []).map((u) => { const x = LV.balUse(b, u, D.recs); return [Data.userName(u), b.title, x.total, x.used, x.pend, x.left, `${b.from} — ${b.to}`]; }))] }] : []; })(),
       { name: `جدول ${LV.MONTHS[mm - 1]}`, widths: [24, ...days.map(() => 4)], rows: [['الفني', ...days.map((d) => LV.pd(d).getDate())], ...D.team.map((u) => [u.name, ...days.map((d) => { const r = LV.away(d, D.all).find((x) => x.userId === u.id); return r ? LV.T(r).ab : LV.holiday(d) ? 'ع' : LV.weekend(d) ? '-' : ''; })]), ['المتاحون', ...days.map((d) => (LV.work(d) ? coverOf(d).avail : ''))], [], ['الرموز: ' + Object.values(LV.TYPES).map((t) => `${t.ab} ${t.short}`).join('، ') + '، • غائب، ع عطلة رسمية، - عطلة أسبوعية']] }
     ]), `الإجازات-${st.month}.xlsx`);
   };
@@ -26599,7 +26605,8 @@ Pages.leaves = async (ctx) => {
   ctx.onCleanup(Bus.on('leaves', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 300)));
   ctx.onCleanup(Bus.on('users', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) draw(); }, 600)));
   LV.planBind(ctx, st, draw, sync, go);
-  LV.tlBind(ctx, go, draw);
+  LV.tlBind(ctx, go, draw, st, sync);
+  LV.balBind(ctx, go, draw);
   UI.on(ctx.view, 'click', '[data-lvreq]', (e, b) => { const r = D.recs.find((x) => x.id === b.dataset.lvreq); if (r) LV.printReq(r); });
   sync(); await draw();
 };
@@ -27136,33 +27143,66 @@ Object.assign(LV, {
     if (rec.status === 'pending') await LV.notifyMgrs(rec, `طلب إجازة بمدة معدّلة: ${Data.userName(r.userId)}`, `${LV.T(rec).label}: ${LV.range(from, to)}`);
     Bus.emit('leaves', {}); UI.toast(r.status === 'approved' && rec.status === 'pending' ? `صارت ${LV.range(from, to)}، وعادت إلى «بانتظار الاعتماد»` : `صارت ${LV.range(from, to)}`);
   },
-  tlBind(ctx, go, draw) {
-    let mv = null;
+  /* سحب الإجازة في الشهر وجدول الفريق: الشريط كله ينقل المدة، وطرفاه يغيّران البداية أو النهاية (فيزيد عدد الأيام أو ينقص).
+     جلسة السحب لا تتعلق بعناصر الصفحة: عند الوقوف على «الشهر التالي/السابق» على حافتي التقويم يتبدل الشهر والسحب مستمر،
+     فتنتقل إجازة من نوفمبر إلى ديسمبر بسلاسة. المعاينة تظلّل الأيام الجديدة، وبطاقة صغيرة تذكر المدة وعدد الأيام. Esc يلغي. */
+  tlBind(ctx, go, draw, st, sync) {
+    let ds = null;
+    const cellAt = (x, y) => { const el = document.elementFromPoint(x, y), c = el && el.closest && el.closest('[data-day]'); return c && ctx.view.contains(c) && !c.closest('.lv-year') ? c : null; };
+    const rangeOf = (s) => { const d = s.delta; if (s.mode === 'move') return [LV.add(s.f0, d), LV.add(s.t0, d)]; if (s.mode === 'from') { const a = LV.add(s.f0, d); return [a > s.t0 ? s.t0 : a, s.t0]; } const b = LV.add(s.t0, d); return [s.f0, b < s.f0 ? s.f0 : b]; };
+    const tip = () => { let t = document.getElementById('lvDtip'); if (!t) { t = document.createElement('div'); t.id = 'lvDtip'; t.className = 'lv-dtip'; document.body.appendChild(t); } return t; };
+    const ghost = () => {
+      if (!ds) return; const [a, b] = rangeOf(ds);
+      $$('.lv-gh', ctx.view).forEach((x) => x.classList.remove('lv-gh'));
+      $$('[data-day]', ctx.view).forEach((c) => { if (c.closest('.lv-year') || (ds.u && c.dataset.u && c.dataset.u !== ds.u)) return; if (c.dataset.day >= a && c.dataset.day <= b) c.classList.add('lv-gh'); });
+      const n = LV.days(a, b).length;
+      tip().innerHTML = String(html`<b>${LV.range(a, b)}</b><small>${LV.dayW(n)} · ${fmtNum(LV.workDays(a, b))} عمل${ds.mode === 'move' ? '' : n > ds.n0 ? ` · +${fmtNum(n - ds.n0)}` : n < ds.n0 ? ` · −${fmtNum(ds.n0 - n)}` : ''}</small><em>قف على حافة التقويم للانتقال إلى الشهر التالي أو السابق</em>`);
+    };
+    const zones = () => {
+      const cal = $('.lv-cal', ctx.view); if (!cal) return [];
+      let zs = $$('.lv-dz'); if (!zs.length) { zs = [['next', 'chevron-left', 'الشهر التالي'], ['prev', 'chevron-right', 'الشهر السابق']].map(([k, ic, l]) => { const z = document.createElement('div'); z.className = `lv-dz ${k}`; z.dataset.z = k; z.innerHTML = String(html`${UI.icon(ic)}<span>${l}</span>`); document.body.appendChild(z); return z; }); }
+      const r = cal.getBoundingClientRect(), top = clamp(r.top + Math.min(r.height, innerHeight) / 2 - 40, 70, innerHeight - 100);
+      zs.forEach((z) => { z.style.top = `${Math.round(top)}px`; if (z.dataset.z === 'next') z.style.left = `${Math.round(Math.max(4, r.left - 8))}px`; else z.style.left = `${Math.round(Math.min(innerWidth - z.offsetWidth - 4, r.right - z.offsetWidth + 8))}px`; });
+      return zs;
+    };
+    const zoneAt = (x, y) => { const z = $$('.lv-dz').find((el) => { const r = el.getBoundingClientRect(); return x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 30 && y <= r.bottom + 30; }); return z ? z.dataset.z : ''; };
+    const flip = (z) => {
+      if (!ds) return; const [yy, mm] = st.month.split('-').map(Number), d = new Date(yy, mm - 1 + (z === 'next' ? 1 : -1), 1);
+      st.month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; sync();
+      $$('.lv-dz').forEach((el) => el.classList.toggle('on', el.dataset.z === z));
+      Promise.resolve(draw()).then(() => { if (!ds) return; ctx.view.classList.add('lv-dragging'); zones(); ghost(); });
+    };
+    const end = (save) => {
+      if (!ds) return; const s0 = ds; ds = null; clearInterval(s0.zt);
+      $$('.lv-dz').forEach((z) => z.remove()); const t = document.getElementById('lvDtip'); if (t) t.remove();
+      ctx.view.classList.remove('lv-dragging'); $$('.lv-gh', ctx.view).forEach((x) => x.classList.remove('lv-gh'));
+      if (!s0.started) return;
+      LV._mvSkip = true; setTimeout(() => { LV._mvSkip = false; }, 150);
+      if (!save || !s0.delta) { draw(); return; }
+      const [a, b] = rangeOf(s0); go(async () => { await LV.moveLeave(s0.id, a, b); if (ctx.alive()) draw(); });
+    };
     ctx.view.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || e.pointerType === 'touch') return;
       const bar = e.target.closest && e.target.closest('[data-lvmove]'); if (!bar) return;
-      const grip = e.target.closest('[data-lvrs]'), cells = $$('[data-day]', bar.closest('.lv-tr')); if (!cells.length) return;
-      const at = (x) => { const c = cells.find((k) => { const rr = k.getBoundingClientRect(); return x >= rr.left && x <= rr.right; }); return c ? c.dataset.day : ''; };
-      const [a, b] = bar.style.gridColumn.split('/').map((x) => parseInt(x, 10));
-      mv = { id: bar.dataset.lvmove, bar, at, d0: at(e.clientX), mode: grip ? grip.dataset.lvrs : 'move', delta: 0, a, b, n: cells.length }; e.preventDefault();
+      const r = (LV._recs || []).find((x) => x.id === bar.dataset.lvmove); if (!r || !LV.canEdit(r)) return;
+      ctx.view.classList.add('lv-dragging'); const c = cellAt(e.clientX, e.clientY); ctx.view.classList.remove('lv-dragging'); if (!c) return;
+      const grip = e.target.closest('[data-lvrs]'), row = bar.closest('.lv-tr');
+      ds = { id: r.id, f0: r.from, t0: r.to, n0: LV.days(r.from, r.to).length, d0: c.dataset.day, delta: 0, mode: grip ? grip.dataset.lvrs : 'move', u: row ? row.dataset.tlu || '' : '', bar, started: false, x0: e.clientX, y0: e.clientY, zone: '', zt: 0 };
+      e.preventDefault();
     }, true);
-    ctx.view.addEventListener('pointermove', (e) => {
-      if (!mv || !mv.d0) return; const d = mv.at(e.clientX); if (!d) return;
-      const delta = LV.diff(mv.d0, d); if (delta === mv.delta) return; mv.delta = delta;
-      let { a, b } = mv; const lo = 2, hi = mv.n + 2;
-      if (mv.mode === 'move') { const sh = clamp(delta, lo - a, hi - b); a += sh; b += sh; } else if (mv.mode === 'from') a = clamp(a + delta, lo, b - 1); else b = clamp(b + delta, a + 1, hi);
-      mv.bar.style.gridColumn = `${a} / ${b}`; mv.bar.classList.add('moving');
-    });
-    const up = () => {
-      if (!mv) return; const m = mv; mv = null; if (!m.delta) return;
-      LV._mvSkip = true; setTimeout(() => { LV._mvSkip = false; }, 80);
-      const r = (LV._recs || []).find((x) => x.id === m.id); if (!r) return;
-      const nf = m.mode === 'to' ? r.from : LV.add(r.from, m.delta), nt = m.mode === 'from' ? r.to : LV.add(r.to, m.delta);
-      if (nt < nf) { draw(); return; }
-      go(async () => { await LV.moveLeave(m.id, nf, nt); if (ctx.alive()) draw(); });
+    const move = (e) => {
+      if (!ds) return;
+      if (!ds.started) { if (Math.abs(e.clientX - ds.x0) + Math.abs(e.clientY - ds.y0) < 6) return; ds.started = true; LV.closeBM(); ctx.view.classList.add('lv-dragging'); ds.bar.classList.add('moving'); zones(); ghost(); }
+      const t = tip(), w = t.offsetWidth || 200; t.style.left = `${Math.round(clamp(e.clientX - w - 14, 6, innerWidth - w - 6))}px`; t.style.top = `${Math.round(clamp(e.clientY + 16, 6, innerHeight - 90))}px`;
+      const z = zoneAt(e.clientX, e.clientY);
+      if (z !== ds.zone) { ds.zone = z; clearInterval(ds.zt); $$('.lv-dz').forEach((el) => el.classList.toggle('hot', el.dataset.z === z)); if (z) ds.zt = setInterval(() => flip(z), 700); }
+      const c = cellAt(e.clientX, e.clientY); if (!c) return;
+      const d = LV.diff(ds.d0, c.dataset.day); if (d !== ds.delta) { ds.delta = d; ghost(); }
     };
-    document.addEventListener('pointerup', up);
-    ctx.onCleanup(() => { document.removeEventListener('pointerup', up); LV.closeBM(); const u = document.getElementById('lvUndo'); if (u) u.remove(); });
+    const up = () => end(true);
+    const key = (e) => { if (e.key === 'Escape' && ds) { e.stopPropagation(); end(false); } };
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('keydown', key, true);
+    ctx.onCleanup(() => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('keydown', key, true); end(false); LV.closeBM(); const u = document.getElementById('lvUndo'); if (u) u.remove(); });
   },
   /* طلب إجازة رسمي للطباعة والتوقيع */
   printReq(r) {
@@ -27177,6 +27217,133 @@ Object.assign(LV, {
       ${row('الحالة', `${(LV.ST[r.status] || LV.ST.plan)[0]}${r.decidedBy ? ` — ${Data.userName(r.decidedBy)}${r.decidedAt ? ` ${fmtDate(r.decidedAt)}` : ''}` : ''}${r.decisionNote ? ` — ${r.decisionNote}` : ''}`)}
       ${r.note ? row('ملاحظات', r.note) : ''}</table>
       ${UI.signBlock([{ title: 'مقدم الطلب', userId: r.userId }, { title: 'الرئيس المباشر' }, { title: 'الاعتماد', ...(r.decidedBy ? { userId: r.decidedBy } : {}) }])}</div>`, `طلب إجازة — ${u.name || ''}`);
+  }
+});
+
+/* ══════════ الجولة 37: أرصدة الإجازات الممنوحة ══════════
+   يمنح المشرف رصيداً بعنوان (مثل «الإجازة السنوية 2027» أو «رصيد مرحّل») وعدد أيام ونوع الإجازة الذي يُخصم منه وفترة صلاحية،
+   لكل الفنيين والإداريين أو لمن يختارهم، مع تعديل رصيد شخص بعينه. كل إجازة تُخصم من رصيد صاحبها (تلقائياً أو بالاختيار)،
+   ويظهر لكل فني المتبقي من كل رصيد. من لم يُمنح رصيداً يبقى له الرصيد السنوي الافتراضي من الإعدادات. */
+Object.assign(LV, {
+  bals: (recs, uid) => recs.filter((r) => r.kind === 'bal' && (!uid || (r.userIds || []).includes(uid))),
+  balDays: (b, uid) => { const p = b.per && b.per[uid]; return Number(p != null && p !== '' ? p : b.days) || 0; },
+  balFits: (b, uid, type, from) => (b.userIds || []).includes(uid) && (b.type === 'any' || b.type === type) && b.from <= from && b.to >= from,
+  balUse(b, uid, recs, skipId = '') {
+    const sum = (st) => recs.filter((r) => LV.isLeave(r) && r.userId === uid && r.balId === b.id && r.status === st && r.id !== skipId).reduce((a, r) => a + LV.count(r.from, r.to), 0);
+    const total = LV.balDays(b, uid), used = sum('approved'), pend = sum('pending'), plan = sum('plan');
+    return { total, used, pend, plan, left: total - used - pend };
+  },
+  /* الرصيد الذي تُخصم منه الإجازة: المختار صراحة، أو أول رصيد مناسب يتسع للمدة، أو أول رصيد مناسب */
+  resolveBal(uid, type, from, cnt, want, recs, skipId = '') {
+    if (want === 'none') return 'none';
+    const fit = LV.bals(recs, uid).filter((b) => LV.balFits(b, uid, type, from)).sort((a, b) => (a.type === 'any') - (b.type === 'any') || String(a.from).localeCompare(String(b.from)));
+    if (want && fit.some((b) => b.id === want)) return want;
+    const ok = fit.find((b) => LV.balUse(b, uid, recs, skipId).left >= cnt);
+    return (ok || fit[0] || {}).id || '';
+  },
+  owners(recs) {
+    const me = LV.me();
+    return [...new Map([...LV.candidates(), ...LV.team(recs), Data.c.users.get(me)].filter((u) => u && u.active && u.role !== 'monitor').map((u) => [u.id, u])).values()].sort((a, b) => LV.ROLE_ORD(a) - LV.ROLE_ORD(b) || AR_COLL.compare(String(a.name), String(b.name)));
+  },
+  /* اختيار الأشخاص مجمّعين: الفنيون والإداريون وآخرون، ولكل مجموعة «تحديد الكل» */
+  pickHTML(owners, checked, name = 'userIds') {
+    const me = LV.me();
+    return html`${[['technician', 'الفنيون'], ['support_manager', 'الإداريون'], ['x', 'آخرون']].map(([role, label]) => { const list = owners.filter((u) => (role === 'x' ? !['technician', 'support_manager'].includes(u.role) : u.role === role)); return list.length ? html`<div class="lv-og"><span class="lv-ogh">${label} <small class="faint">${fmtNum(list.length)}</small><button type="button" class="btn btn-xs btn-ghost" data-pkgrp="${role}">تحديد الكل</button></span><div class="lv-share lv-owners">${list.map((u) => html`<label class="lv-pick"><input type="checkbox" name="${name}" value="${u.id}" data-role="${role}"${checked.has(u.id) ? raw(' checked') : ''}><span>${u.name}${u.id === me ? ' (أنا)' : ''}</span></label>`)}</div></div>` : ''; })}`;
+  },
+  bindPick(form, name = 'userIds', after) {
+    UI.on(form, 'click', '[data-pkgrp]', (e, b) => { const xs = $$(`[name="${name}"][data-role="${b.dataset.pkgrp}"]`, form), all = xs.every((x) => x.checked); xs.forEach((x) => { x.checked = !all; }); if (after) after(); });
+    UI.on(form, 'click', '[data-pkall], [data-pknone]', (e, b) => { $$(`[name="${name}"]`, form).forEach((x) => { x.checked = b.matches('[data-pkall]'); }); if (after) after(); });
+  },
+  /* منح رصيد أو تعديله */
+  async balEdit(id) {
+    if (!LV.mgr()) return null;
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const old = id ? recs.find((r) => r.id === id && r.kind === 'bal') : null; if (id && !old) return null;
+    const me = LV.me(), owners = LV.owners(recs), y = new Date().getFullYear() + (new Date().getMonth() > 9 ? 1 : 0);
+    const r0 = old || { title: `الإجازة السنوية ${y}`, days: Number(LV.cfg().entitle) || 30, type: 'annual', from: `${y}-01-01`, to: `${y}-12-31`, userIds: owners.filter((u) => u.role === 'technician').map((u) => u.id), note: '' };
+    const titles = [`الإجازة السنوية ${y}`, `رصيد مرحّل من ${y - 1}`, `بدل راحة ${y}`, `إجازة طارئة ${y}`, 'إجازة دراسية'];
+    const res = await UI.modal({ title: old ? 'تعديل الرصيد' : 'منح رصيد إجازات', icon: 'lv-palm', size: 'lg',
+      body: html`<div class="lvm">
+        <div class="field"><label>عنوان الرصيد</label><input class="input" name="title" maxlength="80" list="lvBalTitles" value="${r0.title}" required placeholder="مثلاً: الإجازة السنوية ${y}"><datalist id="lvBalTitles">${titles.map((t) => html`<option value="${t}"></option>`)}</datalist></div>
+        <div class="lv-grid2"><div class="field"><label>عدد الأيام</label><input class="input" type="number" name="days" min="0" max="365" step="0.5" value="${r0.days}" required><p class="hint">تُحسب الإجازات منه ${LV.cfg().countBy === 'cal' ? 'بالأيام التقويمية' : 'بأيام العمل'} (من الإعدادات).</p></div>
+          <div class="field"><label>يُخصم منه</label><select class="input" name="type"><option value="any"${r0.type === 'any' ? raw(' selected') : ''}>كل أنواع الإجازة</option>${Object.entries(LV.TYPES).map(([k, t]) => html`<option value="${k}"${r0.type === k ? raw(' selected') : ''}>${t.label}</option>`)}</select></div></div>
+        <div class="lv-dates"><div class="field"><label>صالح من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">سنة كاملة:</small>${[y - 1, y, y + 1].map((x) => html`<button type="button" class="qchip" data-lvyr="${x}">${x}</button>`)}</div></div>
+        <div class="field"><label>لمن؟ <small class="faint">— الكل أو عدد محدد</small> <button type="button" class="btn btn-xs btn-ghost" data-pkall>الكل</button><button type="button" class="btn btn-xs btn-ghost" data-pknone>لا أحد</button></label>${LV.pickHTML(owners, new Set(r0.userIds || []))}</div>
+        <div class="field"><label>ملاحظة <small class="faint">— تظهر لأصحاب الرصيد</small></label><input class="input" name="note" maxlength="500" value="${r0.note || ''}" placeholder="مثلاً: يسقط ما لم يُستعمل حتى نهاية السنة"></div>
+        ${old ? html`<p class="hint">${UI.icon('info')} لتغيير رصيد شخص بعينه اضغط خانته في جدول الأرصدة.</p>` : ''}</div>`,
+      onMount: (form) => {
+        LV.bindPick(form);
+        UI.on(form, 'click', '[data-lvyr]', (e, b) => { const set = (k, v) => { const i = $(`[name="${k}"]`, form); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }; set('from', `${b.dataset.lvyr}-01-01`); set('to', `${b.dataset.lvyr}-12-31`); const t = $('[name="title"]', form); t.value = t.value.replace(/\d{4}/, b.dataset.lvyr); });
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: old ? 'حفظ' : 'منح الرصيد', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
+        const g = (k) => (f.querySelector(`[name="${k}"]`) || {}).value || '';
+        const title = g('title').trim(), days = Number(g('days')), from = g('from'), to = g('to'), userIds = $$('[name="userIds"]:checked', f).map((x) => x.value);
+        if (!title) throw new AppError('اكتب عنوان الرصيد');
+        if (!(days >= 0) || days > 365) throw new AppError('عدد الأيام بين 0 و365');
+        if (!LV.okDay(from) || !LV.okDay(to) || to < from) throw new AppError('حدد فترة الصلاحية');
+        if (!userIds.length) throw new AppError('اختر من يُمنح الرصيد');
+        const dup = recs.find((r) => r.kind === 'bal' && r.id !== (old && old.id) && normalizeAr(r.title) === normalizeAr(title) && r.from <= to && r.to >= from);
+        if (dup) throw new AppError(`يوجد رصيد «${dup.title}» لفترة متداخلة (${LV.range(dup.from, dup.to)}). عدّله من جدول الأرصدة بدل منح رصيد مكرر`);
+        return { title, days, type: g('type') || 'any', from, to, userIds, note: g('note').trim() };
+      } }] });
+    if (!res) return null;
+    const t = now(), per = {}; Object.entries((old && old.per) || {}).forEach(([k, v]) => { if (res.userIds.includes(k)) per[k] = v; });
+    const rec = { ...(old || {}), ...res, per, id: old ? old.id : uid('lvb'), kind: 'bal', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
+    await DB.put('leaves', rec);
+    await Data.log(old ? 'update' : 'create', 'leaves', rec.id, `${old ? 'تعديل' : 'منح'} رصيد «${rec.title}» (${rec.days} يوماً) لـ ${rec.userIds.length}`);
+    const added = rec.userIds.filter((x) => !((old && old.userIds) || []).includes(x));
+    if (added.length) await Data.notify(added, { title: `مُنحت رصيد «${rec.title}»`, body: `${fmtNum(rec.days)} يوماً، صالح ${LV.range(rec.from, rec.to)}`, link: '/leaves?v=bal', kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(old ? 'حُفظ الرصيد' : `مُنح الرصيد لـ ${fmtNum(rec.userIds.length)}`); return rec;
+  },
+  /* رصيد شخص بعينه: عدد أيام خاص، أو إضافته إلى الرصيد، أو إزالته منه */
+  async balCell(bid, uid0) {
+    const recs = await DB.getAll('leaves'), b = recs.find((r) => r.id === bid && r.kind === 'bal'); if (!b || !LV.mgr()) return null;
+    const inB = (b.userIds || []).includes(uid0), u = Data.c.users.get(uid0), x = inB ? LV.balUse(b, uid0, recs) : null;
+    const res = await UI.modal({ title: `${b.title} — ${u ? u.name : ''}`, icon: 'lv-palm', size: 'sm',
+      body: html`<div class="lvm">${x ? html`<p class="muted">المعتمد ${fmtNum(x.used)} · المعلّق ${fmtNum(x.pend)} · المتبقي ${fmtNum(x.left)}</p>` : html`<p class="muted">ليس ضمن هذا الرصيد بعد.</p>`}
+        <div class="field"><label>عدد أيامه</label><input class="input" type="number" name="d" min="0" max="365" step="0.5" value="${inB ? LV.balDays(b, uid0) : b.days}"><p class="hint">الرصيد العام ${fmtNum(b.days)} يوماً.</p></div></div>`,
+      actions: [...(inB ? [{ label: 'إزالة من الرصيد', kind: 'ghost', icon: 'x', value: 'rm' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const d = Number($('[name="d"]', f).value); if (!(d >= 0) || d > 365) throw new AppError('عدد الأيام بين 0 و365'); return { d }; } }] });
+    if (!res) return null;
+    const per = { ...(b.per || {}) }; let userIds = [...(b.userIds || [])];
+    if (res === 'rm') { userIds = userIds.filter((x) => x !== uid0); delete per[uid0]; }
+    else { if (!userIds.includes(uid0)) userIds.push(uid0); if (res.d === Number(b.days)) delete per[uid0]; else per[uid0] = res.d; }
+    await DB.put('leaves', { ...b, userIds, per, updatedAt: now() });
+    if (res !== 'rm' && uid0 !== LV.me()) await Data.notify([uid0], { title: `${inB ? 'عُدّل' : 'مُنحت'} رصيد «${b.title}»`, body: `${fmtNum(res.d)} يوماً`, link: '/leaves?v=bal', kind: 'info' });
+    Bus.emit('leaves', {}); UI.toast(res === 'rm' ? 'أُزيل من الرصيد' : 'حُفظ رصيده'); return true;
+  },
+  async balDel(id) {
+    const recs = await DB.getAll('leaves'), b = recs.find((r) => r.id === id && r.kind === 'bal'); if (!b || !LV.mgr()) return false;
+    const n = recs.filter((r) => LV.isLeave(r) && r.balId === id).length;
+    if (!(await UI.confirm(`حذف رصيد «${b.title}»؟${n ? ` ${fmtNum(n)} إجازة مخصومة منه تبقى في التقويم دون رصيد.` : ''}`, { ok: 'حذف', danger: true }))) return false;
+    await DB.del('leaves', id); await Data.log('delete', 'leaves', id, `حذف رصيد «${b.title}»`); Bus.emit('leaves', {}); LV.undoBar([b]); return true;
+  },
+  balView(D, st) {
+    const y = Number(st.month.slice(0, 4)), y0 = `${y}-01-01`, y1 = `${y}-12-31`, me = LV.me(), mgr = LV.mgr();
+    const bals = D.recs.filter((r) => r.kind === 'bal' && r.from <= y1 && r.to >= y0).sort((a, b) => String(a.from).localeCompare(String(b.from)) || AR_COLL.compare(String(a.title), String(b.title)));
+    const card = (b, uid) => { const x = LV.balUse(b, uid, D.recs), pc = x.total ? clamp(Math.round(((x.used + x.pend) / x.total) * 100), 0, 100) : 0; return html`<div class="card lv-bcard"><h4>${UI.icon('lv-palm')} ${b.title}</h4><small class="faint">${b.type === 'any' ? 'كل أنواع الإجازة' : (LV.TYPES[b.type] || LV.TYPES.other).label} · ${LV.range(b.from, b.to)}</small><div class="lv-bprog"><i style="width:${pc}%"></i></div><div class="lv-balg"><span><b>${fmtNum(x.total)}</b><small>الرصيد</small></span><span><b>${fmtNum(x.used)}</b><small>معتمد</small></span><span><b>${fmtNum(x.pend)}</b><small>معلّق</small></span><span class="${x.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(x.left)}</b><small>متبقٍ</small></span></div>${b.note ? html`<p class="hint">${b.note}</p>` : ''}</div>`; };
+    if (!mgr) {
+      const mine = bals.filter((b) => (b.userIds || []).includes(me));
+      return html`<div class="lv-balh"><div><h3>أرصدتي ${y}</h3><small class="faint">يمنحها المشرف، وتُخصم منها إجازاتك تلقائياً أو بما تختاره في نافذة الإجازة</small></div></div>${mine.length ? html`<div class="lv-balcards">${mine.map((b) => card(b, me))}</div>` : html`<div class="empty">${UI.illu('calendar')}<p>لا أرصدة ممنوحة لك لسنة ${y}.</p><p class="faint small">يُستعمل الرصيد السنوي الافتراضي (${fmtNum(LV.cfg().entitle)} يوماً) إلى أن يمنحك المشرف رصيداً.</p></div>`}`;
+    }
+    const ids = new Set([...D.team.map((u) => u.id), ...bals.flatMap((b) => b.userIds || [])]);
+    const people = [...ids].map((id) => D.users.get(id)).filter(Boolean).sort((a, b) => LV.ROLE_ORD(a) - LV.ROLE_ORD(b) || AR_COLL.compare(String(a.name), String(b.name)));
+    return html`<div class="lv-balh"><div><h3>أرصدة الإجازات ${y}</h3><small class="faint">امنح رصيداً بعنوان وعدد أيام لكل الفنيين أو لبعضهم، واضغط خانة شخص لتغيير رصيده وحده</small></div><button type="button" class="btn btn-primary btn-sm" data-lvbaladd>${UI.icon('plus')} منح رصيد</button></div>
+      ${bals.length ? html`<div class="table-wrap"><table class="table lv-balt"><thead><tr><th>الفني</th>${bals.map((b) => html`<th><div class="lv-bth"><b>${b.title}</b><small>${fmtNum(b.days)} يوماً · ${b.type === 'any' ? 'كل الأنواع' : (LV.TYPES[b.type] || LV.TYPES.other).short} · ${LV.range(b.from, b.to)}</small><span><button type="button" class="icon-btn" data-lvbaledit="${b.id}" title="تعديل الرصيد">${UI.icon('edit')}</button><button type="button" class="icon-btn lv-delb" data-lvbaldel="${b.id}" title="حذف الرصيد">${UI.icon('trash')}</button></span></div></th>`)}</tr></thead>
+        <tbody>${people.map((u) => html`<tr><td>${LV.who(u, D.styOf(u.id))}</td>${bals.map((b) => { if (!(b.userIds || []).includes(u.id)) return html`<td class="lv-bc na"><button type="button" data-lvbalcell="${b.id}|${u.id}" title="إضافته إلى «${b.title}»">${UI.icon('plus')}</button></td>`; const x = LV.balUse(b, u.id, D.recs), pc = x.total ? clamp(Math.round(((x.used + x.pend) / x.total) * 100), 0, 100) : 0; return html`<td class="lv-bc"><button type="button" data-lvbalcell="${b.id}|${u.id}" title="المعتمد ${x.used} · المعلّق ${x.pend}"><b class="${x.left < 0 ? 'neg' : ''}">${fmtNum(x.left)}</b><small>متبقٍ من ${fmtNum(x.total)}${b.per && b.per[u.id] != null ? ' (خاص)' : ''}</small><i style="width:${pc}%"></i></button></td>`; })}</tr>`)}</tbody></table></div>`
+        : html`<div class="empty">${UI.illu('calendar')}<p>لا أرصدة ممنوحة لسنة ${y}.</p><p class="faint small">امنح رصيداً مثل «الإجازة السنوية ${y}» لكل الفنيين أو لعدد منهم. إلى أن تمنح أرصدة يُستعمل الرصيد السنوي الافتراضي من الإعدادات (${fmtNum(LV.cfg().entitle)} يوماً).</p></div>`}`;
+  },
+  /* بطاقة «رصيدي» في الجانب: الأرصدة الممنوحة، أو الرصيد السنوي الافتراضي */
+  balSide(D, uid, y, legacy) {
+    const bals = LV.bals(D.recs, uid).filter((b) => b.from <= `${y}-12-31` && b.to >= `${y}-01-01`);
+    if (!bals.length) return html`<div class="card lv-card"><h4>${UI.icon('lv-palm')} رصيدي ${y}</h4><div class="lv-balg"><span><b>${fmtNum(legacy.ent)}</b><small>الرصيد</small></span><span><b>${fmtNum(legacy.used)}</b><small>معتمد</small></span><span><b>${fmtNum(legacy.pend)}</b><small>معلّق</small></span><span class="${legacy.left < 0 ? 'bad' : 'ok'}"><b>${fmtNum(legacy.left)}</b><small>متبقٍ</small></span></div>${legacy.plan ? html`<p class="hint">وفي الخطط المبدئية ${LV.dayW(legacy.plan)}.</p>` : ''}</div>`;
+    return html`<div class="card lv-card"><h4>${UI.icon('lv-palm')} أرصدتي ${y}</h4><ul class="lv-bside">${bals.map((b) => { const x = LV.balUse(b, uid, D.recs), pc = x.total ? clamp(Math.round(((x.used + x.pend) / x.total) * 100), 0, 100) : 0; return html`<li><span class="grow"><b>${b.title}</b><small class="faint">${fmtNum(x.used)} معتمد · ${fmtNum(x.pend)} معلّق</small><span class="lv-bprog"><i style="width:${pc}%"></i></span></span><span class="lv-bleft ${x.left < 0 ? 'bad' : ''}"><b>${fmtNum(x.left)}</b><small>من ${fmtNum(x.total)}</small></span></li>`; })}</ul></div>`;
+  },
+  balBind(ctx, go, draw) {
+    const on = (sel, fn) => UI.on(ctx.view, 'click', sel, (e, b) => { e.stopPropagation(); go(async () => { await fn(b); if (ctx.alive()) draw(); }); });
+    on('[data-lvbaladd]', () => LV.balEdit(''));
+    on('[data-lvbaledit]', (b) => LV.balEdit(b.dataset.lvbaledit));
+    on('[data-lvbaldel]', (b) => LV.balDel(b.dataset.lvbaldel));
+    on('[data-lvbalcell]', (b) => { const [bid, u] = b.dataset.lvbalcell.split('|'); return LV.balCell(bid, u); });
   }
 });
 

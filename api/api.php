@@ -487,6 +487,8 @@ function leave_access(array $d, array $u, $plan = false): string {
   if ($kind === 'style') return 'full';
   $me = (string) ($u['id'] ?? '');
   if ($kind === 'lplan') return (can($u, 'leaves.manage') || leave_in_plan($d, $me)) ? 'full' : '';
+  /* الرصيد الممنوح: للإدارة ولأصحابه */
+  if ($kind === 'bal') return (can($u, 'leaves.manage') || in_array($me, array_map('strval', (array) ($d['userIds'] ?? [])), true)) ? 'full' : '';
   if ($kind === 'wish') {
     if (can($u, 'leaves.manage') || (string) ($d['userId'] ?? '') === $me) return 'full';
     if ($plan === false) $plan = leave_plan((string) ($d['planId'] ?? ''));
@@ -555,6 +557,15 @@ function leave_clean(array $d, string $kind): ?array {
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
       'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
+  if ($kind === 'bal') {
+    if (!leave_day($from) || !leave_day($to) || $to < $from || (strtotime($to . ' 12:00:00') - strtotime($from . ' 12:00:00')) / 86400 > 800) return null;
+    $title = cut(trim((string) ($d['title'] ?? '')), 80); if ($title === '') return null;
+    $bt = (string) ($d['type'] ?? 'any'); if ($bt !== 'any' && !in_array($bt, LEAVE_TYPES, true)) $bt = 'any';
+    $ids = leave_ids($d['userIds'] ?? [], 300); $per = [];
+    foreach ((array) ($d['per'] ?? []) as $k => $v) { $k = (string) $k; if (in_array($k, $ids, true)) $per[$k] = max(0, min(365, round((float) $v, 1))); }
+    return ['id' => $id, 'kind' => 'bal', 'title' => $title, 'days' => max(0, min(365, round((float) ($d['days'] ?? 0), 1))), 'type' => $bt, 'from' => $from, 'to' => $to,
+      'userIds' => $ids, 'per' => (object) $per, 'note' => cut(trim((string) ($d['note'] ?? '')), 500), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
+  }
   if (!leave_day($from) || !leave_day($to) || !leave_span_ok($from, $to)) return null;
   $type = (string) ($d['type'] ?? 'annual'); if (!in_array($type, LEAVE_TYPES, true)) $type = 'other';
   if ($kind === 'wish') {
@@ -567,7 +578,7 @@ function leave_clean(array $d, string $kind): ?array {
   $st = (string) ($d['status'] ?? 'plan'); if (!in_array($st, ['plan', 'pending', 'approved', 'rejected'], true)) $st = 'plan';
   $dn = [];
   foreach ((array) ($d['dayNotes'] ?? []) as $k => $v) { $k = (string) $k; $v = cut(trim((string) $v), 500); if ($v !== '' && leave_day($k) && $k >= $from && $k <= $to && count($dn) < 400) $dn[$k] = $v; }
-  return $base + ['userId' => (string) ($d['userId'] ?? ''), 'planId' => cut((string) ($d['planId'] ?? ''), 120), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'icon' => preg_match('/^[a-z0-9-]{1,30}$/', (string) ($d['icon'] ?? '')) ? (string) $d['icon'] : '', 'color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string) ($d['color'] ?? '')) ? (string) $d['color'] : '', 'grp' => cut((string) ($d['grp'] ?? ''), 40), 'from' => $from, 'to' => $to, 'type' => $type, 'status' => $st, 'vis' => in_array($vis, ['team', 'busy', 'mgr', 'private'], true) ? $vis : 'team',
+  return $base + ['userId' => (string) ($d['userId'] ?? ''), 'planId' => cut((string) ($d['planId'] ?? ''), 120), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'icon' => preg_match('/^[a-z0-9-]{1,30}$/', (string) ($d['icon'] ?? '')) ? (string) $d['icon'] : '', 'color' => preg_match('/^#[0-9a-fA-F]{6}$/', (string) ($d['color'] ?? '')) ? (string) $d['color'] : '', 'balId' => cut((string) ($d['balId'] ?? ''), 120), 'grp' => cut((string) ($d['grp'] ?? ''), 40), 'from' => $from, 'to' => $to, 'type' => $type, 'status' => $st, 'vis' => in_array($vis, ['team', 'busy', 'mgr', 'private'], true) ? $vis : 'team',
     'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'dayNotes' => (object) $dn, 'decidedBy' => (string) ($d['decidedBy'] ?? ''), 'decidedAt' => (int) ($d['decidedAt'] ?? 0), 'decisionNote' => cut(trim((string) ($d['decisionNote'] ?? '')), 500)];
 }
 /** كتابة الإجازات: صاحب الإجازة يضيفها ويعدّلها ويحذفها، ومن يملك «إدارة الإجازات» يعتمد ويرفض ويعدّل ما يراه.
@@ -577,7 +588,17 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
   $me = (string) ($user['id'] ?? ''); $mgr = can($user, 'leaves.manage');
   $data = is_array($new) ? $new : [];
   $src = $old ?: $data; $kind = (string) ($src['kind'] ?? 'leave');
-  if (!in_array($kind, ['leave', 'note', 'style', 'lplan', 'wish'], true)) return null;
+  if (!in_array($kind, ['leave', 'note', 'style', 'lplan', 'wish', 'bal'], true)) return null;
+  /* الأرصدة يمنحها ويعدّلها ويحذفها من يملك «إدارة الإجازات» وحده */
+  if ($kind === 'bal') {
+    if (!$mgr) return null;
+    if ($deleted) return $old ? $new : null;
+    $c = leave_clean($data, 'bal'); if ($c === null) return null;
+    if ($old && $c['id'] !== (string) ($old['id'] ?? '')) return null;
+    $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? $me) : $me;
+    $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
+    return $c;
+  }
   if ($old && !$deleted && (string) ($data['kind'] ?? 'leave') !== $kind) return null;
   if ($kind === 'style') {
     $uid = (string) ($src['userId'] ?? '');
