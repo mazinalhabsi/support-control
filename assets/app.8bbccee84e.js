@@ -26105,7 +26105,8 @@ const LV = {
   work: (s) => !LV.weekend(s) && !LV.holiday(s),
   workDays: (from, to) => LV.days(from, to).filter(LV.work).length,
   count: (from, to) => (LV.cfg().countBy === 'cal' ? LV.days(from, to).length : LV.workDays(from, to)),
-  T: (r) => { const t = r.masked || r.type === 'busy' ? LV.BUSY : LV.TYPES[r.type] || LV.TYPES.other, n = !r.masked && String(r.title || '').trim(); return n ? { ...t, label: n, short: n, kind: t.label } : t; },
+  T: (r) => { const t = r.masked || r.type === 'busy' ? LV.BUSY : LV.TYPES[r.type] || LV.TYPES.other, n = !r.masked && String(r.title || '').trim(), ic = !r.masked && /^[a-z0-9-]{1,30}$/.test(String(r.icon || '')) ? r.icon : ''; return n || ic ? { ...t, ...(n ? { label: n, short: n, kind: t.label } : {}), ...(ic ? { icon: ic } : {}) } : t; },
+  LICONS: ['lv-palm', 'lv-plane', 'lv-car', 'lv-mount', 'lv-umb', 'sun', 'moon', 'star', 'lv-heart', 'lv-grad', 'lv-brief', 'lv-coffee', 'lv-bolt', 'book', 'lv-leaf', 'lv-anchor', 'lv-rocket', 'lv-crown', 'lv-music', 'lv-ball', 'lv-cam', 'lv-game', 'tools', 'monitor'],
   TITLES: ['إجازة زواج', 'إجازة حج', 'إجازة دراسية', 'إجازة مرافقة مريض', 'إجازة وفاة', 'مؤتمر أو معرض', 'ورشة عمل'],
   titles: (recs) => [...new Set([...recs.map((r) => String(r.title || '').trim()).filter(Boolean), ...LV.TITLES])].slice(0, 40),
   me: () => (Auth.user ? Auth.user.id : ''),
@@ -26132,11 +26133,11 @@ const LV = {
     [...team].sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach((u) => {
       const c = custom.get(u.id) || {}; let color = c.color;
       if (!color) { let k = 0; while (used.has(LV.COLORS[ci % LV.COLORS.length]) && k++ < LV.COLORS.length) ci++; color = LV.COLORS[ci++ % LV.COLORS.length]; used.add(color); }
-      out.set(u.id, { color, icon: c.icon || LV.ICONSET[LV.hash(u.id) % LV.ICONSET.length], custom: !!c.color });
+      out.set(u.id, { color, icon: '', custom: !!c.color });
     });
     return out;
   },
-  who(u, s, cls = '') { return html`<span class="lv-who ${cls}" style="--c:${s.color}">${UI.icon(s.icon)}<b>${u ? u.name : 'مستخدم'}</b></span>`; },
+  who(u, s, cls = '') { return html`<span class="lv-who ${cls}" style="--c:${s.color}"><i class="lv-av" aria-hidden="true">${String(LV.first(u && u.name) || '؟').charAt(0)}</i><b>${u ? u.name : 'مستخدم'}</b></span>`; },
   stChip(r) { const [l, t] = LV.ST[r.status] || LV.ST.plan; return html`<span class="chip tone-${t} lv-st">${l}</span>`; },
   /* الرصيد السنوي (الإجازات السنوية فقط): المعتمد والمعلّق والمخطط في سنة التاريخ */
   balance(uid, year, recs, skipId = '') {
@@ -26165,6 +26166,7 @@ const LV = {
         ${multi ? html`<div class="field"><label>الفنيون <small class="faint">— فني أو أكثر: تُسجَّل الإجازة لكل منهم باسمه</small> <button type="button" class="btn btn-xs btn-ghost" data-lvall>الكل</button><button type="button" class="btn btn-xs btn-ghost" data-lvnone>لا أحد</button></label><div class="lv-share lv-owners">${owners.map((u) => html`<label class="lv-pick"><input type="checkbox" name="userIds" value="${u.id}"${u.id === r0.userId ? raw(' checked') : ''}><span>${u.name}${u.id === me ? ' (أنا)' : ''}</span></label>`)}</div></div>` : mgr ? html`<div class="field"><label>الفني</label><select class="input" name="userId">${owners.map((u) => html`<option value="${u.id}"${u.id === r0.userId ? raw(' selected') : ''}>${u.name}${u.id === me ? ' (أنا)' : ''}</option>`)}</select></div>` : html`<input type="hidden" name="userId" value="${r0.userId}">`}
         <div class="field"><label>نوع الإجازة</label><div class="lv-types" role="radiogroup">${Object.entries(LV.TYPES).map(([k, t]) => html`<label class="lv-type"><input type="radio" name="type" value="${k}"${k === r0.type ? raw(' checked') : ''}><span>${UI.icon(t.icon)}${t.label}</span></label>`)}</div></div>
         <div class="field"><label>اسم الإجازة <small class="faint">— اختياري: يظهر بدل النوع في التقويم، مثل «إجازة زواج» أو «مؤتمر تقني»</small></label><input class="input" name="title" maxlength="60" list="lvTitles" value="${r0.title || ''}" placeholder="اكتب اسماً للإجازة أو اختر من المقترحات"><datalist id="lvTitles">${LV.titles(recs).map((x) => html`<option value="${x}"></option>`)}</datalist></div>
+        <div class="field"><label>أيقونة الإجازة <small class="faint">— اختيارية: تظهر على أيام هذه الإجازة في التقويم، وبدونها تظهر أيقونة النوع</small></label><div class="lv-icons lv-licons" role="radiogroup"><button type="button" class="lv-ico lv-ico-none${r0.icon ? '' : ' on'}" data-lvic="" aria-pressed="${r0.icon ? 'false' : 'true'}">بلا</button>${LV.LICONS.map((i) => html`<button type="button" class="lv-ico${r0.icon === i ? ' on' : ''}" data-lvic="${i}" aria-pressed="${r0.icon === i ? 'true' : 'false'}">${UI.icon(i)}</button>`)}</div><input type="hidden" name="icon" value="${r0.icon || ''}"></div>
         <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">مدة سريعة:</small>${[[1, 'يوم'], [3, '3 أيام'], [5, '5 أيام عمل', 'w'], [7, 'أسبوع'], [14, 'أسبوعان'], [30, 'شهر']].map(([n, l, w]) => html`<button type="button" class="qchip" data-lvq="${n}${w ? 'w' : ''}">${l}</button>`)}</div></div>
         <div class="lv-check" data-lvcheck></div>
         <div class="field"><label>الحالة</label><div class="seg sm lv-stseg">${['plan', 'pending', ...(mgr ? ['approved', 'rejected'] : old && ['approved', 'rejected'].includes(old.status) ? [old.status] : [])].map((k) => html`<label><input type="radio" name="status" value="${k}"${k === r0.status ? raw(' checked') : ''}><span>${LV.ST[k][0]}</span></label>`)}</div>
@@ -26172,7 +26174,7 @@ const LV = {
           ${mgr ? html`<div class="field mt" data-lvdec${['approved', 'rejected'].includes(r0.status) ? '' : raw(' hidden')}><label>ملاحظة القرار <small class="faint">— تصل صاحب الإجازة</small></label><input class="input" name="decisionNote" value="${r0.decisionNote || ''}" maxlength="500"></div>` : ''}</div>
         <div class="field"><label>من يرى هذه الإجازة؟</label><div class="lv-vis">${Object.entries(LV.VIS).map(([k, [l, ic, d]]) => html`<label class="lv-visc"><input type="radio" name="vis" value="${k}"${k === (r0.vis || 'team') ? raw(' checked') : ''}><span>${UI.icon(ic)}<b>${l}</b><small>${d}</small></span></label>`)}</div></div>
         <div class="field"><label>مشاركة مع <small class="faint">— يرون التفاصيل كاملة ويصلهم إشعار، مهما كان الظهور</small></label><div class="lv-share">${sharable.map((u) => html`<label class="lv-pick"><input type="checkbox" name="share" value="${u.id}"${(r0.share || []).includes(u.id) ? raw(' checked') : ''}><span>${canUser(u, 'leaves.manage') ? UI.icon('shield') : ''}${u.name}<small>${ROLES[u.role] || ''}</small></span></label>`)}</div></div>
-        ${grpRecs.length ? html`<label class="chk lv-grp"><input type="checkbox" name="applyGrp" checked> تطبيق المدة والنوع والاسم والحالة على كل الإجازة الجماعية (${fmtNum(grpRecs.length + 1)}): ${grpRecs.map((r) => Data.userName(r.userId)).join('، ')}</label>` : ''}
+        ${grpRecs.length ? html`<label class="chk lv-grp"><input type="checkbox" name="applyGrp" checked> تطبيق المدة والنوع والاسم والأيقونة والحالة على كل الإجازة الجماعية (${fmtNum(grpRecs.length + 1)}): ${grpRecs.map((r) => Data.userName(r.userId)).join('، ')}</label>` : ''}
         <div class="field"><label>ملاحظة</label><textarea class="input" name="note" rows="2" maxlength="2000" placeholder="مثلاً: السفر خارج السلطنة، والبديل في المهام العاجلة فلان">${r0.note || ''}</textarea></div>
         <div class="field"><label>ملاحظات على أيام محددة <small class="faint">— تظهر على اليوم نفسه في التقويم</small></label><div class="lv-dns" data-lvdns></div><button type="button" class="btn btn-soft btn-sm mt" data-lvdnadd>${UI.icon('plus')} ملاحظة ليوم</button></div>
       </div>`,
@@ -26209,6 +26211,7 @@ const LV = {
         UI.on(form, 'click', '[data-lvq]', (e, b) => { const f = $('[name="from"]', form), t = $('[name="to"]', form), w = b.dataset.lvq.endsWith('w'), n = parseInt(b.dataset.lvq, 10); if (!f.value) f.value = LV.today(); if (w) { let s = f.value, k = LV.work(s) ? 1 : 0; while (k < n) { s = LV.add(s, 1); if (LV.work(s)) k++; } t.value = s; } else t.value = LV.add(f.value, n - 1); t.dispatchEvent(new Event('change', { bubbles: true })); });
         UI.on(form, 'click', '[data-lvdnadd]', () => { Object.assign(dn, readDn()); const ds = LV.days(val('from'), val('to')); if (!ds.length) { UI.toast('حدد المدة أولاً', 'warn'); return; } const free = ds.find((d) => !dn.some((x) => x.d === d)) || ds[0]; dn.push({ d: free, t: '' }); drawDn(); const last = $$('.lv-dn input', dnBox).pop(); if (last) last.focus(); });
         UI.on(form, 'click', '[data-lvdnx]', (e, b) => { Object.assign(dn, readDn()); dn.splice(Number(b.dataset.lvdnx), 1); drawDn(); });
+        UI.on(form, 'click', '[data-lvic]', (e, b) => { $('[name="icon"]', form).value = b.dataset.lvic; $$('[data-lvic]', form).forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
         UI.on(form, 'click', '[data-lvall], [data-lvnone]', (e, b) => { $$('[name="userIds"]', form).forEach((x) => { x.checked = b.matches('[data-lvall]'); }); check(); });
       },
       actions: [
@@ -26228,7 +26231,7 @@ const LV = {
           const dayNotes = {}; $$('.lv-dn', form).forEach((row) => { const d = $('select', row).value, t = $('input', row).value.trim(); if (t && d >= from && d <= to) dayNotes[d] = dayNotes[d] ? `${dayNotes[d]} — ${t}` : t; });
           let status = v('status') || 'plan', vis = v('vis') || 'team';
           if (status === 'pending' && vis === 'private') vis = 'mgr';
-          return { userId, userIds: uids, applyGrp, title: (v('title') || '').trim().slice(0, 60), type: v('type') || 'annual', from, to, status, vis, share: $$('[name="share"]:checked', form).map((x) => x.value), note: v('note').trim(), dayNotes, decisionNote: (v('decisionNote') || '').trim() };
+          return { userId, userIds: uids, applyGrp, title: (v('title') || '').trim().slice(0, 60), icon: v('icon') || '', type: v('type') || 'annual', from, to, status, vis, share: $$('[name="share"]:checked', form).map((x) => x.value), note: v('note').trim(), dayNotes, decisionNote: (v('decisionNote') || '').trim() };
         } }
       ]
     });
@@ -26275,7 +26278,7 @@ const LV = {
     const me = LV.me(), t = now();
     for (const r of list) {
       if (!LV.canEdit(r)) continue;
-      const rec = { ...r, from: one.from, to: one.to, type: one.type, title: one.title, status: one.status, updatedAt: t };
+      const rec = { ...r, from: one.from, to: one.to, type: one.type, title: one.title, icon: one.icon || '', status: one.status, updatedAt: t };
       if (['approved', 'rejected'].includes(rec.status) && r.status !== rec.status) { rec.decidedBy = me; rec.decidedAt = t; }
       await DB.put('leaves', rec);
       if (r.userId !== me && (r.from !== rec.from || r.to !== rec.to || r.status !== rec.status)) await Data.notify([r.userId], { title: `عدّل ${Auth.user.name} إجازتك الجماعية`, body: `${LV.T(rec).label}: ${LV.range(rec.from, rec.to)} — ${(LV.ST[rec.status] || LV.ST.plan)[0]}`, link: `/leaves?d=${rec.from}`, kind: 'info' });
@@ -26336,22 +26339,21 @@ const LV = {
   },
   /* لون الفني وأيقونته */
   async styleEdit(uid0) {
-    const recs = await DB.getAll('leaves'), team = LV.team(recs), cur = LV.styles(team.some((u) => u.id === uid0) ? team : [...team, Data.c.users.get(uid0)].filter(Boolean), recs).get(uid0) || { color: LV.COLORS[0], icon: LV.ICONSET[0] };
-    const u = Data.c.users.get(uid0), st = { ...cur };
-    const res = await UI.modal({ title: uid0 === LV.me() ? 'اللون والأيقونة في التقويم' : `لون ${u ? u.name : ''} وأيقونته`, icon: 'palette',
+    const recs = await DB.getAll('leaves'), team = LV.team(recs), cur = LV.styles(team.some((u) => u.id === uid0) ? team : [...team, Data.c.users.get(uid0)].filter(Boolean), recs).get(uid0) || { color: LV.COLORS[0] };
+    const u = Data.c.users.get(uid0), st = { color: cur.color };
+    const res = await UI.modal({ title: uid0 === LV.me() ? 'لوني في التقويم' : `لون ${u ? u.name : ''} في التقويم`, icon: 'palette', size: 'sm',
       body: html`<div class="lv-sty"><div class="lv-sty-prev" data-lvprev></div>
         <div class="field"><label>اللون</label><div class="lv-colors">${LV.COLORS.map((c) => html`<button type="button" class="lv-col${c === st.color ? ' on' : ''}" data-lvcol="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div></div>
-        <div class="field"><label>الأيقونة</label><div class="lv-icons">${LV.ICONSET.map((i) => html`<button type="button" class="lv-ico${i === st.icon ? ' on' : ''}" data-lvico="${i}">${UI.icon(i)}</button>`)}</div></div></div>`,
+        <p class="hint">الأيقونة تُختار لكل إجازة من نافذتها، وتظهر على أيامها.</p></div>`,
       onMount: (form) => {
-        const prev = () => { $('[data-lvprev]', form).innerHTML = String(html`${LV.who(u, st)}<span class="lv-barx s-approved" style="--c:${st.color}">${UI.icon(st.icon)}<span>${LV.first(u && u.name)} · سنوية</span></span>`); $$('[data-lvcol]', form).forEach((b) => b.classList.toggle('on', b.dataset.lvcol === st.color)); $$('[data-lvico]', form).forEach((b) => { b.classList.toggle('on', b.dataset.lvico === st.icon); b.style.setProperty('--c', st.color); }); };
-        UI.on(form, 'click', '[data-lvcol]', (e, b) => { st.color = b.dataset.lvcol; prev(); });
-        UI.on(form, 'click', '[data-lvico]', (e, b) => { st.icon = b.dataset.lvico; prev(); });
+        const prev = () => { $('[data-lvprev]', form).innerHTML = String(html`${LV.who(u, st)}<span class="lv-barx s-approved" style="--c:${st.color}">${UI.icon('lv-palm')}<span>${LV.first(u && u.name)} · سنوية</span></span>`); $$('[data-lvcol]', form).forEach((x) => x.classList.toggle('on', x.dataset.lvcol === st.color)); };
+        UI.on(form, 'click', '[data-lvcol]', (e, x) => { st.color = x.dataset.lvcol; prev(); });
         prev();
       },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: () => st }] });
     if (!res) return;
-    await DB.put('leaves', { id: `lvs:${uid0}`, kind: 'style', userId: uid0, color: res.color, icon: res.icon, updatedAt: now() });
-    Bus.emit('leaves', {}); UI.toast('حُفظ اللون والأيقونة');
+    await DB.put('leaves', { id: `lvs:${uid0}`, kind: 'style', userId: uid0, color: res.color, icon: '', updatedAt: now() });
+    Bus.emit('leaves', {}); UI.toast('حُفظ اللون');
   },
   /* إعدادات الإدارة: التغطية، والعطلة الأسبوعية، والعطل الرسمية، والرصيد */
   async settings() {
@@ -26421,7 +26423,7 @@ Pages.leaves = async (ctx) => {
           ${days.map((s, i) => { const out = s.slice(0, 7) !== st.month, ns = notesOn(s), h = LV.holiday(s), cv = !out && LV.work(s) && D.team.length ? coverOf(s) : null, low = cv && cv.avail < D.cfg.minCover, more = hidden.get(s) || 0;
             return html`<div class="lv-day ${dayCls(s)}${out ? ' out' : ''}${low ? ' low' : ''}" data-day="${s}" style="grid-column:${i + 1}" title="${h || ''}"><span class="lv-dnum">${LV.pd(s).getDate()}</span>${h ? html`<small class="lv-hol">${h}</small>` : ''}<span class="lv-dmk">${ns.length ? html`<span class="lv-nt tone-${ns[0].tone || 'sky'}" title="${ns.map((n) => n.text).join('\n')}">${UI.icon('lv-note')}${ns.length > 1 ? fmtNum(ns.length) : ''}</span>` : ''}${low ? html`<span class="lv-lowb" title="المتاحون ${cv.avail} من ${cv.tot}، والحد الأدنى ${D.cfg.minCover}">${UI.icon('alert')}${fmtNum(cv.avail)}</span>` : ''}${more ? html`<span class="lv-moren">+${fmtNum(more)}</span>` : ''}</span></div>`; })}
           ${bars.map(({ r, L, c1, c2, cs, ce }) => { const s = D.styOf(r.userId), u = D.users.get(r.userId), T = LV.T(r), dn = r.dayNotes && Object.keys(r.dayNotes).length;
-            return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}" style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${s.color}" title="${barLabel(r)}">${UI.icon(s.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}</button>`; })}
+            return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}" style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${s.color}" title="${barLabel(r)}">${UI.icon(T.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}</button>`; })}
         </div>`; })}</div>`;
   };
 
@@ -26485,7 +26487,7 @@ Pages.leaves = async (ctx) => {
     const t = LV.today(), awayT = LV.away(t, D.all), soon = D.all.filter((r) => r.from > t && r.from <= LV.add(t, 14)), [y, m] = st.month.split('-').map(Number), mgr = LV.mgr();
     const title = st.view === 'year' || st.view === 'list' ? `${y}` : `${LV.MONTHS[m - 1]} ${y}`;
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'إجازات الفنيين', sub: 'خطط إجازتك على تقويم الفريق: اسحب على الأيام لتحديد المدة، واختر من يراها، وأضف ملاحظاتك. التداخل مع الزملاء ونقص التغطية يظهران قبل الحفظ', illu: 'calendar',
-      actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon(D.styOf(me).icon)} اللون والأيقونة</button>` })}
+      actions: html`<button class="btn btn-primary" data-lvnew="">${UI.icon('plus')} إجازة جديدة</button><button class="btn" data-lvnoteadd="">${UI.icon('lv-note')} ملاحظة على تاريخ</button><button class="btn btn-ghost" data-lvsty="${me}">${UI.icon('palette')} اللون</button>` })}
       <div class="lv-kpis">
         <div class="lv-kpi"><span class="lv-ki">${UI.icon('lv-plane')}</span><div><small>في إجازة اليوم</small><b>${awayT.length ? fmtNum(awayT.length) : 'الفريق كامل'}</b><div class="lv-kw">${awayT.slice(0, 4).map((r) => LV.who(D.users.get(r.userId), D.styOf(r.userId), 'sm'))}</div></div></div>
         <div class="lv-kpi"><span class="lv-ki">${UI.icon('calendar')}</span><div><small>تبدأ خلال 14 يوماً</small><b>${fmtNum(soon.length)}</b><div class="lv-kw">${soon.slice(0, 3).map((r) => html`<span class="faint small">${LV.first((D.users.get(r.userId) || {}).name)} ${LV.fmt(r.from)}</span>`)}</div></div></div>
@@ -26498,7 +26500,7 @@ Pages.leaves = async (ctx) => {
         <span class="grow"></span>
         <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}</div>
       </div>
-      <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}">${UI.icon(s.icon)}<span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون والأيقونة">${UI.icon('palette')}</i>` : ''}</button>`; })}
+      <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}"><span class="lv-dot"></span><span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون">${UI.icon('palette')}</i>` : ''}</button>`; })}
         <label class="chk lv-mine"><input type="checkbox" data-lvmine${st.mine ? raw(' checked') : ''}> إجازاتي فقط</label>
         <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب</span></div>
       <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
