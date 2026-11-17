@@ -7305,3 +7305,41 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .ink-li:hover{border-color:rgba(var(--accent),.5)}.ink-li.on{border-color:rgb(var(--green));background:rgba(var(--green),.08)}
 .ink-li .grow{display:grid;min-width:0}.ink-li small{font-size:11.5px;color:var(--ink-3)}
 .ink-li>.ic{width:16px;height:16px;color:rgb(var(--green))}
+
+/* الجولة 42 */
+.lv-sign1{display:flex;justify-content:flex-end;margin-top:30px;break-inside:avoid}
+.lv-sign1>div{display:grid;gap:18px;min-width:230px;text-align:center}
+.lv-sign1 b{font-size:14px}
+.lv-tc.lp-full{background:repeating-linear-gradient(135deg,rgba(var(--red),.16),rgba(var(--red),.16) 4px,transparent 4px,transparent 8px)}
+.lp-keys .k.full{background:repeating-linear-gradient(135deg,rgba(var(--red),.5),rgba(var(--red),.5) 3px,transparent 3px,transparent 6px)}
+.lv-ent-list{display:grid;gap:8px}
+.lv-entc{border:1px solid var(--line-2);border-radius:12px;background:var(--surface-solid);overflow:hidden}
+.lv-entc.exp{opacity:.65}
+.lv-entc summary{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;list-style:none}
+.lv-entc summary::-webkit-details-marker{display:none}
+.lv-ent-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:rgba(var(--accent),.12);color:rgb(var(--accent));flex:none}
+.lv-ent-ic .ic{width:17px;height:17px}
+.lv-entc summary .grow{display:grid;min-width:0}.lv-entc summary b{font-size:13.5px}.lv-entc summary small{font-size:11px;color:var(--ink-3)}
+.lv-ent-n{display:grid;justify-items:center;line-height:1.1}.lv-ent-n b{font-size:20px;color:rgb(var(--accent))}.lv-ent-n small{font-size:10px;color:var(--ink-3)}
+.lv-ent-b{display:grid;gap:8px;padding:0 10px 10px}
+.lv-ent-st{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;text-align:center}
+.lv-ent-st span{display:grid;padding:4px;border-radius:8px;background:var(--surface-2)}.lv-ent-st b{font-size:15px}.lv-ent-st small{font-size:10px;color:var(--ink-3)}
+.lv-ent-st .ok b{color:rgb(var(--green))}.lv-ent-st .bad b{color:rgb(var(--red))}
+.lv-ent-d{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:11.5px;color:var(--ink-2)}
+.lv-ent-d li{display:flex;gap:5px;align-items:flex-start}.lv-ent-d .ic{width:13px;height:13px;margin-top:2px;flex:none;color:var(--ink-3)}
+.lv-ent-lv{display:grid;gap:3px}.lv-ent-lv>small{font-size:11px;color:var(--ink-3);font-weight:700}
+.lv-ent-r{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;padding:4px 8px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface-2);font:inherit;font-size:11.5px;color:var(--ink);cursor:pointer;text-align:start}
+.lv-ent-r:hover{border-color:rgba(var(--accent),.5)}.lv-ent-r .chip{height:20px;font-size:10.5px;padding:0 6px;margin-inline-start:auto}
+
+/* الجولة 42: عمليات الرغبة */
+.lp-w .lp-rz{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize;z-index:2}
+.lp-w .lp-rz.s{inset-inline-start:0;border-start-start-radius:inherit;border-end-start-radius:inherit}
+.lp-w .lp-rz.e{inset-inline-end:0;border-start-end-radius:inherit;border-end-end-radius:inherit}
+.lp-w.mv:hover .lp-rz{background:rgba(255,255,255,.45)}
+.lp-w{position:relative}
+.lp-dtip{position:fixed;z-index:10000;padding:4px 9px;border-radius:8px;background:#0f172a;color:#fff;font-size:12px;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.lp-wm{min-width:300px;max-width:min(420px,calc(100vw - 16px))}
+.lp-wm-d{font-size:12.5px;margin:4px 0 2px}
+.lp-wm-r{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:12px;color:var(--ink-3)}
+.lp-wm-r .icon-btn{width:28px;height:28px}.lp-wm-r .btn{margin-inline-start:auto}
+.lp-wm-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2)}

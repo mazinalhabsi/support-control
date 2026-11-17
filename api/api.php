@@ -494,12 +494,32 @@ function leave_count(string $a, string $b): int {
   }
   return $n;
 }
-/** رغبات الفني الأخرى في الخطة بالأولوية نفسها (من القاعدة مع ما في دفعة المزامنة الحالية) */
-function leave_wish_sibs(string $pid, string $uid, int $pri, string $except): array {
+/** رغبات الخطة كلها (من القاعدة مع ما في دفعة المزامنة الحالية) */
+function leave_plan_docs(string $pid): array {
   $all = [];
   if (isset($GLOBALS['LV_SIBS']) && is_callable($GLOBALS['LV_SIBS'])) $all = ($GLOBALS['LV_SIBS'])($pid);
   else { $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = 'leaves' AND deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.planId')) = ?"); $st->execute([$pid]); foreach ($st->fetchAll() as $r) { $d = json_decode((string) $r['data'], true); if (is_array($d)) $all[(string) $r['doc_id']] = $d; } }
-  foreach ((array) ($GLOBALS['PUSH_BATCH'] ?? []) as $k => $d) if (strpos((string) $k, 'leaves|') === 0 && is_array($d)) $all[substr((string) $k, 7)] = $d;
+  foreach ((array) ($GLOBALS['PUSH_BATCH'] ?? []) as $k => $d) if (strpos((string) $k, 'leaves|') === 0 && is_array($d) && (string) ($d['planId'] ?? '') === $pid) $all[substr((string) $k, 7)] = $d;
+  return $all;
+}
+/** الإجازات المسجلة غير المرفوضة الظاهرة للفريق في فترة: أصحابها يُحسبون في عدد الغائبين */
+function leave_live_in(string $from, string $to): array {
+  $rows = [];
+  if (isset($GLOBALS['LV_LEAVES']) && is_callable($GLOBALS['LV_LEAVES'])) $rows = ($GLOBALS['LV_LEAVES'])($from, $to);
+  else { $st = db()->prepare("SELECT doc_id, data FROM docs WHERE store = 'leaves' AND deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.from')) <= ? AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.to')) >= ?"); $st->execute([$to, $from]); foreach ($st->fetchAll() as $r) { $d = json_decode((string) $r['data'], true); if (is_array($d)) $rows[(string) $r['doc_id']] = $d; } }
+  foreach ((array) ($GLOBALS['PUSH_BATCH'] ?? []) as $k => $d) if (strpos((string) $k, 'leaves|') === 0 && is_array($d)) $rows[substr((string) $k, 7)] = $d;
+  return array_values(array_filter($rows, fn($d) => is_array($d) && (string) ($d['kind'] ?? 'leave') === 'leave' && (string) ($d['status'] ?? '') !== 'rejected' && in_array((string) ($d['vis'] ?? 'team'), ['team', 'busy'], true) && (string) ($d['from'] ?? '') <= $to && (string) ($d['to'] ?? '') >= $from));
+}
+/** يوم عمل: ليس عطلة أسبوعية ولا عطلة رسمية (كما في الواجهة) */
+function leave_is_work(string $s): bool {
+  $c = leave_cfg(); $t = strtotime($s . ' 12:00:00');
+  if (in_array((int) date('w', $t), array_map('intval', (array) ($c['weekend'] ?? [5, 6])), true)) return false;
+  foreach ((array) ($c['holidays'] ?? []) as $h) { if (!is_array($h)) continue; $hf = (string) ($h['from'] ?? ''); $ht = (string) (($h['to'] ?? '') ?: $hf); if ($hf !== '' && $hf <= $s && $s <= $ht) return false; }
+  return true;
+}
+/** رغبات الفني الأخرى في الخطة بالأولوية نفسها */
+function leave_wish_sibs(string $pid, string $uid, int $pri, string $except): array {
+  $all = leave_plan_docs($pid);
   $out = [];
   foreach ($all as $id => $d) if ((string) $id !== $except && ($d['kind'] ?? '') === 'wish' && (string) ($d['planId'] ?? '') === $pid && (string) ($d['userId'] ?? '') === $uid && ((int) ($d['pri'] ?? 1) === 2 ? 2 : 1) === $pri) $out[] = $d;
   return $out;
@@ -581,7 +601,7 @@ function leave_clean(array $d, string $kind): ?array {
     $dl = (string) ($d['deadline'] ?? ''); $ps = (string) ($d['state'] ?? 'collect');
     return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
-      'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))), 'qexact' => empty($d['qexact']) || empty($d['quota']) ? 0 : 1, 'split' => max(0, min(20, (int) ($d['split'] ?? 0))),
+      'maxHard' => empty($d['maxHard']) ? 0 : 1, 'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))), 'qexact' => empty($d['qexact']) || empty($d['quota']) ? 0 : 1, 'split' => max(0, min(20, (int) ($d['split'] ?? 0))),
       'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
   if ($kind === 'bal') {
@@ -673,6 +693,23 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
         $used = 0; foreach ($sib as $w) $used += leave_count((string) ($w['from'] ?? ''), (string) ($w['to'] ?? ''));
         $tot = $used + leave_count($c['from'], $c['to']); $prev = $same ? $used + leave_count((string) ($old['from'] ?? ''), (string) ($old['to'] ?? '')) : $used;
         if ($tot > $q && $tot > $prev) return null;
+      }
+    }
+    /* العدد المسموح بالإجازة في اليوم نفسه (إن كان ملزماً): لا تُضاف رغبة أولى إلى يوم عمل امتلأ برغبات الآخرين وإجازاتهم المسجلة.
+       الأيام التي كانت تغطيها النسخة السابقة من الرغبة لا تُراجع، فلا يُمنع تعديل لا يزيد شيئاً */
+    $mx = (int) ($p['maxOff'] ?? 0);
+    if ($mx > 0 && !empty($p['maxHard']) && $c['pri'] === 1) {
+      $prev = ($old && ((int) ($old['pri'] ?? 1) === 2 ? 2 : 1) === 1) ? [(string) ($old['from'] ?? ''), (string) ($old['to'] ?? '')] : null;
+      $a = max($c['from'], (string) ($p['from'] ?? '')); $b = min($c['to'], (string) ($p['to'] ?? ''));
+      $occ = [];
+      foreach (leave_plan_docs($c['planId']) as $id => $w) if ((string) $id !== $c['id'] && ($w['kind'] ?? '') === 'wish' && (string) ($w['planId'] ?? '') === $c['planId'] && (int) ($w['pri'] ?? 1) !== 2 && (string) ($w['userId'] ?? '') !== $c['userId']) $occ[] = [(string) ($w['from'] ?? ''), (string) ($w['to'] ?? ''), (string) ($w['userId'] ?? '')];
+      foreach (leave_live_in($a, $b) as $l) if ((string) ($l['userId'] ?? '') !== $c['userId']) $occ[] = [(string) ($l['from'] ?? ''), (string) ($l['to'] ?? ''), (string) ($l['userId'] ?? '')];
+      for ($t = strtotime($a . ' 12:00:00'), $e = strtotime($b . ' 12:00:00'), $i = 0; $t <= $e && $i < 400; $t += 86400, $i++) {
+        $s = date('Y-m-d', $t);
+        if ($prev && $s >= $prev[0] && $s <= $prev[1]) continue;
+        if (!leave_is_work($s)) continue;
+        $who = []; foreach ($occ as [$f0, $t0, $u0]) if ($f0 <= $s && $s <= $t0) $who[$u0] = 1;
+        if (count($who) >= $mx) return null;
       }
     }
     $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? '') : $me;
