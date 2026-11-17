@@ -7072,3 +7072,32 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lv-licons .lv-ico .ic{width:18px;height:18px}
 .lv-licons .lv-ico.on{background:rgb(var(--accent));border-color:rgb(var(--accent));color:#fff}
 .lv-ico-none{font:inherit;font-size:12px;font-weight:700}
+
+/* ══════════ الجولة 36: شريط الإجازة والحذف والإجراءات الجماعية والسحب ══════════ */
+.lv-og{margin-bottom:6px}
+.lv-ogh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--ink-2);margin:4px 0}
+.lv-lcols .lv-col,.lv-bm-cols .lv-col{width:24px;height:24px}
+.lv-col-none{background:conic-gradient(var(--c) 0 50%,var(--surface-2) 50% 100%)!important;border:1px dashed var(--line-2)!important}
+.lv-bm{position:fixed;z-index:70;width:min(360px,calc(100vw - 16px));display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:14px;background:var(--surface-solid);border:1px solid rgba(var(--accent),.45);box-shadow:0 18px 40px -16px rgba(0,0,0,.45);animation:cmsnIn .14s ease-out}
+.lv-bm-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lv-bm-m{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.lv-bm-l{font-size:11.5px;font-weight:700;color:var(--ink-3);margin-top:2px}
+.lv-bm-cols{display:flex;flex-wrap:wrap;gap:6px}
+.lv-bm-ics{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px;max-height:104px;overflow:auto}
+.lv-bm-ics .lv-ico{height:30px;border-radius:8px}
+.lv-bm-ics .lv-ico .ic{width:16px;height:16px}
+.lv-bm-ics .lv-ico.on{background:rgb(var(--accent));border-color:rgb(var(--accent));color:#fff}
+.lv-bm-acts{display:flex;align-items:center;gap:6px;margin-top:4px}
+.lv-bm-del,.lv-delb{color:#dc2626}
+.lv-undo{bottom:76px}
+.lv-bulk{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;margin-bottom:8px;border-radius:12px;background:rgba(var(--accent),.08);border:1px solid rgba(var(--accent),.3)}
+.lv-bulk b{display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
+.lv-bulk b .ic{width:14px;height:14px}
+.lv-lt .lv-ck{width:30px;text-align:center}
+.lv-lt tr.sel td{background:rgba(var(--accent),.06)}
+.lv-tr .lv-barx[data-lvmove]{cursor:grab}
+.lv-barx.moving{cursor:grabbing;opacity:.92;z-index:5;box-shadow:0 8px 18px -8px var(--c)}
+.lv-grip{position:absolute;top:3px;bottom:3px;width:6px;border-radius:3px;cursor:ew-resize;background:color-mix(in srgb,var(--c) 60%,transparent);opacity:0;transition:opacity .12s}
+.lv-barx:hover .lv-grip,.lv-barx.moving .lv-grip{opacity:1}
+.lv-grip.gs{inset-inline-start:1px}
+.lv-grip.ge{inset-inline-end:1px}
