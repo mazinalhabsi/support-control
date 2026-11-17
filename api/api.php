@@ -558,14 +558,14 @@ function leave_clean(array $d, string $kind): ?array {
   if ($kind === 'wish') {
     $pid = (string) ($d['planId'] ?? ''); if ($pid === '' || strlen($pid) > 120) return null;
     $o = $d['orig'] ?? null; $o = is_array($o) && leave_day((string) ($o['from'] ?? '')) && leave_day((string) ($o['to'] ?? '')) ? ['from' => (string) $o['from'], 'to' => (string) $o['to']] : null;
-    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
+    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
       'state' => ($d['state'] ?? '') === 'agreed' ? 'agreed' : 'wish', 'note' => cut(trim((string) ($d['note'] ?? '')), 1000), 'changeNote' => cut(trim((string) ($d['changeNote'] ?? '')), 500),
       'orig' => $o, 'changedBy' => (string) ($d['changedBy'] ?? ''), 'changedAt' => (int) ($d['changedAt'] ?? 0), 'leaveId' => cut((string) ($d['leaveId'] ?? ''), 120), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
   $st = (string) ($d['status'] ?? 'plan'); if (!in_array($st, ['plan', 'pending', 'approved', 'rejected'], true)) $st = 'plan';
   $dn = [];
   foreach ((array) ($d['dayNotes'] ?? []) as $k => $v) { $k = (string) $k; $v = cut(trim((string) $v), 500); if ($v !== '' && leave_day($k) && $k >= $from && $k <= $to && count($dn) < 400) $dn[$k] = $v; }
-  return $base + ['userId' => (string) ($d['userId'] ?? ''), 'planId' => cut((string) ($d['planId'] ?? ''), 120), 'from' => $from, 'to' => $to, 'type' => $type, 'status' => $st, 'vis' => in_array($vis, ['team', 'busy', 'mgr', 'private'], true) ? $vis : 'team',
+  return $base + ['userId' => (string) ($d['userId'] ?? ''), 'planId' => cut((string) ($d['planId'] ?? ''), 120), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'grp' => cut((string) ($d['grp'] ?? ''), 40), 'from' => $from, 'to' => $to, 'type' => $type, 'status' => $st, 'vis' => in_array($vis, ['team', 'busy', 'mgr', 'private'], true) ? $vis : 'team',
     'note' => cut(trim((string) ($d['note'] ?? '')), 2000), 'dayNotes' => (object) $dn, 'decidedBy' => (string) ($d['decidedBy'] ?? ''), 'decidedAt' => (int) ($d['decidedAt'] ?? 0), 'decisionNote' => cut(trim((string) ($d['decisionNote'] ?? '')), 500)];
 }
 /** كتابة الإجازات: صاحب الإجازة يضيفها ويعدّلها ويحذفها، ومن يملك «إدارة الإجازات» يعتمد ويرفض ويعدّل ما يراه.

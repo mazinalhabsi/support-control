@@ -7051,3 +7051,14 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .sq-upd>.ic{width:20px;height:20px;color:rgb(var(--accent));flex:none}
 .sq-upd b{display:block;font-size:13.5px}
 .sq-upd small{display:block;font-size:11.5px;color:var(--ink-3)}
+
+/* ══════════ الإجازة الجماعية واسم الإجازة ══════════ */
+.lv-owners{max-height:150px}
+.lv-bn{display:inline-block;margin-inline-start:8px}
+.lv-bn.neg{color:#b91c1c}
+.lv-kind{display:block;font-size:10.5px}
+.lv-gchip{margin-inline-start:6px;font-size:10.5px}
+.lv-gchip .ic{width:11px;height:11px}
+.lv-grp{margin:2px 0 8px;padding:8px 10px;border-radius:10px;background:rgba(var(--accent),.07);font-size:12.5px;line-height:1.7}
+
+.lv-lt .lv-ln{min-width:150px}
