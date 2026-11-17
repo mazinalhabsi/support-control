@@ -1763,7 +1763,7 @@ case 'pull': {
   }
   $docs = [];
   $max = $since;
-  foreach ($rows as $i => $row) { $rows[$i]['_d'] = json_decode($row['data'], true); unset($rows[$i]['data']); $max = max($max, (int) $row['rev']); }
+  foreach ($rows as $i => $row) { $d0 = json_decode($row['data'], true); $rows[$i]['_d'] = $d0; $rows[$i]['_d0'] = $d0; $rows[$i]['_raw'] = $row['data']; unset($rows[$i]['data']); $max = max($max, (int) $row['rev']); }
   /* رقم التقدم يشمل الصفوف المحجوبة عن هذا المستخدم، وإلا أعاد طلبها في كل سحب.
      بلا صفحات أخرى فقد فُحص كل ما حتى head (العداد والسجلات يُحفظان في معاملة واحدة) */
   if (!$more) $max = max($max, $head);
@@ -1771,13 +1771,18 @@ case 'pull': {
      فتصل جهازَه ملاحظات غيره الخاصة */
   if ($self) $rows = leave_rows(mtrack_rows(vault_rows(visible_rows($rows, $user, $full), $user), $user), $user);
   else $rows = leave_rows(mtrack_rows(vault_rows(survey_private_rows(staff_rows($rows, $user), $user), $user), $user), $user);
+  $raws = []; $salt = bin2hex(random_bytes(4));
   foreach ($rows as $row) {
     $data = $row['_d'];
     if ($self && empty($full['tickets']) && $row['store'] === 'tickets' && is_array($data)) unset($data['handover']);
     if ($row['store'] === 'users' && is_array($data)) $data = ($self || ($user['role'] ?? '') === 'monitor') && $row['doc_id'] !== (string) $user['id'] ? strip_user_public($data) : strip_user($data);
+    /* السجل الذي لم تغيّره التصفية يُرسل بنصه المحفوظ، فتبقى {} كائناً و[] قائمة كما حفظها المتصفح */
+    if (!(int) $row['deleted'] && is_array($row['_d0'] ?? null) && is_string($row['_raw'] ?? null) && $data === $row['_d0']) { $tok = '__SQRAW_' . count($raws) . '_' . $salt . '__'; $raws['"' . $tok . '"'] = $row['_raw']; $data = $tok; }
     $docs[] = ['store' => $row['store'], 'id' => $row['doc_id'], 'rev' => (int) $row['rev'], 'deleted' => (int) $row['deleted'], 'data' => $data];
   }
-  out(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more, 'scope' => $scope] + $extra);
+  $json = json_encode(['rev' => $max, 'head' => $head, 'docs' => $docs, 'more' => $more, 'scope' => $scope] + $extra, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+  if ($json === false) fail('تعذر تجهيز البيانات للمزامنة', 500);
+  http_response_code(200); echo $raws ? strtr($json, $raws) : $json; exit;
 }
 
 case 'beat': {
@@ -1858,6 +1863,10 @@ case 'push': {
   $ops = $b['ops'] ?? [];
   if (!is_array($ops) || !count($ops)) out(['rev' => current_rev(), 'applied' => [], 'conflicts' => []]);
   if (count($ops) > 2000) fail('عدد العمليات كبير جداً في طلب واحد');
+  /* الجولة 41: نسخة الطلب بالكائنات كما أرسلها المتصفح. فك JSON إلى مصفوفات PHP يحوّل الكائن الفارغ {} إلى قائمة []،
+     فتعود الخرائط الفارغة (مثل تعيين القوالب للاستمارات) قائمةً، وتضيع مفاتيحها التالية بصمت. تُحفظ البيانات كما وصلت
+     ما دام الخادم لم يغيّر فيها شيئاً */
+  $bo = json_decode((string) file_get_contents('php://input')); $objOps = is_object($bo) && isset($bo->ops) && is_array($bo->ops) ? $bo->ops : [];
   $pdo = db();
   $applied = []; $conflicts = [];
   $pdo->beginTransaction();
@@ -1870,8 +1879,9 @@ case 'push': {
     /* العمليات المترابطة (مثل الصرف: الرصيد والحركة والوحدات) تصل بمعرّف مجموعة g، فتُحفظ كلها أو لا يُحفظ منها شيء:
        لا تبقى حركة دون أثرها في الرصيد حين يعمل جهازان على الرصيد نفسه في اللحظة نفسها */
     $units = []; $pos = [];
-    foreach ($ops as $op) {
+    foreach ($ops as $oi => $op) {
       if (!is_array($op)) continue;
+      $op['__oi'] = $oi;
       $g = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($op['g'] ?? ''));
       if ($g === '') { $units[] = [$op]; continue; }
       if (!isset($pos[$g])) { $pos[$g] = count($units); $units[] = []; }
@@ -1903,6 +1913,7 @@ case 'push': {
           $uC[] = ['store' => $store, 'id' => $id, 'rev' => $cur ? (int) $cur['rev'] : 0, 'deleted' => $cur ? (int) $cur['deleted'] : 0, 'data' => $back, 'reason' => 'no_permission'];
           continue;
         }
+        $orig = $op['data'] ?? null;
         $op['data'] = $deleted ? null : $allowed;
         $expected = (int) ($op['rev'] ?? 0);
         if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1) {
@@ -1918,7 +1929,9 @@ case 'push': {
           if (isset($old['pass'])) $data['pass'] = $old['pass']; else unset($data['pass']);
           if (isset($old['passChangedAt'])) $data['passChangedAt'] = $old['passChangedAt'];
         }
-        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        $json = null;
+        if (!$deleted && $store !== 'users' && is_array($orig) && $allowed === $orig) { $oo = $objOps[$op['__oi'] ?? -1] ?? null; if (is_object($oo) && isset($oo->data) && is_object($oo->data)) $json = json_encode($oo->data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE); }
+        if ($json === null || $json === false) $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if ($json !== false && strlen($json) > max_doc_bytes()) { $uC[] = ['store' => $store, 'id' => $id, 'reason' => 'too_large', 'size' => strlen($json), 'max' => max_doc_bytes()]; continue; }
         $ins->execute([$store, $id, $rev, now_ms(), $deleted, $json === false ? '{}' : $json]);
         $uA[] = ['store' => $store, 'id' => $id, 'rev' => $rev];

@@ -4386,7 +4386,7 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
   let avail = serial && type !== 'receive' && item ? await Data.assets.available(item.id, warehouseId || (wh[0] || {}).value) : [];
   return UI.modal({
     title: meta[0], icon: meta[1], size: 'lg',
-    body: html`${item ? html`<div class="chosen">${UI.illu(itemIllu(item))}<div class="grow"><b>${item.name}</b><div class="t-sub">${[item.brand, item.model].filter(Boolean).join(' ')} — الرصيد ${fmtNum(item.onHand)} ${item.unit}</div></div>${serial ? UI.chip('sky', 'صنف مُسلسل', 'tag') : ''}</div>` : Pages.itemPicker()}
+    body: html`${item ? html`<div class="chosen">${UI.illu(itemIllu(item))}<div class="grow"><b>${item.name}</b><div class="t-sub">${[item.brand, item.model].filter(Boolean).join(' ')} — الرصيد ${type === 'receive' ? '' : 'الكلي '}${fmtNum(item.onHand)} ${item.unit}</div></div>${serial ? UI.chip('sky', 'صنف مُسلسل', 'tag') : ''}</div>` : Pages.itemPicker()}
       <div class="form-grid mt">
         ${UI.field({ name: 'warehouseId', label: type === 'transfer' ? 'من مخزن' : 'المخزن', type: 'select', options: wh, placeholder: false, required: true }, warehouseId || (wh[0] || {}).value)}
         ${type === 'transfer' ? UI.field({ name: 'toWarehouseId', label: 'إلى مخزن', type: 'select', options: wh, required: true }) : ''}
@@ -4399,10 +4399,17 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
       <div data-serials>${serial && type === 'receive' ? UI.serialBox(Number(qty) || 1) : serial && ['issue', 'transfer'].includes(type) && avail.length ? UI.serialPick(avail, Number(qty) || 1) : ''}</div>
       <div class="banner tone-sky mt" data-stock hidden></div>`,
     onMount: (form) => {
+      /* الصرف والتحويل والتسوية: المتاح في كل مخزن، واختيار مخزن فيه الرصيد إن لم يُحدَّد مخزن */
+      const out = type !== 'receive', whSel = form.querySelector('[name="warehouseId"]');
+      if (out) { whSel.closest('.field').insertAdjacentHTML('beforeend', '<div data-whav></div>'); if (warehouseId) whSel._touched = 1; WHSEL.bind(form, whSel, form.querySelector('[data-whav]'), 'qty'); }
+      let whFor = '';
       const info = async () => {
-        const id = item ? item.id : (form.querySelector('[name="itemId"]') || {}).value, w = form.querySelector('[name="warehouseId"]').value, box = form.querySelector('[data-stock]');
-        if (!id || !w) { box.hidden = true; return; }
-        const s = await DB.get('stock', [w, id]); box.hidden = false; box.innerHTML = String(html`${UI.icon('info')}<div class="grow">الرصيد الحالي في «${Data.nameOf('warehouses', w)}»: <b>${fmtNum(s ? s.qty : 0)}</b></div>`);
+        const id = item ? item.id : (form.querySelector('[name="itemId"]') || {}).value, box = form.querySelector('[data-stock]');
+        if (out && id && id !== whFor) { if (whFor) whSel._touched = 0; whFor = id; await WHSEL.apply(whSel, id, !!whSel._touched); }
+        if (out && id) WHSEL.show(form.querySelector('[data-whav]'), whSel, type === 'adjust' ? 0 : Number(form.querySelector('[name="qty"]').value) || 0);
+        const w = whSel.value;
+        if (!id || !w || out) { box.hidden = true; if (!id || !w) return; }
+        if (!out) { const s = await DB.get('stock', [w, id]); box.hidden = false; box.innerHTML = String(html`${UI.icon('info')}<div class="grow">الرصيد الحالي في «${Data.nameOf('warehouses', w)}»: <b>${fmtNum(s ? s.qty : 0)}</b></div>`); }
         if (!item && id) { item = await DB.get('items', id); }
         if (isSerialItem(item)) { const box2 = form.querySelector('[data-serials]'); if (type === 'receive') { if (!box2.querySelector('.serial-wrap')) box2.innerHTML = String(UI.serialBox(Number(form.querySelector('[name="qty"]').value) || 1)); } else { avail = await Data.assets.available(item.id, w); box2.innerHTML = avail.length ? String(UI.serialPick(avail, Number(form.querySelector('[name="qty"]').value) || 1)) : ''; } }
       };
@@ -4426,6 +4433,7 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
       if (['issue', 'transfer'].includes(type) && serialItem && avail.length && picks.length !== n) throw new AppError(`اختر ${fmtNum(n)} وحدة بأرقامها التسلسلية`);
       if (picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
       if (type === 'receive') await Data.assets.check(UI.serialPairs(form));
+      if (['issue', 'transfer'].includes(type)) await WHSEL.check(id, v.warehouseId, n);
       if (!(await OPC.move({ type, form, v, id, item, n, picks, avail, holderUser }))) return false;
       const mv = await Data.inv.move({ type, itemId: id, warehouseId: v.warehouseId, toWarehouseId: v.toWarehouseId, qty: v.qty, note: v.note, ref: v.ref, party: holderUser ? holderUser.name : v.party, departmentId: v.departmentId });
       if (type === 'receive') { const serials = UI.serialPairs(form); if (serials.length) { const r = await Data.assets.add({ itemId: id, warehouseId: v.warehouseId, serials }); if (r.dupes.length) UI.toast(`تم تجاهل ${arCount(r.dupes.length, AR.item)} لتكرار الرقم التسلسلي`, 'warn'); } }
@@ -4447,6 +4455,47 @@ Pages.moveModal = async ({ type, itemId, warehouseId, ref = '', departmentId = '
   });
 };
 
+/* ══════════ الجولة 41: المخزن الذي فيه الرصيد ══════════
+   كانت نوافذ الإعارة والصرف تختار أول مخزن في القائمة دائماً، وتعرض الرصيد الكلي للصنف؛ فإن كان الرصيد في مخزن آخر
+   ظهر «الكمية أكبر من الرصيد المتاح» ورُفضت العملية رغم توفر الكمية. الآن: كل مخزن في القائمة بالمتاح فيه،
+   ويُختار تلقائياً مخزن فيه رصيد (ما لم يختر المستخدم بنفسه)، ويظهر المتاح تحت القائمة مع زر للتحويل إلى مخزن يكفي. */
+const WHSEL = {
+  async stock(itemId) { const m = new Map(); if (!itemId) return m; (await Data.inv.stockOf(itemId).catch(() => [])).forEach((x) => m.set(x.warehouseId, (m.get(x.warehouseId) || 0) + (Number(x.qty) || 0))); return m; },
+  opts(m) {
+    const base = UI.opts('warehouses'), ids = new Set(base.map((o) => o.value));
+    m.forEach((q, id) => { if (q > 0 && !ids.has(id)) base.push({ value: id, label: Data.nameOf('warehouses', id, 'مخزن غير مدرج') }); });
+    return base.map((o) => ({ ...o, q: Math.max(0, m.get(o.value) || 0) })).sort((a, b) => b.q - a.q);
+  },
+  async apply(sel, itemId, keep) {
+    const m = await WHSEL.stock(itemId), list = WHSEL.opts(m), cur = sel.value;
+    sel.innerHTML = list.map((o) => `<option value="${esc(o.value)}">${esc(o.label)} — المتاح ${fmtNum(o.q)}</option>`).join('');
+    const pick = keep && list.some((o) => o.value === cur) ? cur : ((list.find((o) => o.value === cur && o.q > 0) || list[0] || {}).value);
+    if (pick) sel.value = pick;
+    sel._stock = m; return m;
+  },
+  where: (m, skip) => [...m].filter(([w, q]) => q > 0 && w !== skip).sort((a, b) => b[1] - a[1]).map(([w, q]) => `«${Data.nameOf('warehouses', w, 'مخزن')}» ${fmtNum(q)}`).join('، '),
+  show(box, sel, n) {
+    if (!box) return;
+    const m = sel._stock; if (!m) { box.innerHTML = ''; return; }
+    const q = Math.max(0, m.get(sel.value) || 0), tot = [...m.values()].reduce((a, b) => a + Math.max(0, b), 0), need = Math.max(1, n || 1);
+    const alt = [...m].filter(([w, v]) => w !== sel.value && v >= need).sort((a, b) => b[1] - a[1])[0];
+    const h = String(need > q ? html`<div class="wh-av bad">${UI.icon('alert')}<span>المتاح في «${Data.nameOf('warehouses', sel.value, 'هذا المخزن')}» ${fmtNum(q)} فقط${tot > q ? `؛ والصنف متوفر في ${WHSEL.where(m, sel.value)}` : ''}</span>${alt ? html`<button type="button" class="btn btn-xs btn-soft" data-whgo="${alt[0]}">${UI.icon('swap')} من «${Data.nameOf('warehouses', alt[0], 'مخزن')}»</button>` : ''}</div>`
+      : html`<div class="wh-av">${UI.icon('check')}<span>المتاح في هذا المخزن ${fmtNum(q)}${tot > q ? ` من إجمالي ${fmtNum(tot)}` : ''}</span></div>`);
+    /* لا يُعاد الرسم إن لم يتغير شيء: إعادة رسم الزر بين الضغط والإفلات تُضيع النقرة */
+    if (box._h !== h) { box.innerHTML = h; box._h = h; }
+  },
+  /* ربط القائمة: التغيير اليدوي يُحترم، وزر «من مخزن آخر» يبدّل المخزن */
+  bind(form, sel, box, qtyName, after) {
+    sel.addEventListener('change', () => { sel._touched = 1; WHSEL.show(box, sel, Number((form.querySelector(`[name="${qtyName}"]`) || {}).value) || 0); });
+    const q = form.querySelector(`[name="${qtyName}"]`); if (q) q.addEventListener('input', () => WHSEL.show(box, sel, Number(q.value) || 0));
+    UI.on(form, 'click', '[data-whgo]', (e, b) => { sel.value = b.dataset.whgo; sel._touched = 1; sel.dispatchEvent(new Event('change', { bubbles: true })); if (after) after(); });
+  },
+  async check(itemId, whId, n) {
+    const m = await WHSEL.stock(itemId), q = Math.max(0, m.get(whId) || 0);
+    if (n > q) { const w = WHSEL.where(m, whId); throw new AppError(`المتاح في «${Data.nameOf('warehouses', whId, 'المخزن')}» ${fmtNum(q)} فقط${w ? `. الصنف متوفر في: ${w} — اختر ذلك المخزن` : ''}`); }
+  }
+};
+
 /* ── نافذة الإعارة: المستعير والمدة والوحدات ── */
 Pages.loanModal = async (itemId) => {
   const item = itemId ? await DB.get('items', itemId) : null, wh = UI.opts('warehouses'), people = Data.list('users').filter((u) => u.active && u.role !== 'monitor');
@@ -4454,7 +4503,7 @@ Pages.loanModal = async (itemId) => {
   let avail = serial && item ? await Data.assets.available(item.id, (wh[0] || {}).value) : [];
   return UI.modal({
     title: 'تسليم عهدة أو إعارة', icon: 'clipboard', size: 'lg',
-    body: html`${item ? html`<div class="chosen">${UI.illu(itemIllu(item))}<div class="grow"><b>${item.name}</b><div class="t-sub">${[item.brand, item.model].filter(Boolean).join(' ')} — الرصيد ${fmtNum(item.onHand)} ${item.unit}</div></div>${serial ? UI.chip('sky', 'صنف مُسلسل', 'tag') : ''}</div>` : Pages.itemPicker()}
+    body: html`${item ? html`<div class="chosen">${UI.illu(itemIllu(item))}<div class="grow"><b>${item.name}</b><div class="t-sub">${[item.brand, item.model].filter(Boolean).join(' ')} — الرصيد الكلي ${fmtNum(item.onHand)} ${item.unit}</div></div>${serial ? UI.chip('sky', 'صنف مُسلسل', 'tag') : ''}</div>` : Pages.itemPicker()}
       <div class="form-grid mt">
         ${UI.field({ name: 'warehouseId', label: 'من مخزن', type: 'select', options: wh, placeholder: false })}
         ${UI.field({ name: 'qty', label: 'الكمية', type: 'number', min: 1, value: 1, required: true })}
@@ -4476,8 +4525,13 @@ Pages.loanModal = async (itemId) => {
       period.addEventListener('change', () => { setDue(); dayTxt(); }); setDue(); dayTxt();
       bId.addEventListener('change', () => { const u = Data.c.users.get(bId.value); if (!u) return; const dep = form.querySelector('[name="departmentId"]'); if (u.departmentId && dep) dep.value = u.departmentId; form.querySelector('[name="borrower"]').value = ''; });
       const refresh = async () => { const w = form.querySelector('[name="warehouseId"]').value, id = item ? item.id : (form.querySelector('[name="itemId"]') || {}).value; if (!id) return; const it = item || (await DB.get('items', id)); if (!isSerialItem(it)) return; avail = await Data.assets.available(id, w); form.querySelector('[data-serials]').innerHTML = avail.length ? String(UI.serialPick(avail, Number(form.querySelector('[name="qty"]').value) || 1)) : ''; };
-      form.querySelector('[name="warehouseId"]').addEventListener('change', refresh);
-      Pages.bindPicker(form, async (...x) => { await refresh(...x); if (form._dn) form._dn(); });
+      const whSel = form.querySelector('[name="warehouseId"]'); whSel.closest('.field').insertAdjacentHTML('beforeend', '<div data-whav></div>');
+      const whBox = form.querySelector('[data-whav]'), qtyNow = () => Number(form.querySelector('[name="qty"]').value) || 0;
+      const syncWh = async () => { const id = item ? item.id : (form.querySelector('[name="itemId"]') || {}).value; if (!id) { whBox.innerHTML = ''; return; } await WHSEL.apply(whSel, id, !!whSel._touched); WHSEL.show(whBox, whSel, qtyNow()); };
+      WHSEL.bind(form, whSel, whBox, 'qty');
+      whSel.addEventListener('change', refresh);
+      syncWh().then(refresh);
+      Pages.bindPicker(form, async (...x) => { whSel._touched = 0; await syncWh(); await refresh(...x); if (form._dn) form._dn(); });
       DevNote.attach(form, () => itemId || (form.querySelector('[name="itemId"]') || {}).value);
     },
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تسليم وطباعة السند', kind: 'primary', icon: 'print', submit: true, handler: async (form) => {
@@ -4487,6 +4541,8 @@ Pages.loanModal = async (itemId) => {
       const picks = $$('[data-pick]:checked', form).map((x) => x.dataset.pick), n = Math.floor(Number(v.qty) || 1);
       if (isSerialItem(item) && avail.length && picks.length !== n) throw new AppError(`اختر ${fmtNum(n)} وحدة بأرقامها التسلسلية`);
       if (picks.length && picks.length !== n) throw new AppError(`اخترت ${fmtNum(picks.length)} وحدة والكمية ${fmtNum(n)}`);
+      if (!(n > 0)) throw new AppError('أدخل كمية صحيحة');
+      await WHSEL.check(id, v.warehouseId, n);
       if (!(await OPC.loan({ v, id, item, n, picks, avail, user, name }))) return false;
       const loan = await Data.inv.lend({ itemId: id, warehouseId: v.warehouseId, qty: n, borrower: name, departmentId: v.departmentId || (user ? user.departmentId : ''), dueAt: fromDateInput(v.dueAt, true), note: v.note });
       const rec = await DB.get('loans', loan.id); rec.borrowerId = v.borrowerId || ''; rec.assetIds = picks; await DB.put('loans', rec);
@@ -24901,8 +24957,11 @@ const INKSTK = {
   can: () => !!Auth.user && (Auth.can('inventory.read') || Auth.can('tickets.work')),
   norm: (v) => normalizeAr(String(v || '')).toLowerCase().replace(/[\s\-_/().]+/g, ''),
   async items() { if (!INKSTK._c || now() - INKSTK._at > 10000) { INKSTK._c = (await DB.getAll('items')).filter((x) => !x.archived); INKSTK._at = now(); } return INKSTK._c; },
+  /* الأصناف المربوطة صراحة برقم الحبر (inkCodes) تُقدَّم على المطابقة بالنص */
+  linked: (all, k) => { const c0 = INKSTK.norm(k.code); return c0 ? all.filter((i) => (i.inkCodes || []).includes(c0)) : []; },
   match(all, k) {
     const c0 = INKSTK.norm(k.code); if (c0.length < 2) return [];
+    const ln = INKSTK.linked(all, k); if (ln.length) return ln;
     let hits = all.filter((i) => [i.name, i.model, i.sku, i.partNo].some((v) => { const n = INKSTK.norm(v); return n && n.includes(c0); }));
     const cn = k.color && k.color !== 'other' ? normalizeAr((INK_COLORS_MAP[k.color] || [''])[0]) : '';
     if (hits.length > 1 && cn) { const h2 = hits.filter((i) => normalizeAr(`${i.name || ''} ${i.color || ''}`).includes(cn)); if (h2.length) hits = h2; }
@@ -24914,9 +24973,39 @@ const INKSTK = {
       const its = INKSTK.match(all, k), have = its.reduce((a, i) => a + Math.max(0, Number(i.onHand) || 0), 0), best = its.slice().sort((x, y) => (Number(y.onHand) || 0) - (Number(x.onHand) || 0))[0] || null;
       let where = '';
       if (wh && its.length) { const ss = (await Promise.all(its.map((i) => DB.getAll('stock', 'itemId', KR(i.id))))).flat().filter((x) => Number(x.qty) > 0); const m = new Map(); ss.forEach((x) => m.set(x.warehouseId, (m.get(x.warehouseId) || 0) + Number(x.qty))); where = [...m].map(([w, q]) => `${Data.nameOf('warehouses', w, 'مخزن')} ${fmtNum(q)}`).join(' · '); }
-      out.push({ l, k, its, have, need: Math.max(1, Number(k.qty) || 1), best, where });
+      out.push({ l, k, its, have, need: Math.max(1, Number(k.qty) || 1), best, where, linked: INKSTK.linked(all, k).length > 0 });
     }
     return out;
+  },
+  canLink: () => !!Auth.user && Auth.can('inventory.manage'),
+  /* نافذة الربط: البحث في أصناف المخزن، واختيار الصنف الذي يُصرف لهذا الرقم */
+  async link(code, color) {
+    const all = await INKSTK.items(), c0 = INKSTK.norm(code), cur = all.filter((i) => (i.inkCodes || []).includes(c0)).map((i) => i.id);
+    const cn = color && color !== 'other' ? (INK_COLORS_MAP[color] || [''])[0] : '';
+    const score = (i) => (cur.includes(i.id) ? 0 : /حبر|toner|ink/i.test(`${i.name} ${i.categoryId}`) ? 1 : 2);
+    const res = await UI.modal({ title: `ربط الحبر ${code} بصنف في المخزن`, icon: 'tag', size: 'lg',
+      body: html`<p class="muted small" style="margin-bottom:10px;line-height:1.8">اختر الصنف الذي يُصرف عند طلب الحبر <b class="ltr">${code}</b>${cn ? ` (${cn})` : ''}. يُحفظ الربط في الصنف، فتُحسب كميته في كل بلاغ يطلب هذا الرقم بدل المطابقة بالاسم.</p>
+        <div class="search-box">${UI.icon('search')}<input type="search" class="input" data-ilq placeholder="ابحث باسم الصنف أو موديله أو رمزه" value=""></div><div class="ink-ll mt" data-ill></div>`,
+      onMount: (fm, finish) => {
+        const list = fm.querySelector('[data-ill]'), q = fm.querySelector('[data-ilq]');
+        const draw = () => { const t = INKSTK.norm(q.value); const xs = all.filter((i) => !t || INKSTK.norm(`${i.name} ${i.model || ''} ${i.sku || ''}`).includes(t)).sort((a, b) => score(a) - score(b) || String(a.name).localeCompare(String(b.name), 'ar')).slice(0, 40);
+          list.innerHTML = String(xs.length ? html`${xs.map((i) => html`<button type="button" class="ink-li${cur.includes(i.id) ? ' on' : ''}" data-ilp="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${i.name}</b><small class="ltr">${[i.brand, i.model, i.sku].filter(Boolean).join(' · ')}</small></span><span class="chip tone-${Number(i.onHand) > 0 ? 'green' : 'red'}">${fmtNum(Number(i.onHand) || 0)}</span>${cur.includes(i.id) ? UI.icon('check') : ''}</button>`)}` : html`<p class="faint small">لا أصناف مطابقة</p>`); };
+        draw(); q.addEventListener('input', draw); setTimeout(() => q.focus(), 30);
+        UI.on(fm, 'click', '[data-ilp]', (e, b) => finish({ id: b.dataset.ilp }));
+      },
+      actions: [...(cur.length ? [{ label: 'إلغاء الربط', kind: 'ghost', icon: 'x', value: { id: '' } }] : []), { label: 'إغلاق', kind: 'ghost', value: null }] });
+    if (!res) return false;
+    const t = now();
+    for (const i of all) {
+      const has = (i.inkCodes || []).includes(c0), want = i.id === res.id;
+      if (has === want) continue;
+      const rec = await DB.get('items', i.id); if (!rec) continue;
+      rec.inkCodes = want ? [...new Set([...(rec.inkCodes || []), c0])] : (rec.inkCodes || []).filter((x) => x !== c0);
+      rec.updatedAt = t; await DB.put('items', rec);
+    }
+    INKSTK._c = null; Bus.emit('inventory');
+    UI.toast(res.id ? `رُبط الحبر ${code} بالصنف «${(all.find((i) => i.id === res.id) || {}).name}»` : `أُلغي ربط الحبر ${code}`);
+    return true;
   },
   tone: (r) => (!r.its.length ? 'slate' : r.have <= 0 ? 'red' : r.have < r.need ? 'amber' : 'green'),
   label: (r) => (!r.its.length ? 'غير مسجّل في المخزن' : r.have <= 0 ? 'نفد من المخزن' : r.have < r.need ? `المتوفر ${fmtNum(r.have)} فقط` : `متوفر ${fmtNum(r.have)}`),
@@ -24954,6 +25043,11 @@ const INKSTK = {
   }
 };
 Bus.on('inventory', () => { INKSTK._c = null; });
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-inklink]'); if (!b) return;
+  e.preventDefault(); const [code, color] = b.dataset.inklink.split('|');
+  try { if (await INKSTK.link(code, color) && location.hash.startsWith('#/tickets/')) Router.resolve(); } catch (err) { UI.error(err); }
+});
 /* شارة المخزون بجانب بلاغ الأحبار المفتوح في القوائم */
 {
   const nc = Pages.noteChip;
@@ -24968,7 +25062,7 @@ Bus.on('inventory', () => { INKSTK._c = null; });
     const canMove = Auth.can('inventory.move') && OPEN.includes(t.status), [tn, tx] = INKSTK.sum(rows);
     INKSTK.soon();
     return UI.panel({ title: 'المخزون للأحبار المطلوبة', icon: 'box', sub: rows.length > 1 ? `${fmtNum(rows.length)} أنواع في البلاغ` : 'النوع المطلوب في البلاغ', tools: html`<span class="chip tone-${tn}">${tx}</span>`,
-      body: html`<div class="list">${rows.map((r) => html`<div class="list-row tk-stkr">${INKSTK.dot(r.k)}<div class="grow" style="min-width:0"><div><b class="ltr">${r.k.code}</b> <small class="faint">مطلوب × ${fmtNum(r.need)}</small></div><div class="t-sub ellipsis">${[r.l.brand, r.l.model].filter(Boolean).join(' ')}${r.its.length ? ` · ${r.its.map((i) => i.name).join('، ')}` : ''}</div>${r.where ? html`<div class="t-sub">${UI.icon('warehouse')} ${r.where}</div>` : ''}</div><div class="tk-stkv tone-${INKSTK.tone(r)}"><b>${r.its.length ? fmtNum(r.have) : '—'}</b><small>${r.its.length ? (r.have <= 0 ? 'نفد' : r.have < r.need ? 'لا يكفي' : 'متوفر') : 'غير مسجّل'}</small></div>${canMove && r.best && r.have > 0 ? html`<button class="btn btn-sm btn-ok" data-issue="${r.best.id}" data-qty="${Math.min(r.need, Number(r.best.onHand) || 0)}">${UI.icon('upload')} صرف</button>` : ''}</div>`)}</div>${canMove ? html`<button class="btn btn-ghost btn-sm btn-block mt" data-act="parts">${UI.icon('search')} صرف صنف آخر من المخزن</button>` : ''}` });
+      body: html`<div class="list">${rows.map((r) => html`<div class="list-row tk-stkr">${INKSTK.dot(r.k)}<div class="grow" style="min-width:0"><div><b class="ltr">${r.k.code}</b> <small class="faint">مطلوب × ${fmtNum(r.need)}</small></div><div class="t-sub ellipsis">${[r.l.brand, r.l.model].filter(Boolean).join(' ')}${r.its.length ? ` · ${r.its.map((i) => i.name).join('، ')}` : ''}</div>${r.where ? html`<div class="t-sub">${UI.icon('warehouse')} ${r.where}</div>` : ''}</div><div class="tk-stkv tone-${INKSTK.tone(r)}"><b>${r.its.length ? fmtNum(r.have) : '—'}</b><small>${r.its.length ? (r.have <= 0 ? 'نفد' : r.have < r.need ? 'لا يكفي' : 'متوفر') : 'غير مسجّل'}</small></div><div class="tk-stka">${canMove && r.best && r.have > 0 ? html`<button class="btn btn-sm btn-ok" data-issue="${r.best.id}" data-qty="${Math.min(r.need, Number(r.best.onHand) || 0)}">${UI.icon('upload')} صرف</button>` : ''}${INKSTK.canLink() ? html`<button type="button" class="btn btn-xs btn-ghost" data-inklink="${r.k.code}|${r.k.color || ''}" title="${r.linked ? 'مربوط بصنف محدد — اضغط للتغيير' : 'المطابقة بالاسم تقريبية — اربطه بصنف محدد'}">${UI.icon(r.linked ? 'check' : 'tag')} ${r.linked ? 'مربوط' : r.its.length ? 'تأكيد الصنف' : 'ربط بصنف'}</button>` : r.its.length && !r.linked ? html`<small class="faint" title="مطابقة بالاسم">تقريبي</small>` : ''}</div></div>`)}</div>${canMove ? html`<button class="btn btn-ghost btn-sm btn-block mt" data-act="parts">${UI.icon('search')} صرف صنف آخر من المخزن</button>` : ''}` });
   };
 }
 
@@ -25508,6 +25602,17 @@ const VLF = {
       },
       actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, { label: 'طباعة تجريبية', kind: 'ghost', icon: 'print', handler: (f) => { VL.print(t, Pages.vleSample(f._k(), 3)); return false; } }, ...(ro ? [] : [{ label: 'تعديل في المحرر', kind: 'primary', icon: 'edit', handler: (f) => ({ act: 'edit', id: t.id, k: f._k() }) }])] });
   },
+  /* استمارات بلا نموذج معتمد، ولها نموذج أُنشئ لها أو اعتُمد سابقاً: غالباً ضاع اعتمادها بخلل المزامنة القديم ({} يعود []) */
+  lost(lib) {
+    const free = VT_KINDS.filter(([k]) => !lib.use[k]), out = [];
+    free.forEach(([k, l]) => {
+      const byKind = lib.tpls.filter((t) => t.forKind === k);
+      const byName = lib.tpls.filter((t) => !VLF.official(lib, t) && normalizeAr(String(t.name || '')).includes(normalizeAr(l)));
+      const t = byKind.length === 1 ? byKind[0] : byName.length === 1 ? byName[0] : null;
+      if (t) out.push([k, t]);
+    });
+    return out;
+  },
   library(lib, api) {
     const st = { tab: 'tpls', q: '', f: '' }, ro = api.ro;
     const starters = VL_STARTERS.filter((x) => typeof VLS[x[0]] === 'function');
@@ -25547,7 +25652,10 @@ const VLF = {
       body: html`<div class="vlf-lib"></div>`,
       onMount: (f, finish) => {
         const box = f.querySelector('.vlf-lib');
-        const draw = () => { box.innerHTML = String(html`<p class="muted small vlf-p">${ro ? 'عرض فقط.' : html`النموذج <b>المعتمد</b> لفئة تُطبع به استماراتها تلقائياً، و<b>المسودة</b> محفوظة لا تُستخدم حتى تعتمدها. كل تغيير هنا يُحفظ فوراً.`}</p>${head()}<div class="vlf-body">${body()}</div>`); };
+        const lostBar = () => { if (ro) return ''; const L = VLF.lost(lib); if (!L.length) return ''; let off = ''; try { off = localStorage.getItem('sq_vlf_lost') || ''; } catch (_) { /* تجاهل */ } const sig = L.map(([k, t]) => `${k}:${t.id}`).join(','); if (off === sig) return ''; return html`<div class="vlf-lost">${UI.icon('alert')}<div class="grow"><b>استمارات بلا نموذج معتمد ولها نماذج أُنشئت لها</b><small>قد يكون اعتمادها ضاع بخلل سابق في المزامنة (أُصلح): ${L.map(([k, t]) => `${VLF.kl(k)} ← «${t.name}»`).join('، ')}</small></div><button type="button" class="btn btn-sm btn-primary" data-vlfrestore>${UI.icon('check')} استعادة الاعتماد</button><button type="button" class="btn btn-sm btn-ghost" data-vlflostx="${sig}">تجاهل</button></div>`; };
+        const draw = () => { box.innerHTML = String(html`<p class="muted small vlf-p">${ro ? 'عرض فقط.' : html`النموذج <b>المعتمد</b> لفئة تُطبع به استماراتها تلقائياً، و<b>المسودة</b> محفوظة لا تُستخدم حتى تعتمدها. كل تغيير هنا يُحفظ فوراً.`}</p>${lostBar()}${head()}<div class="vlf-body">${body()}</div>`); };
+        UI.on(f, 'click', '[data-vlfrestore]', async () => { const L = VLF.lost(lib); if (!L.length) return; L.forEach(([k, t]) => { lib.use[k] = t.id; t.apprAt = now(); t.apprBy = Auth.user.id; }); await save(`استُعيد اعتماد ${fmtNum(L.length)} من النماذج: ${L.map(([k]) => VLF.kl(k)).join('، ')}`); });
+        UI.on(f, 'click', '[data-vlflostx]', (e, b2) => { try { localStorage.setItem('sq_vlf_lost', b2.dataset.vlflostx); } catch (_) { /* تجاهل */ } draw(); });
         const drawBody = () => { const b2 = box.querySelector('.vlf-body'); if (b2) b2.innerHTML = String(body()); };
         const save = async (msg) => { try { await api.save(msg); return true; } catch (err) { UI.error(err); return false; } finally { if (f.isConnected) draw(); } };
         draw();
@@ -26923,12 +27031,12 @@ Object.assign(LV, {
     const me = LV.me();
     return html`<div class="lp-list">
       <button type="button" class="lp-card lp-new" data-lpnew>${UI.icon('plus')}<b>خطة إجازات جديدة</b><small>حدد الفترة والمشاركين، فيسجل كل فني رغبته وتنسّقونها معاً قبل تثبيتها في التقويم</small></button>
-      ${plans.map((p) => { const ws = LV.wishes(D.recs, p.id), mem = p.members || [], done = mem.filter((id) => ws.some((w) => w.userId === id)).length, need = mem.includes(me) && LV.isOpen(p) && !ws.some((w) => w.userId === me), [sl, tone, ic] = LV.PST[p.state || 'collect'] || LV.PST.collect, cf = LV.conflicts(p, D.recs).length, dl = p.deadline ? LV.diff(LV.today(), p.deadline) : null;
+      ${plans.map((p) => { const ws = LV.wishes(D.recs, p.id), mem = p.members || [], done = mem.filter((id) => ws.some((w) => w.userId === id)).length, need = LV.pending(D.recs, p, me), shortN = LV.short(D.recs, p, me), [sl, tone, ic] = LV.PST[p.state || 'collect'] || LV.PST.collect, cf = LV.conflicts(p, D.recs).length, dl = p.deadline ? LV.diff(LV.today(), p.deadline) : null;
         return html`<button type="button" class="lp-card${need ? ' need' : ''}" data-lpopen="${p.id}"><span class="lp-ch"><b>${p.title}</b><span class="chip tone-${tone}">${UI.icon(ic)} ${sl}</span></span>
           <span class="lp-meta">${UI.icon('calendar')} ${LV.range(p.from, p.to)}</span><span class="lp-meta">${UI.icon('user')} وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.maxOff ? ` · بحد ${fmtNum(p.maxOff)} غائب في اليوم` : ''}</span>${LV.hasQ(p) ? html`<span class="lp-meta">${UI.icon('clock')} ${LV.qText(p)}</span>` : ''}
           <span class="lp-prog"><i style="width:${mem.length ? Math.round((done / mem.length) * 100) : 0}%"></i></span>
           <span class="lp-meta">سجّل ${fmtNum(done)} من ${fmtNum(mem.length)}${dl != null && LV.isOpen(p) ? ` · ${dl < 0 ? 'انتهى موعد التسجيل' : dl === 0 ? 'آخر موعد اليوم' : `آخر موعد بعد ${LV.dayW(dl)}`}` : ''}${cf ? html` · <b class="bad">${fmtNum(cf)} تعارض</b>` : ''}</span>
-          ${need ? html`<span class="lp-need">${UI.icon('alert')} بانتظار رغبتك</span>` : ''}</button>`; })}
+          ${need ? html`<span class="lp-need">${UI.icon('alert')} ${ws.some((w) => w.userId === me) && shortN ? `بانتظار استكمال أيامك (متبقٍ ${fmtNum(shortN)})` : 'بانتظار رغبتك'}</span>` : ''}</button>`; })}
     </div>${plans.length ? '' : html`<p class="hint mt">مثال: «إجازات صيف 2027» من يونيو إلى سبتمبر بحد أقصى فنيين غائبين في اليوم. يسجل كل فني رغبته الأولى والبديلة، ويرى الجميع التعارض فوراً، ثم ينسّقها واضع الخطة ويثبّتها في التقويم.</p>`}`;
   },
 
@@ -26942,7 +27050,7 @@ Object.assign(LV, {
     return html`<div class="lp-board">
       <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3>${p.title}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · الحد الأقصى للغائبين في اليوم ${fmtNum(max)}` : ''}${LV.hasQ(p) ? ` · ${LV.qText(p)}` : ''}</small></div>
         <div class="lp-acts">${LV.canWish(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-wnew="${p.id}">${UI.icon('plus')} ${(p.members || []).includes(me) && !done.has(me) ? 'أضف رغبتي' : 'رغبة'}</button>` : ''}
-          ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-soft" data-lpremind="${p.id}">${UI.icon('bell')} تذكير من لم يسجّل</button>` : ''}
+          ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-soft" data-lpremind="${p.id}">${UI.icon('bell')} ${LV.quota(p) && p.qexact ? 'تذكير من لم يسجّل أو يستكمل' : 'تذكير من لم يسجّل'}</button>` : ''}
           ${coord && state === 'collect' ? html`<button type="button" class="btn btn-sm btn-soft" data-lpstate="arrange|${p.id}">${UI.icon('swap')} بدء التنسيق</button>` : ''}
           ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-lpfinal="${p.id}">${UI.icon('check')} تثبيت في التقويم</button>` : ''}
           ${coord && !LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-ghost" data-lpstate="arrange|${p.id}">${UI.icon('undo')} إعادة فتح</button>` : ''}
@@ -26976,9 +27084,12 @@ Object.assign(LV, {
   },
   planSide(D) {
     const me = LV.me(), list = LV.plans(D.recs).filter((p) => LV.isOpen(p) && ((p.members || []).includes(me) || p.createdBy === me)); if (!list.length) return '';
-    return html`<div class="card lv-card"><h4>${UI.icon('lv-team')} خطط الإجازات</h4><ul class="lv-ul">${list.map((p) => { const has = LV.wishes(D.recs, p.id).some((w) => w.userId === me); return html`<li><button type="button" data-lpopen="${p.id}"><b>${p.title}</b><span class="faint small">${LV.range(p.from, p.to)}</span>${(p.members || []).includes(me) ? (has ? html`<span class="chip tone-teal">سجّلت رغبتك</span>` : html`<span class="chip tone-amber">بانتظار رغبتك</span>`) : html`<span class="chip">واضع الخطة</span>`}</button></li>`; })}</ul></div>`;
+    return html`<div class="card lv-card"><h4>${UI.icon('lv-team')} خطط الإجازات</h4><ul class="lv-ul">${list.map((p) => { const has = LV.wishes(D.recs, p.id).some((w) => w.userId === me); return html`<li><button type="button" data-lpopen="${p.id}"><b>${p.title}</b><span class="faint small">${LV.range(p.from, p.to)}</span>${(p.members || []).includes(me) ? (has ? (LV.short(D.recs, p, me) ? html`<span class="chip tone-amber">متبقٍ ${fmtNum(LV.short(D.recs, p, me))} من أيامك</span>` : html`<span class="chip tone-teal">سجّلت رغبتك</span>`) : html`<span class="chip tone-amber">بانتظار رغبتك</span>`) : html`<span class="chip">واضع الخطة</span>`}</button></li>`; })}</ul></div>`;
   },
-  awaiting: (recs) => { const me = LV.me(); return LV.plans(recs).filter((p) => LV.isOpen(p) && (p.members || []).includes(me) && !LV.wishes(recs, p.id).some((w) => w.userId === me)).length; },
+  /* بانتظاري: لم أسجّل رغبة، أو الخطة تُلزم بعدد أيام كامل ولم أستكمله */
+  short: (recs, p, uid) => (LV.quota(p) && p.qexact ? Math.max(0, LV.quota(p) - LV.used(recs, p, uid, 1)) : 0),
+  pending: (recs, p, uid) => LV.isOpen(p) && (p.members || []).includes(uid) && (!LV.wishes(recs, p.id).some((w) => w.userId === uid) || LV.short(recs, p, uid) > 0),
+  awaiting: (recs) => { const me = LV.me(); return LV.plans(recs).filter((p) => LV.pending(recs, p, me)).length; },
 
   /* ── الجولة 39: حصة الأيام في الخطة ──
      quota: عدد الأيام لكل مشارك (0 = بدون إلزام المدة)، qexact: يجب استكمالها، split: 0 متصلة أو مجزأة، 1 متصلة فقط، n حتى n فترات.
@@ -27180,9 +27291,12 @@ Object.assign(LV, {
   async remind(pid) {
     const recs = await DB.getAll('leaves'), p = recs.find((r) => r.id === pid); if (!p) return;
     const late = (p.members || []).filter((id) => id !== LV.me() && !LV.wishes(recs, pid).some((w) => w.userId === id));
-    if (!late.length) { UI.toast('سجّل كل المشاركين رغباتهم', 'ok'); return; }
-    await Data.notify(late, { title: `تذكير: سجّل رغبتك في خطة «${p.title}»`, body: `الفترة ${LV.range(p.from, p.to)}${p.deadline ? ` — آخر موعد ${LV.fmtY(p.deadline)}` : ''}`, link: LV.link(pid), kind: 'info' });
-    UI.toast(`أُرسل التذكير إلى ${fmtNum(late.length)}: ${late.map((id) => Data.userName(id)).join('، ')}`);
+    /* «العدد كاملاً»: يُذكَّر أيضاً من سجّل ولم يستكمل أيامه، بعدد ما تبقّى له */
+    const short = (p.members || []).filter((id) => id !== LV.me() && !late.includes(id) && LV.short(recs, p, id) > 0);
+    if (!late.length && !short.length) { UI.toast(LV.quota(p) && p.qexact ? 'سجّل كل المشاركين واستكملوا أيامهم' : 'سجّل كل المشاركين رغباتهم', 'ok'); return; }
+    if (late.length) await Data.notify(late, { title: `تذكير: سجّل رغبتك في خطة «${p.title}»`, body: `الفترة ${LV.range(p.from, p.to)}${LV.hasQ(p) ? ` — ${LV.qText(p)}` : ''}${p.deadline ? ` — آخر موعد ${LV.fmtY(p.deadline)}` : ''}`, link: LV.link(pid), kind: 'info' });
+    for (const id of short) await Data.notify([id], { title: `تذكير: استكمل أيامك في خطة «${p.title}»`, body: `سجّلت ${fmtNum(LV.used(recs, p, id, 1))} من ${fmtNum(LV.quota(p))}، ومتبقٍ ${fmtNum(LV.short(recs, p, id))}${p.deadline ? ` — آخر موعد ${LV.fmtY(p.deadline)}` : ''}`, link: LV.link(pid), kind: 'info' });
+    UI.toast(`أُرسل التذكير إلى ${fmtNum(late.length + short.length)}: ${[...late, ...short].map((id) => Data.userName(id)).join('، ')}`);
   },
   async delPlan(pid) {
     const recs = await DB.getAll('leaves'), p = recs.find((r) => r.id === pid); if (!p || !LV.isCoord(p)) return false;
@@ -27203,12 +27317,12 @@ Object.assign(LV, {
         ${cf.length ? html`<div class="lv-warn bad">${UI.icon('alert')} ما زال في الخطة ${fmtNum(cf.length)} تعارض مع الحد الأقصى للغائبين</div>` : html`<div class="lv-ok">${UI.icon('check')} لا تعارض في الخطة</div>`}
         ${late.length ? html`<div class="lv-warn">${UI.icon('clock')} لم يسجّل بعد: ${late.map((id) => Data.userName(id)).join('، ')}</div>` : ''}
         ${LV.quota(p) ? (() => { const q = LV.quota(p), off = (p.members || []).map((id) => [id, LV.used(recs, p, id, 1)]).filter(([, u]) => (p.qexact ? u !== q : u > q)); return off.length ? html`<div class="lv-warn">${UI.icon('clock')} ${p.qexact ? 'لم يطابق' : 'تجاوز'} أيام الخطة (${LV.dayW(q)}${LV.qUnit()}): ${off.map(([id, u]) => `${Data.userName(id)} ${fmtNum(u)}`).join('، ')}</div>` : html`<div class="lv-ok">${UI.icon('check')} ${p.qexact ? 'كل المشاركين استكملوا أيامهم' : 'لا أحد تجاوز أيام الخطة'}</div>`; })() : ''}
-        <div class="field"><label>ما الذي يُثبَّت؟</label><div class="seg sm"><label><input type="radio" name="which" value="first" checked><span>كل الرغبات الأولى (${fmtNum(ws.length)})</span></label><label><input type="radio" name="which" value="agreed"${agreed.length ? '' : raw(' disabled')}><span>المتفق عليها فقط (${fmtNum(agreed.length)})</span></label></div></div>
+        <div class="field"><label>ما الذي يُثبَّت؟</label><div class="seg sm"><label><input type="radio" name="which" value="first" checked><span>كل الرغبات الأولى (${fmtNum(ws.length)})</span></label><label><input type="radio" name="which" value="agreed"${agreed.length ? '' : raw(' disabled')}><span>المتفق عليها فقط (${fmtNum(agreed.length)})</span></label>${LV.quota(p) && p.qexact ? (() => { const n = ws.filter((w) => LV.used(recs, p, w.userId, 1) === LV.quota(p)).length; return html`<label><input type="radio" name="which" value="complete"${n ? '' : raw(' disabled')}><span>من استكملوا أيامهم فقط (${fmtNum(n)})</span></label>`; })() : ''}</div></div>
         <div class="field"><label>حالة الإجازات</label><div class="seg sm"><label><input type="radio" name="st" value="pending" checked><span>تُرسل للإدارة للاعتماد</span></label><label><input type="radio" name="st" value="plan"><span>خطة مبدئية</span></label></div></div>
         <div class="field"><label>من يراها</label><div class="seg sm">${['team', 'busy', 'mgr'].map((k) => html`<label><input type="radio" name="vis" value="${k}"${k === 'team' ? raw(' checked') : ''}><span>${LV.VIS[k][0]}</span></label>`)}</div></div></div>`,
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تثبيت', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({ which: f.querySelector('[name="which"]:checked').value, st: f.querySelector('[name="st"]:checked').value, vis: f.querySelector('[name="vis"]:checked').value }) }] });
     if (!res) return;
-    const list = res.which === 'agreed' ? agreed : ws, t = now(), me = LV.me(), skipped = [], made = [];
+    const list = res.which === 'agreed' ? agreed : res.which === 'complete' ? ws.filter((w) => LV.used(recs, p, w.userId, 1) === LV.quota(p)) : ws, t = now(), me = LV.me(), skipped = [], made = [];
     for (const w of list) {
       const clash = recs.find((r) => LV.live(r) && r.userId === w.userId && LV.over(r, w.from, w.to));
       if (clash) { skipped.push(`${Data.userName(w.userId)} (${LV.range(w.from, w.to)})`); continue; }

@@ -7288,3 +7288,20 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lw-who .ic{width:13px;height:13px;vertical-align:-2px}
 .lw-side{display:grid;gap:6px;justify-items:end;align-content:start;flex:none}
 .lw-card .bw-dates .faint{font-size:11px}
+
+/* الجولة 41: المتاح في المخزن المختار */
+.wh-av{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px;font-size:12px;color:rgb(var(--green));line-height:1.6}
+.wh-av .ic{width:14px;height:14px;flex:none}
+.wh-av.bad{color:rgb(var(--red));background:rgba(var(--red),.07);border:1px solid rgba(var(--red),.25);border-radius:10px;padding:6px 9px}
+.wh-av.bad span{flex:1;min-width:0}
+
+/* الجولة 41 */
+.vlf-lost{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;margin-bottom:12px;border-radius:12px;border:1px solid rgba(var(--amber),.45);background:rgba(var(--amber),.1)}
+.vlf-lost>.ic{width:18px;height:18px;color:rgb(var(--amber));flex:none}
+.vlf-lost .grow{display:grid;gap:2px;min-width:220px}.vlf-lost small{color:var(--ink-2);line-height:1.7}
+.tk-stka{display:grid;gap:4px;justify-items:end;flex:none}
+.ink-ll{display:grid;gap:4px;max-height:52vh;overflow:auto}
+.ink-li{display:flex;align-items:center;gap:10px;width:100%;padding:6px 10px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-solid);color:var(--ink);cursor:pointer;text-align:start;font:inherit}
+.ink-li:hover{border-color:rgba(var(--accent),.5)}.ink-li.on{border-color:rgb(var(--green));background:rgba(var(--green),.08)}
+.ink-li .grow{display:grid;min-width:0}.ink-li small{font-size:11.5px;color:var(--ink-3)}
+.ink-li>.ic{width:16px;height:16px;color:rgb(var(--green))}
