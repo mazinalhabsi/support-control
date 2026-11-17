@@ -26922,5 +26922,40 @@ Object.assign(LV, {
   }
 });
 
+/* ══════════ كشف النسخة الأحدث على الخادم ══════════
+   ‏index.html يُرسل بترويسة no-cache من .htaccess، لكن إن كانت وحدة mod_headers معطلة في Apache يحفظه المتصفح ويبقى يعرض
+   النسخة القديمة بعد نسخ ملفات التحديث إلى الخادم. يُطلب index.html من الخادم مباشرة (دون المحفوظ) عند الفتح، وكل 10 دقائق،
+   وعند العودة إلى التبويب، وتُقارن بصمة ملف البرنامج بالتي تعمل الآن:
+   - عند الفتح: يُعاد التحميل فوراً من الخادم (مرة واحدة لكل نسخة، فلا يدخل في حلقة).
+   - أثناء العمل: شريط «يتوفر تحديث للنظام» بزر «تحديث الآن»، فلا يضيع ما يُكتب. */
+const UPD = {
+  cur() { const s = [...document.scripts].map((x) => x.getAttribute('src') || '').find((x) => /assets\/app\.[a-f0-9]+\.js/.test(x)), m = s && /app\.([a-f0-9]+)\.js/.exec(s); return m ? m[1] : ''; },
+  async latest() {
+    try { const r = await fetch(`index.html?_=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' }); if (!r.ok) return ''; const m = /assets\/app\.([a-f0-9]+)\.js/.exec(await r.text()); return m ? m[1] : ''; } catch (_) { return ''; }
+  },
+  go(nw) { location.replace(`${location.pathname}?v=${encodeURIComponent(nw)}${location.hash}`); },
+  async check(boot = false) {
+    const cur = UPD.cur(); if (!cur || UPD.busy) return; UPD.busy = true;
+    try {
+      const nw = await UPD.latest(); if (!nw || nw === cur) return;
+      let tried = ''; try { tried = sessionStorage.getItem('sq_upd') || ''; } catch (_) { /* تجاهل */ }
+      if (boot && tried !== nw) { try { sessionStorage.setItem('sq_upd', nw); } catch (_) { /* تجاهل */ } UPD.go(nw); return; }
+      UPD.banner(nw);
+    } finally { UPD.busy = false; }
+  },
+  banner(nw) {
+    if (document.getElementById('sqUpd')) return;
+    const d = document.createElement('div'); d.id = 'sqUpd'; d.className = 'sq-upd'; d.setAttribute('role', 'status');
+    d.innerHTML = String(html`${UI.icon('refresh')}<span class="grow"><b>يتوفر تحديث للنظام</b><small>احفظ ما تكتبه ثم حدّث الصفحة لتعمل بالنسخة الجديدة</small></span><button type="button" class="btn btn-sm btn-primary" data-updgo>تحديث الآن</button><button type="button" class="icon-btn" data-updx aria-label="لاحقاً">${UI.icon('x')}</button>`);
+    d.addEventListener('click', (e) => { if (e.target.closest('[data-updgo]')) { try { sessionStorage.setItem('sq_upd', nw); } catch (_) { /* تجاهل */ } UPD.go(nw); } else if (e.target.closest('[data-updx]')) d.remove(); });
+    document.body.appendChild(d);
+  }
+};
+/* إزالة «?v=» من العنوان بعد التحميل، وفحص عند الفتح ثم دورياً وعند العودة إلى التبويب */
+try { if (/[?&]v=/.test(location.search)) history.replaceState(history.state, '', `${location.pathname}${location.hash}`); } catch (_) { /* تجاهل */ }
+setTimeout(() => UPD.check(true), 1500);
+setInterval(() => { if (document.visibilityState === 'visible') UPD.check(false); }, 10 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') UPD.check(false); });
+
 boot();
 })();

@@ -7044,3 +7044,10 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lp-cfr{border:0;background:transparent;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink);padding:0;text-align:start}
 .lp-mem{max-height:190px}
 @media (max-width:640px){.lp-head .grow{flex-basis:calc(100% - 50px)}.lp-acts{width:100%}}
+
+/* ══════════ شريط «يتوفر تحديث للنظام» ══════════ */
+.sq-upd{position:fixed;z-index:90;inset-inline-start:50%;bottom:18px;transform:translateX(50%);display:flex;align-items:center;gap:10px;width:min(520px,calc(100vw - 24px));padding:10px 12px;border-radius:14px;background:var(--surface-solid);border:1px solid rgba(var(--accent),.5);box-shadow:0 18px 40px -16px rgba(0,0,0,.45);animation:cmsnIn .18s ease-out}
+[dir=ltr] .sq-upd{transform:translateX(-50%)}
+.sq-upd>.ic{width:20px;height:20px;color:rgb(var(--accent));flex:none}
+.sq-upd b{display:block;font-size:13.5px}
+.sq-upd small{display:block;font-size:11.5px;color:var(--ink-3)}
