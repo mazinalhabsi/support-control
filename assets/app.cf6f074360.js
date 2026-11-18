@@ -996,6 +996,7 @@ const ICONS = {
   building: '<path d="M4 21V5l8-3 8 3v16M9.5 21v-5h5v5M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  scissors: '<circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8 7.6 20 19M8 16.4 20 5"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
   shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
@@ -3094,7 +3095,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get VL() { return VL; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -15532,6 +15533,10 @@ const VL = {
     return o.join(';');
   },
   vis: (o, k) => !o.kinds || !o.kinds.length || o.kinds.includes(k),
+  /* ارتفاع الصف: ارتفاع خاص بالصف إن حُدد بالسحب، وإلا ارتفاع صفوف الجدول */
+  rowH(T, i) { const h = (T.rh && Number(T.rh[i])) || Number(T.rowH) || 0; return h ? `height:${h}mm` : ''; },
+  /* النص الطويل في الخلية: سطر واحد مصغّر (line) أو مختصر بنقاط (ell)، وإلا يلتف ويكبر الصف */
+  cfit(x, T) { const f = (x && x.fit) || (T && T.fit) || ''; return f === 'line' || f === 'ell' ? f : ''; },
   /* ── العناصر ── */
   el(e, d, F, opt) {
     const s = e.s || {}, edit = opt.edit, mode = edit && !opt.data ? 'raw' : '';
@@ -15546,16 +15551,16 @@ const VL = {
       const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`, SPN = T.span || {}, CS = T.cs || {}, cov = new Set();
       Object.keys(SPN).forEach((k) => { const [i, j] = k.split(',').map(Number), [rs, cs] = SPN[k]; for (let a = i; a < i + rs; a++) for (let z = j; z < j + cs; z++) if (a !== i || z !== j) cov.add(`${a},${z}`); });
       const selC = edit && opt.sel === e.id && opt.cell ? opt.cell.join(',') : '';
-      inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup><tbody>${T.rows.map((r, i) => `<tr style="${T.rowH ? `height:${T.rowH}mm` : ''}">${r.map((c, j) => {
+      inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup><tbody>${T.rows.map((r, i) => `<tr style="${VL.rowH(T, i)}">${r.map((c, j) => {
         const key = `${i},${j}`; if (cov.has(key)) return '';
         const head = (T.head && i === 0) || (T.headCol && j === 0), tag = head ? 'th' : 'td', sp = SPN[key], x = CS[key] || {};
         const bg = x.bg ? `background:${x.bg}` : head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && i % 2 === 0 ? 'background:rgba(0,0,0,.035)' : '';
-        return `<${tag} data-cell="${key}"${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${selC === key ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}">${VL.tx(c, F, mode)}</${tag}>`;
+        return `<${tag} data-cell="${key}"${VL.cfit(x, T) ? ` data-fit="${VL.cfit(x, T)}"` : ''}${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${selC === key ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}${VL.cfit(x, T) ? `white-space:nowrap;overflow:hidden;text-overflow:${VL.cfit(x, T) === 'ell' ? 'ellipsis' : 'clip'};` : ''}">${VL.tx(c, F, mode)}</${tag}>`;
       }).join('')}</tr>`).join('')}</tbody></table>`;
     }
     const sel = edit && opt.sel === e.id;
     const hidden = !VL.vis(e, d.kindKey);
-    return `<div class="vl-el vl-e-${e.t}${sel ? ' sel' : ''}${e.lock ? ' lock' : ''}${hidden ? ' vl-hid' : ''}"${edit ? ` data-el="${e.id}"` : ''} style="${pos};${e.t === 'line' || e.t === 'image' || e.t === 'barcode' ? '' : VL.box(s)}${e.t === 'image' || e.t === 'barcode' ? VL.box({ ...s, padding: s.padding }) : ''}">${inner}${sel && !e.lock ? ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].filter((h) => (e.t === 'table' ? ['e', 'w'].includes(h) : e.t === 'line' ? (e.dir === 'v' ? ['n', 's'] : ['e', 'w']).includes(h) : true)).map((h) => `<i class="vl-hd vl-hd-${h}" data-h="${h}"></i>`).join('') : ''}</div>`;
+    return `<div class="vl-el vl-e-${e.t}${e.t === 'text' && /^(clip|shrink|line|ell)$/.test(e.fit || '') ? ` vl-fit-${e.fit}` : ''}${sel ? ' sel' : ''}${e.lock ? ' lock' : ''}${hidden ? ' vl-hid' : ''}"${edit ? ` data-el="${e.id}"` : ''} style="${pos};${e.t === 'line' || e.t === 'image' || e.t === 'barcode' ? '' : VL.box(s)}${e.t === 'image' || e.t === 'barcode' ? VL.box({ ...s, padding: s.padding }) : ''}">${inner}${sel && !e.lock ? ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].filter((h) => (e.t === 'table' ? ['e', 'w'].includes(h) : e.t === 'line' ? (e.dir === 'v' ? ['n', 's'] : ['e', 'w']).includes(h) : true)).map((h) => `<i class="vl-hd vl-hd-${h}" data-h="${h}"></i>`).join('') : ''}</div>`;
   },
   /* ── الأقسام الديناميكية ── */
   facts(b, d) {
@@ -15651,6 +15656,39 @@ const VL = {
   }
 };
 
+/* ══ الجولة 48: ملاءمة النص الطويل داخل مربعه ══
+   للحقول المتغيرة الطويلة (كأسماء الماركات): يصغر الخط حتى يتسع المربع المحدد يدوياً، في المحرر والمعاينة والطباعة.
+   «تصغير ليتسع» يلتف ويصغر، و«سطر واحد مصغّر» لا يلتف، وفي الخلايا «سطر واحد مصغّر» يصغر خط الخلية وحدها */
+VL.fit = (root) => {
+  if (!root || !root.querySelectorAll) return 0;
+  const tw = (n) => { try { const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect().width; } catch (_) { return 0; } };
+  const run = (box, over) => {
+    if (box.dataset.fs0 == null) box.dataset.fs0 = box.style.fontSize || '';
+    box.style.fontSize = box.dataset.fs0;
+    let fs = parseFloat(getComputedStyle(box).fontSize) || 12, n = 0; const min = Math.max(5.5, fs * 0.4);
+    while (n < 40 && fs > min && over()) { fs *= 0.92; n++; box.style.fontSize = `${fs.toFixed(2)}px`; }
+    if (n) box.style.fontSize = `${(fs * 0.97).toFixed(2)}px`; /* هامش صغير لفرق القياس بين الشاشة والطابعة */
+    return n;
+  };
+  let c = 0;
+  root.querySelectorAll('.vl-fit-shrink > .vl-tx, .vl-fit-line > .vl-tx').forEach((tx) => {
+    const inn = tx.querySelector('.vl-txi'); if (!inn) return;
+    const line = tx.parentNode.classList.contains('vl-fit-line');
+    c += run(tx, () => { const k = tx.getBoundingClientRect().width / (tx.offsetWidth || 1) || 1; return line ? tw(inn) > inn.clientWidth * k + 0.5 : tx.scrollHeight > tx.clientHeight + 1 || inn.scrollWidth > inn.clientWidth + 1; }) ? 1 : 0;
+  });
+  root.querySelectorAll('td[data-fit="line"], th[data-fit="line"]').forEach((td) => {
+    const cs = getComputedStyle(td);
+    c += run(td, () => { const k = td.getBoundingClientRect().width / (td.offsetWidth || 1) || 1, cw = (td.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) * k; return tw(td) > cw + 0.5; }) ? 1 : 0;
+  });
+  return c;
+};
+/* في الطباعة: منطقة الطباعة مخفية على الشاشة، فتُظهر مؤقتاً خارج الشاشة للقياس ثم تعود */
+VL.fitHidden = (root) => {
+  if (!root || !root.querySelector('.vl-fit-shrink, .vl-fit-line, [data-fit="line"]')) return;
+  const s0 = root.getAttribute('style');
+  root.setAttribute('style', `${s0 || ''};display:block!important;position:fixed!important;left:-30000px!important;top:0!important;visibility:hidden!important`);
+  try { VL.fit(root); } catch (_) { /* تجاهل */ } finally { if (s0 == null) root.removeAttribute('style'); else root.setAttribute('style', s0); }
+};
 /* ── القوالب الجاهزة (نقطة بداية قابلة للتعديل الكامل) ── */
 const VLS = {
   id: () => uid('ve'),
@@ -15736,10 +15774,11 @@ const vlFix = (L) => { L.page = { ...VLS.page(), ...(L.page || {}) }; L.bands = 
     const fams = [...new Set([opts.font, ...$$('[style*="font-family"]', root).map((e) => (e.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim())].filter(Boolean))];
     const ready = document.fonts && document.fonts.load ? Promise.race([Promise.all(fams.flatMap((f) => [document.fonts.load(`400 16px "${f}"`), document.fonts.load(`700 16px "${f}"`)])), new Promise((r) => setTimeout(r, 1800))]).catch(() => {}) : Promise.resolve();
     const imgs = $$('img', root).filter((i) => !i.complete).map((i) => new Promise((r) => { i.onload = r; i.onerror = r; setTimeout(r, 1500); }));
-    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; UI.printNow(tok, root); }, 80));
+    Promise.all([ready, ...imgs]).then(() => setTimeout(() => { if (tok !== UI._printTok) return; VL.fitHidden(root); UI.printNow(tok, root); }, 80));
   };
 }
 /* ── واجهة المحرر ── */
+const VLFIT = [['', 'يتمدد', 'يلتف ويتجاوز حدود المربع إن طال (الافتراضي)'], ['clip', 'حصر داخل المربع', 'يلتف ويُقص ما يزيد عن حدود المربع'], ['shrink', 'تصغير ليتسع', 'يصغر الخط تلقائياً حتى يتسع المربع'], ['line', 'سطر واحد مصغّر', 'لا يلتف، ويصغر الخط ليبقى سطراً واحداً'], ['ell', 'سطر واحد مختصر…', 'لا يلتف، ويُختصر الزائد بثلاث نقاط']];
 const VLE_COLORS = ['#000000', '#111111', '#444444', '#888888', '#ffffff', '#8a6a22', '#1f3a68', '#0f4c5c', '#1d5c3f', '#7a1f2b', '#b45309', '#1d4ed8', '#f6f2e8', '#eef2f8', '#e8f1f3', '#fff7e6'];
 Pages.vleSample = (k, n) => { const d = Pages.vtdSample(k, n), T = VTPL.eff(k); d.title = String(T.title.text || '').trim() || d.kind.title; d.pledge = String(T.pledge.text || '').trim() || d.pledge || ''; return d; };
 Pages.vleImage = async (maxPx = 1600) => {
@@ -15756,7 +15795,7 @@ Pages.voucherDesigner = async (ctx) => {
   const lib = JSON.parse(JSON.stringify(VL.data() || {}));
   lib.tpls = (lib.tpls || []).map((t) => ({ ...t, layout: vlFix(t.layout || {}) })); /* الخادم يعيد {} الفارغ مصفوفة [] فتضيع التعيينات اللاحقة؛ نحوّله كائناً دائماً */ lib.use = { ...(lib.use || {}) }; lib.def = lib.def || '';
   if (!lib.tpls.length) lib.tpls.push({ id: uid('vt'), name: 'الرسمي الكلاسيكي', layout: VLS.classic(), createdAt: now() });
-  const qk = (ctx.query || {}).kind, st = { id: lib.tpls[0].id, sel: null, kind: VT_KINDS.some(([k]) => k === qk) ? qk : 'issue', n: 3, data: false, zoom: 0, grid: true, dirty: false, undo: [], redo: [], editing: null, cell: null, histAt: 0, openSec: {} };
+  const qk = (ctx.query || {}).kind, st = { id: lib.tpls[0].id, sel: null, kind: VT_KINDS.some(([k]) => k === qk) ? qk : 'issue', n: 3, data: false, zoom: 0, grid: true, dirty: false, undo: [], redo: [], editing: null, cell: null, histAt: 0, openSec: {}, multi: [] };
   if (lib.use[st.kind] && lib.tpls.some((t) => t.id === lib.use[st.kind])) st.id = lib.use[st.kind];
   const ro = !VL.can();
   const tpl = () => lib.tpls.find((t) => t.id === st.id) || lib.tpls[0];
@@ -15765,10 +15804,14 @@ Pages.voucherDesigner = async (ctx) => {
   const selB = () => (st.sel ? band(st.sel.b) : null);
   const selE = () => { const b = selB(); return b && st.sel.e ? (b.els || []).find((e) => e.id === st.sel.e) : null; };
   const sample = () => Pages.vleSample(st.kind, st.n);
+  /* التحديد المتعدد: معرفات العناصر (قد تكون في أقسام مختلفة)، والعنصر الأخير هو المحدد الرئيسي */
+  const hx6 = (v, d) => (/^#[0-9a-f]{6}$/i.test(v || '') ? v : /^#[0-9a-f]{3}$/i.test(v || '') ? `#${v.slice(1).split('').map((c) => c + c).join('')}` : d);
+  const findEl = (id) => { for (const b of L().bands) { const e = (b.els || []).find((x) => x.id === id); if (e) return { b, e }; } return null; };
+  const msel = () => (st.multi && st.multi.length > 1 ? st.multi : st.sel && st.sel.e ? [st.sel.e] : []).map(findEl).filter(Boolean);
   const $v = (s) => ctx.view.querySelector(s);
   /* ── السجل: تراجع وإعادة ── */
   const hist = (force) => { const t = now(); if (!force && t - st.histAt < 500) { st.histAt = t; return; } st.histAt = t; st.undo.push(JSON.stringify({ id: st.id, L: L() })); if (st.undo.length > 80) st.undo.shift(); st.redo = []; dirty(true); };
-  const restore = (snap) => { const s = JSON.parse(snap), t = lib.tpls.find((x) => x.id === s.id); if (t) { t.layout = s.L; st.id = s.id; } st.sel = null; st.editing = null; drawAll(); };
+  const restore = (snap) => { const s = JSON.parse(snap), t = lib.tpls.find((x) => x.id === s.id), keep = st.sel; if (t) { t.layout = s.L; st.id = s.id; } /* يبقى التحديد بعد التراجع إن بقي العنصر */ st.sel = keep && band(keep.b) && (!keep.e || findEl(keep.e)) ? keep : null; st.editing = null; drawAll(); };
   const undo = () => { const s = st.undo.pop(); if (!s) return; st.redo.push(JSON.stringify({ id: st.id, L: L() })); restore(s); dirty(true); };
   const redo = () => { const s = st.redo.pop(); if (!s) return; st.undo.push(JSON.stringify({ id: st.id, L: L() })); restore(s); dirty(true); };
   const dirty = (d) => { st.dirty = d; const b = $v('[data-act="save"]'); if (b) b.classList.toggle('pulse', d); const t = $v('[data-dirty]'); if (t) t.textContent = d ? 'تعديلات غير محفوظة' : 'محفوظ'; };
@@ -15781,10 +15824,13 @@ Pages.voucherDesigner = async (ctx) => {
   const drawCanvas0 = (z) => {
     const sb = st.sel ? st.sel.b : '', se = st.sel ? st.sel.e : '';
     z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell });
+    try { VL.fit(z); } catch (_) { /* تجاهل */ }
     if (!st.data) { let ch = false; $$('.vl-el.vl-e-table', z).forEach((n) => { const bn = n.closest('[data-band]'), b = bn && band(bn.dataset.band), e = b && (b.els || []).find((x) => x.id === n.dataset.el); if (!e) return; const mm = Math.round((n.offsetHeight / MMPX) * 2) / 2; if (mm > 0 && Math.abs(mm - e.h) > 0.6) { e.h = mm; ch = true; if (e.y + e.h > b.h) b.h = Math.ceil(e.y + e.h + 1); } }); if (ch && !st._dynFix) { st._dynFix = 1; z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell }); st._dynFix = 0; } }
     if (se) { const b = z.querySelector(`[data-band="${sb}"]`); if (b) b.classList.add('has-sel'); }
+    if (st.multi && st.multi.length) { st.multi = st.multi.filter((id) => findEl(id)); if (st.multi.length < 2) st.multi = []; st.multi.forEach((id) => { const n = z.querySelector(`[data-el="${id}"]`); if (n) n.classList.add('vl-msel'); }); }
     z.classList.toggle('grid', st.grid);
     fit();
+    try { grips(z); } catch (_) { /* تجاهل */ }
   };
   const fit = () => {
     const z = $v('.vle-zoom'), stage = $v('.vle-stage'); if (!z || !stage) return;
@@ -15815,7 +15861,7 @@ Pages.voucherDesigner = async (ctx) => {
   /* ── الشريط (Ribbon) ── */
   const drawRibbon = () => {
     const box = $v('.vle-ribbon'); if (!box) return;
-    const e = selE(), s = (e && e.s) || {}, txt = e && ['text', 'table', 'barcode'].includes(e.t), boxy = e && ['text', 'rect', 'table', 'image', 'barcode'].includes(e.t);
+    const cl = clipGet(), e = selE(), s = (e && e.s) || {}, txt = e && ['text', 'table', 'barcode'].includes(e.t), boxy = e && ['text', 'rect', 'table', 'image', 'barcode'].includes(e.t);
     const tb = (act, icon, label, on = false, dis = false, extra = '') => html`<button type="button" class="vle-b${on ? ' on' : ''}" data-rb="${act}"${dis ? raw(' disabled') : ''} title="${label}">${icon}${extra}</button>`;
     box.innerHTML = String(html`
       <div class="vle-g"><span class="vle-gl">إدراج</span><div class="vle-gb">
@@ -15824,18 +15870,21 @@ Pages.voucherDesigner = async (ctx) => {
         <select data-rs="font" ${txt ? '' : raw('disabled')} title="نوع الخط" class="vle-font"><option value="">خط الصفحة</option>${VTF.options(s.font)}</select><button type="button" class="vle-b vtf-btn" data-vtfg title="معرض الخطوط مع المعاينة"${txt ? '' : raw(' disabled')}><span>Aa</span></button>
         <select data-rs="size" ${txt ? '' : raw('disabled')} title="حجم الخط" class="vle-size"><option value="">—</option>${[7, 8, 8.5, 9, 9.5, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48].map((n) => html`<option value="${n}"${Number(s.size) === n ? raw(' selected') : ''}>${n}</option>`)}</select>
         ${tb('st:bold', raw('<b>B</b>'), 'عريض (Ctrl+B)', !!s.bold, !txt)}${tb('st:italic', raw('<i style="font-family:serif">I</i>'), 'مائل (Ctrl+I)', !!s.italic, !txt)}${tb('st:underline', raw('<u>U</u>'), 'تسطير (Ctrl+U)', !!s.underline, !txt)}
-        <label class="vle-col" title="لون الخط"><span style="border-bottom:3px solid ${s.color || '#111'}">A</span><input type="color" data-rs="color" value="${s.color || '#111111'}"${txt ? '' : raw(' disabled')}></label>
+        <label class="vle-col" title="لون الخط"><span style="border-bottom:3px solid ${s.color || '#111'}">A</span><input type="color" data-rs="color" value="${hx6(s.color, '#111111')}"${txt ? '' : raw(' disabled')}></label>
       </div></div>
       <div class="vle-g"><span class="vle-gl">الفقرة</span><div class="vle-gb">
         ${tb('al:right', raw('<i class="vle-al r"></i>'), 'محاذاة لليمين', (s.align || 'right') === 'right' && txt, !txt)}${tb('al:center', raw('<i class="vle-al c"></i>'), 'توسيط', s.align === 'center', !txt)}${tb('al:left', raw('<i class="vle-al l"></i>'), 'محاذاة لليسار', s.align === 'left', !txt)}${tb('al:justify', raw('<i class="vle-al j"></i>'), 'ضبط', s.align === 'justify', !txt)}
         ${tb('va:top', raw('<i class="vle-va t"></i>'), 'أعلى المربع', (s.valign || 'top') === 'top' && e && e.t === 'text', !(e && e.t === 'text'))}${tb('va:middle', raw('<i class="vle-va m"></i>'), 'وسط المربع', s.valign === 'middle', !(e && e.t === 'text'))}${tb('va:bottom', raw('<i class="vle-va b"></i>'), 'أسفل المربع', s.valign === 'bottom', !(e && e.t === 'text'))}
       </div></div>
       <div class="vle-g"><span class="vle-gl">التعبئة والحدود</span><div class="vle-gb">
-        <label class="vle-col" title="لون التعبئة"><i class="vle-fill" style="background:${s.bg || 'transparent'}"></i><input type="color" data-rs="bg" value="${s.bg || '#ffffff'}"${boxy ? '' : raw(' disabled')}></label>
+        <label class="vle-col" title="لون التعبئة"><i class="vle-fill" style="background:${s.bg || 'transparent'}"></i><input type="color" data-rs="bg" value="${hx6(s.bg, '#ffffff')}"${boxy ? '' : raw(' disabled')}></label>
         ${tb('st:nofill', raw('<i class="vle-nofill"></i>'), 'بلا تعبئة', false, !boxy)}
-        <label class="vle-col" title="لون الحد"><i class="vle-bd" style="border-color:${s.bc || '#000'}"></i><input type="color" data-rs="bc" value="${s.bc || '#000000'}"${boxy ? '' : raw(' disabled')}></label>
+        <label class="vle-col" title="لون الحد"><i class="vle-bd" style="border-color:${s.bc || '#000'}"></i><input type="color" data-rs="bc" value="${hx6(s.bc, '#000000')}"${boxy ? '' : raw(' disabled')}></label>
         <select data-rs="bw" ${boxy ? '' : raw('disabled')} title="سمك الحد"><option value="0">بلا حد</option>${[0.2, 0.3, 0.5, 0.8, 1, 1.5, 2].map((n) => html`<option value="${n}"${Number(s.bw) === n ? raw(' selected') : ''}>${n} مم</option>`)}</select>
         <select data-rs="bs" ${boxy ? '' : raw('disabled')} title="نمط الحد">${[['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']].map(([v, l]) => html`<option value="${v}"${(s.bs || 'solid') === v ? raw(' selected') : ''}>${l}</option>`)}</select>
+      </div></div>
+      <div class="vle-g"><span class="vle-gl">الحافظة${cl ? html` <em class="vle-clipn" title="${cl.kind === 'band' ? 'قسم كامل' : `${fmtNum((cl.els || []).length)} عنصر`}${cl.fromName ? ` من «${cl.fromName}»` : ''}">${cl.kind === 'band' ? 'قسم' : fmtNum((cl.els || []).length)}</em>` : ''}</span><div class="vle-gb">
+        ${tb('cb:copy', UI.icon('copy'), 'نسخ المحدد (Ctrl+C): عنصر أو عدة عناصر أو قسم كامل، ويُلصق في أي قالب', false, !(e || selB()), raw('<span>نسخ</span>'))}${tb('cb:cut', UI.icon('scissors'), 'قص (Ctrl+X)', false, !(e || selB()))}${tb('cb:paste', UI.icon('clipboard'), `لصق (Ctrl+V)${cl && cl.fromName ? ` — من «${cl.fromName}»` : ''}`, false, !cl, raw('<span>لصق</span>'))}
       </div></div>
       <div class="vle-g"><span class="vle-gl">ترتيب</span><div class="vle-gb">
         ${tb('ar:front', raw('<i class="vle-ic-front"></i>'), 'إحضار للأمام', false, !e)}${tb('ar:back', raw('<i class="vle-ic-back"></i>'), 'إرسال للخلف', false, !e)}${tb('menu:align', raw('<i class="vle-al c"></i>'), 'محاذاة داخل القسم', false, !e, raw('<span>▾</span>'))}${tb('ar:dup', UI.icon('copy'), 'تكرار (Ctrl+D)', false, !e)}${tb('ar:lock', UI.icon('lock'), e && e.lock ? 'فك القفل' : 'قفل الموضع', !!(e && e.lock), !e)}${tb('ar:del', UI.icon('trash'), 'حذف (Delete)', false, !e)}
@@ -15850,7 +15899,8 @@ Pages.voucherDesigner = async (ctx) => {
   };
   /* ── لوحة الخصائص ── */
   const fld = (path, label, type = 'text', opt = null, val) => {
-    const v = val !== undefined ? val : getP(path);
+    let v = val !== undefined ? val : getP(path);
+    if (type === 'color' && /^#[0-9a-f]{3}$/i.test(v || '')) v = `#${v.slice(1).split('').map((c) => c + c).join('')}`;
     if (type === 'color') return html`<div class="vle-f"><label>${label}</label><div class="vle-cl"><input type="color" data-k="${path}" value="${v || '#ffffff'}">${VLE_COLORS.slice(0, 10).map((c) => html`<button type="button" class="vle-sw" data-setc="${path}|${c}" style="--c:${c}" title="${c}"></button>`)}${type === 'color' && opt === 'clear' ? html`<button type="button" class="vle-sw clr" data-setc="${path}|" title="بلا لون"></button>` : ''}</div></div>`;
     if (type === 'select') return html`<div class="vle-f"><label>${label}</label><select data-k="${path}">${opt.map(([a, b]) => html`<option value="${a}"${String(v) === String(a) ? raw(' selected') : ''}>${b}</option>`)}</select></div>`;
     if (type === 'check') return html`<label class="vle-chk"><input type="checkbox" data-k="${path}" data-t="b"${v ? raw(' checked') : ''}><span>${label}</span></label>`;
@@ -15866,22 +15916,25 @@ Pages.voucherDesigner = async (ctx) => {
     const box = $v('.vle-insp'); if (!box) return;
     const b = selB(), e = selE(), P = L().page;
     let body;
-    if (e) {
+    const mm = st.multi && st.multi.length > 1 ? msel() : [];
+    if (mm.length > 1) body = multiInsp(mm);
+    else if (e) {
       const T = VL_EL_TYPES[e.t];
       body = html`<div class="vle-ih">${UI.icon(T[1])}<b>${T[0]}</b><span class="grow"></span><button type="button" class="icon-btn" data-rb="ar:dup" title="تكرار">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-rb="ar:del" title="حذف">${UI.icon('trash')}</button></div>
         ${e.t === 'text' ? sec('etext', 'النص', 'edit', html`<div class="vle-f"><label>المحتوى <small class="faint">(أو انقر مرتين على المربع للكتابة مباشرة)</small></label><textarea data-k="E.text" rows="4" dir="rtl">${e.text || ''}</textarea></div><div class="vle-fields">${VL_FIELDS.slice(0, 12).map(([k]) => html`<button type="button" class="vle-tokb" data-tok="${k}">[${k}]</button>`)}<button type="button" class="vle-tokb more" data-rb="menu:field">المزيد ▾</button></div>${fld('E.s.dir', 'اتجاه الكتابة', 'select', [['rtl', 'من اليمين (عربي)'], ['ltr', 'من اليسار (إنجليزي/أرقام)']])}${fld('E.s.lh', 'تباعد الأسطر', 'select', [['', 'افتراضي'], ['1.1', '1.1'], ['1.3', '1.3'], ['1.5', '1.5'], ['1.8', '1.8'], ['2.2', '2.2']])}${fld('E.s.ls', 'تباعد الأحرف', 'num', 0.2)}`, true) : ''}
+        ${e.t === 'text' ? sec('efit', 'النص الطويل داخل المربع', 'layers', html`<div class="vle-fitg">${VLFIT.map(([v, l, d]) => html`<label class="vle-fitc"><input type="radio" name="efit" data-k="E.fit" value="${v}"${(e.fit || '') === v ? raw(' checked') : ''}><b>${l}</b><small>${d}</small></label>`)}</div><p class="faint small">ضع المربع على خانته في الجدول بالمقاس الذي تريده، فيبقى المتغير الطويل (كأسماء الماركات) محصوراً فيه. أفلت المربع فوق خلية جدول فيأخذ مقاسها تلقائياً (Alt أثناء السحب لتجاهل ذلك).</p>`, !!e.fit) : ''}
         ${e.t === 'image' ? sec('eimg', 'الصورة', 'photo', html`<div class="vle-imgp"><img src="${e.src && e.src !== 'logo' ? e.src : ASSETS.logo}" alt=""></div><div class="row" style="gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-sm btn-soft" data-img="E">${UI.icon('upload')} استبدال الصورة</button><button type="button" class="btn btn-sm btn-ghost" data-logo="E">${UI.icon('refresh')} شعار النظام</button><button type="button" class="btn btn-sm btn-ghost" data-ratio>${UI.icon('scale')} النسبة الأصلية</button><button type="button" class="btn btn-sm btn-ghost" data-imgbg title="للترويسة أو الختم الممسوح: يجعل الأبيض شفافاً فتظهر الصورة فوق أي خلفية أو إطار">${UI.icon('sparkle')} إزالة الخلفية البيضاء</button></div>${fld('E.fit', 'ملاءمة الصورة', 'select', [['contain', 'احتواء كامل'], ['cover', 'تعبئة المربع'], ['fill', 'تمديد']])}`, true) : ''}
         ${e.t === 'line' ? sec('eline', 'الخط', 'list', html`${fld('E.dir', 'الاتجاه', 'select', [['h', 'أفقي'], ['v', 'عمودي']])}${fld('E.lw', 'السمك (مم)', 'num', 0.1)}${fld('E.ls', 'النمط', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}${fld('E.lc', 'اللون', 'color')}`, true) : ''}
         ${e.t === 'barcode' ? sec('ebc', 'الباركود', 'scan', html`${fld('E.value', 'القيمة المرمّزة', 'select', [['[رقم السند]', 'رقم السند'], ['[التاريخ]', 'التاريخ']])}${fld('E.showText', 'كتابة القيمة تحت الباركود', 'check')}`, true) : ''}
         ${e.t === 'table' ? sec('etbl', 'الجدول', 'list', html`<p class="faint small">انقر مرتين على أي خلية للكتابة فيها، وTab للانتقال للخلية التالية.${st.cell ? html` الخلية المحددة: صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)}` : ''}</p>
-          <div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="rowA">+ صف أعلى</button><button type="button" class="btn btn-sm btn-soft" data-tb="rowB">+ صف أسفل</button><button type="button" class="btn btn-sm btn-soft" data-tb="colR">+ عمود يمين</button><button type="button" class="btn btn-sm btn-soft" data-tb="colL">+ عمود يسار</button><button type="button" class="btn btn-sm btn-ghost" data-tb="rowD">− حذف الصف</button><button type="button" class="btn btn-sm btn-ghost" data-tb="colD">− حذف العمود</button><button type="button" class="btn btn-sm btn-ghost" data-tb="eq">توزيع الأعمدة بالتساوي</button></div>
+          <div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="rowA">+ صف أعلى</button><button type="button" class="btn btn-sm btn-soft" data-tb="rowB">+ صف أسفل</button><button type="button" class="btn btn-sm btn-soft" data-tb="colR">+ عمود يمين</button><button type="button" class="btn btn-sm btn-soft" data-tb="colL">+ عمود يسار</button><button type="button" class="btn btn-sm btn-ghost" data-tb="rowD">− حذف الصف</button><button type="button" class="btn btn-sm btn-ghost" data-tb="colD">− حذف العمود</button><button type="button" class="btn btn-sm btn-ghost" data-tb="eq">توزيع الأعمدة بالتساوي</button>${e.tbl.rh && e.tbl.rh.some(Boolean) ? html`<button type="button" class="btn btn-sm btn-ghost" data-tb="rhX">توحيد ارتفاع الصفوف</button>` : ''}</div><p class="faint small vle-griphint">${UI.icon('grid')} اسحب الخطوط الملونة بين الأعمدة والصفوف على اللوحة لتغيير عرض العمود وارتفاع الصف مباشرة، والمقبضين على الجانبين لعرض الجدول كله.</p>
           ${fld('E.tbl.head', 'الصف الأول عناوين', 'check')}${fld('E.tbl.headCol', 'العمود الأول عناوين', 'check')}${fld('E.tbl.zebra', 'تظليل الأسطر بالتناوب', 'check')}
           ${fld('E.tbl.hbg', 'خلفية العناوين', 'color')}${fld('E.tbl.hc', 'لون نص العناوين', 'color')}${fld('E.tbl.bc', 'لون الحدود', 'color')}
           <div class="vle-row">${fld('E.tbl.bw', 'سمك الحد', 'num', 0.1)}${fld('E.tbl.pad', 'هامش الخلية', 'num', 0.2)}${fld('E.tbl.rowH', 'ارتفاع الصف', 'num', 0.5)}</div>
-          ${fld('E.tbl.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}
+          ${fld('E.tbl.bs', 'نمط الحدود', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}${fld('E.tbl.fit', 'النص الطويل في الخلايا', 'select', [['', 'يلتف ويكبر الصف'], ['line', 'سطر واحد مصغّر ليتسع'], ['ell', 'سطر واحد مختصر…']])}
           <div class="vle-f"><label>عرض الأعمدة (%) ومحاذاتها</label><div class="vle-cw">${(e.tbl.rows[0] || []).map((_, j) => html`<div><input type="number" data-cw="${j}" value="${Math.round((e.tbl.colW || [])[j] || 100 / e.tbl.rows[0].length)}" min="3" max="95"><select data-cal="${j}">${[['', '—'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']].map(([a, l2]) => html`<option value="${a}"${((e.tbl.al || [])[j] || '') === a ? raw(' selected') : ''}>${l2}</option>`)}</select></div>`)}</div></div>`, true) : ''}
         ${e.t === 'table' ? Pages.vleDynSec(e, fld, sec) : ''}
-        ${e.t === 'table' && st.cell ? (() => { const ck = st.cell.join(','), x = (e.tbl.cs || {})[ck] || {}, sp = (e.tbl.span || {})[ck]; return sec('ecell', `الخلية المحددة (صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)})`, 'edit', html`<div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="mR">${UI.icon('swap')} دمج مع الخلية اليسرى</button><button type="button" class="btn btn-sm btn-soft" data-tb="mD">${UI.icon('swap')} دمج مع الخلية السفلى</button>${sp ? html`<button type="button" class="btn btn-sm btn-ghost" data-tb="mX">إلغاء الدمج</button>` : ''}</div>${fld(`E.tbl.cs.${ck}.bg`, 'لون تعبئة الخلية', 'color', 'clear', x.bg || '')}${fld(`E.tbl.cs.${ck}.color`, 'لون نص الخلية', 'color', null, x.color || '#111111')}<div class="vle-row">${fld(`E.tbl.cs.${ck}.al`, 'المحاذاة', 'select', [['', 'كالجدول'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']], x.al || '')}${fld(`E.tbl.cs.${ck}.va`, 'عمودياً', 'select', [['', 'وسط'], ['top', 'أعلى'], ['bottom', 'أسفل']], x.va || '')}</div><div class="vle-row">${fld(`E.tbl.cs.${ck}.b`, 'عريض', 'select', [['', 'كالجدول'], ['1', 'نعم'], ['0', 'لا']], x.b == null ? '' : String(x.b))}${fld(`E.tbl.cs.${ck}.fs`, 'حجم الخط', 'num', 0.5, x.fs || '')}</div>`, true); })() : ''}
+        ${e.t === 'table' && st.cell ? (() => { const ck = st.cell.join(','), x = (e.tbl.cs || {})[ck] || {}, sp = (e.tbl.span || {})[ck]; return sec('ecell', `الخلية المحددة (صف ${fmtNum(st.cell[0] + 1)}، عمود ${fmtNum(st.cell[1] + 1)})`, 'edit', html`<div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="mR">${UI.icon('swap')} دمج مع الخلية اليسرى</button><button type="button" class="btn btn-sm btn-soft" data-tb="mD">${UI.icon('swap')} دمج مع الخلية السفلى</button>${sp ? html`<button type="button" class="btn btn-sm btn-ghost" data-tb="mX">إلغاء الدمج</button>` : ''}</div><div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-tb="cH" title="تقسيم الخلية إلى خليتين متجاورتين">${UI.icon('grid')} تقسيم لعمودين</button><button type="button" class="btn btn-sm btn-soft" data-tb="cV" title="تقسيم الخلية إلى خليتين فوق بعض">${UI.icon('grid')} تقسيم لصفين</button><button type="button" class="btn btn-sm btn-ghost" data-tb="sT" title="فصل الجدول إلى جدولين يبدأ الثاني من صف هذه الخلية">${UI.icon('layers')} فصل الجدول من هذا الصف</button><button type="button" class="btn btn-sm btn-ghost" data-tb="sC" title="فصل الجدول إلى جدولين يبدأ الثاني من عمود هذه الخلية">${UI.icon('layers')} فصل الجدول من هذا العمود</button></div>${fld(`E.tbl.cs.${ck}.bg`, 'لون تعبئة الخلية', 'color', 'clear', x.bg || '')}${fld(`E.tbl.cs.${ck}.color`, 'لون نص الخلية', 'color', null, x.color || '#111111')}<div class="vle-row">${fld(`E.tbl.cs.${ck}.al`, 'المحاذاة', 'select', [['', 'كالجدول'], ['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار']], x.al || '')}${fld(`E.tbl.cs.${ck}.va`, 'عمودياً', 'select', [['', 'وسط'], ['top', 'أعلى'], ['bottom', 'أسفل']], x.va || '')}</div><div class="vle-row">${fld(`E.tbl.cs.${ck}.b`, 'عريض', 'select', [['', 'كالجدول'], ['1', 'نعم'], ['0', 'لا']], x.b == null ? '' : String(x.b))}${fld(`E.tbl.cs.${ck}.fs`, 'حجم الخط', 'num', 0.5, x.fs || '')}</div><div class="vle-row"><div class="vle-f sm"><label>ارتفاع هذا الصف (مم)</label><input type="number" data-rhv="${st.cell[0]}" value="${(e.tbl.rh || [])[st.cell[0]] || ''}" placeholder="${e.tbl.rowH || 'تلقائي'}" step="0.5" min="2"></div>${fld(`E.tbl.cs.${ck}.fit`, 'النص الطويل هنا', 'select', [['', 'كالجدول'], ['wrap', 'يلتف'], ['line', 'سطر مصغّر'], ['ell', 'مختصر…']], x.fit || '')}</div>`, true); })() : ''}
         ${['text', 'table', 'barcode'].includes(e.t) ? sec('efont', 'الخط والتنسيق', 'edit', html`${fld('E.s.font', 'نوع الخط', 'font')}<div class="vle-row">${fld('E.s.size', 'الحجم (pt)', 'num', 0.5)}</div>${fld('E.s.color', 'لون النص', 'color')}<div class="vle-row">${fld('E.s.bold', 'عريض', 'check')}${fld('E.s.italic', 'مائل', 'check')}${fld('E.s.underline', 'تسطير', 'check')}</div>${fld('E.s.align', 'المحاذاة', 'select', [['right', 'يمين'], ['center', 'وسط'], ['left', 'يسار'], ['justify', 'ضبط']])}${e.t === 'text' ? fld('E.s.valign', 'المحاذاة العمودية', 'select', [['top', 'أعلى'], ['middle', 'وسط'], ['bottom', 'أسفل']]) : ''}`) : ''}
         ${e.t !== 'line' ? sec('ebox', 'التعبئة والحدود والتأثيرات', 'layers', html`${fld('E.s.bg', 'لون التعبئة', 'color', 'clear')}<div class="vle-row">${fld('E.s.bw', 'سمك الحد', 'num', 0.1)}${fld('E.s.radius', 'تدوير الزوايا', 'num', 0.5)}${fld('E.s.padding', 'الهامش الداخلي', 'num', 0.5)}</div>${fld('E.s.bc', 'لون الحد', 'color')}${fld('E.s.bs', 'نمط الحد', 'select', [['solid', 'متصل'], ['dashed', 'متقطع'], ['dotted', 'منقط'], ['double', 'مزدوج']])}<div class="vle-row">${fld('E.s.opacity', 'الشفافية %', 'num', 5)}${fld('E.s.rot', 'الدوران °', 'num', 1)}</div>${fld('E.s.shadow', 'ظل خفيف', 'check')}`, e.t === 'rect') : ''}
         ${sec('epos', 'الموضع والحجم', 'grid', html`<div class="vle-row">${fld('E.x', 'من اليسار (مم)', 'num', 0.5)}${fld('E.y', 'من الأعلى (مم)', 'num', 0.5)}</div><div class="vle-row">${fld('E.w', 'العرض (مم)', 'num', 0.5)}${e.t !== 'table' ? fld('E.h', 'الارتفاع (مم)', 'num', 0.5) : ''}</div>${fld('E.lock', 'قفل الموضع', 'check')}<div class="vle-f"><label>نقل إلى قسم آخر</label><select data-moveto><option value="">—</option>${L().bands.filter((x) => x.type === 'free' && x.id !== b.id).map((x) => html`<option value="${x.id}">${x.name || 'قسم حر'}</option>`)}</select></div>`)}
@@ -15986,12 +16039,15 @@ Pages.voucherDesigner = async (ctx) => {
       else if (k === 'data') { st.data = !st.data; drawRibbon(); drawCanvas(); }
       return;
     }
+    if (g === 'cb') { if (ro) return; if (k === 'paste') pasteClip(); else copySel(k === 'cut'); return; }
+    if (g === 'ar' && (k === 'dup' || k === 'del') && st.multi.length > 1) { if (k === 'dup') dupSel(); else delSel(); return; }
     if (!e) return;
     hist(true);
     e.s = e.s || {};
-    if (g === 'st') { if (k === 'nofill') e.s.bg = ''; else e.s[k] = e.s[k] ? 0 : 1; }
-    else if (g === 'al') e.s.align = k;
-    else if (g === 'va') e.s.valign = k;
+    const tg = st.multi.length > 1 ? msel().map((x) => x.e) : [e]; tg.forEach((x) => { x.s = x.s || {}; });
+    if (g === 'st') { const v = k === 'nofill' ? '' : e.s[k] ? 0 : 1; tg.forEach((x) => { x.s[k === 'nofill' ? 'bg' : k] = v; }); }
+    else if (g === 'al') tg.forEach((x) => { x.s.align = k; });
+    else if (g === 'va') tg.forEach((x) => { x.s.valign = k; });
     else if (g === 'ar') {
       const els = b.els;
       if (k === 'front') e.z = Math.max(0, ...els.map((x) => x.z || 0)) + 1;
@@ -16038,12 +16094,14 @@ Pages.voucherDesigner = async (ctx) => {
     const up = (u) => {
       window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); guides(bn, null, null);
       if (!moved) return;
+      if (mode === 'move' && e.t === 'text' && st.grid && !u.altKey) st._snapTo = u; else st._snapTo = null;
       if (mode === 'move') {
         /* نقل العنصر إلى قسم حر آخر عند إفلاته فوقه */
         const hit = document.elementsFromPoint(u.clientX, u.clientY).map((n) => n.closest && n.closest('[data-band]')).find(Boolean);
         const tb = hit && band(hit.dataset.band);
         if (tb && tb.id !== b.id && tb.type === 'free') { const r1 = bn.getBoundingClientRect(), r2 = hit.getBoundingClientRect(); e.y = r5(e.y + (r1.top - r2.top) / (MMPX * z)); b.els = b.els.filter((x) => x.id !== e.id); tb.els.push(e); st.sel = { b: tb.id, e: e.id }; }
       }
+      if (st._snapTo) { const u2 = st._snapTo; st._snapTo = null; snapCell(e, u2); }
       drawCanvas(); drawInsp();
     };
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
@@ -16094,8 +16152,8 @@ Pages.voucherDesigner = async (ctx) => {
     const remap = (fn) => ['span', 'cs'].forEach((n) => { const o = {}; Object.keys(T[n]).forEach((k) => { const [i, j] = k.split(',').map(Number), r = fn(i, j, n === 'span' ? T[n][k] : [1, 1]); if (r) o[`${r[0]},${r[1]}`] = T[n][k]; }); T[n] = o; });
     const insR = (at) => remap((i, j, sp) => (i >= at ? [i + 1, j] : i + sp[0] > at ? null : [i, j]));
     const insC = (at) => remap((i, j, sp) => (j >= at ? [i, j + 1] : j + sp[1] > at ? null : [i, j]));
-    if (op === 'rowA' || op === 'rowB') { const at = op === 'rowA' ? ci : ci + (T.span[`${ci},${cj}`] || [1])[0]; T.rows.splice(at, 0, Array(C).fill('')); insR(at); }
-    if (op === 'rowD' && R > 1) { T.rows.splice(ci, 1); remap((i, j, sp) => (i === ci ? null : i > ci ? [i - 1, j] : i + sp[0] > ci ? null : [i, j])); st.cell = null; }
+    if (op === 'rowA' || op === 'rowB') { const at = op === 'rowA' ? ci : ci + (T.span[`${ci},${cj}`] || [1])[0]; T.rows.splice(at, 0, Array(C).fill('')); if (T.rh) T.rh.splice(at, 0, null); insR(at); }
+    if (op === 'rowD' && R > 1) { T.rows.splice(ci, 1); if (T.rh) T.rh.splice(ci, 1); remap((i, j, sp) => (i === ci ? null : i > ci ? [i - 1, j] : i + sp[0] > ci ? null : [i, j])); st.cell = null; }
     if (op === 'colR' || op === 'colL') { const at = op === 'colR' ? cj : cj + (T.span[`${ci},${cj}`] || [1, 1])[1]; T.rows.forEach((r) => r.splice(at, 0, '')); T.colW.splice(at, 0, 100 / (C + 1)); if (T.al) T.al.splice(at, 0, ''); insC(at); }
     if (op === 'colD' && C > 1) { T.rows.forEach((r) => r.splice(cj, 1)); T.colW.splice(cj, 1); if (T.al) T.al.splice(cj, 1); remap((i, j, sp) => (j === cj ? null : j > cj ? [i, j - 1] : j + sp[1] > cj ? null : [i, j])); st.cell = null; }
     if (op === 'mR' || op === 'mD') {
@@ -16172,6 +16230,236 @@ Pages.voucherDesigner = async (ctx) => {
     }
   };
   /* ── بناء الصفحة ── */
+  /* ══ الجولة 48: الحافظة بين القوالب، والتحديد المتعدد، ومقابض الجداول وتقسيمها وفصلها ══ */
+  const CLIPK = 'sq_vle_clip';
+  const clipGet = () => {
+    let c = null; try { c = localStorage.getItem(CLIPK); } catch (_) { /* تجاهل */ } c = c || st.clip; if (!c) return null;
+    try { const o = JSON.parse(c); if (o && o.v === 2) return o; if (o && o.t) return { v: 2, kind: 'els', els: [o] }; } catch (_) { /* تجاهل */ } return null;
+  };
+  const clipTxt = (o) => (o.kind === 'band' ? '' : (o.els || []).map((x) => (x.t === 'text' ? x.text || '' : x.t === 'table' ? ((x.tbl || {}).rows || []).map((r) => r.join('\t')).join('\n') : '')).filter(Boolean).join('\n'));
+  const clipSet = (o) => {
+    st.clip = JSON.stringify(o); st.clipTxt = clipTxt(o);
+    try { localStorage.setItem(CLIPK, st.clip); } catch (_) { try { localStorage.removeItem(CLIPK); } catch (__) { /* تجاهل */ } UI.toast('المنسوخ كبير (صور): يُلصق في هذه الصفحة فقط ولا ينتقل لنافذة أخرى', 'warn', 3500); }
+    drawRibbon();
+  };
+  const copySel = (cut) => {
+    if (ro && cut) return false;
+    const many = msel();
+    if (many.length) {
+      const els = many.map((x) => JSON.parse(JSON.stringify(x.e)));
+      clipSet({ v: 2, kind: 'els', els, from: st.id, fromName: tpl().name, at: now() });
+      if (cut) { hist(true); const ids = new Set(els.map((x) => x.id)); L().bands.forEach((bb) => { if (bb.els) bb.els = bb.els.filter((x) => !ids.has(x.id)); }); st.multi = []; st.sel = st.sel ? { b: st.sel.b, e: null } : null; drawAll(); }
+      UI.toast(`${cut ? 'قُصّ' : 'نُسخ'} ${els.length > 1 ? `${fmtNum(els.length)} عناصر` : 'العنصر'} — الصقه هنا أو في أي قالب آخر بـCtrl+V`, 'ok', 2400); return true;
+    }
+    const b = selB(); if (!b) return false;
+    clipSet({ v: 2, kind: 'band', band: JSON.parse(JSON.stringify(b)), from: st.id, fromName: tpl().name, at: now() });
+    if (cut) { hist(true); L().bands = L().bands.filter((x) => x.id !== b.id); st.sel = null; drawAll(); }
+    UI.toast(`${cut ? 'قُصّ' : 'نُسخ'} قسم «${b.name || VL_BAND_TYPES[b.type][0]}» كاملاً — الصقه في أي قالب بـCtrl+V`, 'ok', 2400); return true;
+  };
+  /* اللصق في القسم الحر المحدد (أو أول قسم حر) بالمواضع نفسها؛ وإن كانت النسخة الأصلية في مكانها تُزاح قليلاً */
+  const pasteEls = (els, from, fromName) => {
+    hist(true);
+    const tb = freeBand(), cw = VL.cw(L()); tb.els = tb.els || [];
+    const hit = (o) => els.some((y) => tb.els.some((x) => x.t === y.t && Math.abs(x.x - ((Number(y.x) || 0) + o)) < 0.05 && Math.abs(x.y - ((Number(y.y) || 0) + o)) < 0.05));
+    let off = 0; while (off < 60 && hit(off)) off += 3;
+    let z = Math.max(0, ...tb.els.map((x) => x.z || 0));
+    const out = els.map((src) => { const el = JSON.parse(JSON.stringify(src)); el.id = uid('ve'); el.x = Math.round(((Number(el.x) || 0) + off) * 10) / 10; el.y = Math.round(((Number(el.y) || 0) + off) * 10) / 10; if (el.x + (Number(el.w) || 0) > cw) el.x = Math.max(0, Math.round((cw - (Number(el.w) || 0)) * 10) / 10); el.z = ++z; el.lock = 0; return el; });
+    tb.els.push(...out);
+    const bot = Math.max(...out.map((x) => x.y + (Number(x.h) || 0))); if (bot > tb.h) tb.h = Math.ceil(bot + 2);
+    st.multi = out.length > 1 ? out.map((x) => x.id) : []; st.sel = { b: tb.id, e: out[out.length - 1].id }; st.cell = null; drawAll();
+    UI.toast(`أُلصق ${out.length > 1 ? `${fmtNum(out.length)} عناصر` : 'العنصر'}${from && from !== st.id && fromName ? ` من «${fromName}»` : ''}`, 'ok', 1800);
+    return out;
+  };
+  const pasteClip = () => {
+    if (ro) return false;
+    const c = clipGet(); if (!c) { UI.toast('الحافظة فارغة: حدد عنصراً أو أكثر ثم Ctrl+C', 'info'); return false; }
+    if (c.kind === 'band' && c.band) {
+      hist(true); const nb = JSON.parse(JSON.stringify(c.band)); nb.id = uid('ve'); (nb.els || []).forEach((x) => { x.id = uid('ve'); });
+      const cur = selB(), i = cur ? L().bands.indexOf(cur) + 1 : L().bands.length; L().bands.splice(i, 0, nb);
+      st.multi = []; st.sel = { b: nb.id, e: null }; drawAll(); UI.toast(`أُلصق القسم${c.from && c.from !== st.id && c.fromName ? ` من «${c.fromName}»` : ''}`, 'ok', 1800); return true;
+    }
+    const els = (c.els || []).filter((x) => x && x.t); if (!els.length) return false;
+    pasteEls(els, c.from, c.fromName); return true;
+  };
+  /* لصق من خارج المحرر: نص منسوخ من أي مكان يصير مربع نص، وصورة أو أيقونة منسوخة تصير صورة */
+  const pasteExt = async (dt) => {
+    const it = [...(dt.items || [])].find((i) => i.kind === 'file' && /^image\//.test(i.type));
+    if (it) {
+      const f = it.getAsFile(); if (!f) return false;
+      const src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      const im = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }); if (!im || !im.width) return false;
+      let out = src; const sc = Math.min(1, 1200 / Math.max(im.width, im.height));
+      if (sc < 1 || src.length > 400000) { const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(im.width * sc)); cv.height = Math.max(1, Math.round(im.height * sc)); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); out = cv.toDataURL('image/png'); }
+      const w = Math.round(Math.min(40, Math.max(8, im.width / MMPX / 2)) * 10) / 10, cw = VL.cw(L());
+      insert('image', { src: out, w, h: Math.round(((w * im.height) / im.width) * 10) / 10, x: Math.round(((cw - w) / 2) * 10) / 10 }); UI.toast('أُلصقت الصورة', 'ok', 1500); return true;
+    }
+    const txt = String(dt.getData('text/plain') || '').replace(/\r/g, '').trim(); if (!txt) return false;
+    const n = txt.split('\n').length, cw = VL.cw(L()), w = Math.round(Math.min(cw, Math.max(30, Math.min(140, txt.length * 2.2))));
+    insert('text', { text: txt.slice(0, 4000), w, h: Math.min(140, Math.max(8, n * 6 + 2)), x: Math.round(((cw - w) / 2) * 10) / 10 }); UI.toast('أُلصق النص في مربع نص جديد', 'ok', 1500); return true;
+  };
+  const dupSel = () => { const many = msel(); if (!many.length) return; hist(true); const ids = []; many.forEach(({ b, e }) => { const c = JSON.parse(JSON.stringify(e)); c.id = uid('ve'); c.x += 3; c.y += 3; c.z = Math.max(0, ...b.els.map((x) => x.z || 0)) + 1; c.lock = 0; b.els.push(c); ids.push([b.id, c.id]); }); st.multi = ids.length > 1 ? ids.map((x) => x[1]) : []; const l = ids[ids.length - 1]; st.sel = { b: l[0], e: l[1] }; drawAll(); };
+  const delSel = () => { const many = msel(); if (!many.length) return; hist(true); const ids = new Set(many.map((x) => x.e.id)); L().bands.forEach((bb) => { if (bb.els) bb.els = bb.els.filter((x) => !ids.has(x.id)); }); st.multi = []; st.sel = st.sel ? { b: st.sel.b, e: null } : null; drawAll(); };
+  const selectAll = () => {
+    const b = selB(), pool = b && b.type === 'free' ? [b] : L().bands.filter((x) => x.type === 'free'), ids = pool.flatMap((x) => (x.els || []).map((y) => y.id)); if (!ids.length) return;
+    const f = findEl(ids[ids.length - 1]); st.multi = ids.length > 1 ? ids : []; st.sel = { b: f.b.id, e: f.e.id }; st.cell = null; drawAll();
+    UI.toast(`حُدد ${fmtNum(ids.length)} عنصر${b && pool[0] === b ? ' في هذا القسم' : ''}`, 'info', 1300);
+  };
+  /* محاذاة المجموعة وتوزيعها بالنسبة لحدودها */
+  const groupAlign = (k) => {
+    const mm = msel().filter((x) => !x.e.lock); if (mm.length < 2) return; hist(true);
+    const E = mm.map((x) => x.e), p = selE() || E[E.length - 1], L0 = Math.min(...E.map((e) => e.x)), R0 = Math.max(...E.map((e) => e.x + e.w)), T0 = Math.min(...E.map((e) => e.y)), B0 = Math.max(...E.map((e) => e.y + (e.h || 0)));
+    const dist = (ax, sz) => { const o = E.slice().sort((a, z) => a[ax] - z[ax]), lo = o[0][ax], hi = Math.max(...o.map((e) => e[ax] + (e[sz] || 0))), gap = (hi - lo - o.reduce((t, e) => t + (e[sz] || 0), 0)) / (o.length - 1); let v = lo; o.forEach((e) => { e[ax] = v; v += (e[sz] || 0) + gap; }); };
+    ({ r: () => E.forEach((e) => { e.x = R0 - e.w; }), l: () => E.forEach((e) => { e.x = L0; }), c: () => E.forEach((e) => { e.x = (L0 + R0) / 2 - e.w / 2; }), t: () => E.forEach((e) => { e.y = T0; }), b: () => E.forEach((e) => { e.y = B0 - (e.h || 0); }), m: () => E.forEach((e) => { e.y = (T0 + B0) / 2 - (e.h || 0) / 2; }), dh: () => dist('x', 'w'), dv: () => dist('y', 'h'), sw: () => E.forEach((e) => { e.w = p.w; }), sh: () => E.forEach((e) => { if (e.t !== 'table') e.h = p.h; }) })[k]();
+    E.forEach((e) => { e.x = Math.round(e.x * 10) / 10; e.y = Math.round(e.y * 10) / 10; });
+    drawCanvas(); drawInsp();
+  };
+  /* سحب المجموعة معاً؛ والنقر عليها بلا سحب يحدد العنصر وحده */
+  const groupDrag = (ev, e0, b0) => {
+    const z = st.zoom, px = ev.clientX, py = ev.clientY, o = msel().filter((x) => !x.e.lock).map((x) => ({ e: x.e, x: x.e.x, y: x.e.y })); let moved = false;
+    const mv = (m) => { const dx = (m.clientX - px) / (MMPX * z), dy = (m.clientY - py) / (MMPX * z); if (!moved && Math.abs(dx) + Math.abs(dy) < 0.5) return; if (!moved) { hist(true); moved = true; } o.forEach((q) => { q.e.x = r5(q.x + dx); q.e.y = r5(q.y + dy); place(q.e); }); };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (moved) { drawCanvas(); drawInsp(); } else { st.multi = []; st.sel = { b: b0.id, e: e0.id }; drawAll(); } };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  /* التحديد بالسحب على مساحة فارغة من القسم الحر */
+  const marquee = (ev, b, bn) => {
+    const r0 = bn.getBoundingClientRect(), k = MMPX * st.zoom, x0 = (ev.clientX - r0.left) / k, y0 = (ev.clientY - r0.top) / k, add = ev.shiftKey || ev.ctrlKey || ev.metaKey; let box = null, rect = null;
+    const mv = (m) => { const x1 = (m.clientX - r0.left) / k, y1 = (m.clientY - r0.top) / k; if (!box && Math.abs(x1 - x0) + Math.abs(y1 - y0) < 1.2) return; if (!box) { box = document.createElement('i'); box.className = 'vle-marq'; bn.appendChild(box); } rect = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) }; Object.assign(box.style, { left: `${rect.x}mm`, top: `${rect.y}mm`, width: `${rect.w}mm`, height: `${rect.h}mm` }); };
+    const up = () => {
+      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+      if (!box) { st.multi = []; st.sel = { b: b.id, e: null }; drawCanvas(); drawInsp(); drawRibbon(); return; }
+      box.remove();
+      const ids = (b.els || []).filter((e) => e.x < rect.x + rect.w && e.x + e.w > rect.x && e.y < rect.y + rect.h && e.y + (e.h || 0) > rect.y).map((e) => e.id);
+      const all = add ? [...new Set([...(st.multi.length ? st.multi : st.sel && st.sel.e ? [st.sel.e] : []), ...ids])] : ids;
+      if (!all.length) { st.multi = []; st.sel = { b: b.id, e: null }; drawAll(); return; }
+      const f = findEl(all[all.length - 1]); st.multi = all.length > 1 ? all : []; st.sel = { b: f.b.id, e: f.e.id }; st.cell = null; drawAll();
+    };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  /* مقابض الأعمدة والصفوف فوق الجدول المحدد، وفوق جدول التواقيع عند تحديد قسمه */
+  const gripHost = (host, tb, rows, cols, rtl, kind) => {
+    const hr = host.getBoundingClientRect(), k = hr.width / (host.offsetWidth || 1) || 1, t0 = tb.getBoundingClientRect();
+    let acc = 0, h = '';
+    for (let j = 0; j < cols.length - 1; j++) { acc += cols[j]; h += `<i class="vl-cg" data-cg="${j}" style="${rtl ? 'right' : 'left'}:${acc}%" title="اسحب لتغيير عرض العمودين المتجاورين"></i>`; }
+    rows.forEach((tr, i) => { const r = tr.getBoundingClientRect(); h += `<i class="vl-rg" data-rg="${i}" style="top:${(r.bottom - t0.top) / k}px" title="اسحب لتغيير ارتفاع الصف"></i>`; });
+    host.insertAdjacentHTML('beforeend', `<div class="vl-grips" data-gk="${kind}" style="left:${(t0.left - hr.left) / k - host.clientLeft}px;top:${(t0.top - hr.top) / k - host.clientTop}px;width:${t0.width / k}px;height:${t0.height / k}px">${h}</div>`);
+  };
+  const grips = (z) => {
+    if (ro || st.data || st.multi.length > 1) return;
+    const e = selE(), b = selB(); if (!b) return;
+    if (e && e.t === 'table' && !e.lock) { const n = z.querySelector(`[data-el="${e.id}"]`), tb = n && n.querySelector('table.vl-tbl'); if (!tb) return; const C = (e.tbl.rows[0] || []).length, cw = e.tbl.colW && e.tbl.colW.length === C ? e.tbl.colW : Array(C).fill(100 / Math.max(1, C)); gripHost(n, tb, [...tb.rows], cw, getComputedStyle(tb).direction === 'rtl', 'el'); return; }
+    if (!e && b.type === 'sigs' && (b.cfg || {}).layout !== 'boxes') { const n = z.querySelector(`[data-band="${b.id}"]`), tb = n && n.querySelector('table.vl-sigs'); if (!tb || !tb.tBodies[0]) return; gripHost(n, tb, [...tb.tBodies[0].rows], [...tb.querySelectorAll('colgroup col')].map((c) => parseFloat(c.style.width) || 0), getComputedStyle(tb).direction === 'rtl', 'sig'); }
+  };
+  const gripDrag = (ev, kind, idx, g) => {
+    const box = g.closest('.vl-grips'), sig = box && box.dataset.gk === 'sig', host = box && box.parentNode, e = sig ? null : selE(), b = selB();
+    const tb = host && host.querySelector(sig ? 'table.vl-sigs' : 'table.vl-tbl'); if (!tb || !b || (!sig && !e)) return;
+    const z = st.zoom, px = ev.clientX, py = ev.clientY, rtl = getComputedStyle(tb).direction === 'rtl', cols = [...tb.querySelectorAll('colgroup col')], w0 = cols.map((c) => parseFloat(c.style.width) || 0), k = tb.getBoundingClientRect().height / (tb.offsetHeight || 1) || z;
+    const tr = kind === 'r' ? (sig ? tb.tBodies[0].rows[idx] : tb.rows[idx]) : null, h0 = tr ? tr.getBoundingClientRect().height / k / MMPX : 0, g0 = parseFloat(g.style.top) || 0, totMM = tb.offsetWidth / MMPX;
+    if (kind === 'r' && !tr) return;
+    let moved = false, res = null; const lab = document.createElement('b'); lab.className = 'vl-glab';
+    const mv = (m) => {
+      const dx = (m.clientX - px) / (MMPX * z), dy = (m.clientY - py) / (MMPX * z);
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 0.3) return;
+      if (!moved) { moved = true; g.classList.add('on'); g.appendChild(lab); document.body.classList.add(kind === 'c' ? 'vle-colrs' : 'vle-rowrs'); }
+      if (kind === 'c') { const a = w0[idx], c = w0[idx + 1], sm = a + c, na = Math.max(2, Math.min(sm - 2, a + (dx / totMM) * 100 * (rtl ? -1 : 1))); cols[idx].style.width = `${na}%`; cols[idx + 1].style.width = `${sm - na}%`; g.style[rtl ? 'right' : 'left'] = `${w0.slice(0, idx).reduce((p, q) => p + q, 0) + na}%`; res = cols.map((x) => parseFloat(x.style.width) || 0); lab.textContent = `${fmtNum(Math.round((na * totMM) / 10) / 10)} | ${fmtNum(Math.round(((sm - na) * totMM) / 10) / 10)} مم`; }
+      else { const nh = Math.max(3, r5(h0 + dy)); tr.style.height = `${nh}mm`; g.style.top = `${g0 + (nh - h0) * MMPX}px`; res = nh; lab.textContent = `${fmtNum(nh)} مم`; }
+    };
+    const up = (u) => {
+      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); document.body.classList.remove('vle-colrs', 'vle-rowrs');
+      /* نقرة بلا سحب على المقبض: تحدد الخلية التي تحته */
+      if (!moved) { const c = !sig && document.elementsFromPoint(u.clientX, u.clientY).find((n) => n.matches && n.matches('[data-cell]')); if (c) { st.cell = c.dataset.cell.split(',').map(Number); drawCanvas(); drawInsp(); } return; }
+      if (res == null) return;
+      hist(true);
+      const sigCols = () => { const c = b.cfg = b.cfg || {}; return c.cols || (c.cols = VL_SIG_COLS.map(([kk, l]) => ({ k: kk, l, on: kk === 'date' ? 0 : 1 }))); };
+      if (kind === 'c') {
+        const sm = res.reduce((p, q) => p + q, 0) || 100, p = res.map((x) => Math.round((x / sm) * 10000) / 100);
+        if (!sig) e.tbl.colW = p;
+        else { const c = b.cfg = b.cfg || {}, roleOn = c.roleOn !== 0; if (c.layout === 'cols') { if (roleOn && idx === 0) c.roleP = Math.round(p[0] * 10) / 10; else UI.toast('في ترتيب «الأطراف أعمدة» تتساوى أعمدة الأطراف: غيّر عرض عمود الصفة، أو حوّل الجدول إلى جدول حر', 'info', 4500); } else { if (roleOn) c.roleP = Math.round(p[0] * 10) / 10; sigCols().filter((x) => x.on).forEach((x, i) => { x.w = Math.max(1, Math.round((p[i + (roleOn ? 1 : 0)] || 1) * 10) / 10); }); } }
+      } else if (!sig) { const T = e.tbl; T.rh = Array.from({ length: T.rows.length }, (_, i) => (T.rh && T.rh[i]) || null); T.rh[idx] = res; }
+      else { const c = b.cfg = b.cfg || {}, vis = sigCols().filter((x) => x.on), isSign = c.layout === 'cols' ? (vis[idx] || {}).k === 'sign' : vis.some((x) => x.k === 'sign'); if (isSign) { c.signH = res; if (res < (Number(c.rowH) || 11)) c.rowH = res; } else c.rowH = res; }
+      drawCanvas(); drawInsp();
+    };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  /* فصل الجدول إلى جدولين مستقلين من الصف أو العمود المحدد */
+  const splitTbl = (dir) => {
+    const e = selE(), b = selB(); if (!e || e.t !== 'table' || !b) return;
+    if (e.tbl.dyn) { UI.toast('الجدول المتمدد مع الأصناف لا يُفصل: ألغِ التمدد أولاً', 'warn'); return; }
+    const T = e.tbl, R = T.rows.length, C = T.rows[0].length, [ci, cj] = st.cell || [0, 0], at = dir === 'r' ? ci : cj;
+    if (at < 1) { UI.toast(dir === 'r' ? 'حدد خلية في الصف الذي يبدأ منه الجدول الثاني (غير الصف الأول)' : 'حدد خلية في العمود الذي يبدأ منه الجدول الثاني (غير العمود الأول)', 'info', 3500); return; }
+    hist(true);
+    const n = elNode(e.id), tb = n && n.querySelector('table.vl-tbl'), cw = T.colW && T.colW.length === C ? T.colW : Array(C).fill(100 / C);
+    const A = JSON.parse(JSON.stringify(e)), B = JSON.parse(JSON.stringify(e)); B.id = uid('ve'); B.z = Math.max(0, ...b.els.map((x) => x.z || 0)) + 1;
+    const part = (o, keep) => { const r = {}; Object.keys(o || {}).forEach((kk) => { const [i, j] = kk.split(',').map(Number), v = keep(i, j, o[kk]); if (v) r[`${v[0]},${v[1]}`] = v[2]; }); return r; };
+    const r1 = (v) => Math.round(v * 10) / 10;
+    if (dir === 'r') {
+      A.tbl.rows = T.rows.slice(0, at); B.tbl.rows = T.rows.slice(at);
+      A.tbl.span = part(T.span, (i, j, sp) => (i < at ? [i, j, [Math.min(sp[0], at - i), sp[1]]] : null)); B.tbl.span = part(T.span, (i, j, sp) => (i >= at ? [i - at, j, sp] : null));
+      A.tbl.cs = part(T.cs, (i, j, v) => (i < at ? [i, j, v] : null)); B.tbl.cs = part(T.cs, (i, j, v) => (i >= at ? [i - at, j, v] : null));
+      if (T.rh) { A.tbl.rh = T.rh.slice(0, at); B.tbl.rh = T.rh.slice(at); }
+      B.tbl.head = 0;
+      const topMM = tb && tb.rows[at] ? tb.rows[at].offsetTop / MMPX : (e.h * at) / R;
+      A.h = Math.max(3, r1(topMM)); B.h = Math.max(3, r1(e.h - topMM)); B.y = r1(e.y + topMM + 2);
+    } else {
+      const sA = cw.slice(0, at).reduce((p, q) => p + q, 0), sB = 100 - sA, rtl = tb ? getComputedStyle(tb).direction === 'rtl' : true;
+      A.tbl.rows = T.rows.map((r) => r.slice(0, at)); B.tbl.rows = T.rows.map((r) => r.slice(at));
+      A.tbl.colW = cw.slice(0, at).map((w) => (w / sA) * 100); B.tbl.colW = cw.slice(at).map((w) => (w / sB) * 100);
+      if (T.al) { A.tbl.al = T.al.slice(0, at); B.tbl.al = T.al.slice(at); }
+      A.tbl.span = part(T.span, (i, j, sp) => (j < at ? [i, j, [sp[0], Math.min(sp[1], at - j)]] : null)); B.tbl.span = part(T.span, (i, j, sp) => (j >= at ? [i, j - at, sp] : null));
+      A.tbl.cs = part(T.cs, (i, j, v) => (j < at ? [i, j, v] : null)); B.tbl.cs = part(T.cs, (i, j, v) => (j >= at ? [i, j - at, v] : null));
+      B.tbl.headCol = 0;
+      const wA = (e.w * sA) / 100, wB = e.w - wA;
+      A.w = r1(wA - 1); B.w = r1(wB - 1);
+      if (rtl) { B.x = e.x; A.x = r1(e.x + wB + 1); } else { A.x = e.x; B.x = r1(e.x + wA + 1); }
+    }
+    Object.assign(e, A); b.els.push(B);
+    if (B.y + B.h > b.h) b.h = Math.ceil(B.y + B.h + 2);
+    st.cell = null; st.multi = [e.id, B.id]; st.sel = { b: b.id, e: B.id }; drawAll();
+    UI.toast(dir === 'r' ? 'فُصل الجدول إلى جدولين: حرّك كلاً منهما أو غيّر حجمه وحده' : 'فُصل الجدول إلى جدولين متجاورين مستقلين', 'ok', 2600);
+  };
+  /* تقسيم الخلية: إن كانت مدموجة تُفصل خلية منها، وإلا يُضاف عمود (أو صف) بجوارها وتُدمج بقية خلايا العمود (أو الصف) معه فيبقى شكل الجدول */
+  const splitCell = (dir) => {
+    const e = selE(); if (!e || e.t !== 'table' || !st.cell) { UI.toast('حدد الخلية أولاً', 'info'); return false; }
+    const T = e.tbl, R = T.rows.length, C = T.rows[0].length, [ci, cj] = st.cell, k0 = `${ci},${cj}`; T.span = T.span || {}; T.cs = T.cs || {};
+    const sp = T.span[k0] || [1, 1];
+    hist(true);
+    if (dir === 'h' && sp[1] > 1) { const nc = sp[1] - 1; if (sp[0] === 1 && nc === 1) delete T.span[k0]; else T.span[k0] = [sp[0], nc]; if (sp[0] > 1) T.span[`${ci},${cj + nc}`] = [sp[0], 1]; return false; }
+    if (dir === 'v' && sp[0] > 1) { const nr = sp[0] - 1; if (sp[1] === 1 && nr === 1) delete T.span[k0]; else T.span[k0] = [nr, sp[1]]; if (sp[1] > 1) T.span[`${ci + nr},${cj}`] = [1, sp[1]]; return false; }
+    const cover = {}; Object.entries(T.span).forEach(([kk, [rs, cs]]) => { const [a, c] = kk.split(',').map(Number); for (let x = a; x < a + rs; x++) for (let y = c; y < c + cs; y++) cover[`${x},${y}`] = kk; });
+    const nsp = {}, ncs = {}, ext = new Set();
+    if (dir === 'h') {
+      const at = cj + 1; for (let i = 0; i < R; i++) { if (i >= ci && i < ci + sp[0]) continue; ext.add(cover[`${i},${cj}`] || `${i},${cj}`); }
+      T.rows.forEach((r) => r.splice(at, 0, '')); const cw = T.colW && T.colW.length === C ? T.colW.slice() : Array(C).fill(100 / C); cw.splice(cj, 1, cw[cj] / 2, cw[cj] / 2); T.colW = cw; if (T.al) T.al.splice(at, 0, T.al[cj] || '');
+      Object.entries(T.span).forEach(([kk, v]) => { const [i, j] = kk.split(',').map(Number); if (j >= at) nsp[`${i},${j + 1}`] = v; else if (ext.has(kk)) nsp[kk] = [v[0], v[1] + 1]; else nsp[kk] = v; });
+      ext.forEach((kk) => { if (!nsp[kk]) nsp[kk] = [1, 2]; }); if (sp[0] > 1) nsp[`${ci},${at}`] = [sp[0], 1];
+      Object.entries(T.cs).forEach(([kk, v]) => { const [i, j] = kk.split(',').map(Number); ncs[j >= at ? `${i},${j + 1}` : kk] = v; });
+    } else {
+      const at = ci + 1; for (let j = 0; j < C; j++) { if (j >= cj && j < cj + sp[1]) continue; ext.add(cover[`${ci},${j}`] || `${ci},${j}`); }
+      T.rows.splice(at, 0, Array(C).fill('')); if (T.rh) { const h = Number(T.rh[ci]) || 0; T.rh.splice(at, 0, h ? h / 2 : null); if (h) T.rh[ci] = h / 2; }
+      Object.entries(T.span).forEach(([kk, v]) => { const [i, j] = kk.split(',').map(Number); if (i >= at) nsp[`${i + 1},${j}`] = v; else if (ext.has(kk)) nsp[kk] = [v[0] + 1, v[1]]; else nsp[kk] = v; });
+      ext.forEach((kk) => { if (!nsp[kk]) nsp[kk] = [2, 1]; }); if (sp[1] > 1) nsp[`${at},${cj}`] = [1, sp[1]];
+      Object.entries(T.cs).forEach(([kk, v]) => { const [i, j] = kk.split(',').map(Number); ncs[i >= at ? `${i + 1},${j}` : kk] = v; });
+    }
+    T.span = nsp; T.cs = ncs; return dir === 'v';
+  };
+  /* إفلات مربع نص فوق خلية جدول في القسم نفسه: يأخذ مقاس الخلية ويُحصر نصه فيها */
+  const snapCell = (e, u) => {
+    const cell = document.elementsFromPoint(u.clientX, u.clientY).find((n) => n.matches && n.matches('[data-cell]') && !n.closest(`[data-el="${e.id}"]`)); if (!cell) return;
+    const f = findEl(e.id), bn = cell.closest('[data-band]'); if (!f || !bn || bn.dataset.band !== f.b.id) return;
+    const k = MMPX * st.zoom, br = bn.getBoundingClientRect(), cr = cell.getBoundingClientRect(), r1 = (v) => Math.round(v * 10) / 10;
+    e.x = r1((cr.left - br.left) / k + 0.4); e.y = r1((cr.top - br.top) / k + 0.3); e.w = Math.max(3, r1(cr.width / k - 0.8)); e.h = Math.max(3, r1(cr.height / k - 0.6));
+    const fresh = !e.fit; if (fresh) e.fit = 'shrink';
+    UI.toast(`ثُبّت المربع على خانة الجدول${fresh ? '، ويصغر خطه إن طال النص' : ''} — اسحب مع Alt لتحريكه بلا التقاط`, 'info', 3200);
+  };
+  const multiInsp = (mm) => {
+    const cnt = {}; mm.forEach(({ e }) => { cnt[e.t] = (cnt[e.t] || 0) + 1; });
+    const texts = mm.filter(({ e }) => e.t === 'text'), f0 = texts.length && texts.every(({ e }) => (e.fit || '') === (texts[0].e.fit || '')) ? texts[0].e.fit || '' : null, cl = clipGet();
+    return html`<div class="vle-ih">${UI.icon('layers')}<b>تحديد متعدد: ${fmtNum(mm.length)} عناصر</b><span class="grow"></span><button type="button" class="icon-btn" data-rb="cb:copy" title="نسخ (Ctrl+C)">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-rb="ar:dup" title="تكرار (Ctrl+D)">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-rb="ar:del" title="حذف (Delete)">${UI.icon('trash')}</button></div>
+      <p class="faint small vle-mcnt">${Object.entries(cnt).map(([t, n]) => `${VL_EL_TYPES[t] ? VL_EL_TYPES[t][0] : t}: ${fmtNum(n)}`).join(' · ')}</p>
+      ${sec('mclip', 'النسخ واللصق بين الاستمارات', 'copy', html`<div class="vle-tbtn"><button type="button" class="btn btn-sm btn-soft" data-rb="cb:copy">${UI.icon('copy')} نسخ</button><button type="button" class="btn btn-sm btn-soft" data-rb="cb:cut">${UI.icon('scissors')} قص</button><button type="button" class="btn btn-sm btn-ghost" data-rb="cb:paste"${cl ? '' : raw(' disabled')}>${UI.icon('clipboard')} لصق</button></div><p class="faint small">انسخ ثم افتح أي قالب آخر من القائمة أعلى الصفحة والصق بـCtrl+V: تنتقل العناصر بمواضعها ومقاساتها وخطوطها وألوانها. Shift+نقرة تضيف عنصراً أو تزيله، والسحب على مساحة فارغة يحدد مجموعة، وCtrl+A يحدد كل عناصر القسم.</p>`, true)}
+      ${sec('malign', 'محاذاة المجموعة وتوزيعها', 'grid', html`<div class="vle-tbtn">${[['r', 'يمين'], ['c', 'وسط أفقي'], ['l', 'يسار'], ['t', 'أعلى'], ['m', 'وسط عمودي'], ['b', 'أسفل'], ['dh', 'توزيع أفقي متساوٍ'], ['dv', 'توزيع عمودي متساوٍ'], ['sw', 'عرض واحد'], ['sh', 'ارتفاع واحد']].map(([k, l]) => html`<button type="button" class="btn btn-sm btn-soft" data-mal="${k}">${l}</button>`)}</div><p class="faint small">«عرض واحد» و«ارتفاع واحد» بمقاس آخر عنصر حددته. ويُطبَّق الخط والمحاذاة واللون من الشريط أعلاه على كل المحدد معاً.</p>`, true)}
+      ${texts.length ? sec('mfit', `النص الطويل في ${fmtNum(texts.length)} مربع نص`, 'layers', html`<div class="vle-fitg">${VLFIT.map(([v, l, d]) => html`<label class="vle-fitc"><input type="radio" name="mfit" data-mfit value="${v}"${f0 === v ? raw(' checked') : ''}><b>${l}</b><small>${d}</small></label>`)}</div>`, true) : ''}`;
+  };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { try { if (ctx.alive() && $v('.vle-zoom .vl-fit-shrink, .vle-zoom .vl-fit-line, .vle-zoom [data-fit="line"]')) drawCanvas(); } catch (_) { /* تجاهل */ } });
   ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'تصميم الاستمارات الرسمية', sub: 'محرر حر شبيه بالوورد: مربعات نص بخطوطها وألوانها، صور وشعارات، جداول، خطوط وإطارات تُسحب وتُنسخ وتُعدَّل — والبيانات تُملأ تلقائياً عند الطباعة', illu: 'stamp' })}
     <div class="vle-wrap"><div class="vle-top"></div><div class="vle-ribbon"></div>
       <div class="vle"><aside class="vle-insp"></aside><main class="vle-stage"><div class="vle-sizer"><div class="vle-zoom"></div></div></main></div></div>`);
@@ -16195,6 +16483,8 @@ Pages.voucherDesigner = async (ctx) => {
     const cv = t.closest('[data-conv]'); if (cv) { const b = selB(); if (!b || b.type === 'free') return; if (!(await UI.confirm(`تحويل «${b.name || VL_BAND_TYPES[b.type][0]}» إلى عناصر حرة؟ ستعدّل كل نص وخلية ولون وموضع فيه بحرية، والبيانات تبقى تُملأ تلقائياً. يمكنك التراجع بـCtrl+Z.`, { ok: 'تحويل', icon: 'layers' }))) return; hist(true); const nb = VL.toFree(b, L()); L().bands.splice(L().bands.indexOf(b), 1, ...nb); st.sel = { b: nb[0].id, e: ((nb[0].els || []).find((x) => x.t === 'table') || nb[0].els[0] || {}).id || null }; st.cell = null; drawAll(); UI.toast('أصبح القسم عناصر حرة: عدّل أي شيء فيه'); return; }
     if (t.closest('[data-convall]')) { const n = L().bands.filter((x) => x.type !== 'free').length; if (!n) return; if (!(await UI.confirm(`تحويل ${fmtNum(n)} من الأقسام الثابتة إلى عناصر حرة؟ يصبح كل نص وخلية وإطار في الاستمارة قابلاً للتعديل والتحريك والحذف. يمكنك التراجع بـCtrl+Z.`, { ok: 'تحويل الكل', icon: 'layers' }))) return; hist(true); VL.allFree(L()); st.sel = null; st.cell = null; drawAll(); UI.toast('أصبح القالب كله عناصر حرة'); return; }
     const dyb = t.closest('[data-dyn]'); if (dyb && !dyb.closest('.vle-zoom')) { const e = selE(); if (!e || e.t !== 'table') return; hist(true); if (dyb.dataset.dyn === 'off') delete e.tbl.dyn; else { const R = e.tbl.rows.length, r = st.cell ? st.cell[0] + 1 : R, lo = e.tbl.head && R > 1 ? 2 : 1, rr = Math.max(lo, r); e.tbl.dyn = { src: dyb.dataset.dyn === 'facts' ? 'facts' : 'items', r1: rr, r2: rr, per: 1, minRows: 0 }; } drawCanvas(); drawInsp(); return; }
+    const ma = t.closest('[data-mal]'); if (ma) { groupAlign(ma.dataset.mal); return; }
+    const tbx = t.closest('[data-tb]'); if (tbx && ['sT', 'sC', 'cH', 'cV', 'rhX'].includes(tbx.dataset.tb)) { const op = tbx.dataset.tb, e0 = selE(); if (op === 'sT' || op === 'sC') { splitTbl(op === 'sT' ? 'r' : 'c'); return; } if (op === 'rhX') { if (e0 && e0.tbl) { hist(true); delete e0.tbl.rh; drawCanvas(); drawInsp(); } return; } const ci0 = st.cell ? st.cell[0] + 1 : 0, ins = splitCell(op === 'cH' ? 'h' : 'v'); if (ins && e0 && e0.tbl && e0.tbl.dyn) VL.dynShift(e0.tbl.dyn, 'rowB', ci0, e0.tbl); drawCanvas(); drawInsp(); return; }
     const tb = t.closest('[data-tb]'); if (tb) { const e0 = selE(), dn = e0 && e0.tbl && e0.tbl.dyn, ci0 = st.cell ? st.cell[0] + 1 : e0 && e0.tbl ? e0.tbl.rows.length : 0; tblOp(tb.dataset.tb); if (dn && e0.tbl.dyn) { VL.dynShift(e0.tbl.dyn, tb.dataset.tb, ci0, e0.tbl); drawCanvas(); drawInsp(); } return; }
     if (t.closest('[data-sig2tbl]')) { if (await UI.confirm('تحويل جدول التواقيع إلى جدول حر؟ ستتحكم في كل خلية، ويمكنك التراجع بـCtrl+Z.', { ok: 'تحويل', icon: 'list' })) sigsToFree(); return; }
     const ib = t.closest('[data-imgbg]'); if (ib) { const e = selE(); if (!e || !e.src || e.src === 'logo') { UI.toast('ارفع صورة أولاً (شعار النظام شفاف أصلاً)', 'info'); return; } try { const r = await VFU.whiteToAlpha(e.src); hist(true); e.src = r; drawCanvas(); drawInsp(); UI.toast('أُزيلت الخلفية البيضاء من الصورة'); } catch (err) { UI.error(err); } return; }
@@ -16206,7 +16496,7 @@ Pages.voucherDesigner = async (ctx) => {
   view.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.matches('[data-k^="E.tbl.dyn."]')) { drawCanvas(); drawInsp(); }
-    if (t.matches('[data-tpl]')) { st.id = t.value; st.sel = null; st.zoom = 0; st.undo = []; st.redo = []; drawAll(); return; }
+    if (t.matches('[data-tpl]')) { st.id = t.value; st.sel = null; st.multi = []; st.cell = null; st.zoom = 0; st.undo = []; st.redo = []; drawAll(); return; }
     if (t.matches('[data-kind]')) { st.kind = t.value; drawCanvas(); drawInsp(); return; }
     if (t.matches('[data-n]')) { st.n = Number(t.value); drawCanvas(); return; }
     if (t.matches('[data-moveto]') && t.value) { const b = selB(), e = selE(), tb = band(t.value); hist(true); b.els = b.els.filter((x) => x.id !== e.id); e.y = 0; tb.els.push(e); st.sel = { b: tb.id, e: e.id }; drawAll(); return; }
@@ -16216,7 +16506,9 @@ Pages.voucherDesigner = async (ctx) => {
       else { const k = t.dataset.kd.split('|')[1]; o.kinds = (o.kinds || []).filter((x) => x !== k).concat(t.checked ? [k] : []); }
       drawCanvas(); drawInsp(); return;
     }
-    if (t.matches('[data-rs]')) { const e = selE(); if (!e) return; hist(true); e.s = e.s || {}; const k = t.dataset.rs; e.s[k] = ['size', 'bw'].includes(k) ? Number(t.value) || '' : t.value; drawCanvas(); drawInsp(); drawRibbon(); return; }
+    if (t.matches('[data-rhv]')) { const e = selE(); if (!e || !e.tbl) return; hist(true); const T = e.tbl, i = Number(t.dataset.rhv), v = Number(t.value) || 0; T.rh = Array.from({ length: T.rows.length }, (_, j) => (T.rh && T.rh[j]) || null); T.rh[i] = v ? Math.max(2, v) : null; if (!T.rh.some(Boolean)) delete T.rh; drawCanvas(); drawInsp(); return; }
+    if (t.matches('[data-mfit]')) { hist(true); msel().forEach(({ e }) => { if (e.t === 'text') e.fit = t.value; }); drawCanvas(); return; }
+    if (t.matches('[data-rs]')) { const e = selE(); if (!e) return; hist(true); const k = t.dataset.rs, v = ['size', 'bw'].includes(k) ? Number(t.value) || '' : t.value; (st.multi.length > 1 ? msel().map((x) => x.e) : [e]).forEach((x) => { x.s = x.s || {}; x.s[k] = v; }); drawCanvas(); drawInsp(); drawRibbon(); return; }
     if (t.matches('[data-cw]') || t.matches('[data-cal]')) { const e = selE(); hist(true); const C = e.tbl.rows[0].length; if (t.dataset.cw != null) { e.tbl.colW = e.tbl.colW && e.tbl.colW.length === C ? e.tbl.colW : Array(C).fill(100 / C); e.tbl.colW[Number(t.dataset.cw)] = Math.max(3, Number(t.value) || 10); const s = e.tbl.colW.reduce((a, b) => a + b, 0); e.tbl.colW = e.tbl.colW.map((w) => (w / s) * 100); } else { e.tbl.al = e.tbl.al || Array(C).fill(''); e.tbl.al[Number(t.dataset.cal)] = t.value; } drawCanvas(); drawInsp(); }
   });
   view.addEventListener('input', (ev) => {
@@ -16238,11 +16530,16 @@ Pages.voucherDesigner = async (ctx) => {
     if (t.closest('[contenteditable="true"],[contenteditable="plaintext-only"]')) return;
     const hd = t.closest('[data-h]'), bh = t.closest('[data-bh]'), en = t.closest('[data-el]'), bn = t.closest('[data-band]');
     if (ro) { if (en) { st.sel = { b: bn.dataset.band, e: en.dataset.el }; drawAll(); } return; }
+    const gp = t.closest('[data-cg],[data-rg]'); if (gp) { ev.preventDefault(); ev.stopPropagation(); gripDrag(ev, gp.dataset.cg != null ? 'c' : 'r', Number(gp.dataset.cg != null ? gp.dataset.cg : gp.dataset.rg), gp); return; }
     if (hd) { ev.preventDefault(); const e = selE(); if (e && !(st.data && VL.flowy(selB()))) dragEl(ev, e, selB(), hd.dataset.h); return; }
     if (bh) { ev.preventDefault(); const b = band(bh.closest('[data-band]').dataset.band); st.sel = { b: b.id, e: null }; drawInsp(); dragBand(ev, b); return; }
     if (en) {
       ev.preventDefault();
       const b = band(bn.dataset.band), e = (b.els || []).find((x) => x.id === en.dataset.el);
+      /* Shift أو Ctrl مع النقر: إضافة العنصر إلى التحديد أو إزالته منه */
+      if (ev.shiftKey || ev.ctrlKey || ev.metaKey) { let m = st.multi.length ? st.multi.slice() : st.sel && st.sel.e ? [st.sel.e] : []; m = m.includes(e.id) ? m.filter((x) => x !== e.id) : m.concat(e.id); const f = m.length ? findEl(m[m.length - 1]) : null; st.multi = m.length > 1 ? m : []; st.sel = f ? { b: f.b.id, e: f.e.id } : { b: b.id, e: null }; st.cell = null; drawAll(); return; }
+      if (st.multi.length > 1 && st.multi.includes(e.id)) { if (!(st.data && VL.flowy(b))) groupDrag(ev, e, b); return; }
+      st.multi = [];
       const cell = t.closest('[data-cell]');
       if (cell && e.t === 'table') st.cell = cell.dataset.cell.split(',').map(Number);
       const was = st.sel && st.sel.e === e.id;
@@ -16251,8 +16548,8 @@ Pages.voucherDesigner = async (ctx) => {
       if (!e.lock && !(st.data && VL.flowy(b))) dragEl(ev, e, b, 'move'); else if (st.data && VL.flowy(b) && !st._flowTip) { st._flowTip = 1; UI.toast('في «معاينة بالبيانات» يتمدد الجدول ويدفع ما تحته كما في الطباعة. للتحريك ارجع إلى «إظهار أسماء الحقول»', 'info', 5000); }
       return;
     }
-    if (bn) { st.sel = { b: bn.dataset.band, e: null }; drawCanvas(); drawInsp(); drawRibbon(); return; }
-    if (t.closest('.vl-page')) { st.sel = null; drawCanvas(); drawInsp(); drawRibbon(); }
+    if (bn) { const b = band(bn.dataset.band); if (b && b.type === 'free' && !(st.data && VL.flowy(b))) { ev.preventDefault(); marquee(ev, b, bn); return; } st.multi = []; st.sel = { b: bn.dataset.band, e: null }; drawCanvas(); drawInsp(); drawRibbon(); return; }
+    if (t.closest('.vl-page')) { st.sel = null; st.multi = []; drawCanvas(); drawInsp(); drawRibbon(); }
   });
   stage.addEventListener('dblclick', (ev) => {
     if (ro) return;
@@ -16265,32 +16562,57 @@ Pages.voucherDesigner = async (ctx) => {
   /* ── لوحة المفاتيح ── */
   const onKey = (ev) => {
     if (!ctx.alive() || document.querySelector('dialog[open]')) return;
-    const tag = (ev.target.tagName || '').toLowerCase(), typing = ['input', 'textarea', 'select'].includes(tag) || ev.target.isContentEditable;
-    const mod = ev.ctrlKey || ev.metaKey, key = ev.key.toLowerCase();
-    if (mod && key === 's') { ev.preventDefault(); ev.stopPropagation(); if (!ro) saveAll().then(drawTop).catch(UI.error); return; }
-    if (typing || ro) return;
-    const e = selE(), b = selB();
-    if (mod && (key === 'z' || key === 'ي')) { ev.preventDefault(); ev.stopPropagation(); if (ev.shiftKey) redo(); else undo(); return; }
-    if (mod && (key === 'y' || key === 'غ')) { ev.preventDefault(); ev.stopPropagation(); redo(); return; }
-    if (mod && key === 'c' && e) { ev.preventDefault(); st.clip = JSON.stringify(e); try { localStorage.setItem('sq_vle_clip', st.clip); } catch (_) { /* تجاهل */ } UI.toast('نُسخ العنصر', 'ok', 1200); return; }
-    if (mod && key === 'x' && e) { ev.preventDefault(); st.clip = JSON.stringify(e); hist(true); b.els = b.els.filter((x) => x.id !== e.id); st.sel = { b: b.id, e: null }; drawAll(); return; }
-    if (mod && key === 'v') { let c = st.clip; try { c = c || localStorage.getItem('sq_vle_clip'); } catch (_) { /* تجاهل */ } if (!c) return; ev.preventDefault(); hist(true); const tb = freeBand(), el = JSON.parse(c); el.id = uid('ve'); el.x += 3; el.y += 3; el.z = Math.max(0, ...(tb.els || []).map((x) => x.z || 0)) + 1; tb.els.push(el); st.clip = JSON.stringify(el); st.sel = { b: tb.id, e: el.id }; drawAll(); return; }
-    if (mod && key === 'd' && e) { ev.preventDefault(); ev.stopPropagation(); ribbon('ar:dup'); return; }
-    if (mod && ['b', 'i', 'u'].includes(key) && e) { ev.preventDefault(); ribbon(`st:${{ b: 'bold', i: 'italic', u: 'underline' }[key]}`); return; }
-    if ((ev.key === 'Delete' || ev.key === 'Backspace') && e) { ev.preventDefault(); ev.stopPropagation(); ribbon('ar:del'); return; }
-    if (ev.key === 'Escape') { st.sel = null; drawAll(); return; }
-    if (ev.key === 'Enter' && e && e.t === 'text') { ev.preventDefault(); editText(e); return; }
-    if (e && !e.lock && ev.key.startsWith('Arrow')) {
-      ev.preventDefault(); ev.stopPropagation(); hist(); const s = ev.shiftKey ? 5 : ev.altKey ? 0.1 : 0.5;
-      if (ev.key === 'ArrowLeft') e.x -= s; if (ev.key === 'ArrowRight') e.x += s; if (ev.key === 'ArrowUp') e.y -= s; if (ev.key === 'ArrowDown') e.y += s;
-      e.x = Math.round(e.x * 10) / 10; e.y = Math.round(e.y * 10) / 10; place(e); clearTimeout(st._ak); st._ak = setTimeout(drawInsp, 250);
+    const tg = ev.target, tag = (tg.tagName || '').toLowerCase(), ty = String(tg.type || '').toLowerCase();
+    /* الكتابة الفعلية (حقل نص، فقرة، تحرير مباشر) تحتفظ بتراجعها؛ أما الأرقام والقوائم والألوان والخانات فالتراجع فيها تراجع للتصميم */
+    const texty = tag === 'textarea' || tg.isContentEditable || (tag === 'input' && !['number', 'range', 'color', 'checkbox', 'radio', 'button', 'submit', 'file'].includes(ty));
+    const typing = texty || ['input', 'select'].includes(tag);
+    /* بموضع المفتاح (ev.code) لا بالحرف: Ctrl+Z وCtrl+C وغيرها تعمل ولوحة المفاتيح عربية */
+    const mod = ev.ctrlKey || ev.metaKey, code = ev.code || '', key = String(ev.key || '').toLowerCase();
+    const K = (l) => (code ? code === `Key${l}` : key === l.toLowerCase());
+    if (mod && K('S')) { ev.preventDefault(); ev.stopPropagation(); if (!ro) saveAll().then(drawTop).catch(UI.error); return; }
+    if (ro) return;
+    if (mod && !ev.altKey && (K('Z') || K('Y')) && !texty) { ev.preventDefault(); ev.stopPropagation(); if (typing && tg.blur) tg.blur(); if (K('Y') || ev.shiftKey) redo(); else undo(); return; }
+    if (typing) return;
+    const e = selE(), many = msel();
+    if (mod && K('A')) { ev.preventDefault(); selectAll(); return; }
+    if (mod && (K('C') || K('X'))) { if (copySel(K('X'))) st._copiedAt = Date.now(); return; } /* بلا منع: يطلق المتصفح حدث النسخ فنكتب نصها في حافظة الجهاز أيضاً */
+    if (mod && K('V')) { clearTimeout(st._pv); st._pv = setTimeout(() => pasteClip(), 160); return; } /* حدث اللصق يقرر: عناصرنا أم نص أو صورة من خارج المحرر */
+    if (mod && K('D') && many.length) { ev.preventDefault(); ev.stopPropagation(); dupSel(); return; }
+    const bi = ['B', 'I', 'U'].find((l) => K(l)); if (mod && bi && e) { ev.preventDefault(); ribbon(`st:${{ B: 'bold', I: 'italic', U: 'underline' }[bi]}`); return; }
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && many.length) { ev.preventDefault(); ev.stopPropagation(); delSel(); return; }
+    if (ev.key === 'Escape') { st.sel = null; st.multi = []; drawAll(); return; }
+    if (ev.key === 'Enter' && e && e.t === 'text' && many.length < 2) { ev.preventDefault(); editText(e); return; }
+    if (many.length && ev.key.startsWith('Arrow')) {
+      const mvs = many.filter((x) => !x.e.lock); if (!mvs.length) return;
+      ev.preventDefault(); ev.stopPropagation(); hist(); const s2 = ev.shiftKey ? 5 : ev.altKey ? 0.1 : 0.5;
+      mvs.forEach(({ e: x }) => { if (ev.key === 'ArrowLeft') x.x -= s2; if (ev.key === 'ArrowRight') x.x += s2; if (ev.key === 'ArrowUp') x.y -= s2; if (ev.key === 'ArrowDown') x.y += s2; x.x = Math.round(x.x * 10) / 10; x.y = Math.round(x.y * 10) / 10; place(x); });
+      clearTimeout(st._ak); st._ak = setTimeout(drawInsp, 250);
     }
   };
-  document.addEventListener('keydown', onKey, true);
+  /* النسخ: إلى جانب حافظة المحرر يُكتب نص العناصر في حافظة الجهاز، فيُعرف عند اللصق أن الحافظة لم تتغير */
+  const onCopy = (ev) => {
+    if (!ctx.alive() || !st._copiedAt || Date.now() - st._copiedAt > 1500 || !ev.clipboardData) return;
+    const tg = ev.target, tag = (tg.tagName || '').toLowerCase(); if (['input', 'textarea'].includes(tag) || tg.isContentEditable) return;
+    const c = clipGet(); if (!c) return;
+    const txt = st.clipTxt || `[${c.kind === 'band' ? 'قسم' : `${fmtNum((c.els || []).length)} عنصر`} من محرر الاستمارات]`;
+    try { ev.clipboardData.setData('text/plain', txt); ev.preventDefault(); clipSet({ ...c, sys: 1, sysTxt: txt }); } catch (_) { /* تجاهل */ }
+  };
+  const onPaste = (ev) => {
+    if (!ctx.alive() || ro || document.querySelector('dialog[open]')) return;
+    const tg = ev.target, tag = (tg.tagName || '').toLowerCase(); if (['input', 'textarea', 'select'].includes(tag) || tg.isContentEditable) return;
+    clearTimeout(st._pv); ev.preventDefault();
+    const dt = ev.clipboardData, txt = dt ? String(dt.getData('text/plain') || '').replace(/\r/g, '').trim() : '', img = !!dt && [...(dt.items || [])].some((i) => i.kind === 'file' && /^image\//.test(i.type));
+    const mine = clipGet();
+    /* ما نُسخ من المحرر يُلصق عناصر كاملة. وإن تأكدنا أن حافظة الجهاز تغيرت بعده (نص آخر أو صورة) يُلصق ما فيها */
+    const ext = (txt || img) && (!mine || (mine.sys && (img || txt !== String(mine.sysTxt || '').trim())));
+    if (ext) { pasteExt(dt).catch(UI.error); return; }
+    pasteClip();
+  };
+  document.addEventListener('keydown', onKey, true); document.addEventListener('copy', onCopy, true); document.addEventListener('paste', onPaste, true);
   const leave = (ev) => { if (st.dirty) { ev.preventDefault(); ev.returnValue = ''; } };
   window.addEventListener('beforeunload', leave);
   const onR = debounce(() => { st.zoom = st.zoom || 0; fit(); }, 150); window.addEventListener('resize', onR);
-  ctx.onCleanup(() => { document.removeEventListener('keydown', onKey, true); window.removeEventListener('beforeunload', leave); window.removeEventListener('resize', onR); $$('.vle-menu').forEach((m) => m.remove()); if (st.dirty) setTimeout(() => UI.toast('لم تُحفظ تعديلات القوالب الأخيرة', 'warn'), 300); });
+  ctx.onCleanup(() => { document.removeEventListener('keydown', onKey, true); document.removeEventListener('copy', onCopy, true); document.removeEventListener('paste', onPaste, true); clearTimeout(st._pv); window.removeEventListener('beforeunload', leave); window.removeEventListener('resize', onR); $$('.vle-menu').forEach((m) => m.remove()); if (st.dirty) setTimeout(() => UI.toast('لم تُحفظ تعديلات القوالب الأخيرة', 'warn'), 300); });
 };
 Router.add('/voucher-designer', 'vouchers.design', Pages.voucherDesigner, 'تصميم الاستمارات الرسمية');
 
@@ -17284,13 +17606,13 @@ VL.dynTable = (e, d, F, opt, place) => {
   const cw = T.colW && T.colW.length === C ? T.colW : Array(C).fill(100 / Math.max(1, C));
   const bd = `${T.bw != null ? T.bw : 0.3}mm ${T.bs || 'solid'} ${T.bc || '#555'}`, selC = edit && opt.sel === e.id && opt.cell ? opt.cell.join(',') : '';
   const Fd = design ? { ...F, ...Object.fromEntries([...VL_ITEM_TOKS, ...VL_FACT_TOKS].map((k) => [k, ''])) } : F;
-  const rowHtml = (o) => `<tr${design && o.rep >= 0 ? ' class="vl-rep"' : ''} style="${T.rowH ? `height:${T.rowH}mm` : ''}">${(T.rows[o.orig] || []).map((c, j) => {
+  const rowHtml = (o) => `<tr${design && o.rep >= 0 ? ' class="vl-rep"' : ''} style="${VL.rowH(T, o.orig)}">${(T.rows[o.orig] || []).map((c, j) => {
     const key = `${o.ni},${j}`; if (cov.has(key)) return '';
     const ok = `${o.orig},${j}`, head = (T.head && o.orig === 0) || (T.headCol && j === 0), tag = head ? 'th' : 'td', sp = nSpan[key], x = CS[ok] || {};
     const bg = x.bg ? `background:${x.bg}` : head ? `background:${T.hbg || '#f1ede3'};color:${T.hc || 'inherit'}` : T.zebra && o.ni % 2 === 0 ? 'background:rgba(0,0,0,.035)' : '';
     let Fx = Fd;
     if (!design && o.rep >= 0) { const ri = o.rep * per + (per > 1 ? Math.floor((j * per) / Math.max(1, C)) : 0); Fx = { ...F, ...(src === 'facts' ? VL.factTok(recs[ri]) : VL.itemTok(recs[ri], ri)) }; }
-    return `<${tag} data-cell="${ok}"${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${design && selC === ok ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}">${VL.tx(c, Fx, mode)}</${tag}>`;
+    return `<${tag} data-cell="${ok}"${VL.cfit(x, T) ? ` data-fit="${VL.cfit(x, T)}"` : ''}${sp && sp[0] > 1 ? ` rowspan="${sp[0]}"` : ''}${sp && sp[1] > 1 ? ` colspan="${sp[1]}"` : ''}${design && selC === ok ? ' class="vl-csel"' : ''} style="border:${bd};padding:${T.pad != null ? T.pad : 1.2}mm;${bg};text-align:${x.al || (T.al || [])[j] || s.align || 'right'};${x.color ? `color:${x.color};` : ''}${x.b === 1 ? 'font-weight:700;' : x.b === 0 ? 'font-weight:400;' : ''}${x.va ? `vertical-align:${x.va};` : ''}${x.fs ? `font-size:${x.fs}pt;` : ''}${VL.cfit(x, T) ? `white-space:nowrap;overflow:hidden;text-overflow:${VL.cfit(x, T) === 'ell' ? 'ellipsis' : 'clip'};` : ''}">${VL.tx(c, Fx, mode)}</${tag}>`;
   }).join('')}</tr>`;
   const hRows = out.filter((o) => o.orig < r1), bRows = out.filter((o) => o.orig >= r1);
   const inner = `<table class="vl-tbl" style="${VL.font(s)}"><colgroup>${cw.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>${hRows.length ? `<thead>${hRows.map(rowHtml).join('')}</thead>` : ''}<tbody>${bRows.map(rowHtml).join('')}</tbody></table>`;

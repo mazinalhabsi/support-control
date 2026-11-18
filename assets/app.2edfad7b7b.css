@@ -7615,3 +7615,32 @@ td .brw-prn{margin-top:2px}
 .ink-sync{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .ink-sync small{display:block;color:var(--ink-3)}
 .ink-prns{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:12.5px}
+
+/* ══ الجولة 48: محرر الاستمارات — نص محصور، تحديد متعدد، مقابض الجداول ══ */
+.vl-fit-clip>.vl-tx,.vl-fit-shrink>.vl-tx,.vl-fit-line>.vl-tx,.vl-fit-ell>.vl-tx{overflow:hidden}
+.vl-fit-line>.vl-tx,.vl-fit-ell>.vl-tx{white-space:nowrap;word-break:normal}
+.vl-fit-line .vl-txi,.vl-fit-ell .vl-txi{white-space:nowrap}
+.vl-fit-ell .vl-txi{overflow:hidden;text-overflow:ellipsis}
+.vl-fit-line .vl-txi br,.vl-fit-ell .vl-txi br{display:none}
+.vl-el.vl-msel{outline:1.6px dashed #1d4ed8;outline-offset:.2mm;background-color:rgba(29,78,216,.045)}
+.vle-marq{position:absolute;border:1px dashed #1d4ed8;background:rgba(29,78,216,.08);z-index:60;pointer-events:none;border-radius:2px}
+.vl-grips{position:absolute;pointer-events:none;z-index:45}
+.vl-cg{position:absolute;top:-2.2mm;bottom:-2.2mm;width:7px;margin-inline-start:-3.5px;cursor:col-resize;pointer-events:auto}
+.vl-cg::after{content:"";position:absolute;top:0;bottom:0;left:2.5px;right:2.5px;background:#1d4ed8;opacity:.32;border-radius:3px;transition:opacity .12s}
+.vl-rg{position:absolute;left:-2.2mm;right:-2.2mm;height:7px;margin-top:-3.5px;cursor:row-resize;pointer-events:auto}
+.vl-rg::after{content:"";position:absolute;left:0;right:0;top:2.5px;bottom:2.5px;background:#0f766e;opacity:.3;border-radius:3px;transition:opacity .12s}
+.vl-cg:hover::after,.vl-cg.on::after,.vl-rg:hover::after,.vl-rg.on::after{opacity:1}
+.vl-glab{position:absolute;top:-7mm;inset-inline-start:0;background:#111827;color:#fff;font:600 11px/1.5 system-ui,sans-serif;padding:1px 7px;border-radius:6px;white-space:nowrap;pointer-events:none;direction:rtl}
+.vl-rg .vl-glab{top:-6mm;inset-inline-start:50%}
+body.vle-colrs,body.vle-colrs *{cursor:col-resize!important;user-select:none}
+body.vle-rowrs,body.vle-rowrs *{cursor:row-resize!important;user-select:none}
+.vle-clipn{font-style:normal;background:#1d4ed8;color:#fff;border-radius:999px;padding:0 6px;font-size:10px;line-height:15px;display:inline-block;margin-inline-start:3px;vertical-align:1px}
+.vle-fitg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.vle-fitc{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:9px;padding:7px 9px;cursor:pointer;position:relative;background:var(--surface-2)}
+.vle-fitc input{position:absolute;opacity:0;pointer-events:none}
+.vle-fitc b{font-size:12.5px}
+.vle-fitc small{font-size:11px;color:var(--ink-3);line-height:1.45}
+.vle-fitc:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.vle-griphint{display:flex;gap:5px;align-items:flex-start;margin-top:6px}
+.vle-griphint .ic{width:14px;height:14px;flex:none;margin-top:2px}
+.vle-mcnt{margin:-2px 0 8px}
