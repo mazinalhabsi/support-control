@@ -7395,3 +7395,11 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lv-gcard em{font-style:normal;font-size:11px;font-weight:700;color:rgb(var(--accent-ink))}
 .lv-gcard.neg em{color:rgb(var(--red))}
 .lv-gcard.none{border-style:dashed}
+
+/* الجولة 44: تقويم الخطة من الشهر الحالي */
+.lp-mnav .lp-mstep{display:inline-grid;place-items:center;width:32px;padding:0}
+.lp-mnav .lp-mstep .ic{width:15px;height:15px}
+.lp-mnav .lp-mstep[disabled]{opacity:.35;cursor:default}
+.lp-mnav .lp-mpast{display:inline-flex;align-items:center;gap:5px;border-style:dashed!important;color:var(--ink-3)}
+.lp-mnav .lp-mpast .ic{width:13px;height:13px}
+.lp-mnav .lp-mold{opacity:.7}
