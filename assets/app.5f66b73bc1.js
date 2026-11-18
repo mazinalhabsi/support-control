@@ -2534,7 +2534,7 @@ Pages.ticket = async (ctx) => {
     if (a === 'send') { const box = $('#cmt', view), internal = $('#internal', view); if (!box.value.trim()) { box.focus(); return; } UI.busy(el, true); try { await Data.tickets.comment(id, box.value, !!(internal && internal.checked)); UI.toast('تم إرسال الرد'); } catch (ex) { UI.error(ex); UI.busy(el, false); } return; }
     if (a === 'attach') { const fl = (await UI.pickFiles({ accept: 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt' })).filter((f) => f.size <= 10 * 1048576).slice(0, 5); if (fl.length) run(() => Data.tickets.addAttachments(id, fl), 'تمت إضافة المرفقات'); return; }
     if (a === 'parts') { const mv = await Pages.moveModal({ type: 'issue', ref: t.number }); if (mv) { const it = await DB.get('items', mv.itemId); run(() => Data.tickets.comment(id, `تم صرف ${mv.qty} ${it ? it.unit : ''} من «${it ? it.name : ''}» لهذا البلاغ.`, true)); } return; }
-    if (a === 'print') { const evs = (await Data.tickets.events(id)).filter((x) => !x.internal && x.text); UI.print(html`<h2>بلاغ رقم ${t.number}</h2><table><tr><th>العنوان</th><td>${t.title}</td><th>الحالة</th><td>${STATUS[t.status].label}</td></tr><tr><th>مقدم البلاغ</th><td>${Data.userName(t.requesterId)}</td><th>القسم</th><td>${Data.nameOf('departments', t.departmentId)}</td></tr><tr><th>الفئة</th><td>${Data.nameOf('categories', t.categoryId)}</td><th>الأولوية</th><td>${PRIORITY[t.priority].label}</td></tr><tr><th>الفني</th><td>${t.assigneeId ? Data.userName(t.assigneeId) : '—'}</td><th>تاريخ الإنشاء</th><td>${fmtDateTime(t.createdAt)}</td></tr><tr><th>الوصف</th><td colspan="3">${t.description || '—'}</td></tr></table><h2>السجل</h2><table><tr><th>التاريخ</th><th>بواسطة</th><th>النص</th></tr>${evs.map((x) => html`<tr><td>${fmtDateTime(x.at)}</td><td>${Data.userName(x.userId)}</td><td>${x.text}</td></tr>`)}</table>${UI.signBlock([{ title: 'مقدم البلاغ', userId: t.requesterId }, { title: 'الفني المختص', userId: t.assigneeId }])}`, `بلاغ ${t.number}`); }
+    if (a === 'print') { const evs = (await Data.tickets.events(id)).filter((x) => !x.internal && x.text); if (!VLX.print('ticket', () => VLX.d.ticket(t, evs))) UI.print(html`<h2>بلاغ رقم ${t.number}</h2><table><tr><th>العنوان</th><td>${t.title}</td><th>الحالة</th><td>${STATUS[t.status].label}</td></tr><tr><th>مقدم البلاغ</th><td>${Data.userName(t.requesterId)}</td><th>القسم</th><td>${Data.nameOf('departments', t.departmentId)}</td></tr><tr><th>الفئة</th><td>${Data.nameOf('categories', t.categoryId)}</td><th>الأولوية</th><td>${PRIORITY[t.priority].label}</td></tr><tr><th>الفني</th><td>${t.assigneeId ? Data.userName(t.assigneeId) : '—'}</td><th>تاريخ الإنشاء</th><td>${fmtDateTime(t.createdAt)}</td></tr><tr><th>الوصف</th><td colspan="3">${t.description || '—'}</td></tr></table><h2>السجل</h2><table><tr><th>التاريخ</th><th>بواسطة</th><th>النص</th></tr>${evs.map((x) => html`<tr><td>${fmtDateTime(x.at)}</td><td>${Data.userName(x.userId)}</td><td>${x.text}</td></tr>`)}</table>${UI.signBlock([{ title: 'مقدم البلاغ', userId: t.requesterId }, { title: 'الفني المختص', userId: t.assigneeId }])}`, `بلاغ ${t.number}`); }
   });
   window.__ticketCtx = { number: t.number, name: Data.userName(t.requesterId), category: Data.nameOf('categories', t.categoryId, '') };
   UI.on(view, 'click', '[data-act="printcards"]', () => Pages.printAccessCards(t));
@@ -5583,7 +5583,7 @@ Pages.deptDetail = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-act="dtr"]', async () => { if (await Pages.deptTransferModal(id)) draw(); });
   UI.on(ctx.view, 'click', '[data-act="print"]', () => {
     const rows = ctx.rows || [], items = ctx.items || new Map(), tree = ctx.tree || [], ud = ctx.unitData || { rows: [] }, offices = tree.flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name })));
-    UI.print(html`<h2>كشف عهدة ${Data.nameOf('departments', id)}</h2><table><tr><th>#</th><th>الصنف</th><th>الرمز</th><th>التصنيف</th><th>الكمية</th></tr>${rows.map((r, i) => { const it = items.get(r.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${it.name || ''}</td><td>${it.sku || ''}</td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td>${fmtNum(r.qty)}</td></tr>`; })}</table>${offices.length ? html`<h2>التوزيع على الأقسام والمكاتب</h2><table><tr><th>القسم</th><th>المكتب</th><th>الصنف</th><th>الكمية</th></tr>${ud.rows.map((r) => { const o = offices.find((x) => x.id === r.unitId) || {}; const it = items.get(r.itemId) || {}; return html`<tr><td>${o.section || ''}</td><td>${o.name || ''}</td><td>${it.name || ''}</td><td>${fmtNum(r.qty)}</td></tr>`; })}</table>` : ''}${UI.signBlock([{ title: 'مسؤول الإدارة' }, { title: 'مُعدّ الكشف', userId: Auth.user.id }])}`, `عهدة ${Data.nameOf('departments', id)}`);
+    if (!VLX.print('custody', () => VLX.d.custody(id, rows, items, ud, offices))) UI.print(html`<h2>كشف عهدة ${Data.nameOf('departments', id)}</h2><table><tr><th>#</th><th>الصنف</th><th>الرمز</th><th>التصنيف</th><th>الكمية</th></tr>${rows.map((r, i) => { const it = items.get(r.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${it.name || ''}</td><td>${it.sku || ''}</td><td>${Data.nameOf('itemCategories', it.categoryId, '')}</td><td>${fmtNum(r.qty)}</td></tr>`; })}</table>${offices.length ? html`<h2>التوزيع على الأقسام والمكاتب</h2><table><tr><th>القسم</th><th>المكتب</th><th>الصنف</th><th>الكمية</th></tr>${ud.rows.map((r) => { const o = offices.find((x) => x.id === r.unitId) || {}; const it = items.get(r.itemId) || {}; return html`<tr><td>${o.section || ''}</td><td>${o.name || ''}</td><td>${it.name || ''}</td><td>${fmtNum(r.qty)}</td></tr>`; })}</table>` : ''}${UI.signBlock([{ title: 'مسؤول الإدارة' }, { title: 'مُعدّ الكشف', userId: Auth.user.id }])}`, `عهدة ${Data.nameOf('departments', id)}`);
   });
   UI.on(ctx.view, 'click', '[data-act="xls"]', () => { const rows = ctx.rows || [], items = ctx.items || new Map(), ud = ctx.unitData || { rows: [] }, offices = (ctx.tree || []).flatMap((s) => s.offices.map((o) => ({ ...o, section: s.name }))); downloadBlob(XL.write([{ name: 'العهدة', widths: [34, 16, 22, 12], rows: [['الصنف', 'الرمز', 'التصنيف', 'الكمية'], ...rows.map((r) => { const it = items.get(r.itemId) || {}; return [it.name || '', it.sku || '', Data.nameOf('itemCategories', it.categoryId, ''), String(r.qty)]; })] }, { name: 'التوزيع', widths: [24, 24, 34, 12], rows: [['القسم', 'المكتب', 'الصنف', 'الكمية'], ...ud.rows.map((r) => { const o = offices.find((x) => x.id === r.unitId) || {}, it = items.get(r.itemId) || {}; return [o.section || '', o.name || '', it.name || '', String(r.qty)]; })] }]), `عهدة-${Data.nameOf('departments', id)}-${dateInput(now())}.xlsx`); });
   Pages.bindInv(ctx, draw);
@@ -15846,7 +15846,7 @@ Pages.voucherDesigner = async (ctx) => {
   /* ── شريط القوالب ── */
   const drawTop = () => {
     const box = $v('.vle-top'); if (!box) return;
-    const uses = VT_KINDS.filter(([k]) => (lib.use[k] || lib.def) === st.id).map(([, l]) => l);
+    const uses = VT_KINDS.filter(([k]) => (lib.use[k] || (VLX.own.has(k) ? '' : lib.def)) === st.id).map(([, l]) => l);
     box.innerHTML = String(html`<div class="vle-tsel">${UI.icon('file')}<select data-tpl>${lib.tpls.map((t) => html`<option value="${t.id}"${t.id === st.id ? raw(' selected') : ''}>${t.name}${VLF.official(lib, t) ? '' : ' — مسودة'}</option>`)}</select>
       ${ro ? '' : html`<button type="button" class="btn btn-sm btn-ghost" data-top="new" title="قالب جديد">${UI.icon('plus')} جديد</button><button type="button" class="btn btn-sm btn-ghost" data-top="dup" title="نسخ القالب">${UI.icon('copy')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="ren" title="إعادة تسمية">${UI.icon('edit')}</button><button type="button" class="btn btn-sm btn-ghost" data-top="del" title="حذف القالب">${UI.icon('trash')}</button>`}</div>
       <div class="vle-uses">${uses.length ? html`${UI.icon('check')} مستخدم في: ${uses.join('، ')}` : html`<span class="faint">${UI.icon('info')} غير معيّن لأي استمارة بعد</span>`}</div>
@@ -18871,7 +18871,7 @@ document.addEventListener('click', async (e) => {
   const t = await DB.get('tickets', all.dataset.codescopy || all.dataset.codesprint); if (!t) return;
   const list = ticketCodes(t);
   if (all.dataset.codescopy) { const txt = list.map((p, i) => `${i + 1}. ${p.name || ''}${p.militaryNo ? ` — ${p.militaryNo}` : ''}`).join('\n'); UI.toast((await copyText(txt)) ? `نُسخت القائمة (${arCount(list.length, AR_PERSON)})` : 'تعذر النسخ', 'info'); return; }
-  UI.print(html`<h2 style="text-align:center">طلب إصدار رمز «نظام مسار» — ${t.number}</h2>
+  if (!VLX.print('masar', () => VLX.d.masar(t, list))) UI.print(html`<h2 style="text-align:center">طلب إصدار رمز «نظام مسار» — ${t.number}</h2>
     <table><tr><th>رقم الطلب</th><td>${t.number}</td><th>التاريخ</th><td>${fmtDate(t.createdAt)}</td></tr><tr><th>مقدم الطلب</th><td>${Data.userName(t.requesterId)}</td><th>الإدارة</th><td>${Data.nameOf('departments', t.departmentId, '—')}</td></tr></table>
     <table><tr><th style="width:40px">م</th><th>الاسم</th><th>الرقم العسكري</th><th style="width:120px">الرمز الصادر</th><th style="width:110px">التوقيع</th></tr>${list.map((p, i) => html`<tr><td>${i + 1}</td><td>${p.name || ''}</td><td class="ltr">${p.militaryNo || ''}</td><td></td><td></td></tr>`)}</table>
     ${UI.signBlock([{ title: 'مقدم الطلب', userId: t.requesterId }, { title: 'فني قسم تقنية المعلومات', userId: t.assigneeId }])}`, `رموز مسار ${t.number}`);
@@ -20232,7 +20232,7 @@ Pages.bulkAddSave = async (form, print) => {
   UI.toast(`أُضيف ${fmtNum(units)} قطعة من ${fmtNum(lines.length)} نموذج إلى ${place}${made.length ? ` — ونُشئ ${fmtNum(made.length)} نموذج جديد` : ''}`, 'ok', 6500);
   if (print) {
     const holder = v.holderId ? Data.userName(v.holderId) : '';
-    UI.print(html`<h2 style="text-align:center">كشف إضافة أجهزة — ${mode === 'store' ? 'استلام في المخزن' : 'عهدة مباشرة'}</h2>
+    if (!VLX.print('addlist', () => VLX.d.addlist({ mode, place, v, holder, lines, depId, units0 }))) UI.print(html`<h2 style="text-align:center">كشف إضافة أجهزة — ${mode === 'store' ? 'استلام في المخزن' : 'عهدة مباشرة'}</h2>
       <table><tr><th>إلى</th><td>${place}</td><th>التاريخ</th><td>${fmtDateTime(now())}</td></tr>${mode === 'store' ? html`<tr><th>المرجع</th><td>${v.ref || '—'}</td><th>المورّد</th><td>${v.party || '—'}</td></tr>` : html`<tr><th>المستلم</th><td colspan="3">${holder || '—'}</td></tr>`}</table>
       <table><tr><th style="width:36px">م</th><th>الجهاز</th><th>النوع</th><th style="width:60px">الكمية</th><th>الأرقام التسلسلية</th>${mode === 'dept' ? html`<th>المكتب</th>` : ''}<th>ملاحظة</th></tr>${lines.map((l, i) => html`<tr><td>${i + 1}</td><td>${l.item.name}</td><td>${Data.nameOf('itemCategories', MDL.typeOf(l.item), '')}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${l.sns.join('، ')}</td>${mode === 'dept' ? html`<td>${l.unitId ? orgLabel(depId, l.unitId, units0).split(' / ').slice(1).join(' / ') : '—'}</td>` : ''}<td>${l.note}</td></tr>`)}<tr><th colspan="3">الإجمالي</th><th>${fmtNum(units)}</th><td colspan="${mode === 'dept' ? 3 : 2}"></td></tr></table>
       ${UI.signBlock([{ title: 'المُسلِّم', userId: mode === 'store' ? '' : Auth.user.id, name: mode === 'store' ? v.party || '' : '' }, { title: 'المستلم', ...(mode === 'store' ? { userId: Auth.user.id } : { name: holder }) }])}`, 'كشف إضافة أجهزة');
@@ -21328,7 +21328,7 @@ Pages.cmCommit = async (print) => {
   if (failed.length) UI.toast(`حُفظ ${fmtNum(done.length)} سطر، وتعذّر ${fmtNum(failed.length)}: ${failed.slice(0, 2).map(([, m]) => m).join(' — ')}`, 'warn', 9000); else UI.toast(`حُفظ التوزيع: ${fmtNum(pieces)} قطعة في ${fmtNum(new Set(done.map(place)).size)} موضع`, 'ok', 5000);
   if (print && done.length) {
     const items = new Map((await Promise.all([...new Set(done.map((l) => l.itemId))].map((id) => DB.get('items', id)))).filter(Boolean).map((i) => [i.id, i])), ws = new Map((await DB.getAll('workstations')).map((w) => [w.id, w]));
-    UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${done.map((l, i) => { const it = items.get(l.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${place(l)}</td><td>${l.wsId && ws.get(l.wsId) ? WS.label(ws.get(l.wsId)) : '—'}</td><td>${it.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${snSplit(l.sn).join('، ') || '—'}</td><td>${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? (l.temp ? `استخدام مؤقت${l.due ? ` حتى ${l.due.split('-').reverse().join('/')}` : ''}` : 'تخصيص من العهدة العامة') : l.unitId ? 'عهدة جديدة' : 'عهدة عامة للإدارة'}</td></tr>`; })}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: Auth.user.id }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, 'كشف توزيع عهدة');
+    if (!VLX.print('distrib', () => VLX.d.distrib(done.map((l) => { const it = items.get(l.itemId) || {}; return { name: it.name || '', qty: l.qty, serials: snSplit(l.sn), place: place(l), ws: l.wsId && ws.get(l.wsId) ? WS.label(ws.get(l.wsId)) : '—', how: l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? (l.temp ? `استخدام مؤقت${l.due ? ` حتى ${l.due.split('-').reverse().join('/')}` : ''}` : 'تخصيص من العهدة العامة') : l.unitId ? 'عهدة جديدة' : 'عهدة عامة للإدارة' }; }), { at: now() }))) UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${done.map((l, i) => { const it = items.get(l.itemId) || {}; return html`<tr><td>${i + 1}</td><td>${place(l)}</td><td>${l.wsId && ws.get(l.wsId) ? WS.label(ws.get(l.wsId)) : '—'}</td><td>${it.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${snSplit(l.sn).join('، ') || '—'}</td><td>${l.kind === 'store' ? 'استلام في المخزن' : l.kind === 'assign' ? (l.temp ? `استخدام مؤقت${l.due ? ` حتى ${l.due.split('-').reverse().join('/')}` : ''}` : 'تخصيص من العهدة العامة') : l.unitId ? 'عهدة جديدة' : 'عهدة عامة للإدارة'}</td></tr>`; })}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: Auth.user.id }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, 'كشف توزيع عهدة');
   }
   return done.length > 0;
 };
@@ -22936,7 +22936,7 @@ const VC = {
   const pv0 = Pages.printVoucher;
   Pages.printVoucher = (v) => {
     if (!v || v.type !== 'custody') return pv0(v);
-    UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><p style="text-align:center">${v.number} — ${fmtDateTime(v.at)}${v.departmentId ? ` — ${Data.nameOf('departments', v.departmentId, '')}` : ''}</p><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${(v.lines || []).map((l, i) => html`<tr><td>${i + 1}</td><td>${l.place || ''}</td><td>${l.ws || '—'}</td><td>${l.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${(l.serials || []).join('، ') || '—'}</td><td>${l.how || ''}</td></tr>`)}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: v.userId }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, `كشف توزيع عهدة ${v.number}`);
+    if (!VLX.print('distrib', () => VLX.d.distrib((v.lines || []).map((l) => ({ name: l.name || '', qty: l.qty, serials: l.serials || [], place: l.place || '', ws: l.ws || '—', how: l.how || '' })), { number: v.number, at: v.at, dep: v.departmentId ? Data.nameOf('departments', v.departmentId, '') : '', by: v.userId }))) UI.print(html`<h2 style="text-align:center">كشف توزيع عهدة</h2><p style="text-align:center">${v.number} — ${fmtDateTime(v.at)}${v.departmentId ? ` — ${Data.nameOf('departments', v.departmentId, '')}` : ''}</p><table><tr><th style="width:34px">م</th><th>الموضع</th><th>المحطة</th><th>الجهاز</th><th style="width:60px">العدد</th><th>الأرقام التسلسلية</th><th>نوع الحركة</th></tr>${(v.lines || []).map((l, i) => html`<tr><td>${i + 1}</td><td>${l.place || ''}</td><td>${l.ws || '—'}</td><td>${l.name || ''}</td><td>${fmtNum(l.qty)}</td><td class="ltr">${(l.serials || []).join('، ') || '—'}</td><td>${l.how || ''}</td></tr>`)}</table>${UI.signBlock([{ title: 'المُسلِّم', userId: v.userId }, { title: 'المستلم' }, { title: 'اعتماد المسؤول' }])}`, `كشف توزيع عهدة ${v.number}`);
   };
 }
 /* حفظ «توزيع العهدة» يُسجَّل سنداً لكل إدارة في أرشيف السندات */
@@ -26199,6 +26199,256 @@ const LVF = {
 };
 { const vs0 = Pages.vtdSample; Pages.vtdSample = (k, n) => (k === 'leave' ? LVF.sample() : vs0(k, n)); }
 
+/* ══════════ الجولة 49: كل استمارات المنصة في مصمم الاستمارات ══════════
+   1) الاستمارة التي تُطبع حالياً بـ«التصميم المدمج» (النقل، الاستبدال، الإرجاع…) تُحوَّل إلى نموذج بالشكل نفسه
+      (الألوان، الخط، الترويسة، العنوان، الأعمدة، التواقيع، التذييل) ويُعتمد لها، فتظهر في «حسب الاستمارة» وتُعدَّل.
+   2) استمارات المنصة الأخرى صارت فئات في المصمم: البلاغ، سند الصيانة، جهاز في الصيانة، طلب بطاقة دخول وخروج،
+      طلب رمز مسار، كشف عهدة إدارة، كشف توزيع العهدة، كشف إضافة أجهزة، بطاقة جرد محطة.
+      لكل منها نموذج بداية بشكلها الحالي وبياناتها، وتُطبع بنموذجها متى اعتُمد، وإلا بشكلها السابق.
+      لا تتبع «القالب العام» للسندات لأنها ليست سندات. */
+Object.assign(VOUCHER_KIND, {
+  ticket: { title: 'بلاغ دعم فني', icon: 'ticket', tone: 'sky', label: 'بلاغ', hidden: 1 },
+  maint: { title: 'سند صيانة جهاز', icon: 'tools', tone: 'amber', label: 'صيانة', hidden: 1 },
+  mt: { title: 'سجل جهاز مُرسل إلى الصيانة', icon: 'tools', tone: 'violet', label: 'جهاز في الصيانة', hidden: 1 },
+  gate: { title: 'استمارة طلب إصدار بطاقة دخول وخروج', icon: 'card', tone: 'teal', label: 'بطاقة دخول وخروج', hidden: 1 },
+  masar: { title: 'طلب إصدار رمز «نظام مسار»', icon: 'key', tone: 'violet', label: 'رمز مسار', hidden: 1 },
+  custody: { title: 'كشف عهدة إدارة', icon: 'building', tone: 'brass', label: 'كشف عهدة', hidden: 1 },
+  distrib: { title: 'كشف توزيع عهدة', icon: 'layers', tone: 'teal', label: 'توزيع عهدة', hidden: 1 },
+  addlist: { title: 'كشف إضافة أجهزة', icon: 'plus', tone: 'green', label: 'إضافة أجهزة', hidden: 1 },
+  wscard: { title: 'بطاقة جرد محطة عمل', icon: 'monitor', tone: 'sky', label: 'جرد محطة', hidden: 1 }
+});
+VT_KINDS.push(['ticket', 'البلاغ'], ['maint', 'سند الصيانة'], ['mt', 'جهاز في الصيانة'], ['gate', 'طلب بطاقة دخول وخروج'], ['masar', 'طلب رمز مسار'], ['custody', 'كشف عهدة إدارة'], ['distrib', 'كشف توزيع العهدة'], ['addlist', 'كشف إضافة أجهزة'], ['wscard', 'بطاقة جرد محطة']);
+const VLX = {
+  /* فئات لها نموذجها الخاص فقط (لا تتبع القالب العام للسندات) */
+  own: new Set(['leave', 'ticket', 'maint', 'mt', 'gate', 'masar', 'custody', 'distrib', 'addlist', 'wscard']),
+  GROUPS: [['السندات', 'file', ['issue', 'loan', 'transfer', 'replace', 'return', 'receipt', 'xmsend', 'xmrecv']], ['الصيانة', 'tools', ['maint', 'mt']], ['البلاغات والطلبات', 'ticket', ['ticket', 'masar', 'gate', 'leave']], ['كشوف العهدة والجرد', 'layers', ['custody', 'distrib', 'addlist', 'wscard']]],
+  /* حقول أسطر الجداول المتكررة في الاستمارات الجديدة */
+  TOKS: ['وقت الإجراء', 'بواسطة', 'نص الإجراء', 'نوع الملاحظة', 'الاسم الكامل', 'رتبته', 'رقمه العسكري', 'رقم البطاقة', 'الرمز الصادر', 'التصنيف', 'القسم', 'المكتب', 'ملاحظة السطر', 'الموضع', 'المحطة', 'نوع الحركة', 'الطقم', 'التاج', 'اسم الجهاز'],
+  NB: ' ',
+  stamp: (p) => { const d = new Date(); return `${p}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`; },
+  tpl(k) { const L = VL.data() || {}, id = (L.use || {})[k]; return id ? (L.tpls || []).find((t) => t.id === id) || null : null; },
+  fill(k, d) {
+    const kd = VOUCHER_KIND[k] || VOUCHER_KIND.issue, T = VTPL.eff(k);
+    const o = { kindKey: k, kind: kd, number: '', at: now(), facts: [], lines: [], oldLines: [], note: '', pledge: '', parties: [], ...d };
+    o.barcode = o.barcode || o.number || '';
+    o.facts = (o.facts || []).filter(([, v]) => v != null && v !== '').map(([l, v]) => [l, String(v)]);
+    o.title = String((T.title || {}).text || '').trim() || o.title || kd.title;
+    if (!o.pledge) o.pledge = String((T.pledge || {}).text || '').trim();
+    return o;
+  },
+  /* تُطبع بنموذجها المعتمد إن وُجد، وإلا تعود false فتُطبع بشكلها السابق */
+  print(k, mk) {
+    const t = VLX.tpl(k); if (!t) return false;
+    let d; try { d = VLX.fill(k, mk()); } catch (e) { console.warn('vlx data', k, e); return false; }
+    VL.print({ ...t, layout: vlFix(JSON.parse(JSON.stringify(t.layout))) }, d); return true;
+  },
+  /* ── بناء نماذج البداية ── */
+  W: 186,
+  hdr(acc, left = 'الرقم: [رقم السند]\nالتاريخ: [التاريخ]') { const W = VLX.W; return VLS.band('free', { name: 'الترويسة', mt: 0, h: 27, els: [VLS.img(W - 24, 1, 22, 22), VLS.t(W - 112, 4, 86, 8, '[اسم المؤسسة]', { size: 13, bold: 1 }), VLS.t(W - 112, 12, 86, 7, '[اسم القسم]', { size: 11 }), VLS.t(0, 4, 70, 15, left, { size: 10, align: 'left', lh: 1.5 }), VLS.ln(0, 25, W, 0.6, acc)] }); },
+  ttl(acc, bc = true) { const W = VLX.W; return VLS.band('free', { name: 'العنوان', h: 16, els: [VLS.t(bc ? 48 : 10, 2, W - (bc ? 96 : 20), 11, '[عنوان السند]', { size: 17, bold: 1, align: 'center', color: acc }), ...(bc ? [VLS.bc(0, 0, 44, 15)] : [])] }); },
+  facts: (soft, line) => VLS.band('facts', { name: 'البيانات', cfg: { style: 'table', cols: 2, bc: line, lc: '#333', lbg: soft } }),
+  notes: (acc, line, label) => VLS.band('notes', { cfg: { label, lc: acc, bc: line, minH: 12 } }),
+  /* جدول يتكرر صفه لكل سطر: cols = [[العنوان، الخانة، العرض، المحاذاة]] */
+  list(name, cols, o = {}) {
+    const W = VLX.W, C = cols.length, tw = cols.reduce((a, c) => a + c[2], 0), pre = o.title ? 1 : 0;
+    const rows = [...(pre ? [[o.title, ...Array(C - 1).fill('')]] : []), cols.map((c) => c[0]), cols.map((c) => c[1]), ...(o.foot ? [o.foot] : [])];
+    const cs = {}, span = {};
+    if (pre) { span['0,0'] = [1, C]; cs['0,0'] = { bg: o.soft, color: o.acc, b: 1, al: 'right' }; }
+    cols.forEach((c, j) => { cs[`${pre},${j}`] = { bg: o.soft, b: 1, al: 'center' }; });
+    if (o.foot) cols.forEach((c, j) => { cs[`${pre + 2},${j}`] = { bg: o.soft, b: 1 }; });
+    const el = { id: VLS.id(), t: 'table', x: 0, y: 0, w: W, h: rows.length * 7, z: 1, s: { size: o.fs || 10 }, tbl: { rows, head: 0, hbg: o.soft, hc: '#111111', bc: o.line, bw: 0.3, pad: 1.2, colW: cols.map((c) => (c[2] / tw) * 100), al: cols.map((c) => c[3] || ''), span, cs, ...(o.rowH ? { rh: rows.map((r, i) => (i === pre + 1 ? o.rowH : null)) } : {}), dyn: { src: o.src || 'items', r1: pre + 2, r2: pre + 2, per: 1, minRows: o.minRows || 0, hideEmpty: o.hideEmpty ? 1 : 0 } } };
+    return VLS.band('free', { name, h: el.h + 1, els: [el] });
+  },
+  sig(acc, soft, line, lab, on, o = {}) { return VLS.band('sigs', { mt: 5, cfg: { layout: 'rows', cols: VL_SIG_COLS.map(([k, l]) => ({ k, l, on: on.includes(k) ? 1 : 0 })), hbg: soft, bc: line, rowH: 11, approver: lab.appr ? 1 : 0, subs: o.subs ? 1 : 0, hc: acc, recv: lab.recv, deliv: lab.deliv, appr: lab.appr || 'اعتماد المسؤول', order: o.order || '' } }); },
+  pledge: (soft) => VLS.band('free', { name: 'التعهد', h: 11, els: [VLS.t(0, 0, VLX.W, 11, '[نص التعهد]', { size: 9.5, bg: soft, radius: 2, padding: 2, valign: 'middle' })] }),
+  foot(line) { const W = VLX.W; return VLS.band('free', { name: 'التذييل', h: 7, mt: 4, els: [VLS.ln(0, 0, W, 0.3, line), VLS.t(40, 1.5, W - 40, 5, 'صدر إلكترونياً من [اسم القسم] — [اسم المؤسسة]', { size: 8, color: '#666' }), VLS.t(0, 1.5, 40, 5, '[رقم السند]', { size: 8, color: '#666', align: 'left' })] }); },
+  PAL: { ticket: ['#1d4ed8', '#eef3ff', '#bfcbe6'], maint: ['#b45309', '#fff7e6', '#e5cfa8'], mt: ['#6d28d9', '#f3efff', '#cfc3ec'], gate: ['#0f766e', '#e8f5f3', '#b5d6d1'], masar: ['#6d28d9', '#f3efff', '#cfc3ec'], custody: ['#8a6a22', '#f6f2e8', '#c9c2b1'], distrib: ['#0f4c5c', '#e8f1f3', '#bcd3d8'], addlist: ['#1d5c3f', '#ecf6f0', '#b9d6c5'], wscard: ['#1f3a68', '#eef2f8', '#b9c3d3'] },
+  ST: {
+    ticket() { const [a, s, l] = VLX.PAL.ticket; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.notes(a, l, 'وصف البلاغ'), VLX.list('سجل البلاغ', [['التاريخ والوقت', '[وقت الإجراء]', 22], ['بواسطة', '[بواسطة]', 20], ['الإجراء والرد', '[نص الإجراء]', 58, 'right']], { title: 'سجل البلاغ', hideEmpty: 1, acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'مقدم البلاغ', deliv: 'الفني المختص' }, ['rank', 'name', 'sign'], { subs: 1 }), VLX.foot(l)] }; },
+    maint() { const [a, s, l] = VLX.PAL.maint; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.notes(a, l, 'ملاحظات'), VLX.sig(a, s, l, { recv: 'مستلم الجهاز', deliv: 'الفني المنفّذ للصيانة' }, ['rank', 'name', 'sign', 'date'], { order: 'dr' }), VLX.foot(l)] }; },
+    mt() { const [a, s, l] = VLX.PAL.mt; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('الملاحظات', [['التاريخ', '[وقت الإجراء]', 20], ['النوع', '[نوع الملاحظة]', 12], ['الكاتب', '[بواسطة]', 18], ['الملاحظة', '[نص الإجراء]', 50, 'right']], { title: 'الملاحظات', hideEmpty: 1, acc: a, soft: s, line: l }), VLX.list('السجل الزمني', [['التاريخ', '[وقت الإجراء]', 20], ['بواسطة', '[بواسطة]', 20], ['الإجراء', '[نص الإجراء]', 60, 'right']], { title: 'السجل الزمني', src: 'old', hideEmpty: 1, acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'المستلم', deliv: 'المُسلِّم' }, ['name', 'sign', 'date'], { order: 'dr' }), VLX.foot(l)] }; },
+    gate() {
+      const [a, s, l] = VLX.PAL.gate, W = VLX.W, cs = {};
+      const rows = [['الإدارة', '[الإدارة]', 'تاريخ الطلب', '[تاريخ الطلب]'], ['نوع الطلب', '[نوع الطلب]', '', ''], ['المناطق أو الأبواب المطلوبة', '[المناطق أو الأبواب المطلوبة]', '', ''], ['مدة الصلاحية', '[مدة الصلاحية]', '', '']];
+      rows.forEach((r, i) => { cs[`${i},0`] = { bg: s, b: 1 }; if (i === 0) cs['0,2'] = { bg: s, b: 1 }; });
+      const info = { id: VLS.id(), t: 'table', x: 0, y: 0, w: W, h: 32, z: 1, s: { size: 10.5 }, tbl: { rows, head: 0, bc: l, bw: 0.3, pad: 1.6, rowH: 8, colW: [22, 34, 18, 26], span: { '1,1': [1, 3], '2,1': [1, 3], '3,1': [1, 3] }, cs } };
+      return { page: VLS.page(), bands: [VLX.hdr(a, 'الرقم: ....................\nالتاريخ: ..................'), VLX.ttl(a, false), VLS.band('free', { name: 'بيانات الطلب', h: 33, els: [info] }), VLX.list('الأسماء', [['م', '[م]', 5, 'center'], ['الاسم الكامل', '[الاسم الكامل]', 33], ['الرتبة', '[رتبته]', 14], ['الرقم العسكري', '[رقمه العسكري]', 16, 'center'], ['رقم البطاقة', '[رقم البطاقة]', 16, 'center'], ['التوقيع', '', 16]], { rowH: 9, acc: a, soft: s, line: l }), VLX.pledge(s), VLX.sig(a, s, l, { recv: 'طالب الإصدار', deliv: 'مدير الإدارة', appr: 'فني قسم تقنية المعلومات' }, ['rank', 'name', 'sign']), VLX.foot(l)] };
+    },
+    masar() { const [a, s, l] = VLX.PAL.masar; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('الأشخاص', [['م', '[م]', 6, 'center'], ['الاسم', '[الاسم الكامل]', 38], ['الرقم العسكري', '[رقمه العسكري]', 18, 'center'], ['الرمز الصادر', '[الرمز الصادر]', 20, 'center'], ['التوقيع', '', 18]], { rowH: 9, acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'مقدم الطلب', deliv: 'فني قسم تقنية المعلومات' }, ['rank', 'name', 'sign']), VLX.foot(l)] }; },
+    custody() { const [a, s, l] = VLX.PAL.custody; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('أصناف العهدة', [['م', '[م]', 6, 'center'], ['الصنف', '[الصنف]', 40], ['الرمز', '[رقم الصنف]', 18, 'center'], ['التصنيف', '[التصنيف]', 24], ['الكمية', '[الكمية]', 10, 'center']], { acc: a, soft: s, line: l }), VLX.list('التوزيع على الأقسام والمكاتب', [['القسم', '[القسم]', 26], ['المكتب', '[المكتب]', 26], ['الصنف', '[الصنف]', 36], ['الكمية', '[الكمية]', 12, 'center']], { title: 'التوزيع على الأقسام والمكاتب', src: 'old', hideEmpty: 1, acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'مسؤول الإدارة', deliv: 'مُعدّ الكشف' }, ['rank', 'name', 'sign', 'date']), VLX.foot(l)] }; },
+    distrib() { const [a, s, l] = VLX.PAL.distrib; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('أسطر التوزيع', [['م', '[م]', 5, 'center'], ['الموضع', '[الموضع]', 22], ['المحطة', '[المحطة]', 13], ['الجهاز', '[الصنف]', 19], ['العدد', '[الكمية]', 7, 'center'], ['الأرقام التسلسلية', '[الأرقام التسلسلية]', 19], ['نوع الحركة', '[نوع الحركة]', 15]], { acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'المستلم', deliv: 'المُسلِّم', appr: 'اعتماد المسؤول' }, ['rank', 'name', 'sign'], { order: 'dr' }), VLX.foot(l)] }; },
+    addlist() { const [a, s, l] = VLX.PAL.addlist; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('الأجهزة المضافة', [['م', '[م]', 5, 'center'], ['الجهاز', '[الصنف]', 24], ['النوع', '[التصنيف]', 15], ['الكمية', '[الكمية]', 8, 'center'], ['الأرقام التسلسلية', '[الأرقام التسلسلية]', 22], ['المكتب', '[المكتب]', 13], ['ملاحظة', '[ملاحظة السطر]', 13]], { foot: ['', 'الإجمالي', '', '[إجمالي القطع]', '', '', ''], acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'المستلم', deliv: 'المُسلِّم' }, ['rank', 'name', 'sign'], { order: 'dr' }), VLX.foot(l)] }; },
+    wscard() { const [a, s, l] = VLX.PAL.wscard; return { page: VLS.page(), bands: [VLX.hdr(a), VLX.ttl(a), VLX.facts(s, l), VLX.list('أجهزة المحطة', [['م', '[م]', 5, 'center'], ['الطقم', '[الطقم]', 10], ['الجهاز', '[الصنف]', 18], ['الماركة', '[الماركة]', 10], ['الفئة', '[التصنيف]', 11], ['الرقم التسلسلي', '[الأرقام التسلسلية]', 15], ['التاج', '[التاج]', 10], ['اسم الجهاز', '[اسم الجهاز]', 12], ['الجرد ✓', '', 7]], { acc: a, soft: s, line: l }), VLX.sig(a, s, l, { recv: 'المستلم', deliv: 'فني قسم تقنية المعلومات' }, ['rank', 'name', 'sign', 'date']), VLX.foot(l)] }; }
+  },
+  /* نموذج كل فئة بشكلها المستخدم حالياً */
+  layout(k) { if (k === 'leave') return VLS.leave(); if (VLX.ST[k]) return VLX.ST[k](); return VLS.fromVD(k); },
+  /* يُنشئ لكل استمارة تُطبع بالتصميم المدمج نموذجها بالشكل نفسه ويعتمده لها */
+  materialize(lib) {
+    const made = [], lost = new Set(VLF.lost(lib).map(([k]) => k));
+    VT_KINDS.forEach(([k]) => {
+      if (lib.use[k] || lost.has(k) || (!VLX.own.has(k) && lib.def)) return;
+      let layout; try { layout = vlFix(VLX.layout(k)); } catch (e) { console.warn('vlx layout', k, e); return; }
+      const kd = VOUCHER_KIND[k] || {}; let name = kd.title || `استمارة ${VLF.kl(k)}`;
+      if (VLF.dupName(lib, name)) name = `${name} (${VLF.kl(k)})`; if (VLF.dupName(lib, name)) name = `${name} ${fmtNum(lib.tpls.length + 1)}`;
+      const nt = { id: uid('vt'), name, layout, createdAt: now(), createdBy: Auth.user.id, forKind: k, auto: 1 };
+      lib.tpls.push(nt); VLF.assign(lib, nt, [k], null); made.push(nt);
+    });
+    return made;
+  },
+  /* ── بيانات الاستمارات الحقيقية ── */
+  pp: (id, title, role, extra = {}) => ({ role, title, ...(id ? VD.person(id) : {}), ...extra }),
+  d: {
+    ticket(t, evs) {
+      const dep = Data.nameOf('departments', t.departmentId, '');
+      return { number: t.number, at: t.createdAt, facts: [['عنوان البلاغ', t.title], ['الحالة', (STATUS[t.status] || {}).label || t.status], ['مقدم البلاغ', Data.userName(t.requesterId)], ['الإدارة', dep], ['الفئة', Data.nameOf('categories', t.categoryId, '')], ['الأولوية', (PRIORITY[t.priority] || {}).label || ''], ['الفني المختص', t.assigneeId ? Data.userName(t.assigneeId) : '—'], ['تاريخ الإنشاء', fmtDateTime(t.createdAt)]], note: t.description || '',
+        lines: (evs || []).map((x) => ({ name: Data.userName(x.userId), tok: { 'وقت الإجراء': fmtDateTime(x.at), 'بواسطة': Data.userName(x.userId), 'نص الإجراء': x.text || '' } })),
+        parties: [VLX.pp(t.requesterId, 'مقدم البلاغ', 'recv', { sub: dep }), VLX.pp(t.assigneeId, 'الفني المختص', 'deliv')] };
+    },
+    maint(r) {
+      const num = r.number || `MNT-${String(r.id || '').replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase()}`;
+      const facts = [['الجهاز', r.itemName], ['الماركة والموديل', [r.brand, r.model].filter(Boolean).join(' ') || '—'], ['الرقم التسلسلي', r.serial || '—'], ['رقم الأصل', r.tag || '—'], ['الإدارة', Data.nameOf('departments', r.fromDepartmentId, '—')], ['تاريخ الإرسال', r.openedAt ? fmtDateTime(r.openedAt) : ''], ['سبب الإرسال', r.reason], ['الحالة', (MAINT_STATUS[r.status] || {}).label || ''], ['أرسله للصيانة', r.openedBy ? Data.userName(r.openedBy) : ''], ['الفني المنفذ', r.closedBy ? Data.userName(r.closedBy) : '—'], ['وصف العطل', r.symptom || '—'], ['ما تم في الصيانة', r.workDone || '—'], ['القطع المستخدمة', r.parts || '—'], ['الإضافات', r.additions], ['التعديلات', r.changes]];
+      if (r.keep) facts.push(['مكان الجهاز', Data.maint && Data.maint.placeText ? Data.maint.placeText(r) : ''], ['ما استُلم معه', r.accessories], ['المستلم', r.receiverName], ['تاريخ التسليم', r.returnedAt && r.receiverName ? fmtDateTime(r.returnedAt) : '']);
+      if (r.returnedAt) facts.push(['تاريخ الإرجاع', fmtDateTime(r.returnedAt)], ['أُرجع إلى', Data.nameOf('departments', r.toDepartmentId, '—')]);
+      return { number: num, at: r.openedAt || now(), facts, note: r.notes || '', lines: [{ name: r.itemName, brand: r.brand, model: r.model, serials: r.serial ? [r.serial] : [], qty: 1, unit: 'جهاز', sku: r.tag || '' }],
+        parties: [{ role: 'recv', title: 'مستلم الجهاز', name: r.receiverName || '' }, VLX.pp(r.closedBy || r.openedBy, 'الفني المنفّذ للصيانة', 'deliv')] };
+    },
+    mt(r) {
+      const S = MT.stage(r.status), dv = r.device || {}, ds = r.dest || {}, back = r.status === 'returned';
+      return { number: r.number, at: r.sentAt || r.createdAt || now(), title: `${VOUCHER_KIND.mt.title} — ${MT.name()}`,
+        facts: [['الجهاز', dv.name], ['الحالة', S.label], ['الماركة والموديل', [dv.brand, dv.model].filter(Boolean).join(' ')], ['الرقم التسلسلي', dv.serial], ['رقم الأصل', dv.tag], ['اسم الجهاز على الشبكة', dv.host], ['الإدارة', [Data.nameOf('departments', r.departmentId, ''), r.unitPath].filter(Boolean).join(' / ')], ['صاحب العهدة', [r.holder, r.phone].filter(Boolean).join(' — ')], ['البلاغ المرتبط', r.ticketRef], ['جهة الصيانة', [MT.destText(r), MT_DEST[ds.type]].filter(Boolean).join(' — ')], ['المسؤول وهاتفه', [ds.contact, ds.phone].filter(Boolean).join(' — ')], ['أمر العمل', ds.ref], ['تاريخ الإرسال', r.sentAt ? fmtDate(r.sentAt) : ''], ['الموعد المتوقع', r.expectedAt ? fmtDate(r.expectedAt) : ''], ['المدة', `${fmtNum(MT.days(r))} يوم`], ['الأولوية', (PRIORITY[r.priority] || PRIORITY.medium).label], ['العطل / سبب الإرسال', r.fault], ['الحالة الظاهرية', r.condition], ['الملحقات', (r.accessories || []).join('، ')], ['نتيجة الصيانة', r.result && MT_RESULTS[r.result] ? MT_RESULTS[r.result][0] : ''], ['ما تم في الصيانة', r.workDone], ['القطع المستبدلة', r.parts], ['الرقم البديل', r.newSerial], ['التسليم', r.returnedAt ? `${fmtDateTime(r.returnedAt)}${r.returnedTo ? ` إلى ${r.returnedTo}` : ''}` : '']],
+        note: r.cardNote || '',
+        lines: (r.notes || []).map((n) => ({ name: Data.userName(n.by), tok: { 'وقت الإجراء': fmtDateTime(n.at), 'نوع الملاحظة': (MT_NOTE_KINDS[n.kind] || MT_NOTE_KINDS.note)[0], 'بواسطة': Data.userName(n.by), 'نص الإجراء': n.text || '' } })),
+        oldLines: (r.log || []).map((e) => ({ name: Data.userName(e.by), tok: { 'وقت الإجراء': fmtDateTime(e.at), 'بواسطة': Data.userName(e.by), 'نص الإجراء': e.text || '' } })),
+        parties: [{ role: 'deliv', title: 'المُسلِّم', name: back ? Data.userName(r.returnedBy) : r.holder || '' }, { role: 'recv', title: 'المستلم', name: back ? r.returnedTo || '' : ds.contact || '' }] };
+    },
+    gate(n = 6) {
+      const NB = VLX.NB;
+      return { number: '', barcode: '', at: now(), facts: [['الإدارة', NB], ['تاريخ الطلب', NB], ['نوع الطلب', 'إصدار جديد ☐    بدل فاقد ☐    بدل تالف ☐    تجديد ☐    تم الترقية ☐'], ['المناطق أو الأبواب المطلوبة', NB], ['مدة الصلاحية', 'سنة ☐    سنتان ☐    ثلاث سنوات ☐    حسب مدة الخدمة ☐']],
+        lines: Array.from({ length: Math.max(1, Number(n) || 6) }, () => ({ tok: {} })), pledge: 'أتعهد نيابة عن المذكورين أعلاه بالمحافظة على البطاقات وعدم تمكين غيرهم من استخدامها، وإعادتها عند انتهاء الحاجة أو انتهاء الخدمة.',
+        parties: [{ role: 'recv', title: 'طالب الإصدار' }, { role: 'deliv', title: 'مدير الإدارة' }, { role: 'appr', title: 'فني قسم تقنية المعلومات', signOnly: true }] };
+    },
+    masar(t, list) {
+      const dep = Data.nameOf('departments', t.departmentId, '—');
+      return { number: t.number, at: t.createdAt, facts: [['رقم الطلب', t.number], ['التاريخ', fmtDate(t.createdAt)], ['مقدم الطلب', Data.userName(t.requesterId)], ['الإدارة', dep], ['عدد الأشخاص', fmtNum((list || []).length)]],
+        lines: (list || []).map((p) => ({ name: p.name || '', tok: { 'الاسم الكامل': p.name || '', 'رقمه العسكري': p.militaryNo || '', 'الرمز الصادر': '' } })),
+        parties: [VLX.pp(t.requesterId, 'مقدم الطلب', 'recv', { sub: dep }), VLX.pp(t.assigneeId, 'فني قسم تقنية المعلومات', 'deliv')] };
+    },
+    custody(depId, rows, items, ud, offices) {
+      const dn = Data.nameOf('departments', depId, ''), cat = (it) => Data.nameOf('itemCategories', it.categoryId, '');
+      const lines = (rows || []).map((r) => { const it = items.get(r.itemId) || {}; return { name: it.name || '', sku: it.sku || '', info: cat(it), qty: r.qty, tok: { 'التصنيف': cat(it) } }; });
+      const old = ((ud || {}).rows || []).map((r) => { const o = (offices || []).find((x) => x.id === r.unitId) || {}, it = items.get(r.itemId) || {}; return { name: it.name || '', qty: r.qty, tok: { 'القسم': o.section || '', 'المكتب': o.name || '' } }; });
+      const d0 = new Date();
+      return { number: `CUS-${d0.getFullYear()}${pad(d0.getMonth() + 1)}${pad(d0.getDate())}`, at: now(), facts: [['الإدارة', dn], ['عدد الأصناف', fmtNum(lines.length)], ['إجمالي القطع', fmtNum(lines.reduce((a, l) => a + (Number(l.qty) || 0), 0))], ['تاريخ الكشف', fmtDateTime(now())]], lines, oldLines: old,
+        parties: [{ role: 'recv', title: 'مسؤول الإدارة', sub: dn }, VLX.pp(Auth.user.id, 'مُعدّ الكشف', 'deliv')] };
+    },
+    distrib(rows, o = {}) {
+      return { number: o.number || VLX.stamp('DST'), at: o.at || now(), facts: [['رقم السند', o.number], ['الإدارة', o.dep], ['تاريخ التوزيع', fmtDateTime(o.at || now())], ['عدد الأسطر', fmtNum(rows.length)], ['إجمالي القطع', fmtNum(rows.reduce((a, l) => a + (Number(l.qty) || 0), 0))]],
+        lines: rows.map((l) => ({ name: l.name || '', qty: l.qty, serials: l.serials || [], tok: { 'الموضع': l.place || '', 'المحطة': l.ws || '—', 'نوع الحركة': l.how || '' } })),
+        parties: [VLX.pp(o.by || Auth.user.id, 'المُسلِّم', 'deliv'), { role: 'recv', title: 'المستلم' }, { role: 'appr', title: 'اعتماد المسؤول', signOnly: true }] };
+    },
+    addlist(o) {
+      const store = o.mode === 'store', units = (o.lines || []).reduce((a, l) => a + (Number(l.qty) || 0), 0);
+      return { number: VLX.stamp('ADD'), at: now(), title: `${VOUCHER_KIND.addlist.title} — ${store ? 'استلام في المخزن' : 'عهدة مباشرة'}`,
+        facts: [['إلى', o.place], ['التاريخ', fmtDateTime(now())], ['نوع الإضافة', store ? 'استلام في المخزن' : 'عهدة مباشرة'], ...(store ? [['المرجع', (o.v || {}).ref || '—'], ['المورّد', (o.v || {}).party || '—']] : [['المستلم', o.holder || '—']]), ['إجمالي القطع', fmtNum(units)]],
+        lines: (o.lines || []).map((l) => ({ name: (l.item || {}).name || '', qty: l.qty, serials: l.sns || [], tok: { 'التصنيف': Data.nameOf('itemCategories', MDL.typeOf(l.item), ''), 'المكتب': !store && l.unitId ? orgLabel(o.depId, l.unitId, o.units0 || []).split(' / ').slice(1).join(' / ') : '—', 'ملاحظة السطر': l.note || '' } })),
+        parties: [store ? { role: 'deliv', title: 'المُسلِّم', name: (o.v || {}).party || '' } : VLX.pp(Auth.user.id, 'المُسلِّم', 'deliv'), store ? VLX.pp(Auth.user.id, 'المستلم', 'recv') : { role: 'recv', title: 'المستلم', name: o.holder || '' }] };
+    },
+    wscard(w, U, units) {
+      const cnt = U.free.length + U.sets.reduce((a, x) => a + x.members.length, 0), row = (u, set) => ({ name: DNM.model(u.it), brand: DNM.brand(u.it) || '—', serials: u.sn ? [u.sn] : [], qty: 1, tok: { 'الطقم': set, 'التصنيف': INVR.top(u.it).name, 'التاج': u.tag || '', 'اسم الجهاز': u.host || '' } });
+      const holders = WS.holders(w).map((x) => Data.userName(x));
+      return { number: `WSC-${String(w.id || '').replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase()}`, at: now(), facts: [['المحطة', WS.label(w)], ['الموضع', orgLabel(w.departmentId, w.unitId, units)], ['المستخدم', holders.join('، ') || 'مشتركة'], ['الأجهزة', `${fmtNum(cnt)}${U.sets.length ? ` في ${fmtNum(U.sets.length)} طقم` : ''}`], ['تاريخ الجرد', fmtDateTime(now())]],
+        lines: [...U.sets.flatMap((x) => x.members.map((u) => row(u, x.name || `طقم ${fmtNum(x.n)}`))), ...U.free.map((u) => row(u, U.sets.length ? 'غير مدموج' : '—'))],
+        parties: [{ role: 'recv', title: 'المستلم', name: holders[0] || '' }, VLX.pp(Auth.user.id, 'فني قسم تقنية المعلومات', 'deliv')] };
+    }
+  },
+  /* ── بيانات المعاينة في المصمم ── */
+  S: {
+    ticket: () => VLX.d.ticket({ number: 'IT-2026-00093', title: 'الطابعة لا تطبع من الحاسب', status: 'in_progress', requesterId: '', departmentId: (Data.list('departments')[0] || {}).id, categoryId: (Data.list('categories')[0] || {}).id, priority: 'high', assigneeId: Auth.user.id, createdAt: now() - 3 * 3600e3, description: 'تظهر رسالة «الطابعة غير متصلة» رغم أنها تعمل، وتوقفت الطباعة من صباح اليوم.' }, [{ userId: Auth.user.id, at: now() - 2 * 3600e3, text: 'تم الاطلاع على البلاغ وسيتم الحضور خلال ساعة.' }, { userId: Auth.user.id, at: now() - 3600e3, text: 'أُعيد تثبيت تعريف الطابعة وضُبط عنوانها في الشبكة، وتعمل الآن.' }]),
+    maint: () => VLX.d.maint({ id: 'mnt_demo42', itemName: 'حاسب مكتبي', brand: 'Dell', model: 'OptiPlex 7010', serial: '5CD3241XQ7', tag: 'TAG-00412', fromDepartmentId: (Data.list('departments')[0] || {}).id, openedAt: now() - 2 * 864e5, reason: 'عطل في التشغيل', status: 'done', openedBy: Auth.user.id, closedBy: Auth.user.id, symptom: 'يتوقف بعد دقائق من التشغيل', workDone: 'تنظيف المروحة وتغيير المعجون الحراري', parts: 'معجون حراري', notes: 'يُنصح بتنظيفه كل ستة أشهر.' }),
+    mt: () => VLX.d.mt({ number: 'MT-2026-00015', status: 'sent', device: { name: 'طابعة ليزر', brand: 'HP', model: 'LaserJet M404dn', serial: 'PHBQK12345', tag: 'TAG-0099' }, departmentId: (Data.list('departments')[0] || {}).id, holder: 'أحمد بن سالم الراشدي', phone: '9xxxxxxx', dest: { type: 'agent', name: 'الوكيل المعتمد', contact: 'سالم المعمري', phone: '2xxxxxxx', ref: 'WO-5521' }, sentAt: now() - 5 * 864e5, expectedAt: now() + 2 * 864e5, priority: 'medium', fault: 'انحشار الورق المتكرر', accessories: ['كابل الطاقة'], notes: [{ at: now() - 4 * 864e5, kind: 'note', by: Auth.user.id, text: 'تواصلنا مع الوكيل وأكد الاستلام.' }], log: [{ at: now() - 5 * 864e5, by: Auth.user.id, text: 'أُرسل الجهاز إلى الوكيل' }] }),
+    gate: () => VLX.d.gate(6),
+    masar: () => VLX.d.masar({ number: 'IT-2026-00101', createdAt: now(), requesterId: Auth.user.id, departmentId: (Data.list('departments')[0] || {}).id, assigneeId: Auth.user.id }, [{ name: 'أحمد بن سالم الراشدي', militaryNo: '51002' }, { name: 'خالد بن حمد البلوشي', militaryNo: '51877' }, { name: 'سعيد بن علي الهنائي', militaryNo: '52310' }]),
+    custody: () => { const items = new Map(VTD_SAMPLE_ITEMS.slice(0, 4).map(([name, , , sku], i) => [`i${i}`, { name, sku }])); return VLX.d.custody((Data.list('departments')[0] || {}).id, [...items.keys()].map((id, i) => ({ itemId: id, qty: i + 1 })), items, { rows: [{ unitId: 'u1', itemId: 'i0', qty: 1 }, { unitId: 'u2', itemId: 'i1', qty: 2 }] }, [{ id: 'u1', name: 'مكتب المدير', section: 'قسم الشؤون الإدارية' }, { id: 'u2', name: 'مكتب السكرتارية', section: 'قسم الشؤون الإدارية' }]); },
+    distrib: () => VLX.d.distrib(VTD_SAMPLE_ITEMS.slice(0, 4).map(([name, , , , sns], i) => ({ name, qty: sns.length || 1, serials: sns, place: ['مكتب المدير', 'مكتب السكرتارية', 'قاعة الاجتماعات', 'مكتب المدير'][i], ws: i < 2 ? `محطة ${fmtNum(i + 1)}` : '—', how: i === 2 ? 'عهدة عامة للإدارة' : 'عهدة جديدة' })), { number: 'VCH-2026-00051', dep: (Data.list('departments')[0] || {}).name || 'إدارة الشؤون الإدارية', at: now() }),
+    addlist: () => VLX.d.addlist({ mode: 'store', place: 'المخزن الرئيسي', v: { ref: 'أمر شراء 12/2026', party: 'شركة التقنية المتقدمة' }, lines: VTD_SAMPLE_ITEMS.slice(0, 3).map(([name, , , , sns]) => ({ item: { name }, qty: sns.length || 2, sns, note: '' })) }),
+    wscard: () => VLX.fill('wscard', { number: 'WSC-00A1B2', facts: [['المحطة', 'محطة 1 — مكتب المدير'], ['الموضع', 'إدارة الشؤون الإدارية / مكتب المدير'], ['المستخدم', 'أحمد بن سالم الراشدي'], ['الأجهزة', '3'], ['تاريخ الجرد', fmtDateTime(now())]], lines: VTD_SAMPLE_ITEMS.slice(0, 3).map(([name, brand, , , sns], i) => ({ name, brand, serials: sns, qty: 1, tok: { 'الطقم': i < 2 ? 'طقم 1' : 'غير مدموج', 'التصنيف': i ? 'ملحقات' : 'حاسبات', 'التاج': `TAG-00${i + 1}`, 'اسم الجهاز': i ? '' : 'PC-ADM-01' } })), parties: [{ role: 'recv', title: 'المستلم', name: 'أحمد بن سالم الراشدي' }, VLX.pp(Auth.user.id, 'فني قسم تقنية المعلومات', 'deliv')] })
+  }
+};
+VL_ITEM_TOKS.push(...VLX.TOKS.filter((k) => !VL_ITEM_TOKS.includes(k)));
+{ const it0 = VL.itemTok; VL.itemTok = (l, i) => { const o = it0(l, i); if (l) { VLX.TOKS.forEach((k) => { if (!(k in o)) o[k] = ''; }); if (l.tok) Object.assign(o, l.tok); } return o; }; }
+{ const vs1 = Pages.vtdSample; Pages.vtdSample = (k, n) => (VLX.S[k] ? VLX.fill(k, VLX.S[k](n)) : vs1(k, n)); }
+/* طباعة الاستمارات بنموذجها متى اعتُمد */
+{ const pm0 = Pages.printMaint; Pages.printMaint = (r) => { if (!VLX.print('maint', () => VLX.d.maint(r))) pm0(r); }; }
+{ const mt0 = Pages.mtPrintOne; Pages.mtPrintOne = (r) => { if (!VLX.print('mt', () => VLX.d.mt(r))) mt0(r); }; }
+{ const g0 = Pages.printBlankCardForm; Pages.printBlankCardForm = (rows = 6) => { if (!VLX.print('gate', () => VLX.d.gate(rows))) g0(rows); }; }
+
+/* «التصميم المدمج» للسندات → نموذج بالشكل نفسه: يقرأ إعداداته (الورق والإطار والخط والألوان والترويسة والعنوان
+   والباركود والبيانات وأعمدة الجدول والملاحظات والتعهد والتواقيع وخانة الإرجاع والتذييل والعلامة المائية) */
+VLS.fromVD = (k) => {
+  const T = VTPL.eff(k), C = T.color || {}, F = T.font || {}, H = T.header || {}, P = T.page || {}, TT = T.title || {}, BC = T.barcode || {}, Tb = T.table || {}, S = T.sigs || {}, FT = T.footer || {}, MK = T.mark || {};
+  const acc = C.accent || '#8a6a22', soft = C.soft || '#f6f2e8', line = C.line || '#c9c2b1', ink = C.ink || '#111111';
+  const pt = (px, d) => Math.max(6, Math.round((Number(px) || d) * 0.75 * 2) / 2), r1 = (v) => Math.round(v * 10) / 10;
+  const m = clamp(Number(P.margin) || 10, 0, 30), fr = P.frame || 'none';
+  const page = VLS.page({ size: P.size === 'A5' ? 'A5' : 'A4', mt: m, mb: m, ml: m, mr: m, pad: fr === 'none' ? 0 : 5, font: { family: F.family || 'IBM Plex Sans Arabic', size: pt(F.size, 12.5), color: ink }, frame: { style: { thin: 'solid', double: 'double', thick: 'solid', ornate: 'ornate' }[fr] || 'none', color: fr === 'thick' || fr === 'ornate' ? acc : ink, w: { thin: 0.35, double: 1.1, thick: 0.8, ornate: 0.55 }[fr] || 0.6, radius: 0 }, wm: { text: MK.text || '', img: MK.logo ? H.logo || 'logo' : '', opacity: Number(MK.opacity) || 6, angle: -30, fs: 64 } });
+  const W = r1(VL.cw({ page }));
+  const TK = { org: '[اسم المؤسسة]', system: '[اسم القسم]', title: '[عنوان السند]', number: '[رقم السند]', date: '[التاريخ]', datetime: '[التاريخ والوقت]', kind: '[نوع العملية]' };
+  const lines = (s) => String(s || '').replace(/\{(\w+)\}/g, (x, key) => TK[key] || x).split('\n').map((x) => x.trim()).filter(Boolean);
+  const hs = pt(F.head, 15), lh = (sz) => sz * 0.3528 * 1.5;
+  const blkH = (ls, sc) => (ls.length ? lh(hs * sc * 1.08) + 1 + (ls.length - 1) * lh(hs * sc) : 0);
+  const blk = (x, y, w, ls, al, sc = 1) => { if (!ls.length) return []; const s1 = Math.round(hs * sc * 1.08 * 2) / 2, s2 = Math.round(hs * sc * 2) / 2, out = [VLS.t(r1(x), r1(y), r1(w), r1(lh(s1) + 1), ls[0], { size: s1, bold: 1, align: al })]; if (ls.length > 1) out.push(VLS.t(r1(x), r1(y + lh(s1) + 1), r1(w), r1((ls.length - 1) * lh(s2) + 1), ls.slice(1).join('\n'), { size: s2, align: al, lh: 1.5, color: ink })); return out; };
+  const bands = [];
+  const L0 = H.layout || 'classic';
+  if (L0 !== 'none') {
+    const R = lines(H.right), Lf = lines(H.left), lg = r1(clamp(Number(H.logoSize) || 64, 24, 160) / MMPX), els = [];
+    const logo = (x, y, src) => { const e = VLS.img(r1(x), r1(y), lg, lg); if (src) e.src = src; return e; };
+    let h;
+    if (L0 === 'center') {
+      const hR = blkH(R, 1), hL = blkH(Lf, 0.82);
+      els.push(logo((W - lg) / 2, 0, H.logo), ...blk(20, lg + 1.5, W - 40, R, 'center'), ...blk(20, lg + 2 + hR, W - 40, Lf, 'center', 0.82));
+      h = lg + 2 + hR + hL + 3;
+    } else if (L0 === 'split') {
+      const bw = (W - lg * (H.logo2 ? 2 : 1) - 12) / 2;
+      els.push(...blk(W - bw, 1, bw, R, 'right'), ...blk(0, 1, bw, Lf, 'left', 0.86));
+      if (H.logo2) els.push(logo(W / 2 + 1, 0, H.logo), logo(W / 2 - lg - 1, 0, H.logo2)); else els.push(logo((W - lg) / 2, 0, H.logo));
+      h = Math.max(lg, blkH(R, 1) + 1, blkH(Lf, 0.86) + 1) + 3;
+    } else {
+      const bw = Math.min(100, W * 0.52);
+      els.push(logo(W - lg, 0, H.logo), ...blk(W - lg - 3 - bw, Math.max(0, (lg - blkH(R, 1)) / 2), bw, R, 'right'), ...blk(0, Math.max(0, (lg - blkH(Lf, 0.86)) / 2), 72, Lf, 'left', 0.86));
+      if (H.logo2) els.push(logo((W - lg) / 2, 0, H.logo2));
+      h = Math.max(lg, blkH(R, 1), blkH(Lf, 0.86)) + 3;
+    }
+    const rule = H.rule || 'single';
+    if (rule !== 'none') els.push(VLS.ln(0, r1(h), W, rule === 'double' ? 1.1 : rule === 'accent' ? 1.3 : 0.4, rule === 'accent' ? acc : ink, rule === 'double' ? 'double' : 'solid'));
+    bands.push(VLS.band('free', { name: 'الترويسة', mt: 0, h: Math.ceil(h + 2.5), els }));
+  }
+  /* العنوان */
+  const ts = pt(F.title, 22), st = TT.style || 'band', bcOn = !!BC.show;
+  if (st === 'band') {
+    const bx = bcOn ? 66 : 5, els = [VLS.rc(0, 0, W, 24, { bg: soft, bw: 0.4, bc: acc, radius: 3 }), VLS.rc(W - 1.6, 0, 1.6, 24, { bg: acc })];
+    if (TT.kicker) els.push(VLS.t(bx, 2.5, W - bx - 6, 5, '[نوع العملية]', { size: 8.5, bold: 1, color: acc }));
+    els.push(VLS.t(bx, TT.kicker ? 7.5 : 4, W - bx - 6, 9.5, '[عنوان السند]', { size: ts, bold: 1, color: ink }));
+    if (TT.date) els.push(VLS.t(bx, 17.5, W - bx - 6, 5, '[التاريخ والوقت]', { size: 9, color: '#444' }));
+    if (bcOn) { els.push({ ...VLS.ln(62, 2, 0.1, 0.3, line, 'dashed'), dir: 'v', w: 2, h: 20 }); if (BC.label) els.push(VLS.t(3, 1.5, 56, 4.5, '[عنوان السند]', { size: 7.5, bold: 1, color: acc, align: 'center' })); els.push(VLS.bc(3, BC.label ? 6 : 3, 56, BC.label ? 16.5 : 18)); }
+    bands.push(VLS.band('free', { name: 'العنوان', h: 24, els }));
+  } else {
+    const tx = bcOn ? 62 : 0, tw = W - tx, al = st === 'center' ? 'center' : 'right', els = [VLS.t(tx, 1, tw, 10, '[عنوان السند]', { size: ts, bold: 1, align: al, color: st === 'underline' ? acc : ink })];
+    if (st === 'center') els.push(VLS.ln(r1(tx + tw / 2 - 35), 11.5, 70, 0.8, acc));
+    if (st === 'underline') els.push(VLS.ln(r1(W - 80), 11.5, 80, 1, acc, 'double'));
+    if (TT.date) els.push(VLS.t(tx, 13.5, tw, 5, '[التاريخ والوقت]', { size: 9, color: '#444', align: al }));
+    if (bcOn) { els.push(VLS.rc(0, 0, 56, 20, { bw: 0.3, bc: line, radius: 2.5 })); if (BC.label) els.push(VLS.t(2, 0.8, 52, 4.5, '[عنوان السند]', { size: 7.5, bold: 1, color: acc, align: 'center' })); els.push(VLS.bc(2, BC.label ? 5 : 2, 52, BC.label ? 14.5 : 16)); }
+    bands.push(VLS.band('free', { name: 'العنوان', h: 21, els }));
+  }
+  if ((T.facts || {}).show !== 0) bands.push(VLS.band('facts', { cfg: { style: 'cards', cols: 4, bc: line, lc: '#555', bg: '#ffffff' } }));
+  const lab = { name: Tb.lName, brand: Tb.lBrand, serials: Tb.lSerials, qty: Tb.lQty, unit: Tb.lUnit, info: Tb.lInfo };
+  bands.push(VLS.band('items', { cfg: { cols: VL_ITEM_COLS.map(([kk, l, w]) => ({ k: kk, l: lab[kk] || l, w, on: kk === 'sku' ? 0 : Tb[kk] ? 1 : 0 })), hbg: soft, hc: ink, bc: line, bw: 0.3, fs: Math.max(8, pt(F.size, 12.5)), total: Tb.total ? 1 : 0, minRows: Number(Tb.minRows) || 0, zebra: Tb.zebra ? 1 : 0 } }));
+  if ((T.notes || {}).show) bands.push(VLS.band('notes', { mt: 0, cfg: { label: (T.notes || {}).label || 'ملاحظات', lc: acc, bc: line, minH: 9 } }));
+  if ((T.pledge || {}).show) bands.push(VLS.band('free', { name: 'التعهد', h: 11, els: [VLS.t(0, 0, W, 11, '[نص التعهد]', { size: 9.5, bg: soft, radius: 2, padding: 2, valign: 'middle' })] }));
+  bands.push(VLS.band('sigs', { cfg: { layout: S.layout === 'boxes' ? 'boxes' : 'rows', cols: VL_SIG_COLS.map(([kk, l]) => ({ k: kk, l, on: S[kk] ? 1 : 0 })), hbg: soft, bc: line, rowH: 11, approver: S.approver ? 1 : 0, subs: S.subs ? 1 : 0, hc: acc, recv: S.recv || 'المستلم', deliv: S.deliv || 'المُسلِّم', appr: S.appr || 'اعتماد المسؤول', extra: S.extra || '' } }));
+  if ((T.returnBox || {}).show !== 0) bands.push(VLS.ret(acc, line));
+  if (FT.show) { const nx = FT.number ? 40 : 0; bands.push(VLS.band('free', { name: 'التذييل', h: 7, mt: 4, els: [VLS.ln(0, 0, W, 0.3, line), VLS.t(nx, 1.5, W - nx, 5, lines(FT.text).join(' '), { size: 8, color: '#666' }), ...(FT.number ? [VLS.t(0, 1.5, 40, 5, '[رقم السند]', { size: 8, color: '#666', align: 'left' })] : [])] })); }
+  return { page, bands };
+};
+
 /* ══════════ الجولة 38: مكتبة نماذج الاستمارات ══════════
    كل نموذج بطاقة بمعاينته وحالته (معتمد لفئات / مسودة) وأيقونات: معاينة، تعديل، اعتماد لفئة أو أكثر، نسخ باسم جديد، إعادة تسمية، حذف.
    «حسب الاستمارة»: لكل فئة (الصرف، الإعارة…) نموذجها المعتمد بمعاينة ببياناتها، مع تغييره أو نسخه إلى فئة أخرى.
@@ -26311,24 +26561,24 @@ const VLF = {
         <div class="vlf-ca">${ib('pv', t.id, 'eye', 'معاينة بالبيانات')}${ro ? '' : html`${ib('ed', t.id, 'edit', 'تعديل')}${ib('ap', t.id, 'shield', off ? 'الاعتماد والفئات' : 'اعتماد لفئة', 'ok')}${ib('cp', t.id, 'copy', 'نسخ باسم جديد')}${ib('rn', t.id, 'tag', 'إعادة تسمية')}${ib('dl', t.id, 'trash', 'حذف', 'del')}`}</div></article>`;
     };
     const krow = ([k, l]) => {
-      const own = lib.use[k], eid = own || (k === 'leave' ? '' : lib.def), t = eid ? lib.tpls.find((x) => x.id === eid) : null;
+      const own = lib.use[k], eid = own || (VLX.own.has(k) ? '' : lib.def), t = eid ? lib.tpls.find((x) => x.id === eid) : null;
       return html`<div class="vlf-krow${own ? ' own' : ''}">
         ${t ? html`<button type="button" class="vlf-kth" data-lb="pv|${t.id}|${k}" title="معاينة ${l}">${VLF.thumb(t.layout, k, 'sm')}</button>` : html`<div class="vlf-kth none">${UI.icon('file')}<small>التصميم المدمج</small></div>`}
-        <div class="vlf-kb"><b>${UI.icon(VLF.kic(k))} ${l}</b><small>${own ? html`<span class="chip tone-green">${UI.icon('shield')} نموذج خاص معتمد: ${t.name}</span>` : t ? `تتبع القالب العام «${t.name}»` : 'تُطبع بالتصميم المدمج'}</small>
+        <div class="vlf-kb"><b>${UI.icon(VLF.kic(k))} ${l}</b><small>${own ? html`<span class="chip tone-green">${UI.icon('shield')} نموذج خاص معتمد: ${t.name}</span>${t.auto ? html` <span class="chip tone-sky">${UI.icon('refresh')} بشكلها المستخدم سابقاً</span>` : ''}` : t ? `تتبع القالب العام «${t.name}»` : 'تُطبع بالتصميم المدمج'}</small>
           ${ro ? '' : html`<label class="vlf-ksel"><span>النموذج المعتمد</span><select data-kset="${k}"><option value="">${lib.def ? `القالب العام «${VLF.name(lib, lib.def)}»` : 'التصميم المدمج'}</option>${lib.tpls.map((x) => html`<option value="${x.id}"${x.id === own ? raw(' selected') : ''}>${x.name}</option>`)}</select></label>`}</div>
         <div class="vlf-ka">${t ? html`<button type="button" class="btn btn-sm btn-ghost" data-lb="pv|${t.id}|${k}">${UI.icon('eye')} مشاهدة</button>` : ''}${ro ? '' : html`${own ? html`<button type="button" class="btn btn-sm btn-soft" data-lb="ed|${own}|${k}">${UI.icon('edit')} تعديل</button>` : html`<button type="button" class="btn btn-sm btn-primary" data-lb="mk||${k}">${UI.icon('plus')} نموذج خاص</button>`}${t ? html`<button type="button" class="btn btn-sm btn-ghost" data-lb="cp|${t.id}|${k}">${UI.icon('copy')} نسخ إلى فئة أخرى</button>` : ''}`}</div></div>`;
     };
     const head = () => html`<div class="vlf-head"><div class="seg sm" role="tablist"><button type="button" class="vtf-tab${st.tab === 'tpls' ? ' on' : ''}" data-lt="tpls">${UI.icon('layers')} النماذج (${fmtNum(lib.tpls.length)})</button><button type="button" class="vtf-tab${st.tab === 'kinds' ? ' on' : ''}" data-lt="kinds">${UI.icon('file')} حسب الاستمارة</button></div>
-      ${st.tab === 'tpls' ? html`<div class="search-box">${UI.icon('search')}<input type="search" data-lq placeholder="ابحث باسم النموذج" value="${st.q}"></div><div class="seg sm">${[['', 'الكل'], ['ok', 'المعتمدة'], ['dr', 'المسودات']].map(([v, x]) => html`<button type="button" class="vtf-tab${st.f === v ? ' on' : ''}" data-lf="${v}">${x}</button>`)}</div>` : ro ? '' : html`<label class="vlf-ksel"><span>بداية النموذج الخاص</span><select name="starter">${lib.def ? html`<option value="copydef">نسخة من القالب العام</option>` : ''}${starters.map(([k, x]) => html`<option value="${k}">${x}</option>`)}</select></label>`}
+      ${st.tab === 'tpls' ? html`<div class="search-box">${UI.icon('search')}<input type="search" data-lq placeholder="ابحث باسم النموذج" value="${st.q}"></div><div class="seg sm">${[['', 'الكل'], ['ok', 'المعتمدة'], ['dr', 'المسودات']].map(([v, x]) => html`<button type="button" class="vtf-tab${st.f === v ? ' on' : ''}" data-lf="${v}">${x}</button>`)}</div>` : ro ? '' : html`<label class="vlf-ksel"><span>بداية النموذج الخاص</span><select name="starter"><option value="current">بشكلها المستخدم حالياً</option>${lib.def ? html`<option value="copydef">نسخة من القالب العام</option>` : ''}${starters.map(([k, x]) => html`<option value="${k}">${x}</option>`)}</select></label>`}
       <span class="grow"></span>${ro ? '' : html`<button type="button" class="btn btn-primary btn-sm" data-lb="new||">${UI.icon('plus')} استمارة جديدة</button>`}</div>`;
     const body = () => {
-      if (st.tab === 'kinds') return html`<div class="vlf-klist">${VT_KINDS.map(krow)}</div>`;
+      if (st.tab === 'kinds') { const seen = new Set(), grp = VLX.GROUPS.map(([g, ic, ks]) => [g, ic, ks.filter((k) => VT_KINDS.some(([x]) => x === k))]).filter(([, , ks]) => ks.length); grp.forEach(([, , ks]) => ks.forEach((k) => seen.add(k))); const rest = VT_KINDS.filter(([k]) => !seen.has(k)).map(([k]) => k); if (rest.length) grp.push(['أخرى', 'file', rest]); return html`${grp.map(([g, ic, ks]) => html`<h4 class="vlf-kg">${UI.icon(ic)} ${g} <small>${fmtNum(ks.length)}</small></h4><div class="vlf-klist">${ks.map((k) => krow(VT_KINDS.find(([x]) => x === k)))}</div>`)}`; }
       const q = normalizeAr(st.q.trim()), xs = lib.tpls.filter((t) => (!q || normalizeAr(String(t.name || '')).includes(q)) && (!st.f || (st.f === 'ok') === VLF.official(lib, t)));
       return xs.length ? html`<div class="vlf-grid">${xs.map(card)}</div>` : UI.empty({ illu: 'file', title: 'لا توجد نماذج مطابقة', text: st.f === 'dr' ? 'كل النماذج معتمدة.' : 'غيّر البحث أو أنشئ استمارة جديدة.' });
     };
     const mkFor = (k, sv) => {
-      const base = sv === 'copydef' && k !== 'leave' && lib.tpls.find((x) => x.id === lib.def);
-      const nt = { id: uid('vt'), name: `نموذج ${VLF.kl(k)}`, layout: base ? JSON.parse(JSON.stringify(base.layout)) : vlFix(VLS[k === 'leave' ? 'leave' : VLS[sv] ? sv : 'classic']()), createdAt: now(), createdBy: Auth.user.id, forKind: k };
+      const base = sv === 'copydef' && !VLX.own.has(k) && lib.tpls.find((x) => x.id === lib.def);
+      const nt = { id: uid('vt'), name: `نموذج ${VLF.kl(k)}`, layout: base ? JSON.parse(JSON.stringify(base.layout)) : vlFix(VLX.own.has(k) ? VLX.layout(k) : sv === 'current' ? VLS.fromVD(k) : VLS[VLS[sv] ? sv : 'classic']()), createdAt: now(), createdBy: Auth.user.id, forKind: k };
       if (VLF.dupName(lib, nt.name)) nt.name = `${nt.name} ${fmtNum(lib.tpls.length + 1)}`;
       lib.tpls.push(nt); VLF.assign(lib, nt, [k], null); return nt;
     };
@@ -26343,6 +26593,8 @@ const VLF = {
         const drawBody = () => { const b2 = box.querySelector('.vlf-body'); if (b2) b2.innerHTML = String(body()); };
         const save = async (msg) => { try { await api.save(msg); return true; } catch (err) { UI.error(err); return false; } finally { if (f.isConnected) draw(); } };
         draw();
+        /* كل استمارة تُطبع بالتصميم المدمج يُنشأ لها نموذج بشكلها الحالي ويُعتمد، فتظهر هنا وتُعدَّل */
+        if (!ro) { const made = VLX.materialize(lib); if (made.length) { st.tab = 'kinds'; save(`أُضيفت ${fmtNum(made.length)} استمارة بشكلها المستخدم حالياً، وصارت قابلة للتعديل: ${made.map((t) => VLF.kl(t.forKind)).join('، ')}`); } }
         UI.on(f, 'click', '[data-lt]', (e, b2) => { st.tab = b2.dataset.lt; draw(); });
         UI.on(f, 'click', '[data-lf]', (e, b2) => { st.f = b2.dataset.lf; $$('[data-lf]', f).forEach((x) => x.classList.toggle('on', x === b2)); drawBody(); });
         UI.on(f, 'input', '[data-lq]', (e, i) => { st.q = i.value; drawBody(); });
@@ -26361,14 +26613,14 @@ const VLF = {
           if (act === 'rn' && t) { if (await VLF.rename(lib, t)) await save('حُفظ الاسم الجديد'); return; }
           if (act === 'dl' && t) { const nm = t.name; if (await VLF.del(lib, t)) await save(`حُذف النموذج «${nm}»`); return; }
           if (act === 'new') { const nt = await VLF.create(lib); if (nt && (await save(`حُفظت «${nt.name}» في النماذج`))) finish({ act: 'edit', id: nt.id, k: VLF.kindsOf(lib, nt.id)[0] || '' }); return; }
-          if (act === 'mk' && k) { const nt = mkFor(k, (f.querySelector('[name="starter"]') || {}).value || (lib.def ? 'copydef' : 'classic')); if (await save(`أُنشئ «${nt.name}» واعتُمد لاستمارة ${VLF.kl(k)}`)) finish({ act: 'edit', id: nt.id, k }); }
+          if (act === 'mk' && k) { const nt = mkFor(k, (f.querySelector('[name="starter"]') || {}).value || 'current'); if (await save(`أُنشئ «${nt.name}» واعتُمد لاستمارة ${VLF.kl(k)}`)) finish({ act: 'edit', id: nt.id, k }); }
         });
       },
       actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(ro ? [] : [{ label: 'نموذج خاص لكل استمارة ناقصة', kind: 'soft', icon: 'layers', handler: async (f) => {
         const miss = VT_KINDS.filter(([k]) => !lib.use[k]);
         if (!miss.length) { UI.toast('لكل استمارة نموذجها الخاص بالفعل', 'info'); return false; }
         if (!(await UI.confirm(`إنشاء ${fmtNum(miss.length)} من النماذج الخاصة (${miss.map(([, l]) => l).join('، ')}) واعتمادها لاستماراتها؟`, { ok: 'إنشاء', icon: 'layers' }))) return false;
-        const sv = (f.querySelector('[name="starter"]') || {}).value || (lib.def ? 'copydef' : 'classic'), made = miss.map(([k]) => mkFor(k, sv));
+        const sv = (f.querySelector('[name="starter"]') || {}).value || 'current', made = miss.map(([k]) => mkFor(k, sv));
         await api.save(`أُنشئت ${fmtNum(made.length)} نماذج واعتُمدت لاستماراتها`);
         return { act: 'edit', id: made[0].id, k: made[0].forKind };
       } }])] });
@@ -26975,7 +27227,7 @@ const WSS = {
     const items = new Map((await DB.getAll('items')).map((i) => [i.id, i])), U = WSS.units(w, items), units = await DB.getAll('deptUnits');
     const row = (u, i) => html`<tr><td class="n">${fmtNum(i + 1)}</td><td><b dir="auto">${DNM.model(u.it)}</b></td><td>${DNM.brand(u.it) || '—'}</td><td>${INVR.top(u.it).name}</td><td class="ltr">${u.sn || ''}</td><td class="ltr">${u.tag || ''}</td><td class="ltr">${u.host || ''}</td><td></td></tr>`;
     const head = html`<thead><tr><th class="n" style="width:30px">م</th><th>الجهاز</th><th>الماركة</th><th>الفئة</th><th>الرقم التسلسلي</th><th>التاج</th><th>اسم الجهاز</th><th style="width:60px">الجرد ✓</th></tr></thead>`;
-    UI.print(html`<h2 style="text-align:center">بطاقة جرد محطة عمل</h2>
+    if (!VLX.print('wscard', () => VLX.d.wscard(w, U, units))) UI.print(html`<h2 style="text-align:center">بطاقة جرد محطة عمل</h2>
       <table><tr><th>المحطة</th><td>${WS.label(w)}</td><th>الموضع</th><td>${orgLabel(w.departmentId, w.unitId, units)}</td></tr><tr><th>المستخدم</th><td>${WS.holders(w).map((x) => Data.userName(x)).join('، ') || 'مشتركة'}</td><th>الأجهزة</th><td>${fmtNum(U.free.length + U.sets.reduce((a, x) => a + x.members.length, 0))}${U.sets.length ? ` في ${fmtNum(U.sets.length)} طقم` : ''}</td></tr></table>
       ${U.sets.map((x) => html`<h3 class="wss-ph"><i style="background:${WSS.hex(x.color)}"></i>${x.name || `طقم ${fmtNum(x.n)}`}</h3><table class="inv-pt">${head}<tbody>${x.members.map(row)}</tbody></table>`)}
       ${U.free.length ? html`<h3 class="wss-ph">${U.sets.length ? 'أجهزة غير مدموجة' : 'أجهزة المحطة'}</h3><table class="inv-pt">${head}<tbody>${U.free.map(row)}</tbody></table>` : ''}
