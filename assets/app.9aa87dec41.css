@@ -7492,3 +7492,34 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lvk-sw{display:inline-flex;border-radius:4px;overflow:hidden;border:1px solid var(--line-2)}
 .lvk-sw i{width:6px;height:12px}
 @media (max-width:640px){.lvk-pv{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* ══ الجولة 46: أيقونات الإجازات ثلاثية الأبعاد ══ */
+.ic.l3d{stroke:none;overflow:visible;width:1.4em;height:1.4em;vertical-align:-.36em}
+.lv-barx>.ic.l3d{width:17px;height:17px;margin-block:-2px;filter:drop-shadow(0 1px 1px rgba(11,21,48,.22))}
+.lv-barx.lp-w>.ic.l3d{width:16px;height:16px}
+.lv-ico .ic.l3d,.lv-licons .lv-ico .ic.l3d{width:28px;height:28px;transition:transform .25s var(--spring)}
+.lv-icg .lv-ico{height:42px}
+.lv-icg .lv-ico .ic.l3d{width:30px;height:30px}
+.lv-icg.sm .lv-ico{height:34px}
+.lv-icg.sm .lv-ico .ic.l3d{width:25px;height:25px}
+.lv-icg .lv-icgp{grid-template-columns:repeat(auto-fill,minmax(44px,1fr))}
+.lv-icg.sm .lv-icgp{grid-template-columns:repeat(auto-fill,minmax(36px,1fr))}
+.lv-icg .lv-ico.on{background:rgba(var(--accent),.14);border-color:rgb(var(--accent));box-shadow:inset 0 0 0 1px rgb(var(--accent));color:var(--ink)}
+.lv-icg .lv-ico:hover .ic.l3d{transform:translateY(-2px) scale(1.08)}
+.lv-icgt .lv-ico-none .ic.l3d{width:20px;height:20px}
+.lv-ki:has(>.l3d){background:linear-gradient(160deg,rgba(var(--accent),.10),rgba(var(--accent),.03))}
+.lv-ki>.ic.l3d{width:30px;height:30px;filter:drop-shadow(0 3px 4px rgba(11,21,48,.18))}
+.lv-views span .ic.l3d{width:19px;height:19px}
+.lv-type span .ic.l3d{width:20px;height:20px;margin-block:-3px}
+.lv-card h4 .ic.l3d,.lv-ch h4 .ic.l3d{width:22px;height:22px}
+.lv-tp .ic.l3d{width:18px;height:18px}
+.lv-nt .ic.l3d{width:15px;height:15px}
+.lv-tn.l3d{width:14px;height:14px}
+.lv-nli .lv-nic.l3d{width:17px;height:17px}
+.lp-pic:has(>.l3d){background:color-mix(in srgb,var(--c) 16%,var(--surface-solid));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 55%,transparent)}
+.lp-pic>.ic.l3d{width:20px;height:20px}
+.lp-pic.sm>.ic.l3d{width:15px;height:15px}
+.lv-lm-pv>.ic.l3d{width:20px;height:20px;background:rgba(255,255,255,.88);border-radius:6px;padding:1px}
+.lp-steps .ic.l3d,.chip .ic.l3d{width:16px;height:16px}
+.btn .ic.l3d{width:20px;height:20px;margin-block:-4px}
+.lv-keys .ic.l3d{width:14px;height:14px}
