@@ -592,6 +592,15 @@ function leave_rows(array $rows, array $user): array {
 function leave_day(string $s): bool { return (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $s) && checkdate((int) substr($s, 5, 2), (int) substr($s, 8, 2), (int) substr($s, 0, 4)); }
 function leave_span_ok(string $a, string $b): bool { return $b >= $a && (strtotime($b . ' 12:00:00') - strtotime($a . ' 12:00:00')) / 86400 <= 366; }
 function leave_ids($x, int $n): array { return array_values(array_slice(array_unique(array_filter(array_map('strval', (array) $x), fn($v) => $v !== '' && strlen($v) <= 120)), 0, $n)); }
+function leave_hex($v): string { return is_string($v) && preg_match('/^#[0-9a-fA-F]{6}$/', $v) ? $v : ''; }
+function leave_icon($v): string { return is_string($v) && preg_match('/^[a-z0-9-]{1,30}$/', $v) ? $v : ''; }
+/** ألوان الأيام الخاصة (الجولة 45): لون لكل يوم من الأسبوع، والعطلة الأسبوعية، والعطل الرسمية، والشدة، والنمط */
+function leave_look($x): ?array {
+  if (!is_array($x)) return null;
+  $w = is_array($x['wd'] ?? null) ? array_values($x['wd']) : []; $wd = [];
+  for ($i = 0; $i < 7; $i++) $wd[] = leave_hex($w[$i] ?? '');
+  return ['wd' => $wd, 'we' => leave_hex($x['we'] ?? ''), 'hol' => leave_hex($x['hol'] ?? ''), 'a' => max(4, min(45, (int) ($x['a'] ?? 14))), 'pat' => ($x['pat'] ?? '') === 'solid' ? 'solid' : 'stripe'];
+}
 /** حقول معروفة بأحجام معقولة؛ null إن كانت البيانات غير صالحة */
 function leave_clean(array $d, string $kind): ?array {
   $id = (string) ($d['id'] ?? ''); if ($id === '' || strlen($id) > 120) return null;
@@ -603,14 +612,14 @@ function leave_clean(array $d, string $kind): ?array {
     if ($to !== '' && (!leave_day($to) || !leave_span_ok($date, $to))) return null;
     $text = cut(trim((string) ($d['text'] ?? '')), 1000); if ($text === '') return null;
     $tone = (string) ($d['tone'] ?? 'sky');
-    return $base + ['date' => $date, 'to' => $to === $date ? '' : $to, 'text' => $text, 'tone' => in_array($tone, ['sky', 'amber', 'red', 'teal', 'violet'], true) ? $tone : 'sky', 'vis' => in_array($vis, ['team', 'mgr', 'private'], true) ? $vis : 'team', 'userId' => (string) ($d['userId'] ?? '')];
+    return $base + ['date' => $date, 'to' => $to === $date ? '' : $to, 'text' => $text, 'tone' => in_array($tone, ['sky', 'amber', 'red', 'teal', 'violet'], true) ? $tone : 'sky', 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'vis' => in_array($vis, ['team', 'mgr', 'private'], true) ? $vis : 'team', 'userId' => (string) ($d['userId'] ?? '')];
   }
   $from = (string) ($d['from'] ?? ''); $to = (string) ($d['to'] ?? '');
   if ($kind === 'lplan') {
     if (!leave_day($from) || !leave_day($to) || $to < $from || (strtotime($to . ' 12:00:00') - strtotime($from . ' 12:00:00')) / 86400 > 400) return null;
     $title = cut(trim((string) ($d['title'] ?? '')), 120); if ($title === '') return null;
     $dl = (string) ($d['deadline'] ?? ''); $ps = (string) ($d['state'] ?? 'collect');
-    return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
+    return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
       'maxHard' => empty($d['maxHard']) ? 0 : 1, 'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))),
       'vis' => (string) ($d['vis'] ?? 'team') === 'members' ? 'members' : 'team', 'share' => leave_ids($d['share'] ?? [], 100), 'approver' => cut((string) ($d['approver'] ?? ''), 120),
@@ -632,7 +641,7 @@ function leave_clean(array $d, string $kind): ?array {
   if ($kind === 'wish') {
     $pid = (string) ($d['planId'] ?? ''); if ($pid === '' || strlen($pid) > 120) return null;
     $o = $d['orig'] ?? null; $o = is_array($o) && leave_day((string) ($o['from'] ?? '')) && leave_day((string) ($o['to'] ?? '')) ? ['from' => (string) $o['from'], 'to' => (string) $o['to']] : null;
-    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
+    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
       'state' => ($d['state'] ?? '') === 'agreed' ? 'agreed' : 'wish', 'note' => cut(trim((string) ($d['note'] ?? '')), 1000), 'changeNote' => cut(trim((string) ($d['changeNote'] ?? '')), 500),
       'orig' => $o, 'changedBy' => (string) ($d['changedBy'] ?? ''), 'changedAt' => (int) ($d['changedAt'] ?? 0), 'leaveId' => cut((string) ($d['leaveId'] ?? ''), 120), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
@@ -675,7 +684,9 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
     if ($deleted) return $new;
     if ((string) ($data['userId'] ?? '') !== $uid || (string) ($data['id'] ?? '') !== 'lvs:' . $uid) return null;
     $color = (string) ($data['color'] ?? ''); $icon = (string) ($data['icon'] ?? '');
-    return ['id' => 'lvs:' . $uid, 'kind' => 'style', 'userId' => $uid, 'color' => preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '', 'icon' => preg_match('/^[a-z0-9-]{1,30}$/', $icon) ? $icon : '', 'updatedAt' => (int) ($data['updatedAt'] ?? now_ms())];
+    $sty = ['id' => 'lvs:' . $uid, 'kind' => 'style', 'userId' => $uid, 'color' => preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '', 'icon' => preg_match('/^[a-z0-9-]{1,30}$/', $icon) ? $icon : '', 'updatedAt' => (int) ($data['updatedAt'] ?? now_ms())];
+    $lk = leave_look($data['look'] ?? null); if ($lk !== null) $sty['look'] = $lk;
+    return $sty;
   }
   /* الخطة: ينشئها من يصل إلى التقويم، ويعدّلها ويحذفها واضعها والإدارة */
   if ($kind === 'lplan') {
@@ -1992,7 +2003,9 @@ case 'push': {
         $orig = $op['data'] ?? null;
         $op['data'] = $deleted ? null : $allowed;
         $expected = (int) ($op['rev'] ?? 0);
-        if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1) {
+        /* إعادة إنشاء سجل محذوف بمفتاحه الثابت (مثل اسم إجازة حُذف ثم أُضيف): الجهاز لا يعرف نسخة المحذوف فيرسل 0؛ ليس تعارضاً */
+        $recreate = $cur && (int) $cur['deleted'] && $expected === 0 && !$deleted;
+        if ($cur && $expected !== (int) $cur['rev'] && $expected !== -1 && !$recreate) {
           $data = json_decode($cur['data'], true);
           if ($store === 'users' && is_array($data)) $data = strip_user($data);
           $uC[] = ['store' => $store, 'id' => $id, 'rev' => (int) $cur['rev'], 'deleted' => (int) $cur['deleted'], 'data' => $data, 'reason' => 'conflict'];

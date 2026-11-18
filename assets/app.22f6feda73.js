@@ -26444,7 +26444,41 @@ const LV_IC = {
   'lv-game': '<rect x="2.5" y="8" width="19" height="10" rx="5"/><path d="M7.5 11v4M5.5 13h4"/><circle cx="15.5" cy="12" r=".9"/><circle cx="17.8" cy="14.3" r=".9"/>',
   'lv-car': '<path d="M5 16.5V12l1.8-4.6A2 2 0 0 1 8.7 6h6.6a2 2 0 0 1 1.9 1.4L19 12v4.5"/><path d="M3.5 12.5h17v4h-17z"/><circle cx="7.5" cy="18" r="1.5"/><circle cx="16.5" cy="18" r="1.5"/>',
   'lv-note': '<path d="M5 3.5h10l4 4V20.5H5z"/><path d="M15 3.5v4h4M8.5 11.5h7M8.5 15h7"/>',
-  'lv-team': '<circle cx="8" cy="8.5" r="2.8"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M2.8 19c.4-3.2 2.6-5.2 5.2-5.2s4.8 2 5.2 5.2M13.6 14.6c.9-.6 1.9-.9 2.9-.9 2.3 0 4.2 1.8 4.6 4.8"/>'
+  'lv-team': '<circle cx="8" cy="8.5" r="2.8"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M2.8 19c.4-3.2 2.6-5.2 5.2-5.2s4.8 2 5.2 5.2M13.6 14.6c.9-.6 1.9-.9 2.9-.9 2.3 0 4.2 1.8 4.6 4.8"/>',
+  /* الجولة 45: أيقونات حصرية مرسومة للنظام — من عُمان، والمناسبات الدينية والعائلية، والصحة، والعمل، والسفر */
+  'lv-kaaba': '<path d="M4 8.2L12 5l8 3.2v9.6L12 21l-8-3.2z"/><path d="M4 8.2l8 3.2 8-3.2M12 11.4V21"/><path d="M4 11.2l8 3.2 8-3.2"/><path d="M10 19.3v-2.6l1.2.5"/>',
+  'lv-mosque': '<path d="M2.5 20.5h19"/><path d="M6.5 20.5v-6h11v6"/><path d="M6.8 14.5c0-3.2 2.4-5.2 5.2-6.4 2.8 1.2 5.2 3.2 5.2 6.4"/><path d="M12 8.1V5.6"/><path d="M12.9 4.3a1.1 1.1 0 1 1-1.4-1.3"/><path d="M10.5 20.5v-2.4a1.5 1.5 0 0 1 3 0v2.4"/><path d="M20.3 20.5V10.5M19.3 10.5h2M20.3 10.5L20.3 8"/>',
+  'lv-crescent': '<path d="M14.6 3.6A8.6 8.6 0 1 0 20.6 16.4a7 7 0 1 1-6-12.8z"/><path d="M18.3 8.2l.7 1.4 1.5.2-1.1 1.1.3 1.5-1.4-.7-1.4.7.3-1.5-1.1-1.1 1.5-.2z"/>',
+  'lv-lantern': '<path d="M12 1.8v2"/><path d="M9.2 6.3l1-2.5h3.6l1 2.5"/><path d="M8.5 6.3h7l1.6 5-1.6 6.2h-7l-1.6-6.2z"/><path d="M9.5 20.5h5M10 17.5l.5 3M14 17.5l-.5 3"/><path d="M12 9.3c1.3 1.2 1.3 2.8 0 3.9-1.3-1.1-1.3-2.7 0-3.9z"/>',
+  'lv-ring': '<circle cx="12" cy="14.6" r="6.2"/><circle cx="12" cy="14.6" r="3.9"/><path d="M9.3 5.6L10.6 3h2.8l1.3 2.6L12 8.4z"/><path d="M9.3 5.6h5.4"/>',
+  'lv-baby': '<path d="M12.5 3.5v8.5h8a8 8 0 0 0-8-8.5z"/><path d="M2.5 7.5h2.3l1.7 4.5h14a6 6 0 0 1-6 5.5h-3.5a6.2 6.2 0 0 1-5.6-3.6"/><circle cx="8.5" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/>',
+  'lv-family': '<circle cx="7" cy="5.8" r="2.2"/><circle cx="17" cy="5.8" r="2.2"/><circle cx="12" cy="11.6" r="1.8"/><path d="M3.5 20.5v-6A3.5 3.5 0 0 1 7 11a3.4 3.4 0 0 1 2.3.9M20.5 20.5v-6A3.5 3.5 0 0 0 17 11a3.4 3.4 0 0 0-2.3.9"/><path d="M9 20.5v-2.6a3 3 0 0 1 6 0v2.6"/>',
+  'lv-gift': '<rect x="3.5" y="8.8" width="17" height="4.2" rx="1"/><path d="M5 13v7.5h14V13M12 8.8v11.7"/><path d="M12 8.8c-1.2-3.4-5.4-4.4-5.6-2-.2 2.2 3.4 2 5.6 2zM12 8.8c1.2-3.4 5.4-4.4 5.6-2 .2 2.2-3.4 2-5.6 2z"/>',
+  'lv-cake': '<path d="M3.5 20.5h17"/><path d="M5 20.5v-6.4a1.6 1.6 0 0 1 1.6-1.6h10.8a1.6 1.6 0 0 1 1.6 1.6v6.4"/><path d="M5 16.2c1.2.9 2.3.9 3.5 0s2.3-.9 3.5 0 2.3.9 3.5 0 2.3-.9 3.5 0"/><path d="M8.5 12.5v-2.6M12 12.5v-2.6M15.5 12.5v-2.6"/><path d="M8.5 5.8c.8.7.8 1.7 0 2.4-.8-.7-.8-1.7 0-2.4zM12 5.8c.8.7.8 1.7 0 2.4-.8-.7-.8-1.7 0-2.4zM15.5 5.8c.8.7.8 1.7 0 2.4-.8-.7-.8-1.7 0-2.4z"/>',
+  'lv-flag': '<path d="M5 21V3.5"/><path d="M5 4.6c4.2-2.2 7.2 2.2 14 0v9c-6.8 2.2-9.8-2.2-14 0"/><path d="M5 8.6c4.2-2.2 7.2 2.2 14 0"/>',
+  'lv-trophy': '<path d="M7.8 3.8h8.4v5.1a4.2 4.2 0 0 1-8.4 0z"/><path d="M7.8 5.4H5.2a2.6 2.6 0 0 0 3 4.4M16.2 5.4h2.6a2.6 2.6 0 0 1-3 4.4"/><path d="M12 13.1v3.4M8.5 20.5h7M9.6 20.5l.6-4h3.6l.6 4"/>',
+  'lv-hosp': '<rect x="4" y="5" width="16" height="15.5" rx="1.6"/><path d="M12 8.2v6.2M8.9 11.3h6.2"/><path d="M9.6 20.5v-3h4.8v3M8 2.8h8"/>',
+  'lv-pill': '<rect x="2.6" y="8.6" width="18.8" height="6.8" rx="3.4" transform="rotate(-45 12 12)"/><path d="M9.6 9.6l4.8 4.8"/>',
+  'lv-thermo': '<path d="M10 14.4V5a2 2 0 0 1 4 0v9.4a4 4 0 1 1-4 0z"/><path d="M12 9.5v6.6"/><path d="M16.5 6h2.5M16.5 9h1.6M16.5 12h2.5"/>',
+  'lv-tooth': '<path d="M7.6 3.6C5 3.6 3.6 5.7 4.1 8.6c.4 2.3 1.4 3.8 1.6 6.4.3 3 1 5.5 2.4 5.5 1.7 0 1.3-5 3.9-5s2.2 5 3.9 5c1.4 0 2.1-2.5 2.4-5.5.2-2.6 1.2-4.1 1.6-6.4.5-2.9-.9-5-3.5-5-2 0-2.6 1-4.4 1s-2.4-1-4.4-1z"/>',
+  'lv-bed': '<path d="M2.8 18.8V5.5M2.8 14.6h18.4v4.2"/><path d="M21.2 14.6v-2.4a3 3 0 0 0-3-3h-7.4v5.4"/><circle cx="6.8" cy="11.4" r="1.9"/>',
+  'lv-suitcase': '<rect x="4.5" y="7" width="15" height="12.5" rx="2.2"/><path d="M9.5 7V4.6c0-.6.4-1.1 1-1.1h3c.6 0 1 .5 1 1.1V7"/><path d="M8.5 7v12.5M15.5 7v12.5M7.5 21.5v-2M16.5 21.5v-2"/>',
+  'lv-globe': '<circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.4 2.4 3.5 5.4 3.5 8.6s-1.1 6.2-3.5 8.6c-2.4-2.4-3.5-5.4-3.5-8.6S9.6 5.8 12 3.4z"/>',
+  'lv-bus': '<rect x="4.5" y="3.2" width="15" height="14.3" rx="2.6"/><path d="M4.5 10.8h15M8.5 6.2h7M7.6 20.6v-3.1M16.4 20.6v-3.1"/><circle cx="8" cy="14.2" r=".9" fill="currentColor"/><circle cx="16" cy="14.2" r=".9" fill="currentColor"/>',
+  'lv-tent': '<path d="M2.8 20.5L12 5.2l9.2 15.3z"/><path d="M12 5.2L10.5 2.8M12 5.2l1.5-2.4"/><path d="M8.9 20.5L12 14.6l3.1 5.9"/>',
+  'lv-sunset': '<path d="M6.5 14.2a5.5 5.5 0 0 1 11 0"/><path d="M12 3.6v2.6M4.6 6.8l1.8 1.8M19.4 6.8l-1.8 1.8M2.4 14.2h2.2M19.4 14.2h2.2"/><path d="M3 18.4c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/>',
+  'lv-dhow': '<path d="M2.6 15.6h18.8l-2.6 4.6H5.4z"/><path d="M11.2 15.6V2.8"/><path d="M11.2 3.6c4 2.6 6.6 6.6 7.4 10.4h-7.4"/><path d="M11.2 6.5L6.5 13.6h4.7"/>',
+  'lv-fort': '<path d="M2 20.5h20"/><path d="M3 20.5v-9h1.8V13h1.8v-1.5h1.8V13h1.8v-1.5h2"/><path d="M12.2 20.5V7.6a3.6 1.4 0 0 1 7.2 0v12.9"/><path d="M12.2 7.6V5.4h1.7v1.3M17.7 6.7V5.4h1.7v2.2"/><path d="M14.5 20.5v-2.8a1.3 1.3 0 0 1 2.6 0v2.8M15.8 10.8v1.6"/>',
+  'lv-khanjar': '<path d="M7.8 3.2h8.4M12 3.2v3.4"/><path d="M9.6 6.6h4.8v6.2c0 2.9 1.5 4.9 3.6 5.2 1.1.2 1.9-.5 2.1-1.6l.5-3.4 1 3.8c.6 2.8-1.4 5.1-4.3 5.1-4.4 0-7.7-3.5-7.7-8.6z"/><path d="M9.6 9.4h4.8M9.6 12.2h4.8"/>',
+  'lv-dallah': '<path d="M8.6 20.8h8.4"/><path d="M9.6 20.8c-1.5-1.9-1.5-4.8.4-6.8l1-1.4V9.2h3.6v3.4l1 1.4c1.9 2 1.9 4.9.4 6.8"/><path d="M10.6 9.2l.9-2.6h2.2l.9 2.6"/><path d="M12.6 6.6V4.6"/><circle cx="12.6" cy="3.8" r=".8"/><path d="M10.1 14.3L6.4 9.6 3.8 8.8"/><path d="M15.2 10.4c2 .2 3 1.6 2.6 3.8"/>',
+  'lv-wfh': '<path d="M2.8 11.2L12 3.6l9.2 7.6"/><path d="M5 9.4v11.1h14V9.4"/><rect x="8.4" y="11.6" width="7.2" height="4.8" rx=".7"/><path d="M7.4 18.4h9.2"/>',
+  'lv-exam': '<path d="M6 3.5h8.8l3.7 3.7V20.5H6z"/><path d="M14.8 3.5v3.7h3.7"/><path d="M9 12.2l2 2 4-4.4M9 17.4h6"/>',
+  'lv-confer': '<rect x="3.2" y="3.4" width="17.6" height="11.2" rx="1.2"/><path d="M12 14.6v3M7.8 21L12 17.6l4.2 3.4"/><path d="M6.8 11.2l3-3 2.6 2 4.4-4"/>',
+  'lv-shieldp': '<path d="M12 3l7.5 3v5.6c0 4.4-3.2 7.9-7.5 9.4-4.3-1.5-7.5-5-7.5-9.4V6z"/><path d="M12 8.4v6.2M8.9 11.5h6.2"/>',
+  'lv-hourg': '<path d="M6.5 3.4h11M6.5 20.6h11"/><path d="M7.6 3.4c0 4.6 4.4 5.6 4.4 8.6s-4.4 4-4.4 8.6M16.4 3.4c0 4.6-4.4 5.6-4.4 8.6s4.4 4 4.4 8.6"/><path d="M9.4 18.6c1-1.3 4.2-1.3 5.2 0"/>',
+  'lv-bike': '<circle cx="5.8" cy="16.4" r="3.6"/><circle cx="18.2" cy="16.4" r="3.6"/><path d="M5.8 16.4l3.7-7.4h6l2.7 7.4M9.5 9l2.9 7.4H5.8M8.2 6.4h3M15.5 9l-1-2.6h2.2"/>',
+  'lv-fish': '<path d="M2.8 12c3-4.6 9.6-6.1 14.2-2l3.6-3v10l-3.6-3c-4.6 4.1-11.2 2.6-14.2-2z"/><circle cx="7.8" cy="11.2" r=".9" fill="currentColor"/>',
+  'lv-coffee2': '<path d="M5 10.5h11v3.2a5.5 5.5 0 0 1-11 0z"/><path d="M16 11.4h1.4a2.2 2.2 0 0 1 0 4.4H15.6M3.5 21h14"/><path d="M8 3.6c-.8 1 .8 1.8 0 2.9M11 3.6c-.8 1 .8 1.8 0 2.9M14 3.6c-.8 1 .8 1.8 0 2.9"/>'
 };
 document.body.insertAdjacentHTML('beforeend', `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">${Object.entries(LV_IC).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24" data-ic="1">${v}</symbol>`).join('')}</svg>`);
 
@@ -26498,7 +26532,24 @@ const LV = {
   workDays: (from, to) => LV.days(from, to).filter(LV.work).length,
   count: (from, to) => (LV.cfg().countBy === 'cal' ? LV.days(from, to).length : LV.workDays(from, to)),
   T: (r) => { const t = r.masked || r.type === 'busy' ? LV.BUSY : LV.TYPES[r.type] || LV.TYPES.other, n = !r.masked && String(r.title || '').trim(), ic = !r.masked && /^[a-z0-9-]{1,30}$/.test(String(r.icon || '')) ? r.icon : ''; return n || ic ? { ...t, ...(n ? { label: n, short: n, kind: t.label } : {}), ...(ic ? { icon: ic } : {}) } : t; },
-  LICONS: ['lv-palm', 'lv-plane', 'lv-car', 'lv-mount', 'lv-umb', 'sun', 'moon', 'star', 'lv-heart', 'lv-grad', 'lv-brief', 'lv-coffee', 'lv-bolt', 'book', 'lv-leaf', 'lv-anchor', 'lv-rocket', 'lv-crown', 'lv-music', 'lv-ball', 'lv-cam', 'lv-game', 'tools', 'monitor'],
+  /* الجولة 45: الأيقونات في تبويبات، ومنها تصاميم حصرية؛ LICONS تبقى للتوافق */
+  ICG: [
+    ['سفر وترفيه', ['lv-palm', 'lv-plane', 'lv-car', 'lv-suitcase', 'lv-globe', 'lv-bus', 'lv-tent', 'lv-sunset', 'lv-mount', 'lv-umb', 'lv-anchor', 'lv-fish', 'lv-bike', 'lv-ball', 'lv-cam', 'lv-game', 'lv-music', 'sun', 'moon']],
+    ['مناسبات وعائلة', ['lv-ring', 'lv-baby', 'lv-family', 'lv-gift', 'lv-cake', 'lv-flag', 'lv-trophy', 'lv-crown', 'star']],
+    ['مناسبات دينية', ['lv-kaaba', 'lv-mosque', 'lv-crescent', 'lv-lantern']],
+    ['صحة', ['lv-heart', 'lv-hosp', 'lv-pill', 'lv-thermo', 'lv-tooth', 'lv-bed']],
+    ['عمل ودراسة', ['lv-brief', 'lv-grad', 'lv-exam', 'lv-confer', 'lv-wfh', 'lv-shieldp', 'lv-hourg', 'lv-bolt', 'lv-rocket', 'book', 'tools', 'monitor', 'lv-coffee', 'lv-coffee2', 'lv-leaf']],
+    ['ملاحظات', ['lv-note', 'bell', 'alert', 'pin', 'clock', 'lv-team', 'lock', 'eye', 'check', 'info']],
+    ['من عُمان', ['lv-fort', 'lv-dhow', 'lv-khanjar', 'lv-dallah'], 1]
+  ],
+  ICN: { 'lv-palm': 'نخلة', 'lv-plane': 'سفر بالطائرة', 'lv-car': 'سفر بالسيارة', 'lv-suitcase': 'حقيبة سفر', 'lv-globe': 'سفر للخارج', 'lv-bus': 'رحلة جماعية', 'lv-tent': 'تخييم', 'lv-sunset': 'بحر وغروب', 'lv-mount': 'جبال', 'lv-umb': 'مظلة', 'lv-anchor': 'بحر', 'lv-fish': 'صيد', 'lv-bike': 'دراجة', 'lv-ball': 'رياضة', 'lv-cam': 'تصوير', 'lv-game': 'ألعاب', 'lv-music': 'موسيقى', sun: 'شمس', moon: 'ليل',
+    'lv-ring': 'زواج', 'lv-baby': 'مولود', 'lv-family': 'عائلة', 'lv-gift': 'مناسبة', 'lv-cake': 'احتفال', 'lv-flag': 'يوم وطني', 'lv-trophy': 'إنجاز', 'lv-crown': 'تميّز', star: 'نجمة',
+    'lv-kaaba': 'حج وعمرة', 'lv-mosque': 'مسجد', 'lv-crescent': 'عيد', 'lv-lantern': 'رمضان',
+    'lv-heart': 'صحة', 'lv-hosp': 'مستشفى', 'lv-pill': 'علاج', 'lv-thermo': 'حرارة', 'lv-tooth': 'أسنان', 'lv-bed': 'راحة',
+    'lv-brief': 'مهمة عمل', 'lv-grad': 'دراسة وتخرج', 'lv-exam': 'اختبار', 'lv-confer': 'مؤتمر وعرض', 'lv-wfh': 'عمل من المنزل', 'lv-shieldp': 'مناوبة وطوارئ', 'lv-hourg': 'انتظار', 'lv-bolt': 'طارئ', 'lv-rocket': 'إطلاق مشروع', book: 'قراءة', tools: 'صيانة', monitor: 'تقنية', 'lv-coffee': 'استراحة', 'lv-coffee2': 'قهوة', 'lv-leaf': 'هدوء',
+    'lv-note': 'ملاحظة', bell: 'تذكير', alert: 'تنبيه', pin: 'تثبيت', clock: 'موعد', 'lv-team': 'الفريق', lock: 'خاص', eye: 'متابعة', check: 'منجز', info: 'معلومة',
+    'lv-fort': 'قلعة عُمانية', 'lv-dhow': 'سفينة عُمانية', 'lv-khanjar': 'خنجر عُماني', 'lv-dallah': 'دلة القهوة' },
+  get LICONS() { return LV.ICG.flatMap(([, l]) => l); },
   TITLES: ['إجازة زواج', 'إجازة حج', 'إجازة دراسية', 'إجازة مرافقة مريض', 'إجازة وفاة', 'مؤتمر أو معرض', 'ورشة عمل'],
   titles: (recs) => [...new Set([...recs.map((r) => String(r.title || '').trim()).filter(Boolean), ...LV.TITLES])].slice(0, 40),
   me: () => (Auth.user ? Auth.user.id : ''),
@@ -26559,8 +26610,8 @@ const LV = {
         <div class="field"><label>نوع الإجازة</label><div class="lv-types" role="radiogroup">${Object.entries(LV.TYPES).map(([k, t]) => html`<label class="lv-type"><input type="radio" name="type" value="${k}"${k === r0.type ? raw(' checked') : ''}><span>${UI.icon(t.icon)}${t.label}</span></label>`)}</div></div>
         <div class="field lv-grf" data-lvgrs hidden></div>
         <div class="field"><label>اسم الإجازة <small class="faint">— اختياري: يظهر بدل النوع في التقويم، مثل «إجازة زواج» أو «مؤتمر تقني»</small></label>${LVT.field('title', r0.title, 'اكتب اسماً للإجازة أو اختر من القائمة')}</div>
-        <div class="field"><label>أيقونة الإجازة <small class="faint">— اختيارية: تظهر على أيام هذه الإجازة في التقويم، وبدونها تظهر أيقونة النوع</small></label><div class="lv-icons lv-licons" role="radiogroup"><button type="button" class="lv-ico lv-ico-none${r0.icon ? '' : ' on'}" data-lvic="" aria-pressed="${r0.icon ? 'false' : 'true'}">بلا</button>${LV.LICONS.map((i) => html`<button type="button" class="lv-ico${r0.icon === i ? ' on' : ''}" data-lvic="${i}" aria-pressed="${r0.icon === i ? 'true' : 'false'}">${UI.icon(i)}</button>`)}</div><input type="hidden" name="icon" value="${r0.icon || ''}"></div>
-        <div class="field"><label>لون الشريط <small class="faint">— اختياري: بدونه يظهر الشريط بلون الفني</small></label><div class="lv-colors lv-lcols"><button type="button" class="lv-col lv-col-none${r0.color ? '' : ' on'}" data-lvcl="" title="لون الفني" style="--c:${(sty.get(r0.userId) || {}).color || '#64748b'}"></button>${LV.COLORS.map((c) => html`<button type="button" class="lv-col${r0.color === c ? ' on' : ''}" data-lvcl="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div><input type="hidden" name="color" value="${r0.color || ''}"></div>
+        <div class="field"><label>أيقونة الإجازة <small class="faint">— اختيارية: تظهر على أيام هذه الإجازة في التقويم، وبدونها تظهر أيقونة النوع</small></label>${LV.icPick('lvic', r0.icon || '', '')}<input type="hidden" name="icon" value="${r0.icon || ''}"></div>
+        <div class="field"><label>لون الشريط <small class="faint">— اختياري: بدونه يظهر الشريط بلون الفني، ويمكن اختيار لون مخصص</small></label>${LV.colPick('lvcl', r0.color || '', (sty.get(r0.userId) || {}).color || '#64748b')}<input type="hidden" name="color" value="${r0.color || ''}"></div>
         <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div><div class="lv-quick"><small class="faint">مدة سريعة:</small>${[[1, 'يوم'], [3, '3 أيام'], [5, '5 أيام عمل', 'w'], [7, 'أسبوع'], [14, 'أسبوعان'], [30, 'شهر']].map(([n, l, w]) => html`<button type="button" class="qchip" data-lvq="${n}${w ? 'w' : ''}">${l}</button>`)}</div></div>
         <div class="field lv-balf" data-lvbalf hidden><label>يُخصم من رصيد</label><select class="input" name="balId"><option value="${r0.balId || ''}" selected>${r0.balId === 'none' ? 'لا يُخصم من أي رصيد' : 'تلقائي'}</option></select></div>
         <div class="lv-check" data-lvcheck></div>
@@ -26623,9 +26674,8 @@ const LV = {
         UI.on(form, 'click', '[data-lvq]', (e, b) => { const f = $('[name="from"]', form), t = $('[name="to"]', form), w = b.dataset.lvq.endsWith('w'), n = parseInt(b.dataset.lvq, 10); if (!f.value) f.value = LV.today(); if (w) { let s = f.value, k = LV.work(s) ? 1 : 0; while (k < n) { s = LV.add(s, 1); if (LV.work(s)) k++; } t.value = s; } else t.value = LV.add(f.value, n - 1); t.dispatchEvent(new Event('change', { bubbles: true })); });
         UI.on(form, 'click', '[data-lvdnadd]', () => { Object.assign(dn, readDn()); const ds = LV.days(val('from'), val('to')); if (!ds.length) { UI.toast('حدد المدة أولاً', 'warn'); return; } const free = ds.find((d) => !dn.some((x) => x.d === d)) || ds[0]; dn.push({ d: free, t: '' }); drawDn(); const last = $$('.lv-dn input', dnBox).pop(); if (last) last.focus(); });
         UI.on(form, 'click', '[data-lvdnx]', (e, b) => { Object.assign(dn, readDn()); dn.splice(Number(b.dataset.lvdnx), 1); drawDn(); });
-        UI.on(form, 'click', '[data-lvcl]', (e, b) => { $('[name="color"]', form).value = b.dataset.lvcl; $$('[data-lvcl]', form).forEach((x) => x.classList.toggle('on', x === b)); });
+        LV.pickBind(form, 'lvcl', 'lvic', (k, v) => { $(`[name="${k}"]`, form).value = v; });
         UI.on(form, 'click', '[data-lvgrp]', (e, b) => { const xs = $$(`[name="userIds"][data-role="${b.dataset.lvgrp}"]`, form), all = xs.every((x) => x.checked); xs.forEach((x) => { x.checked = !all; }); check(); });
-        UI.on(form, 'click', '[data-lvic]', (e, b) => { $('[name="icon"]', form).value = b.dataset.lvic; $$('[data-lvic]', form).forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); });
         UI.on(form, 'click', '[data-lvall], [data-lvnone]', (e, b) => { $$('[name="userIds"]', form).forEach((x) => { x.checked = b.matches('[data-lvall]'); }); check(); });
       },
       actions: [
@@ -26735,15 +26785,17 @@ const LV = {
       title: old ? 'تعديل الملاحظة' : 'ملاحظة على تاريخ', icon: 'lv-note',
       body: html`<div class="lvm"><div class="lv-dates"><div class="field"><label>التاريخ</label><input class="input" type="date" name="date" value="${r0.date}" required></div><div class="field"><label>حتى <small class="faint">(اختياري)</small></label><input class="input" type="date" name="to" value="${r0.to && r0.to !== r0.date ? r0.to : ''}"></div></div>
         <div class="field"><label>الملاحظة</label><textarea class="input" name="text" rows="3" maxlength="1000" required placeholder="مثلاً: جرد سنوي — يُفضّل ألا يغيب أكثر من فني">${r0.text}</textarea></div>
-        <div class="field"><label>اللون</label><div class="lv-tones">${TONES.map(([k, c]) => html`<label><input type="radio" name="tone" value="${k}"${k === (r0.tone || 'sky') ? raw(' checked') : ''}><span style="--c:${c}"></span></label>`)}</div></div>
+        <div class="field"><label>لون الشريط <small class="faint">— يظهر شريطاً أعلى أيام الملاحظة وعلامتها في التقويم</small></label>${LV.colPick('ncl', LV.hex(r0.color), LV.noteC({ tone: r0.tone }))}<input type="hidden" name="color" value="${LV.hex(r0.color)}"></div>
+        <div class="field"><label>الأيقونة</label>${LV.icPick('nic', r0.icon || '', 'lv-note')}<input type="hidden" name="icon" value="${r0.icon || ''}"></div>
         <div class="field"><label>من يراها؟</label><div class="seg sm">${['team', 'mgr', 'private'].map((k) => html`<label><input type="radio" name="vis" value="${k}"${k === (r0.vis || 'team') ? raw(' checked') : ''}><span>${UI.icon(LV.VIS[k][1])} ${LV.VIS[k][0]}</span></label>`)}</div></div>
         <div class="field"><label>مشاركة مع</label><div class="lv-share">${sharable.map((u) => html`<label class="lv-pick"><input type="checkbox" name="share" value="${u.id}"${(r0.share || []).includes(u.id) ? raw(' checked') : ''}><span>${canUser(u, 'leaves.manage') ? UI.icon('shield') : ''}${u.name}</span></label>`)}</div></div></div>`,
+      onMount: (form) => LV.pickBind(form, 'ncl', 'nic', (k, v) => { form.querySelector(`[name="${k}"]`).value = v; }),
       actions: [...(old ? [{ label: 'حذف', kind: 'ghost', icon: 'trash', value: 'del' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => {
         const g = (n) => (f.querySelector(`[name="${n}"]:checked`) || f.querySelector(`[name="${n}"]`) || {}).value || '';
         const date = g('date'), to = g('to'), text = g('text').trim();
         if (!LV.okDay(date)) throw new AppError('اختر التاريخ'); if (!text) throw new AppError('اكتب الملاحظة');
         if (to && (!LV.okDay(to) || to < date)) throw new AppError('تاريخ «حتى» قبل التاريخ'); if (to && LV.diff(date, to) > 365) throw new AppError('أطول مدة سنة');
-        return { date, to: to && to !== date ? to : '', text, tone: g('tone') || 'sky', vis: g('vis') || 'team', share: $$('[name="share"]:checked', f).map((x) => x.value) };
+        return { date, to: to && to !== date ? to : '', text, tone: r0.tone || 'sky', color: LV.hex(g('color')), icon: g('icon'), vis: g('vis') || 'team', share: $$('[name="share"]:checked', f).map((x) => x.value) };
       } }]
     });
     if (res === 'del') { if (await UI.confirm('حذف هذه الملاحظة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); Bus.emit('leaves', {}); UI.toast('حُذفت الملاحظة'); } return null; }
@@ -26769,7 +26821,7 @@ const LV = {
       },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: () => st }] });
     if (!res) return;
-    await DB.put('leaves', { id: `lvs:${uid0}`, kind: 'style', userId: uid0, color: res.color, icon: '', updatedAt: now() });
+    await DB.put('leaves', { ...(recs.find((r) => r.id === `lvs:${uid0}`) || {}), id: `lvs:${uid0}`, kind: 'style', userId: uid0, color: res.color, icon: '', updatedAt: now() });
     Bus.emit('leaves', {}); UI.toast('حُفظ اللون');
   },
   /* إعدادات الإدارة: التغطية، والعطلة الأسبوعية، والعطل الرسمية، والرصيد */
@@ -26822,6 +26874,158 @@ const LV = {
   }
 };
 
+/* ══════════ الجولة 45: ألوان الأيام، وشريط الملاحظة والرغبة والخطة وأيقوناتها ══════════
+   ألوان أيام الأسبوع والعطلة الأسبوعية والعطل الرسمية: يختارها كل مستخدم لنفسه (تُحفظ في حسابه)، ويضع المشرف افتراضياً للفريق.
+   منتقي الأيقونات بتبويبات، ومنه تصاميم حصرية، ومنتقي اللون بلون مخصص؛ ونافذة سريعة للون الشريط وأيقونته من اليوم المختار */
+Object.assign(LV, {
+  TONE_C: { sky: '#0284c7', amber: '#d97706', red: '#dc2626', teal: '#0f8a5f', violet: '#7c3aed' },
+  PLAN_C: '#0891b2',
+  hex: (v) => (/^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : ''),
+  noteC: (n) => LV.hex(n && n.color) || LV.TONE_C[(n && n.tone) || 'sky'] || '#0284c7',
+  noteI: (n) => (n && /^[a-z0-9-]{1,30}$/.test(String(n.icon || '')) ? n.icon : 'lv-note'),
+  /* منتقي الأيقونات: def = الأيقونة الافتراضية (أو '' لـ«بلا»، أو null بلا زر افتراضي) */
+  icPick(attr, cur, def, cls = '') {
+    cur = cur || ''; const A = (v) => raw(`data-${attr}="${v}"`), want = cur || def || '', gi = Math.max(0, LV.ICG.findIndex(([, l]) => l.includes(want)));
+    return html`<div class="lv-icg ${cls}"><div class="lv-icgt">${def == null ? '' : html`<button type="button" class="lv-ico lv-ico-none${cur ? '' : ' on'}" ${A('')} title="الافتراضية" aria-pressed="${cur ? 'false' : 'true'}">${def ? UI.icon(def) : 'بلا'}</button>`}${LV.ICG.map(([g, , x], i) => html`<button type="button" class="lv-icgb${i === gi ? ' on' : ''}${x ? ' x' : ''}" data-icgt="${i}" title="${x ? 'تصاميم حصرية' : g}">${x ? UI.icon('star') : ''}${g}</button>`)}</div>
+      ${LV.ICG.map(([, list], i) => html`<div class="lv-icons lv-icgp" data-icgp="${i}"${i === gi ? '' : raw(' hidden')}>${list.map((k) => html`<button type="button" class="lv-ico${cur === k ? ' on' : ''}" ${A(k)} title="${LV.ICN[k] || ''}" aria-label="${LV.ICN[k] || k}" aria-pressed="${cur === k ? 'true' : 'false'}">${UI.icon(k)}</button>`)}</div>`)}</div>`;
+  },
+  /* منتقي اللون: def = اللون الافتراضي (أو '' لـ«بلا لون»، أو null)، ولون مخصص بلا حدود */
+  colPick(attr, cur, def, cls = '') {
+    cur = LV.hex(cur); const cus = !!cur && !LV.COLORS.includes(cur), A = (v) => raw(`data-${attr}="${v}"`);
+    return html`<div class="lv-colors lv-cpk ${cls}">${def == null ? '' : def === '' ? html`<button type="button" class="lv-col lv-col-off${cur ? '' : ' on'}" ${A('')} title="بلا لون" aria-label="بلا لون"></button>` : html`<button type="button" class="lv-col lv-col-none${cur ? '' : ' on'}" ${A('')} title="اللون الافتراضي" aria-label="اللون الافتراضي" style="--c:${def}"></button>`}${LV.COLORS.map((c) => html`<button type="button" class="lv-col${cur === c ? ' on' : ''}" ${A(c)} style="--c:${c}" aria-label="${c}"></button>`)}<label class="lv-col lv-col-cus${cus ? ' on' : ''}" title="لون مخصص" style="--c:${cus ? cur : '#0f8a5f'}">${UI.icon('palette')}<input type="color" ${raw(`data-${attr}c`)} value="${cus ? cur : '#0f8a5f'}" aria-label="لون مخصص"></label></div>`;
+  },
+  pickBind(root, ca, ia, cb) {
+    root.addEventListener('click', (e) => {
+      const sel = [ca && `[data-${ca}]`, ia && `[data-${ia}]`].filter(Boolean).join(','), b = e.target.closest && e.target.closest(sel); if (!b || !root.contains(b)) return;
+      const isC = !!ca && b.hasAttribute(`data-${ca}`), a = isC ? ca : ia, v = b.getAttribute(`data-${a}`) || '';
+      $$(`[data-${a}]`, b.closest('.lv-cpk, .lv-icg') || root).forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      if (isC) { const cu = (b.closest('.lv-cpk') || root).querySelector('.lv-col-cus'); if (cu) cu.classList.remove('on'); }
+      cb(isC ? 'color' : 'icon', v, a);
+    });
+    if (ca) root.addEventListener('input', (e) => { const t = e.target; if (!t.matches || !t.matches(`[data-${ca}c]`)) return; const v = LV.hex(t.value); if (!v) return; const lab = t.closest('.lv-col-cus'); lab.style.setProperty('--c', v); lab.classList.add('on'); $$(`[data-${ca}]`, t.closest('.lv-cpk')).forEach((x) => x.classList.remove('on')); cb('color', v, ca); });
+  },
+  lookBtn: (k, id) => html`<button type="button" class="icon-btn lv-lk" data-lvlook="${k}|${id}" title="لون الشريط والأيقونة" aria-label="لون الشريط والأيقونة">${UI.icon('palette')}</button>`,
+
+  /* ── ألوان الأيام ── */
+  LOOK0: { wd: ['', '', '', '', '', '', ''], we: '#d97706', hol: '#7c3aed', a: 14, pat: 'stripe' },
+  LOOKS: {
+    calm: ['هادئ', { wd: ['', '', '', '', '', '', ''], we: '#d97706', hol: '#7c3aed', a: 14, pat: 'stripe' }],
+    vivid: ['ملوّن', { wd: ['#2563eb', '#0891b2', '#0f8a5f', '#65a30d', '#7c3aed', '', ''], we: '#dc2626', hol: '#9333ea', a: 15, pat: 'solid' }],
+    mono: ['رمادي', { wd: ['', '', '', '', '', '', ''], we: '#475569', hol: '#475569', a: 13, pat: 'stripe' }],
+    none: ['بلا ألوان', { wd: ['', '', '', '', '', '', ''], we: '', hol: '', a: 14, pat: 'solid' }]
+  },
+  lookN(x) {
+    x = x && typeof x === 'object' ? x : {}; const d = LV.LOOK0;
+    return { wd: Array.from({ length: 7 }, (_, i) => LV.hex((x.wd || [])[i])), we: 'we' in x ? LV.hex(x.we) : d.we, hol: 'hol' in x ? LV.hex(x.hol) : d.hol, a: clamp(Math.round(Number(x.a) || d.a), 4, 45), pat: x.pat === 'solid' ? 'solid' : x.pat === 'stripe' ? 'stripe' : d.pat };
+  },
+  myLook() { const me = LV.me(), s = (LV._recs || []).find((r) => r.kind === 'style' && r.userId === me); return s && s.look && typeof s.look === 'object' ? s.look : null; },
+  look() { return LV.lookN(LV.myLook() || LV.cfg().look || LV.LOOK0); },
+  rgba(h, a) { const n = parseInt(String(h).slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.round(a * 1000) / 1000})`; },
+  /* لكل يوم من الأسبوع: الخلفية (d)، واللون الكامل (t)، ولون الشريط المصغّر (s) */
+  lookCss(L = LV.look()) {
+    const a = L.a / 100, we = (LV.cfg().weekend || [5, 6]).map(Number);
+    const bg = (c, st) => (!c ? 'transparent' : st ? `repeating-linear-gradient(135deg,${LV.rgba(c, a)} 0 6px,${LV.rgba(c, a * 0.4)} 6px 12px)` : LV.rgba(c, a));
+    const day = Array.from({ length: 7 }, (_, i) => { const w = we.includes(i), c = L.wd[i] || (w ? L.we : ''); return { d: bg(c, w && L.pat === 'stripe'), t: c || 'transparent', s: c ? LV.rgba(c, Math.min(0.42, a * 2)) : 'var(--surface-2)', c }; });
+    return { day, dh: bg(L.hol, false), th: L.hol || 'transparent', sh: L.hol ? LV.rgba(L.hol, Math.min(0.42, a * 2)) : 'var(--surface-2)' };
+  },
+  lookVars(L = LV.look()) { const x = LV.lookCss(L); return `${x.day.map((d, i) => `--d${i}:${d.d};--t${i}:${d.t};--s${i}:${d.s}`).join(';')};--dh:${x.dh};--th:${x.th};--sh:${x.sh}`; },
+  printLook(L = LV.look()) { const a = L.a / 100, we = (LV.cfg().weekend || [5, 6]).map(Number); return `${Array.from({ length: 7 }, (_, i) => { const c = L.wd[i] || (we.includes(i) ? L.we : ''); return c ? `.lvp .d${i}{background:${LV.rgba(c, Math.min(0.6, a * 1.6))};-webkit-print-color-adjust:exact;print-color-adjust:exact}` : `.lvp .d${i}{background:none}`; }).join('')}${L.hol ? `.lvp .hol{background:${LV.rgba(L.hol, Math.min(0.6, a * 1.6))};-webkit-print-color-adjust:exact;print-color-adjust:exact}` : '.lvp .hol{background:none}'}`; },
+  lookKeys() { const x = LV.lookCss(), we = (LV.cfg().weekend || [5, 6]).map(Number), w = x.day[we[0] != null ? we[0] : 5]; return html`${w.c ? html`<i class="k kday" style="background:${w.d};--c:${w.c}"></i>العطلة الأسبوعية` : ''}${x.th !== 'transparent' ? html`<i class="k kday" style="background:${x.dh};--c:${x.th}"></i>عطلة رسمية` : ''}`; },
+
+  async lookEdit() {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const me = LV.me(), mgr = LV.mgr(), mine = recs.find((r) => r.kind === 'style' && r.userId === me), hasMine = !!(mine && mine.look), team = LV.cfg().look, we = (LV.cfg().weekend || [5, 6]).map(Number);
+    const st = { scope: hasMine || !mgr ? 'me' : 'team', sel: we[0] != null ? we[0] : 5 };
+    st.L = LV.lookN(st.scope === 'me' ? (hasMine ? mine.look : team || LV.LOOK0) : team || LV.LOOK0);
+    const t0 = LV.today(), wk = Array.from({ length: 7 }, (_, i) => LV.add(t0, i - LV.pd(t0).getDay()));
+    const pv = () => html`<div class="lvk-pv" style="${LV.lookVars(st.L)}">${wk.map((d, i) => html`<div class="lvk-c d${i}${we.includes(i) ? ' we' : ''}"><em>${LV.WD[i]}</em><b>${LV.pd(d).getDate()}</b><small>${we.includes(i) ? 'عطلة' : ''}</small></div>`)}<div class="lvk-c hol"><em>عطلة رسمية</em><b>${UI.icon('star')}</b><small>مثال</small></div></div>`;
+    const body = () => html`${pv()}
+      <div class="field"><label>العطلة الأسبوعية <small class="faint">— ${we.map((i) => LV.WD[i]).join(' و') || 'لا عطلة محددة'}، كما في إعدادات الإجازات</small></label>${LV.colPick('lkwe', st.L.we, '', 'sm')}
+        <div class="seg sm mt"><label><input type="radio" name="lkpat" value="stripe"${st.L.pat === 'stripe' ? raw(' checked') : ''}><span>مظللة بخطوط</span></label><label><input type="radio" name="lkpat" value="solid"${st.L.pat === 'solid' ? raw(' checked') : ''}><span>لون كامل</span></label></div></div>
+      <div class="field"><label>العطل الرسمية</label>${LV.colPick('lkho', st.L.hol, '', 'sm')}</div>
+      <div class="field"><label>لون لكل يوم من أيام الأسبوع <small class="faint">— اختياري، ويتقدّم على لون العطلة الأسبوعية</small></label>
+        <div class="lvk-days">${LV.WD.map((n, i) => html`<button type="button" class="lvk-day${st.sel === i ? ' on' : ''}" data-lkd="${i}" style="--c:${st.L.wd[i] || (we.includes(i) ? st.L.we : '') || 'transparent'}"><i></i>${n}${we.includes(i) ? html`<small>عطلة</small>` : ''}</button>`)}</div>
+        <div class="lvk-for">${UI.icon('calendar')}<span>لون يوم <b>${LV.WD[st.sel]}</b> — اختر «بلا لون» ليتبع لون العطلة أو يبقى بلا لون</span></div>${LV.colPick('lkwd', st.L.wd[st.sel], '', 'sm')}</div>
+      <div class="field"><label>شدة اللون</label><div class="lvk-a"><input type="range" min="4" max="45" step="1" name="lka" value="${st.L.a}"><output data-lka>${fmtNum(st.L.a)}٪</output></div></div>
+      <div class="lvk-pre"><small class="faint">جاهزة:</small>${Object.entries(LV.LOOKS).map(([k, [l, v]]) => { const x = LV.lookN(v); return html`<button type="button" class="btn btn-xs btn-ghost lvk-pb" data-lkp="${k}"><span class="lvk-sw">${[0, 1, 2, 3, 4, 5, 6].map((i) => html`<i style="background:${x.wd[i] || (we.includes(i) ? x.we : '') || 'var(--surface-2)'}"></i>`)}</span>${l}</button>`; })}</div>`;
+    const res = await UI.modal({ title: 'ألوان الأيام', icon: 'palette', size: 'lg',
+      body: html`<div class="lvm lvk">${mgr ? html`<div class="field"><label>لمن هذه الألوان؟</label><div class="seg sm"><label><input type="radio" name="lkscope" value="me"${st.scope === 'me' ? raw(' checked') : ''}><span>${UI.icon('user')} لي فقط</span></label><label><input type="radio" name="lkscope" value="team"${st.scope === 'team' ? raw(' checked') : ''}><span>${UI.icon('lv-team')} افتراضي للفريق</span></label></div><p class="hint">«افتراضي للفريق» يظهر لكل من لم يختر ألوانه بنفسه.</p></div>` : html`<p class="hint">${UI.icon('user')} ألوانك تظهر لك وحدك وتُحفظ في حسابك، فتجدها على أي جهاز.</p>`}<div data-lkbody>${body()}</div></div>`,
+      onMount: (form) => {
+        const box = $('[data-lkbody]', form), redraw = () => { box.innerHTML = String(body()); };
+        const set = (k) => (key, v) => { if (k === 'wd') st.L.wd[st.sel] = v; else st.L[k] = v; redraw(); };
+        LV.pickBind(form, 'lkwe', null, set('we')); LV.pickBind(form, 'lkho', null, set('hol')); LV.pickBind(form, 'lkwd', null, set('wd'));
+        UI.on(form, 'click', '[data-lkd]', (e, b) => { st.sel = Number(b.dataset.lkd); redraw(); });
+        UI.on(form, 'click', '[data-lkp]', (e, b) => { st.L = LV.lookN(JSON.parse(JSON.stringify(LV.LOOKS[b.dataset.lkp][1]))); redraw(); });
+        form.addEventListener('input', (e) => { if (e.target.name === 'lka') { st.L.a = clamp(Number(e.target.value) || 14, 4, 45); $('[data-lka]', form).textContent = `${fmtNum(st.L.a)}٪`; const p0 = $('.lvk-pv', form); if (p0) p0.setAttribute('style', LV.lookVars(st.L)); } });
+        form.addEventListener('change', (e) => {
+          if (e.target.name === 'lkpat') { st.L.pat = e.target.value === 'solid' ? 'solid' : 'stripe'; redraw(); }
+          if (e.target.name === 'lkscope') { st.scope = e.target.value; st.L = LV.lookN(st.scope === 'me' ? (hasMine ? mine.look : team || LV.LOOK0) : team || LV.LOOK0); redraw(); }
+        });
+      },
+      actions: [...(hasMine ? [{ label: mgr || team ? 'استخدام ألوان الفريق' : 'الألوان الافتراضية', kind: 'ghost', icon: 'undo', value: 'reset' }] : []), { label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: () => ({ scope: st.scope, L: LV.lookN(st.L) }) }] });
+    if (!res) return null;
+    const base = mine || { id: `lvs:${me}`, kind: 'style', userId: me, color: '', icon: '' };
+    if (res === 'reset') { await DB.put('leaves', { ...base, look: null, updatedAt: now() }); Bus.emit('leaves', {}); UI.toast('عادت ألوان الأيام إلى ألوان الفريق'); return 'reset'; }
+    if (res.scope === 'team' && mgr) { await LV.saveCfg({ look: res.L }); UI.toast(hasMine ? 'حُفظت ألوان الفريق — ولك ألوانك الخاصة، فاستعمل «استخدام ألوان الفريق» لتراها' : 'حُفظت ألوان الأيام الافتراضية للفريق'); return res; }
+    await DB.put('leaves', { ...base, look: res.L, updatedAt: now() }); Bus.emit('leaves', {}); UI.toast('حُفظت ألوان الأيام'); return res;
+  },
+
+  /* ── نافذة سريعة للون الشريط وأيقونته: للملاحظة والرغبة والخطة (والإجازة لها barMenu) ── */
+  lookMenu(kind, r, el, after) {
+    LV.closeBM();
+    const p = kind === 'wish' ? LV.plan(r.planId) : kind === 'plan' ? r : null;
+    if (kind === 'note' ? !LV.canEdit(r) : kind === 'wish' ? !p || !LV.canWish(p, r) : !LV.isCoord(r)) { UI.toast('لا تملك تعديل هذا العنصر', 'warn'); return; }
+    const T = LV.TYPES[r.type] || LV.TYPES.annual, defC = kind === 'note' ? LV.noteC({ tone: r.tone }) : kind === 'wish' ? LV.personColor(r.userId) : LV.PLAN_C, defI = kind === 'note' ? 'lv-note' : kind === 'wish' ? T.icon : 'lv-team';
+    const st = { color: LV.hex(r.color), icon: r.icon || '', title: r.title || '' };
+    const name = () => (kind === 'note' ? String(r.text || '').split('\n')[0].slice(0, 50) : st.title || (kind === 'wish' ? T.short : 'خطة'));
+    const pv = () => html`<span class="lv-lm-pv" style="--c:${st.color || defC}">${UI.icon(st.icon || defI)}<b>${name()}</b></span>`;
+    const pop = document.createElement('div'); pop.className = 'lv-bm lv-lm'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'لون الشريط والأيقونة');
+    pop.innerHTML = String(html`<div class="lv-bm-h"><span data-lmpv>${pv()}</span><button type="button" class="icon-btn" data-bmx aria-label="إغلاق">${UI.icon('x')}</button></div>
+      <div class="lv-bm-m">${kind === 'note' ? `ملاحظة · ${LV.range(r.date, r.to || r.date)}` : kind === 'wish' ? `${LV.pri(r) === 2 ? 'رغبة بديلة' : 'رغبة'} ${Data.userName(r.userId)} · ${LV.range(r.from, r.to)} · ${p.title}` : `خطة الإجازات · ${LV.range(r.from, r.to)}`}</div>
+      ${kind === 'note' ? '' : html`<label class="lv-bm-l">${kind === 'plan' ? 'عنوان الخطة' : 'اسم الإجازة'}</label><input class="input" data-bmt maxlength="${kind === 'plan' ? 120 : 60}" value="${st.title}" placeholder="${kind === 'wish' ? T.label : ''}">`}
+      <label class="lv-bm-l">لون الشريط</label>${LV.colPick('lmc', st.color, defC, 'sm')}
+      <label class="lv-bm-l">الأيقونة</label>${LV.icPick('lmi', st.icon, defI, 'sm')}
+      <div class="lv-bm-acts"><button type="button" class="btn btn-sm btn-primary" data-lm="save">${UI.icon('check')} حفظ</button><button type="button" class="btn btn-sm btn-soft" data-lm="edit">${UI.icon('edit')} تعديل كامل</button><span class="grow"></span><button type="button" class="icon-btn lv-bm-del" data-lm="del" title="حذف">${UI.icon('trash')}</button></div>`);
+    document.body.appendChild(pop);
+    const rc = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight; let top = rc.bottom + 6; if (top + h > innerHeight - 8) top = Math.max(8, rc.top - h - 6);
+    pop.style.top = `${Math.round(top)}px`; pop.style.left = `${Math.round(clamp(rc.left + rc.width / 2 - w / 2, 8, innerWidth - w - 8))}px`;
+    const bars = () => (kind === 'wish' ? $$(`.lp-w[data-wopen="${r.id}"]`) : []);
+    const tint = (c, i) => bars().forEach((b) => { b.style.setProperty('--c', c); const u = b.querySelector('svg use'); if (u && LV.pri(r) !== 2) u.setAttribute('href', `#i-${i}`); });
+    const paint = () => { $('[data-lmpv]', pop).innerHTML = String(pv()); tint(st.color || defC, st.icon || defI); };
+    const restore = () => tint(LV.hex(r.color) || defC, r.icon || defI);
+    const out = (e) => { if (!pop.contains(e.target) && !e.target.closest('dialog')) LV.closeBM(); };
+    const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); LV.closeBM(); } else if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-bmt]')) { e.preventDefault(); pop.querySelector('[data-lm="save"]').click(); } };
+    LV._bm = { pop, restore, out, key }; setTimeout(() => document.addEventListener('pointerdown', out, true), 0); document.addEventListener('keydown', key, true);
+    LV.pickBind(pop, 'lmc', 'lmi', (k, v) => { st[k] = v; paint(); });
+    pop.addEventListener('input', (e) => { if (e.target.matches('[data-bmt]')) { st.title = e.target.value; paint(); } });
+    pop.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.matches('[data-bmx]')) { LV.closeBM(); return; }
+      const a = b.dataset.lm; if (!a) return;
+      if (a === 'save') {
+        const ti = $('[data-bmt]', pop), title = (ti ? ti.value : st.title).trim();
+        if (kind === 'plan' && !title) { UI.toast('اكتب عنوان الخطة', 'warn'); return; }
+        LV.closeBM();
+        if (st.color === LV.hex(r.color) && st.icon === (r.icon || '') && (kind === 'note' || title === (r.title || ''))) return;
+        Promise.resolve().then(async () => {
+          const cur = await DB.get('leaves', r.id); if (!cur) throw new AppError('لم يعد هذا العنصر موجوداً');
+          await DB.put('leaves', { ...cur, color: st.color, icon: st.icon, ...(kind === 'note' ? {} : { title: title.slice(0, kind === 'plan' ? 120 : 60) }), updatedAt: now() });
+          await Data.log('update', 'leaves', r.id, kind === 'note' ? 'تعديل لون ملاحظة وأيقونتها' : kind === 'wish' ? `تعديل شريط رغبة ${Data.userName(r.userId)} في «${p.title}»` : `تعديل لون خطة «${title}» وأيقونتها`);
+          Bus.emit('leaves', {}); UI.toast('حُفظ اللون والأيقونة'); if (after) after();
+        }).catch((ex) => UI.error(ex));
+        return;
+      }
+      LV.closeBM();
+      const run = (fn) => Promise.resolve().then(fn).then(() => after && after()).catch((ex) => UI.error(ex));
+      if (a === 'edit') run(() => (kind === 'note' ? LV.noteEdit(r.id) : kind === 'wish' ? LV.wishEdit(r.planId, r.id) : LV.planEdit(r.id)));
+      else if (a === 'del') run(async () => { if (kind === 'note') { if (await UI.confirm('حذف هذه الملاحظة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', r.id); Bus.emit('leaves', {}); UI.toast('حُذفت الملاحظة'); } } else if (kind === 'wish') await LV.wishDel(r.id); else await LV.delPlan(r.id); });
+    });
+    setTimeout(() => { const i = $('[data-bmt]', pop); if (i) i.focus(); }, 30);
+  }
+});
+/* تبويبات منتقي الأيقونات: تعمل في النوافذ والقوائم المنبثقة */
+document.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[data-icgt]'); if (!t) return; const g = t.closest('.lv-icg'); if (!g) return; e.preventDefault(); $$('[data-icgt]', g).forEach((b) => b.classList.toggle('on', b === t)); $$('[data-icgp]', g).forEach((p) => { p.hidden = p.dataset.icgp !== t.dataset.icgt; }); });
+
 Pages.leaves = async (ctx) => {
   const q = ctx.query || {}, me = LV.me();
   const st = { plan: String(q.p || ''), pm: '', view: ['month', 'timeline', 'year', 'list', 'plans', 'bal'].includes(q.v) ? q.v : q.p ? 'plans' : LV.pref('view', 'month'), month: /^\d{4}-\d{2}$/.test(q.m || '') ? q.m : LV.okDay(q.d) ? q.d.slice(0, 7) : LV.today().slice(0, 7), day: LV.okDay(q.d) ? q.d : '', hide: new Set(LV.pref('hide', [])), mine: false, lf: { st: '', type: '', u: '' }, sel: new Set() };
@@ -26837,21 +27041,21 @@ Pages.leaves = async (ctx) => {
   };
   const notesOn = (day) => D.notes.filter((n) => n.date <= day && (n.to || n.date) >= day);
   const coverOf = (day) => { const away = new Set(LV.away(day, D.all).map((r) => r.userId)); return { avail: D.team.filter((u) => !away.has(u.id)).length, tot: D.team.length }; };
-  const dayCls = (s) => [LV.weekend(s) ? 'we' : '', LV.holiday(s) ? 'hol' : '', s === LV.today() ? 'today' : '', s === st.day ? 'pick' : ''].filter(Boolean).join(' ');
+  const dayCls = (s) => [`d${LV.pd(s).getDay()}`, LV.weekend(s) ? 'we' : '', LV.holiday(s) ? 'hol' : '', s === LV.today() ? 'today' : '', s === st.day ? 'pick' : ''].filter(Boolean).join(' ');
   const barLabel = (r) => { const u = D.users.get(r.userId); return `${u ? u.name : '—'} — ${LV.T(r).label} — ${LV.range(r.from, r.to)} — ${(LV.ST[r.status] || LV.ST.plan)[0]}${r.note ? `\n${r.note}` : ''}`; };
 
   /* ── الشهر: أسابيع بأشرطة ممتدة (المسار نفسه للإجازة على طول الأسبوع) ── */
   const monthView = () => {
     const [y, m] = st.month.split('-').map(Number), first = `${st.month}-01`, last = LV.ds(new Date(y, m, 0)), start = LV.add(first, -LV.pd(first).getDay()), LANES = 3, weeks = [];
     for (let ws = start; ws <= last; ws = LV.add(ws, 7)) weeks.push(ws);
-    return html`<div class="lv-month"><div class="lv-wh">${LV.WD.map((d, i) => html`<span class="${(D.cfg.weekend || []).map(Number).includes(i) ? 'we' : ''}">${d}</span>`)}</div>
+    return html`<div class="lv-month"><div class="lv-wh">${LV.WD.map((d, i) => html`<span class="d${i}${(D.cfg.weekend || []).map(Number).includes(i) ? ' we' : ''}">${d}</span>`)}</div>
       ${weeks.map((ws) => {
         const we = LV.add(ws, 6), days = LV.days(ws, we), list = D.leaves.filter((r) => LV.over(r, ws, we)).sort((a, b) => a.from.localeCompare(b.from) || LV.diff(b.from, b.to) - LV.diff(a.from, a.to) || String(a.userId).localeCompare(String(b.userId)));
         const lanes = [], bars = [], hidden = new Map();
         list.forEach((r) => { const a = r.from > ws ? r.from : ws, b = r.to < we ? r.to : we; let L = lanes.findIndex((end) => end < a); if (L < 0) { L = lanes.length; lanes.push(b); } else lanes[L] = b; if (L < LANES) bars.push({ r, L, c1: LV.diff(ws, a) + 1, c2: LV.diff(ws, b) + 1, cs: r.from < ws, ce: r.to > we }); else LV.days(a, b).forEach((d) => hidden.set(d, (hidden.get(d) || 0) + 1)); });
         return html`<div class="lv-week" style="--lanes:${Math.max(1, Math.min(LANES, lanes.length))}">
           ${days.map((s, i) => { const out = s.slice(0, 7) !== st.month, ns = notesOn(s), h = LV.holiday(s), cv = !out && LV.work(s) && D.team.length ? coverOf(s) : null, low = cv && cv.avail < D.cfg.minCover, more = hidden.get(s) || 0;
-            return html`<div class="lv-day ${dayCls(s)}${out ? ' out' : ''}${low ? ' low' : ''}" data-day="${s}" style="grid-column:${i + 1}" title="${h || ''}"><span class="lv-dnum">${LV.pd(s).getDate()}</span>${h ? html`<small class="lv-hol">${h}</small>` : ''}<span class="lv-dmk">${ns.length ? html`<span class="lv-nt tone-${ns[0].tone || 'sky'}" title="${ns.map((n) => n.text).join('\n')}">${UI.icon('lv-note')}${ns.length > 1 ? fmtNum(ns.length) : ''}</span>` : ''}${low ? html`<span class="lv-lowb" title="المتاحون ${cv.avail} من ${cv.tot}، والحد الأدنى ${D.cfg.minCover}">${UI.icon('alert')}${fmtNum(cv.avail)}</span>` : ''}${more ? html`<span class="lv-moren">+${fmtNum(more)}</span>` : ''}</span></div>`; })}
+            return html`<div class="lv-day ${dayCls(s)}${out ? ' out' : ''}${low ? ' low' : ''}${ns.length ? ' hasn' : ''}" data-day="${s}" style="grid-column:${i + 1}${ns.length ? `;--nc:${LV.noteC(ns[0])}` : ''}" title="${h || ''}"><span class="lv-dnum">${LV.pd(s).getDate()}</span>${h ? html`<small class="lv-hol">${h}</small>` : ''}<span class="lv-dmk">${ns.length ? html`<span class="lv-nt" title="${ns.map((n) => n.text).join('\n')}">${UI.icon(LV.noteI(ns[0]))}${ns.length > 1 ? fmtNum(ns.length) : ''}</span>` : ''}${low ? html`<span class="lv-lowb" title="المتاحون ${cv.avail} من ${cv.tot}، والحد الأدنى ${D.cfg.minCover}">${UI.icon('alert')}${fmtNum(cv.avail)}</span>` : ''}${more ? html`<span class="lv-moren">+${fmtNum(more)}</span>` : ''}</span></div>`; })}
           ${bars.map(({ r, L, c1, c2, cs, ce }) => { const s = D.styOf(r.userId), u = D.users.get(r.userId), T = LV.T(r), dn = r.dayNotes && Object.keys(r.dayNotes).length;
             return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${cs ? ' cs' : ''}${ce ? ' ce' : ''}${r.userId === me ? ' mine' : ''}" data-lvopen="${r.id}"${LV.canEdit(r) ? raw(` data-lvmove="${r.id}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:${L + 2};--c:${r.color || s.color}" title="${barLabel(r)}${LV.canEdit(r) ? '\nاسحبها إلى أيام أخرى (ولو في شهر آخر)، أو اسحب طرفها لتغيير عدد الأيام' : ''}">${UI.icon(T.icon)}<span>${LV.first(u && u.name)}${c2 - c1 >= 1 ? ` · ${T.short}` : ''}</span>${dn ? UI.icon('lv-note', 'lv-bdn') : ''}${LV.canEdit(r) && !cs ? html`<i class="lv-grip gs" data-lvrs="from" aria-hidden="true"></i>` : ''}${LV.canEdit(r) && !ce ? html`<i class="lv-grip ge" data-lvrs="to" aria-hidden="true"></i>` : ''}</button>`; })}
         </div>`; })}</div>`;
@@ -26865,7 +27069,7 @@ Pages.leaves = async (ctx) => {
     return html`<div class="lv-tlw"><div class="lv-tl" style="--n:${n}">
       <div class="lv-tr lv-th"><span class="lv-tw">الفني</span>${days.map((d) => html`<span class="lv-tc ${dayCls(d)}" title="${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}"><b>${LV.pd(d).getDate()}</b><small>${LV.WD1[LV.pd(d).getDay()]}</small></span>`)}<span class="lv-tt">أيام</span></div>
       ${rows.map((u) => { const s = D.styOf(u.id), list = D.leaves.filter((r) => r.userId === u.id && LV.over(r, first, last)), can = u.id === me || LV.mgr();
-        return html`<div class="lv-tr${u.id === me ? ' me' : ''}" data-tlu="${u.id}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => { const ns = notesOn(d).filter((x) => x.createdBy === u.id); return html`<span class="lv-tc ${dayCls(d)}${can ? ' can' : ''}" data-day="${d}" data-u="${u.id}" style="grid-column:${i + 2}">${ns.length ? UI.icon('lv-note', 'lv-tn') : ''}</span>`; })}
+        return html`<div class="lv-tr${u.id === me ? ' me' : ''}" data-tlu="${u.id}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => { const ns = notesOn(d).filter((x) => x.createdBy === u.id); return html`<span class="lv-tc ${dayCls(d)}${can ? ' can' : ''}" data-day="${d}" data-u="${u.id}" style="grid-column:${i + 2}">${ns.length ? html`<span class="lv-tni" style="color:${LV.noteC(ns[0])}">${UI.icon(LV.noteI(ns[0]), 'lv-tn')}</span>` : ''}</span>`; })}
           ${list.map((r) => { const a = r.from > first ? r.from : first, b = r.to < last ? r.to : last, c1 = LV.diff(first, a) + 2, c2 = LV.diff(first, b) + 2, T = LV.T(r); return html`<button type="button" class="lv-barx s-${r.status}${r.masked ? ' masked' : ''}${r.from < first ? ' cs' : ''}${r.to > last ? ' ce' : ''}" data-lvopen="${r.id}"${LV.canEdit(r) ? raw(` data-lvmove="${r.id}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${r.color || s.color}" title="${barLabel(r)}${LV.canEdit(r) ? '\nاسحب لتحريكها، أو اسحب طرفها لتغيير المدة' : ''}">${UI.icon(T.icon)}<span>${c2 - c1 >= 1 ? T.short : ''}</span>${LV.canEdit(r) && r.from >= first ? html`<i class="lv-grip gs" data-lvrs="from" aria-hidden="true"></i>` : ''}${LV.canEdit(r) && r.to <= last ? html`<i class="lv-grip ge" data-lvrs="to" aria-hidden="true"></i>` : ''}</button>`; })}
           <span class="lv-tt" style="grid-column:${n + 2}">${fmtNum(tot(u.id))}</span></div>`; })}
       <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} المتاحون</span>${days.map((d, i) => { if (!LV.work(d) || !D.team.length) return html`<span class="lv-tc ${dayCls(d)}" style="grid-column:${i + 2}"></span>`; const c = coverOf(d), k = c.avail < D.cfg.minCover ? 'bad' : c.avail === D.cfg.minCover ? 'mid' : 'ok'; return html`<span class="lv-tc cov-${k}" style="grid-column:${i + 2}" title="المتاحون ${c.avail} من ${c.tot}">${fmtNum(c.avail)}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
@@ -26900,11 +27104,13 @@ Pages.leaves = async (ctx) => {
     let dayCard = '';
     if (d) {
       const aw = LV.away(d, D.all), ns = notesOn(d), cv = D.team.length ? coverOf(d) : null, h = LV.holiday(d);
+      const wsd = D.recs.filter((r) => r.kind === 'wish' && r.from <= d && r.to >= d && LV.plan(r.planId)).sort((a, b) => LV.pri(a) - LV.pri(b) || String(a.planId).localeCompare(String(b.planId))), pls = LV.plans(D.recs).filter((p) => p.from <= d && p.to >= d && LV.canWish(p)).slice(0, 2);
       dayCard = html`<div class="card lv-card lv-dayc"><div class="lv-ch"><h4>${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}</h4><button type="button" class="icon-btn" data-lvday="" aria-label="إغلاق">${UI.icon('x')}</button></div>
         <div class="lv-tags">${h ? html`<span class="chip tone-violet">${UI.icon('star')} ${h}</span>` : ''}${LV.weekend(d) ? html`<span class="chip">عطلة أسبوعية</span>` : ''}${cv && LV.work(d) ? html`<span class="chip tone-${cv.avail < D.cfg.minCover ? 'red' : 'teal'}">${UI.icon('lv-team')} متاح ${fmtNum(cv.avail)} من ${fmtNum(cv.tot)}</span>` : ''}</div>
-        <h5>في إجازة ${aw.length ? html`<small>${fmtNum(aw.length)}</small>` : ''}</h5>${aw.length ? html`<ul class="lv-ul">${aw.map((r) => { const u = D.users.get(r.userId), T = LV.T(r), dn = (r.dayNotes || {})[d]; return html`<li><button type="button" data-lvopen="${r.id}">${LV.who(u, D.styOf(r.userId))}<span class="lv-tp">${UI.icon(T.icon)} ${T.short} · ${LV.range(r.from, r.to)}</span>${LV.stChip(r)}${dn ? html`<em class="lv-dnote">${UI.icon('lv-note')} ${dn}</em>` : ''}</button></li>`; })}</ul>` : html`<p class="faint small">الفريق كامل في هذا اليوم.</p>`}
-        <h5>ملاحظات ${ns.length ? html`<small>${fmtNum(ns.length)}</small>` : ''}</h5>${ns.length ? html`<ul class="lv-ul">${ns.map((n) => html`<li><button type="button" data-lvnote="${n.id}" class="lv-nli tone-${n.tone || 'sky'}"><span>${n.text}</span><small class="faint">${Data.userName(n.createdBy)}${n.to ? ` · ${LV.range(n.date, n.to)}` : ''} ${n.vis !== 'team' ? UI.icon((LV.VIS[n.vis] || LV.VIS.team)[1]) : ''}</small></button></li>`)}</ul>` : html`<p class="faint small">لا ملاحظات.</p>`}
-        <div class="lv-acts"><button type="button" class="btn btn-sm btn-primary" data-lvnew="${d}">${UI.icon('plus')} إجازة من هذا اليوم</button><button type="button" class="btn btn-sm btn-soft" data-lvnoteadd="${d}">${UI.icon('lv-note')} ملاحظة</button></div></div>`;
+        <h5>في إجازة ${aw.length ? html`<small>${fmtNum(aw.length)}</small>` : ''}</h5>${aw.length ? html`<ul class="lv-ul">${aw.map((r) => { const u = D.users.get(r.userId), T = LV.T(r), dn = (r.dayNotes || {})[d], c = LV.hex(r.color) || D.styOf(r.userId).color; return html`<li class="lv-lirow"><button type="button" class="lv-cbar" data-lvopen="${r.id}" style="--c:${c}">${LV.who(u, { color: c })}<span class="lv-tp">${UI.icon(T.icon)} ${T.short} · ${LV.range(r.from, r.to)}</span>${LV.stChip(r)}${dn ? html`<em class="lv-dnote">${UI.icon('lv-note')} ${dn}</em>` : ''}</button>${LV.canEdit(r) ? LV.lookBtn('leave', r.id) : ''}</li>`; })}</ul>` : html`<p class="faint small">الفريق كامل في هذا اليوم.</p>`}
+        <h5>ملاحظات ${ns.length ? html`<small>${fmtNum(ns.length)}</small>` : ''}</h5>${ns.length ? html`<ul class="lv-ul">${ns.map((n) => html`<li class="lv-lirow"><button type="button" data-lvnote="${n.id}" class="lv-nli" style="--tc:${LV.noteC(n)}"><span>${UI.icon(LV.noteI(n), 'lv-nic')}${n.text}</span><small class="faint">${Data.userName(n.createdBy)}${n.to ? ` · ${LV.range(n.date, n.to)}` : ''} ${n.vis !== 'team' ? UI.icon((LV.VIS[n.vis] || LV.VIS.team)[1]) : ''}</small></button>${LV.canEdit(n) ? LV.lookBtn('note', n.id) : ''}</li>`)}</ul>` : html`<p class="faint small">لا ملاحظات.</p>`}
+        ${wsd.length ? html`<h5>خطط الإجازات <small>${fmtNum(wsd.length)}</small></h5><ul class="lv-ul">${wsd.map((w) => { const p = LV.plan(w.planId), u = D.users.get(w.userId), c = LV.hex(w.color) || D.styOf(w.userId).color, T = LV.TYPES[w.type] || LV.TYPES.annual; return html`<li class="lv-lirow"><button type="button" class="lv-cbar lv-wli" data-lpgo="${p.id}|${d.slice(0, 7)}" style="--c:${c}" title="فتح الخطة">${LV.who(u, { color: c })}<span class="lv-tp">${UI.icon(w.icon || T.icon)} ${w.title || T.short} · ${LV.range(w.from, w.to)}</span><small class="faint lv-wpl"><span class="lp-pic sm" style="--c:${LV.hex(p.color) || LV.PLAN_C}">${UI.icon(p.icon || 'lv-team')}</span>${p.title}${LV.pri(w) === 2 ? ' · رغبة بديلة' : ''}${w.state === 'agreed' || w.leaveId ? ' · متفق عليها' : ''}</small></button>${LV.canWish(p, w) ? LV.lookBtn('wish', w.id) : ''}</li>`; })}</ul>` : ''}
+        <div class="lv-acts"><button type="button" class="btn btn-sm btn-primary" data-lvnew="${d}">${UI.icon('plus')} إجازة من هذا اليوم</button><button type="button" class="btn btn-sm btn-soft" data-lvnoteadd="${d}">${UI.icon('lv-note')} ملاحظة</button>${pls.map((p) => html`<button type="button" class="btn btn-sm btn-ghost" data-lvwish="${p.id}|${d}">${UI.icon(p.icon || 'lv-team')} رغبة في «${p.title}»</button>`)}</div></div>`;
     }
     const bal = LV.balance(me, Number(st.month.slice(0, 4)), D.recs);
     return html`${dayCard}${LV.planSide(D)}
@@ -26929,12 +27135,12 @@ Pages.leaves = async (ctx) => {
         <div class="lv-nav"${st.view === 'plans' ? raw(' hidden') : ''}><button type="button" class="icon-btn" data-lvm="-1" aria-label="السابق">${UI.icon('chevron-right')}</button><b class="lv-title">${title}</b><button type="button" class="icon-btn" data-lvm="1" aria-label="التالي">${UI.icon('chevron-left')}</button><button type="button" class="btn btn-sm btn-ghost" data-lvm="0">اليوم</button></div>
         <div class="seg sm lv-views">${[['month', 'الشهر', 'calendar'], ['timeline', 'جدول الفريق', 'columns'], ['year', 'السنة', 'grid'], ['list', 'القائمة', 'menu'], ['plans', 'خطط الإجازات', 'lv-team'], ['bal', 'الأرصدة', 'lv-palm']].map(([k, l, i]) => html`<label><input type="radio" name="lvview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(i)} ${l}</span></label>`)}</div>
         <span class="grow"></span>
-        <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}${canUser(Auth.user, 'vouchers.design') ? html`<a class="btn btn-sm btn-ghost" href="#/voucher-designer?kind=leave" title="تصميم استمارة طلب الإجازة في مصمم الاستمارات الرسمية">${UI.icon('file')} استمارة الإجازة</a>` : ''}</div>
+        <div class="lv-tools"><button type="button" class="btn btn-sm btn-ghost" data-lvx="look" title="ألوان أيام الأسبوع والعطلة الأسبوعية والعطل الرسمية">${UI.icon('palette')} ألوان الأيام</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="print">${UI.icon('print')} طباعة</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="xlsx">${UI.icon('download')} Excel</button><button type="button" class="btn btn-sm btn-ghost" data-lvx="ics" title="أضف إجازاتك إلى Outlook أو تقويم الهاتف">${UI.icon('calendar')} إلى تقويمي</button>${mgr ? html`<button type="button" class="btn btn-sm btn-ghost" data-lvx="cfg">${UI.icon('sliders')} الإعدادات</button>` : ''}${canUser(Auth.user, 'vouchers.design') ? html`<a class="btn btn-sm btn-ghost" href="#/voucher-designer?kind=leave" title="تصميم استمارة طلب الإجازة في مصمم الاستمارات الرسمية">${UI.icon('file')} استمارة الإجازة</a>` : ''}</div>
       </div>
       <div class="lv-legend">${D.team.map((u) => { const s = D.styOf(u.id); return html`<button type="button" class="lv-lg${st.hide.has(u.id) ? ' off' : ''}" data-lvhide="${u.id}" style="--c:${s.color}" title="${st.hide.has(u.id) ? 'إظهار' : 'إخفاء'} ${u.name}"><span class="lv-dot"></span><span>${u.name}</span>${LV.mgr() || u.id === me ? html`<i data-lvsty="${u.id}" title="اللون">${UI.icon('palette')}</i>` : ''}</button>`; })}
         <label class="chk lv-mine"><input type="checkbox" data-lvmine${st.mine ? raw(' checked') : ''}> إجازاتي فقط</label>
-        <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب</span></div>
-      <div class="lv-main"><div class="lv-cal card" data-lvcal>${st.view === 'bal' ? LV.balView(D, st) : st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
+        <span class="lv-keys"><i class="k s-approved"></i>معتمدة<i class="k s-pending"></i>بانتظار الاعتماد<i class="k s-plan"></i>خطة مبدئية<i class="k masked"></i>غائب${LV.lookKeys()}</span></div>
+      <div class="lv-main" style="${LV.lookVars()}"><div class="lv-cal card" data-lvcal>${st.view === 'bal' ? LV.balView(D, st) : st.view === 'plans' ? LV.planView(D, st) : st.view === 'timeline' ? timelineView() : st.view === 'year' ? yearView() : st.view === 'list' ? listView() : monthView()}</div><aside class="lv-side">${side()}</aside></div>`);
     if (q.l && !st._opened) { st._opened = true; const r = D.recs.find((x) => x.id === q.l); if (r) setTimeout(() => open(r.id), 60); }
   };
   const open = async (id) => { const r = D.recs.find((x) => x.id === id) || (await DB.get('leaves', id)); if (!r) return; if (r.kind === 'note') { await LV.noteEdit(id); return; } if (LV.canEdit(r)) await LV.edit(id); else await LV.view(r); };
@@ -26946,10 +27152,10 @@ Pages.leaves = async (ctx) => {
   const rangeMenu = (a, b, u, e) => {
     closePop(); const n = LV.days(a, b).length;
     pop = document.createElement('div'); pop.className = 'lv-pop'; pop.setAttribute('role', 'menu');
-    pop.innerHTML = String(html`<b>${LV.range(a, b)}</b><small class="faint">${LV.dayW(n)} · ${fmtNum(LV.workDays(a, b))} عمل</small><button type="button" class="btn btn-sm btn-primary" data-rm="leave">${UI.icon('plus')} إجازة لهذه الأيام</button><button type="button" class="btn btn-sm btn-soft" data-rm="note">${UI.icon('lv-note')} ملاحظة على هذه الأيام</button><button type="button" class="btn btn-sm btn-ghost" data-rm="x">إلغاء</button>`);
+    pop.innerHTML = String(html`<b>${LV.range(a, b)}</b><small class="faint">${LV.dayW(n)} · ${fmtNum(LV.workDays(a, b))} عمل</small><button type="button" class="btn btn-sm btn-primary" data-rm="leave">${UI.icon('plus')} إجازة لهذه الأيام</button><button type="button" class="btn btn-sm btn-soft" data-rm="note">${UI.icon('lv-note')} ملاحظة على هذه الأيام</button>${LV.plans(D.recs).filter((p) => LV.canWish(p) && p.from <= b && p.to >= a).slice(0, 3).map((p) => html`<button type="button" class="btn btn-sm btn-soft" data-rm="wish|${p.id}">${UI.icon(p.icon || 'lv-team')} رغبة في «${p.title}»</button>`)}<button type="button" class="btn btn-sm btn-ghost" data-rm="plan">${UI.icon('lv-team')} خطة إجازات لهذه الفترة</button><button type="button" class="btn btn-sm btn-ghost" data-rm="x">إلغاء</button>`);
     document.body.appendChild(pop);
     const w = pop.offsetWidth, h = pop.offsetHeight; pop.style.left = `${clamp(e.clientX - w / 2, 8, innerWidth - w - 8)}px`; pop.style.top = `${clamp(e.clientY + 12, 8, innerHeight - h - 8)}px`;
-    pop.addEventListener('click', (ev) => { const bt = ev.target.closest('[data-rm]'); if (!bt) return; const k = bt.dataset.rm; closePop(); if (k === 'leave') go(async () => { if (await LV.edit('', { from: a, to: b, userId: u || me })) draw(); }); else if (k === 'note') go(async () => { if (await LV.noteEdit('', { from: a, to: b })) draw(); }); });
+    pop.addEventListener('click', (ev) => { const bt = ev.target.closest('[data-rm]'); if (!bt) return; const k = bt.dataset.rm; closePop(); if (k === 'leave') go(async () => { if (await LV.edit('', { from: a, to: b, userId: u || me })) draw(); }); else if (k === 'note') go(async () => { if (await LV.noteEdit('', { from: a, to: b })) draw(); }); else if (k.startsWith('wish|')) go(async () => { if (await LV.wishEdit(k.slice(5), '', { from: a, to: b, userId: u || me })) draw(); }); else if (k === 'plan') go(async () => { const r = await LV.planEdit('', { from: a, to: b }); if (r) { st.view = 'plans'; st.plan = r.id; st.pm = ''; LV.setPref('view', 'plans'); sync(); } draw(); }); });
   };
   ctx.view.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || e.pointerType === 'touch') return;
@@ -26972,6 +27178,9 @@ Pages.leaves = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-lvnew]', (e, b) => go(async () => { if (await LV.edit('', b.dataset.lvnew ? { from: b.dataset.lvnew } : {})) draw(); }));
   UI.on(ctx.view, 'click', '[data-lvnoteadd]', (e, b) => go(async () => { if (await LV.noteEdit('', { from: b.dataset.lvnoteadd || st.day || LV.today() })) draw(); }));
   UI.on(ctx.view, 'click', '[data-lvnote]', (e, b) => go(async () => { await LV.noteEdit(b.dataset.lvnote); draw(); }));
+  UI.on(ctx.view, 'click', '[data-lvlook]', (e, b) => { e.stopPropagation(); const [k, id] = b.dataset.lvlook.split('|'), r = D.recs.find((x) => x.id === id); if (!r) return; const after = () => { if (ctx.alive()) draw(); }; if (k === 'leave') LV.barMenu(r, b, after); else LV.lookMenu(k, r, b, after); });
+  UI.on(ctx.view, 'click', '[data-lpgo]', (e, b) => { const [pid, mm] = b.dataset.lpgo.split('|'); st.view = 'plans'; st.plan = pid; st.pm = mm; st.lpPast = 0; LV.setPref('view', 'plans'); sync(); go(draw); });
+  UI.on(ctx.view, 'click', '[data-lvwish]', (e, b) => { const [pid, d0] = b.dataset.lvwish.split('|'); go(async () => { if (await LV.wishEdit(pid, '', { from: d0 })) draw(); }); });
   UI.on(ctx.view, 'click', '[data-lvsty]', (e, b) => { e.stopPropagation(); go(async () => { await LV.styleEdit(b.dataset.lvsty); draw(); }); });
   UI.on(ctx.view, 'click', '[data-lvdec]', (e, b) => { const [s, id] = b.dataset.lvdec.split('|'); go(async () => { await LV.decide(id, s); draw(); }); });
   UI.on(ctx.view, 'click', '[data-lvday]', () => { st.day = ''; sync(); go(draw); });
@@ -26985,6 +27194,7 @@ Pages.leaves = async (ctx) => {
   UI.on(ctx.view, 'click', '[data-lvx]', (e, b) => go(async () => {
     const k = b.dataset.lvx;
     if (k === 'cfg') { await LV.settings(); draw(); return; }
+    if (k === 'look') { if (await LV.lookEdit()) draw(); return; }
     if (k === 'ics') { const mine = D.recs.filter((r) => LV.live(r) && r.userId === me); if (!mine.length) { UI.toast('لا إجازات لك لتصديرها', 'warn'); return; } LV.ics(mine); UI.toast(`صُدّرت ${fmtNum(mine.length)} إجازة: افتح الملف لإضافتها إلى تقويمك`); return; }
     if (k === 'xlsx') return exportXlsx();
     if (k === 'print') return printMonth();
@@ -27013,10 +27223,10 @@ Pages.leaves = async (ctx) => {
   const printMonth = () => {
     const [y, m] = st.month.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${st.month}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
     const team = D.team.filter((u) => !st.hide.has(u.id)), list = D.recs.filter((r) => LV.isLeave(r) && r.status !== 'rejected' && LV.over(r, first, last) && !st.hide.has(r.userId)).sort((a, b) => a.from.localeCompare(b.from)), ns = D.notes.filter((x) => x.date <= last && (x.to || x.date) >= first);
-    const css = '@page{size:A4 landscape;margin:10mm}.lvp{font-size:10.5px}.lvp table{width:100%;border-collapse:collapse}.lvp th,.lvp td{border:1px solid #cbd5e1;padding:2px 3px;text-align:center}.lvp td.n{text-align:right;white-space:nowrap;font-weight:700}.lvp .we{background:#f1f5f9}.lvp .hol{background:#ede9fe}.lvp .lvc{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:800;color:#fff}.lvp .bad{color:#b91c1c;font-weight:800}.lvp .key{margin:6px 0;color:#475569}.lvp h3{margin:12px 0 4px}';
+    const css = '@page{size:A4 landscape;margin:10mm}.lvp{font-size:10.5px}.lvp table{width:100%;border-collapse:collapse}.lvp th,.lvp td{border:1px solid #cbd5e1;padding:2px 3px;text-align:center}.lvp td.n{text-align:right;white-space:nowrap;font-weight:700}.lvp .we{background:#f1f5f9}.lvp .hol{background:#ede9fe}.lvp .lvc{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:800;color:#fff}.lvp .bad{color:#b91c1c;font-weight:800}.lvp .key{margin:6px 0;color:#475569}.lvp h3{margin:12px 0 4px}' + LV.printLook();
     UI.print(html`<style>${raw(css)}</style><div class="lvp"><h2>إجازات الفنيين — ${LV.MONTHS[m - 1]} ${y}</h2>
-      <table><thead><tr><th>الفني</th>${days.map((d) => html`<th class="${LV.weekend(d) ? 'we' : ''}${LV.holiday(d) ? ' hol' : ''}">${LV.pd(d).getDate()}<br><small>${LV.WD1[LV.pd(d).getDay()]}</small></th>`)}<th>الأيام</th></tr></thead><tbody>
-      ${team.map((u) => { const s = D.styOf(u.id); let tot = 0; return html`<tr><td class="n">${u.name}</td>${days.map((d) => { const r = LV.away(d, D.all).find((x) => x.userId === u.id); if (r) tot++; return r ? html`<td class="lvc" style="background:${r.color || s.color}${r.status === 'approved' ? '' : 'aa'}">${LV.T(r).ab}</td>` : html`<td class="${LV.weekend(d) ? 'we' : ''}${LV.holiday(d) ? ' hol' : ''}"></td>`; })}<td><b>${tot}</b></td></tr>`; })}
+      <table><thead><tr><th>الفني</th>${days.map((d) => html`<th class="d${LV.pd(d).getDay()}${LV.weekend(d) ? ' we' : ''}${LV.holiday(d) ? ' hol' : ''}">${LV.pd(d).getDate()}<br><small>${LV.WD1[LV.pd(d).getDay()]}</small></th>`)}<th>الأيام</th></tr></thead><tbody>
+      ${team.map((u) => { const s = D.styOf(u.id); let tot = 0; return html`<tr><td class="n">${u.name}</td>${days.map((d) => { const r = LV.away(d, D.all).find((x) => x.userId === u.id); if (r) tot++; return r ? html`<td class="lvc" style="background:${r.color || s.color}${r.status === 'approved' ? '' : 'aa'}">${LV.T(r).ab}</td>` : html`<td class="d${LV.pd(d).getDay()}${LV.weekend(d) ? ' we' : ''}${LV.holiday(d) ? ' hol' : ''}"></td>`; })}<td><b>${tot}</b></td></tr>`; })}
       <tr><td class="n">المتاحون</td>${days.map((d) => { if (!LV.work(d)) return html`<td class="we"></td>`; const c = coverOf(d); return html`<td class="${c.avail < D.cfg.minCover ? 'bad' : ''}">${c.avail}</td>`; })}<td></td></tr></tbody></table>
       <p class="key">الرموز: ${Object.values(LV.TYPES).map((t) => `${t.ab} = ${t.short}`).join('، ')}، • = غائب. اللون الفاتح: غير معتمدة بعد. الحد الأدنى للمتاحين: ${D.cfg.minCover}.${(D.cfg.holidays || []).filter((h) => h.from <= last && (h.to || h.from) >= first).map((h) => ` عطلة: ${h.name} (${LV.range(h.from, h.to || h.from)}).`).join('')}</p>
       ${list.length ? html`<h3>تفاصيل الإجازات</h3><table><thead><tr><th>الفني</th><th>النوع</th><th>المدة</th><th>الأيام</th><th>الحالة</th><th>الملاحظة</th></tr></thead><tbody>${list.map((r) => html`<tr><td class="n">${Data.userName(r.userId)}</td><td>${LV.T(r).label}${LV.T(r).kind ? ` (${LV.T(r).kind})` : ''}</td><td>${LV.range(r.from, r.to)}</td><td>${LV.days(r.from, r.to).length} (${LV.workDays(r.from, r.to)} عمل)</td><td>${(LV.ST[r.status] || LV.ST.plan)[0]}</td><td style="text-align:right">${[r.note, ...Object.entries(r.dayNotes || {}).map(([d, t]) => `${LV.fmt(d)}: ${t}`)].filter(Boolean).join(' — ')}</td></tr>`)}</tbody></table>` : ''}
@@ -27136,7 +27346,7 @@ Object.assign(LV, {
     return html`<div class="lp-list">
       <button type="button" class="lp-card lp-new" data-lpnew>${UI.icon('plus')}<b>خطة إجازات جديدة</b><small>حدد الفترة والمشاركين، فيسجل كل فني رغبته وتنسّقونها معاً قبل تثبيتها في التقويم</small></button>
       ${plans.map((p) => { const ws = LV.wishes(D.recs, p.id), mem = p.members || [], done = mem.filter((id) => ws.some((w) => w.userId === id)).length, need = LV.pending(D.recs, p, me), shortN = LV.short(D.recs, p, me), [sl, tone, ic] = LV.PST[p.state || 'collect'] || LV.PST.collect, cf = LV.conflicts(p, D.recs).length, dl = p.deadline ? LV.diff(LV.today(), p.deadline) : null;
-        return html`<button type="button" class="lp-card${need ? ' need' : ''}" data-lpopen="${p.id}"><span class="lp-ch"><b>${p.title}</b><span class="chip tone-${tone}">${UI.icon(ic)} ${sl}</span></span>
+        return html`<button type="button" class="lp-card${need ? ' need' : ''}" data-lpopen="${p.id}" style="--pc:${LV.hex(p.color) || LV.PLAN_C}"><span class="lp-ch"><span class="lp-pic" style="--c:${LV.hex(p.color) || LV.PLAN_C}">${UI.icon(p.icon || 'lv-team')}</span><b>${p.title}</b><span class="chip tone-${tone}">${UI.icon(ic)} ${sl}</span></span>
           <span class="lp-meta">${UI.icon('calendar')} ${LV.range(p.from, p.to)}</span><span class="lp-meta">${UI.icon('user')} وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.maxOff ? ` · يُسمح بـ${fmtNum(p.maxOff)} في اليوم${LV.hard(p) ? ' (ملزم)' : ''}` : ''}</span>${LV.hasQ(p) ? html`<span class="lp-meta">${UI.icon('clock')} ${LV.qText(p)}</span>` : ''}
           <span class="lp-prog"><i style="width:${mem.length ? Math.round((done / mem.length) * 100) : 0}%"></i></span>
           <span class="lp-meta">سجّل ${fmtNum(done)} من ${fmtNum(mem.length)}${dl != null && LV.isOpen(p) ? ` · ${dl < 0 ? 'انتهى موعد التسجيل' : dl === 0 ? 'آخر موعد اليوم' : `آخر موعد بعد ${LV.dayW(dl)}`}` : ''}${cf ? html` · <b class="bad">${fmtNum(cf)} تعارض</b>` : ''}</span>
@@ -27154,7 +27364,7 @@ Object.assign(LV, {
     const [y, m] = pm.split('-').map(Number), n = new Date(y, m, 0).getDate(), days = Array.from({ length: n }, (_, i) => `${pm}-${pad(i + 1)}`), first = days[0], last = days[n - 1];
     const inP = (d) => d >= p.from && d <= p.to, done = new Set(ws.map((w) => w.userId)), cf = LV.conflicts(p, D.recs), steps = ['collect', 'arrange', 'final'], yrs = new Set(months.map((x) => x.slice(0, 4))).size > 1;
     return html`<div class="lp-board">
-      <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3>${p.title}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · المسموح بالإجازة في اليوم نفسه ${fmtNum(max)}${LV.hard(p) ? ' (ملزم)' : ' (تنبيه)'}` : ''}${LV.hasQ(p) ? ` · ${LV.qText(p)}` : ''} · ${p.vis === 'members' ? 'يراها المعنيون فقط' : 'يراها المشاركون والإدارة'}${(p.share || []).length ? ` ومن شوركت معهم: ${(p.share || []).map((x) => LV.first(Data.userName(x))).join('، ')}` : ''}</small></div>
+      <div class="lp-head"><button type="button" class="icon-btn" data-lpback title="كل الخطط" aria-label="كل الخطط">${UI.icon('chevron-right')}</button><div class="grow"><h3><span class="lp-pic" style="--c:${LV.hex(p.color) || LV.PLAN_C}">${UI.icon(p.icon || 'lv-team')}</span>${p.title}${coord ? LV.lookBtn('plan', p.id) : ''}</h3><small class="faint">${LV.range(p.from, p.to)} · وضعها ${p.createdBy === me ? 'أنت' : Data.userName(p.createdBy)}${p.deadline ? ` · آخر موعد للتسجيل ${LV.fmtY(p.deadline)}` : ''}${max ? ` · المسموح بالإجازة في اليوم نفسه ${fmtNum(max)}${LV.hard(p) ? ' (ملزم)' : ' (تنبيه)'}` : ''}${LV.hasQ(p) ? ` · ${LV.qText(p)}` : ''} · ${p.vis === 'members' ? 'يراها المعنيون فقط' : 'يراها المشاركون والإدارة'}${(p.share || []).length ? ` ومن شوركت معهم: ${(p.share || []).map((x) => LV.first(Data.userName(x))).join('، ')}` : ''}</small></div>
         <div class="lp-acts">${LV.canWish(p) ? html`<button type="button" class="btn btn-sm btn-primary" data-wnew="${p.id}">${UI.icon('plus')} ${(p.members || []).includes(me) && !done.has(me) ? 'أضف رغبتي' : 'رغبة'}</button>` : ''}
           ${coord && LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-soft" data-lpremind="${p.id}">${UI.icon('bell')} ${LV.quota(p) && p.qexact ? 'تذكير من لم يسجّل أو يستكمل' : 'تذكير من لم يسجّل'}</button>` : ''}
           ${coord && state === 'collect' ? html`<button type="button" class="btn btn-sm btn-soft" data-lpstate="arrange|${p.id}">${UI.icon('swap')} بدء التنسيق</button>` : ''}
@@ -27168,18 +27378,18 @@ Object.assign(LV, {
       ${p.note ? html`<p class="lp-note">${UI.icon('info')}<span>${p.note}</span></p>` : ''}
       <div class="lp-people">${mem.map((u) => { const qu = LV.quota(p) ? LV.used(D.recs, p, u.id, 1) : 0; return html`<span class="lp-p${done.has(u.id) ? ' ok' : ''}" title="${done.has(u.id) ? 'سجّل رغبته' : 'لم يسجّل بعد'}${LV.quota(p) ? ` · ${fmtNum(qu)} من ${fmtNum(LV.quota(p))}` : ''}">${LV.who(u, D.styOf(u.id), 'sm')}${LV.quota(p) ? html`<small class="lp-pq ${LV.qCls(qu, p)}">${fmtNum(qu)}/${fmtNum(LV.quota(p))}</small>` : ''}${UI.icon(done.has(u.id) ? 'check' : 'clock')}</span>`; })}<small class="faint">سجّل ${fmtNum(mem.filter((u) => done.has(u.id)).length)} من ${fmtNum(mem.length)}</small></div>
       ${LV.quota(p) && (p.members || []).includes(me) ? LV.qBar(D.recs, p, me) : ''}
-      <div class="lp-strip" role="img" aria-label="الغائبون في كل يوم من الفترة">${LV.days(sFrom, p.to).map((d) => { const k = (off.get(d) || new Set()).size; return html`<i class="${!LV.work(d) ? 'we' : max && k > max ? 'bad' : max && k === max ? 'mid' : k ? 'h' : ''}${d.slice(0, 7) === pm ? ' cur' : ''}" data-lpday="${d}" title="${LV.fmtY(d)}: ${fmtNum(k)} غائب"></i>`; })}</div>
+      <div class="lp-strip" role="img" aria-label="الغائبون في كل يوم من الفترة">${LV.days(sFrom, p.to).map((d) => { const k = (off.get(d) || new Set()).size; return html`<i class="${!LV.work(d) ? `we ${LV.holiday(d) ? 'sh' : `s${LV.pd(d).getDay()}`}` : max && k > max ? 'bad' : max && k === max ? 'mid' : k ? 'h' : ''}${d.slice(0, 7) === pm ? ' cur' : ''}" data-lpday="${d}" title="${LV.fmtY(d)}: ${fmtNum(k)} غائب"></i>`; })}</div>
       <div class="lp-mnav"><button type="button" class="lp-mstep"${months[pmi - 1] ? raw(` data-lpm="${months[pmi - 1]}"`) : raw(' disabled')} title="الشهر السابق" aria-label="الشهر السابق">${UI.icon('chevron-right')}</button>${!showPast && past.length ? html`<button type="button" class="lp-mpast" data-lppast="1" title="إظهار الأشهر السابقة من الخطة">${UI.icon('clock')} الأشهر السابقة (${fmtNum(past.length)})</button>` : ''}${vm.map((mm) => html`<button type="button" class="${mm === pm ? 'on' : ''}${mm < cm ? ' lp-mold' : ''}" data-lpm="${mm}">${LV.MONTHS[Number(mm.slice(5)) - 1]}${yrs ? ` ${mm.slice(0, 4)}` : ''}</button>`)}${showPast && past.length && past.length < months.length ? html`<button type="button" class="lp-mpast" data-lppast="0">${UI.icon('x')} إخفاء السابقة</button>` : ''}<button type="button" class="lp-mstep"${months[pmi + 1] ? raw(` data-lpm="${months[pmi + 1]}"`) : raw(' disabled')} title="الشهر التالي" aria-label="الشهر التالي">${UI.icon('chevron-left')}</button></div>
       <div class="lv-tlw"><div class="lv-tl lp-tl" style="--n:${n}">
-        <div class="lv-tr lv-th"><span class="lv-tw">${LV.MONTHS[m - 1]} ${y}</span>${days.map((d) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? '' : 'outp'}${max && inP(d) && LV.work(d) && (off.get(d) || new Set()).size >= max ? ' lp-full' : ''}" title="${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}${max && inP(d) && LV.work(d) ? ` — ${fmtNum((off.get(d) || new Set()).size)} من ${fmtNum(max)}` : ''}"><b>${LV.pd(d).getDate()}</b><small>${LV.WD1[LV.pd(d).getDay()]}</small></span>`)}<span class="lv-tt">أيام</span></div>
+        <div class="lv-tr lv-th"><span class="lv-tw">${LV.MONTHS[m - 1]} ${y}</span>${days.map((d) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? `d${LV.pd(d).getDay()}` : 'outp'}${max && inP(d) && LV.work(d) && (off.get(d) || new Set()).size >= max ? ' lp-full' : ''}" title="${LV.WD[LV.pd(d).getDay()]} ${LV.fmtY(d)}${LV.holiday(d) ? ` — ${LV.holiday(d)}` : ''}${max && inP(d) && LV.work(d) ? ` — ${fmtNum((off.get(d) || new Set()).size)} من ${fmtNum(max)}` : ''}"><b>${LV.pd(d).getDate()}</b><small>${LV.WD1[LV.pd(d).getDay()]}</small></span>`)}<span class="lv-tt">أيام</span></div>
         ${mem.map((u) => {
           const s = D.styOf(u.id), uw = ws.filter((w) => w.userId === u.id && LV.over(w, first, last)), ul = D.all.filter((r) => r.userId === u.id && LV.over(r, first, last) && !ws.some((w) => w.leaveId === r.id)), can = coord || (u.id === me && LV.isOpen(p)), tot = ws.filter((w) => w.userId === u.id && LV.pri(w) === 1).reduce((a, w) => a + LV.count(w.from, w.to), 0);
-          return html`<div class="lv-tr${u.id === me ? ' me' : ''}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? (can ? 'can' : '') : 'outp'}"${inP(d) ? raw(` data-day="${d}" data-u="${u.id}" data-wp="${p.id}"`) : ''} style="grid-column:${i + 2}"></span>`)}
+          return html`<div class="lv-tr${u.id === me ? ' me' : ''}"><span class="lv-tw">${LV.who(u, s)}</span>${days.map((d, i) => html`<span class="lv-tc ${LV.weekend(d) ? 'we' : ''} ${LV.holiday(d) ? 'hol' : ''} ${inP(d) ? `d${LV.pd(d).getDay()}${can ? ' can' : ''}` : 'outp'}"${inP(d) ? raw(` data-day="${d}" data-u="${u.id}" data-wp="${p.id}"`) : ''} style="grid-column:${i + 2}"></span>`)}
             ${ul.map((r) => { const a = r.from > first ? r.from : first, b = r.to < last ? r.to : last; return html`<span class="lp-ctx" style="grid-column:${LV.diff(first, a) + 2} / ${LV.diff(first, b) + 3}" title="إجازة مسجلة في التقويم: ${LV.T(r).label} ${LV.range(r.from, r.to)}"></span>`; })}
             ${uw.map((w) => { const a = w.from > first ? w.from : first, b = w.to < last ? w.to : last, c1 = LV.diff(first, a) + 2, c2 = LV.diff(first, b) + 2, T = LV.TYPES[w.type] || LV.TYPES.annual, mv = LV.canWish(p, w) && !w.leaveId, alt = LV.pri(w) === 2;
-              return html`<button type="button" class="lv-barx lp-w${alt ? ' alt' : ''}${w.state === 'agreed' || w.leaveId ? ' agreed' : ''}${w.orig ? ' moved' : ''}${w.from < first ? ' cs' : ''}${w.to > last ? ' ce' : ''}${mv ? ' mv' : ''}" data-wopen="${w.id}"${mv ? raw(` data-wmove="${w.id}" data-wf="${w.from}" data-wt="${w.to}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${s.color}" title="${LV.wtip(w, u)}${mv ? '\nاسحبه لتحريكه، واسحب طرفه لتغيير المدة، واضغطه للخيارات' : ''}">${mv && w.from >= first ? html`<i class="lp-rz s" data-rz="s" aria-hidden="true"></i>` : ''}${mv && w.to <= last ? html`<i class="lp-rz e" data-rz="e" aria-hidden="true"></i>` : ''}${alt ? html`<em>2</em>` : UI.icon(T.icon)}<span>${c2 - c1 >= 2 ? (alt ? 'بديلة' : w.title || T.short) : ''}</span>${w.state === 'agreed' || w.leaveId ? UI.icon('check', 'lp-ok') : w.orig ? UI.icon('swap', 'lp-mv') : ''}</button>`; })}
+              return html`<button type="button" class="lv-barx lp-w${alt ? ' alt' : ''}${w.state === 'agreed' || w.leaveId ? ' agreed' : ''}${w.orig ? ' moved' : ''}${w.from < first ? ' cs' : ''}${w.to > last ? ' ce' : ''}${mv ? ' mv' : ''}" data-wopen="${w.id}"${mv ? raw(` data-wmove="${w.id}" data-wf="${w.from}" data-wt="${w.to}"`) : ''} style="grid-column:${c1} / ${c2 + 1};grid-row:1;--c:${LV.hex(w.color) || s.color}" title="${LV.wtip(w, u)}${mv ? '\nاسحبه لتحريكه، واسحب طرفه لتغيير المدة، واضغطه للخيارات' : ''}">${mv && w.from >= first ? html`<i class="lp-rz s" data-rz="s" aria-hidden="true"></i>` : ''}${mv && w.to <= last ? html`<i class="lp-rz e" data-rz="e" aria-hidden="true"></i>` : ''}${alt ? html`<em>2</em>` : UI.icon(w.icon || T.icon)}<span>${c2 - c1 >= 2 ? (alt ? 'بديلة' : w.title || T.short) : ''}</span>${w.state === 'agreed' || w.leaveId ? UI.icon('check', 'lp-ok') : w.orig ? UI.icon('swap', 'lp-mv') : ''}</button>`; })}
             <span class="lv-tt${LV.quota(p) ? ` ${LV.qCls(tot, p)}` : ''}" style="grid-column:${n + 2}"${LV.quota(p) ? raw(` title="${fmtNum(tot)} من ${fmtNum(LV.quota(p))}"`) : ''}>${tot ? fmtNum(tot) : '—'}${LV.quota(p) ? html`<small>/${fmtNum(LV.quota(p))}</small>` : ''}</span></div>`; })}
-        <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} الغائبون</span>${days.map((d, i) => { if (!inP(d) || !LV.work(d)) return html`<span class="lv-tc ${inP(d) ? 'we' : 'outp'}" style="grid-column:${i + 2}"></span>`; const set = off.get(d) || new Set(), k = set.size; return html`<span class="lv-tc ${max && k > max ? 'cov-bad' : max && k === max ? 'cov-mid' : 'cov-ok'}" style="grid-column:${i + 2}" title="${[...set].map((id) => Data.userName(id)).join('، ')}">${k ? fmtNum(k) : ''}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
+        <div class="lv-tr lv-tcov"><span class="lv-tw">${UI.icon('lv-team')} الغائبون</span>${days.map((d, i) => { if (!inP(d) || !LV.work(d)) return html`<span class="lv-tc ${inP(d) ? `we d${LV.pd(d).getDay()}${LV.holiday(d) ? ' hol' : ''}` : 'outp'}" style="grid-column:${i + 2}"></span>`; const set = off.get(d) || new Set(), k = set.size; return html`<span class="lv-tc ${max && k > max ? 'cov-bad' : max && k === max ? 'cov-mid' : 'cov-ok'}" style="grid-column:${i + 2}" title="${[...set].map((id) => Data.userName(id)).join('، ')}">${k ? fmtNum(k) : ''}</span>`; })}<span class="lv-tt" style="grid-column:${n + 2}"></span></div>
       </div></div>
       <div class="lp-keys"><span><i class="k"></i>الرغبة الأولى</span>${p.allowAlt ? html`<span><i class="k alt"></i>رغبة بديلة</span>` : ''}<span>${UI.icon('check')} متفق عليها</span><span>${UI.icon('swap')} عدّلها واضع الخطة</span><span><i class="k ctx"></i>إجازة مسجلة في التقويم</span>${max ? html`<span><i class="k full"></i>يوم اكتمل فيه العدد (${fmtNum(max)})${LV.hard(p) ? ' — لا يقبل رغبة جديدة' : ''}</span>` : ''}${LV.canWish(p) ? html`<span class="lp-tip">${UI.icon('info')} اسحب على أيام ${coord ? 'أي صف' : 'صفك'} لإضافة رغبة، واسحب ${coord ? 'أي رغبة' : 'رغبتك'} لتحريكها أو طرفها لتغيير المدة، واضغطها للتقسيم والربط والحذف</span>` : ''}</div>
       ${cf.length ? html`<div class="lp-cf"><h4>${UI.icon('alert')} تعارض مع الحد الأقصى (${fmtNum(max)} في اليوم)</h4><ul>${cf.map((c) => { const sug = coord && LV.isOpen(p) ? LV.suggest(p, D.recs, c) : []; return html`<li><button type="button" class="lp-cfr" data-lpday="${c.from}"><b>${LV.range(c.from, c.to)}</b>: ${c.users.map((id) => Data.userName(id)).join('، ')} (${fmtNum(c.users.length)})</button>${sug.map((x) => html`<button type="button" class="btn btn-xs btn-soft" data-lpsug="${x.alt.id}|${c.from}|${c.to}" title="تصبح رغبته البديلة هي الأولى">${UI.icon('swap')} رغبة ${LV.first(Data.userName(x.uid))} البديلة: ${LV.range(x.alt.from, x.alt.to)}</button>`)}${coord && !sug.length ? html`<small class="faint">حرّك إحدى الرغبات بالسحب، أو اطلب من أحدهم رغبة بديلة</small>` : ''}</li>`; })}</ul></div>` : max && ws.length ? html`<div class="lv-ok">${UI.icon('check')} لا تعارض: لا يتجاوز الغائبون ${fmtNum(max)} في أي يوم عمل من الفترة</div>` : ''}
@@ -27192,7 +27402,7 @@ Object.assign(LV, {
   },
   planSide(D) {
     const me = LV.me(), list = LV.plans(D.recs).filter((p) => LV.isOpen(p) && ((p.members || []).includes(me) || p.createdBy === me)); if (!list.length) return '';
-    return html`<div class="card lv-card"><h4>${UI.icon('lv-team')} خطط الإجازات</h4><ul class="lv-ul">${list.map((p) => { const has = LV.wishes(D.recs, p.id).some((w) => w.userId === me); return html`<li><button type="button" data-lpopen="${p.id}"><b>${p.title}</b><span class="faint small">${LV.range(p.from, p.to)}</span>${(p.members || []).includes(me) ? (has ? (LV.short(D.recs, p, me) ? html`<span class="chip tone-amber">متبقٍ ${fmtNum(LV.short(D.recs, p, me))} من أيامك</span>` : html`<span class="chip tone-teal">سجّلت رغبتك</span>`) : html`<span class="chip tone-amber">بانتظار رغبتك</span>`) : html`<span class="chip">واضع الخطة</span>`}</button></li>`; })}</ul></div>`;
+    return html`<div class="card lv-card"><h4>${UI.icon('lv-team')} خطط الإجازات</h4><ul class="lv-ul">${list.map((p) => { const has = LV.wishes(D.recs, p.id).some((w) => w.userId === me); return html`<li><button type="button" data-lpopen="${p.id}"><b><span class="lp-pic sm" style="--c:${LV.hex(p.color) || LV.PLAN_C}">${UI.icon(p.icon || 'lv-team')}</span>${p.title}</b><span class="faint small">${LV.range(p.from, p.to)}</span>${(p.members || []).includes(me) ? (has ? (LV.short(D.recs, p, me) ? html`<span class="chip tone-amber">متبقٍ ${fmtNum(LV.short(D.recs, p, me))} من أيامك</span>` : html`<span class="chip tone-teal">سجّلت رغبتك</span>`) : html`<span class="chip tone-amber">بانتظار رغبتك</span>`) : html`<span class="chip">واضع الخطة</span>`}</button></li>`; })}</ul></div>`;
   },
   /* بانتظاري: لم أسجّل رغبة، أو الخطة تُلزم بعدد أيام كامل ولم أستكمله */
   short: (recs, p, uid) => (LV.quota(p) && p.qexact ? Math.max(0, LV.quota(p) - LV.used(recs, p, uid, 1)) : 0),
@@ -27218,15 +27428,16 @@ Object.assign(LV, {
   },
 
   /* ── نافذة الخطة ── */
-  async planEdit(id) {
+  async planEdit(id, preset = {}) {
     const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
     const old = id ? recs.find((r) => r.id === id && r.kind === 'lplan') : null; if (id && (!old || !LV.isCoord(old))) return null;
     const me = LV.me(), cands = LV.candidates(), now0 = new Date(), y = now0.getFullYear() + (now0.getMonth() > 6 ? 1 : 0);
-    const r0 = old || { title: `إجازات صيف ${y}`, from: `${y}-06-01`, to: `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), maxHard: 1, allowAlt: 1, members: cands.map((u) => u.id), note: '', quota: 0, qexact: 0, split: 0 };
+    const r0 = old || { title: preset.from ? `إجازات ${LV.range(preset.from, preset.to || preset.from)}` : `إجازات صيف ${y}`, from: preset.from || `${y}-06-01`, to: preset.to || preset.from || `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), maxHard: 1, allowAlt: 1, members: cands.map((u) => u.id), note: '', quota: 0, qexact: 0, split: 0 };
     const q0 = LV.quota(r0), sp0 = Number(r0.split) || 0, pv0 = r0.vis || (old ? 'team' : 'members');
     const res = await UI.modal({ title: old ? 'تعديل خطة الإجازات' : 'خطة إجازات جديدة', icon: 'lv-team', size: 'lg',
       body: html`<div class="lvm">
         <div class="field"><label>عنوان الخطة</label><input class="input" name="title" maxlength="120" value="${r0.title}" placeholder="مثلاً: إجازات صيف 2027" required></div>
+        <div class="lv-grid2 lp-look"><div class="field"><label>لون الخطة</label>${LV.colPick('pcl', LV.hex(r0.color), LV.PLAN_C, 'sm')}<input type="hidden" name="color" value="${LV.hex(r0.color)}"></div><div class="field"><label>أيقونة الخطة</label>${LV.icPick('pic', r0.icon || '', 'lv-team', 'sm')}<input type="hidden" name="icon" value="${r0.icon || ''}"></div></div>
         <div class="lv-dates"><div class="field"><label>الفترة من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div></div>
         <div class="lv-grid2"><div class="field"><label>آخر موعد لتسجيل الرغبات <small class="faint">(اختياري)</small></label><input class="input" type="date" name="deadline" value="${r0.deadline || ''}"></div>
           <div class="field"><label>عدد المسموح لهم بالإجازة في اليوم نفسه</label><input class="input" type="number" min="0" max="50" name="maxOff" value="${r0.maxOff}"><p class="hint">مثال: 3 = لا يزيد الغائبون في أي يوم عمل على ثلاثة، ويُحسب معهم كل من له إجازة مسجلة في التقويم. 0 = بلا حد.</p>
@@ -27245,6 +27456,7 @@ Object.assign(LV, {
         <div class="field"><label>قواعد الخطة وملاحظاتها <small class="faint">— تظهر لكل المشاركين</small></label><textarea class="input" name="note" rows="3" maxlength="2000" placeholder="مثلاً: الأولوية لمن لم يأخذ إجازة الصيف الماضي، ولا تزيد الإجازة الواحدة على 3 أسابيع">${r0.note || ''}</textarea></div>
         ${old ? '' : html`<label class="chk"><input type="checkbox" name="notify" checked> إشعار المشاركين بالخطة الآن</label>`}</div>`,
       onMount: (form) => {
+        LV.pickBind(form, 'pcl', 'pic', (k, v) => { form.querySelector(`[name="${k}"]`).value = v; });
         UI.on(form, 'click', '[data-lpall]', () => $$('[name="members"]', form).forEach((x) => { x.checked = true; })); UI.on(form, 'click', '[data-lpnone]', () => $$('[name="members"]', form).forEach((x) => { x.checked = false; }));
         const sync = () => { const on = (form.querySelector('[name="qon"]:checked') || {}).value === '1', sp = (form.querySelector('[name="split"]:checked') || {}).value; form.querySelector('[data-qbox]').hidden = !on; form.querySelector('[data-pbox]').hidden = sp !== 'n'; };
         UI.on(form, 'change', '[name="qon"],[name="split"]', sync);
@@ -27259,7 +27471,7 @@ Object.assign(LV, {
         const ck = (k) => (f.querySelector(`[name="${k}"]:checked`) || {}).value || '', qon = ck('qon') === '1', quota = qon ? clamp(Math.floor(Number(g('quota')) || 0), 0, 365) : 0, spv = ck('split');
         if (qon && !quota) throw new AppError('اكتب عدد الأيام لكل مشارك، أو اختر «بدون إلزام المدة»');
         const split = spv === '1' ? 1 : spv === 'n' ? clamp(Math.floor(Number(g('parts')) || 2), 2, 20) : 0;
-        return { title, from, to, deadline: LV.okDay(deadline) ? deadline : '', maxOff: clamp(Math.floor(Number(g('maxOff')) || 0), 0, 50), maxHard: ck('maxHard') === '1' ? 1 : 0, vis: ck('pvis') === 'team' ? 'team' : 'members', allowAlt: $('[name="allowAlt"]', f).checked ? 1 : 0, members, note: g('note').trim(), quota, qexact: quota && ck('qexact') === '1' ? 1 : 0, split, notify: !!(f.querySelector('[name="notify"]') || {}).checked };
+        return { title, color: LV.hex(g('color')), icon: g('icon'), from, to, deadline: LV.okDay(deadline) ? deadline : '', maxOff: clamp(Math.floor(Number(g('maxOff')) || 0), 0, 50), maxHard: ck('maxHard') === '1' ? 1 : 0, vis: ck('pvis') === 'team' ? 'team' : 'members', allowAlt: $('[name="allowAlt"]', f).checked ? 1 : 0, members, note: g('note').trim(), quota, qexact: quota && ck('qexact') === '1' ? 1 : 0, split, notify: !!(f.querySelector('[name="notify"]') || {}).checked };
       } }] });
     if (!res) return null;
     const t = now(), { notify, ...v } = res, rec = { ...(old || {}), ...v, id: old ? old.id : uid('lpl'), kind: 'lplan', state: old ? old.state || 'collect' : 'collect', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
@@ -27295,6 +27507,8 @@ Object.assign(LV, {
         ${coord && !old ? html`<div class="field"><label>الفني</label><select class="input" name="userId">${mem.map((u) => html`<option value="${u.id}"${u.id === r0.userId ? raw(' selected') : ''}>${u.name}${u.id === me ? ' (أنا)' : ''}</option>`)}</select></div>` : html`<input type="hidden" name="userId" value="${r0.userId}">${r0.userId !== me ? html`<p class="lv-vrow">${UI.icon('user')} رغبة <b>${Data.userName(r0.userId)}</b></p>` : ''}`}
         <div class="field"><label>نوع الإجازة</label><div class="lv-types">${Object.entries(LV.TYPES).map(([k, t]) => html`<label class="lv-type"><input type="radio" name="type" value="${k}"${k === r0.type ? raw(' checked') : ''}><span>${UI.icon(t.icon)}${t.short}</span></label>`)}</div></div>
         <div class="field"><label>اسم الإجازة <small class="faint">— اختياري</small></label>${LVT.field('title', r0.title, 'مثلاً: إجازة زواج — أو اختر من القائمة')}</div>
+        <div class="field"><label>لون الشريط <small class="faint">— اختياري: بدونه بلون الفني</small></label>${LV.colPick('wcl', LV.hex(r0.color), LV.personColor(r0.userId), 'sm')}<input type="hidden" name="color" value="${LV.hex(r0.color)}"></div>
+        <div class="field"><label>الأيقونة <small class="faint">— اختيارية: بدونها أيقونة النوع</small></label>${LV.icPick('wic', r0.icon || '', '', 'sm')}<input type="hidden" name="icon" value="${r0.icon || ''}"></div>
         <div class="lv-dates"><div class="field"><label>من</label><input class="input" type="date" name="from" value="${r0.from}" required></div><div class="field"><label>إلى</label><input class="input" type="date" name="to" value="${r0.to}" required></div></div>
         ${p.allowAlt ? html`<div class="field"><label>الأولوية</label><div class="seg sm"><label><input type="radio" name="pri" value="1"${LV.pri(r0) === 1 ? raw(' checked') : ''}><span>الرغبة الأولى</span></label><label><input type="radio" name="pri" value="2"${LV.pri(r0) === 2 ? raw(' checked') : ''}><span>رغبة بديلة</span></label></div><p class="hint">البديلة تُستعمل إن تعارضت الأولى مع زملائك، ولا تُحسب في الغائبين.</p></div>` : html`<input type="hidden" name="pri" value="1">`}
         <div data-lpq></div><div class="lv-check" data-lpcheck></div>
@@ -27304,6 +27518,7 @@ Object.assign(LV, {
         ${old && old.orig ? html`<p class="hint">${UI.icon('swap')} عدّلها ${Data.userName(old.changedBy)}، وكانت ${LV.range(old.orig.from, old.orig.to)}${old.changeNote ? `: ${old.changeNote}` : ''}</p>` : ''}
         ${old && old.leaveId ? html`<p class="hint">${UI.icon('check')} ثُبّتت في التقويم؛ تعديلها هنا لا يغيّر الإجازة المسجلة.</p>` : ''}</div>`,
       onMount: (form) => {
+        LV.pickBind(form, 'wcl', 'wic', (k, val) => { form.querySelector(`[name="${k}"]`).value = val; });
         const box = $('[data-lpcheck]', form), v = (k) => (form.querySelector(`[name="${k}"]:checked`) || form.querySelector(`[name="${k}"]`) || {}).value || '';
         const check = () => {
           const from = v('from'), to = v('to'), u = v('userId'), pri = Number(v('pri')) === 2 ? 2 : 1, max = Number(p.maxOff) || 0;
@@ -27350,7 +27565,7 @@ Object.assign(LV, {
         if (sp && !same && LV.parts(recs, p, userId, pri, oid) + 1 > sp) throw new AppError(sp === 1 ? 'الخطة تسمح بفترة واحدة متصلة لكل مشارك؛ عدّل الفترة المسجلة أو احذفها' : `الحد الأقصى ${sp === 2 ? 'فترتان' : `${fmtNum(sp)} فترات`} لكل مشارك`);
         if (LV.hard(p) && pri === 1) { const full = LV.fullDays(p, recs, userId, from, to, oid ? [oid] : [], same && old.userId === userId ? { from: old.from, to: old.to } : null); if (full.length) throw new AppError(`اكتمل العدد المسموح بالإجازة (${fmtNum(p.maxOff)}) في ${LV.dayW(full.length)}: ${full.slice(0, 5).map(LV.fmt).join('، ')}${full.length > 5 ? '…' : ''}. اختر أياماً أخرى`); }
         if (qn) { const used = LV.used(recs, p, userId, pri, oid), tot = used + LV.count(from, to), prev = same ? used + LV.count(old.from, old.to) : used; if (tot > qn && tot > prev) throw new AppError(`تتجاوز أيام الخطة (${LV.dayW(qn)}${LV.qUnit()}): الزيادة ${LV.dayW(tot - qn)}، والمتبقي ${qn > used ? LV.dayW(qn - used) : 'لا شيء'}`); }
-        return { userId, from, to, pri, type: v('type') || 'annual', title: (v('title') || '').trim().slice(0, 60), note: v('note').trim(), changeNote: (v('changeNote') || '').trim(), agreed: !!(f.querySelector('[name="agreed"]') || {}).checked };
+        return { userId, from, to, pri, type: v('type') || 'annual', title: (v('title') || '').trim().slice(0, 60), color: LV.hex(v('color')), icon: v('icon'), note: v('note').trim(), changeNote: (v('changeNote') || '').trim(), agreed: !!(f.querySelector('[name="agreed"]') || {}).checked };
       } }] });
     if (res === 'del') { if (await UI.confirm('حذف هذه الرغبة؟', { ok: 'حذف', danger: true })) { await DB.del('leaves', old.id); if (old.userId !== me) await Data.notify([old.userId], { title: `حذف ${Auth.user.name} رغبتك من «${p.title}»`, body: LV.range(old.from, old.to), link: LV.link(p.id), kind: 'info' }); Bus.emit('leaves', {}); UI.toast('حُذفت الرغبة'); return 'del'; } return null; }
     if (!res) return null;
@@ -27509,7 +27724,7 @@ Object.assign(LV, {
       <div class="lp-wm-d"><span data-wmi>${info()}</span></div>
       <label class="lv-bm-l">المدة</label>
       <div class="lp-wm-r"><span>البداية</span><button type="button" class="icon-btn" data-wn="f|-1" title="يوم أبكر">${UI.icon('plus')}</button><button type="button" class="icon-btn" data-wn="f|1" title="يوم أقل">${UI.icon('minus')}</button><span>النهاية</span><button type="button" class="icon-btn" data-wn="t|-1" title="يوم أقل">${UI.icon('minus')}</button><button type="button" class="icon-btn" data-wn="t|1" title="يوم أكثر">${UI.icon('plus')}</button><button type="button" class="btn btn-xs btn-primary" data-wm="dur" hidden>${UI.icon('check')} حفظ المدة</button></div>
-      <div class="lp-wm-a"><button type="button" class="btn btn-sm btn-soft" data-wm="edit">${UI.icon('edit')} تعديل كامل</button><button type="button" class="btn btn-sm btn-ghost" data-wm="split">${UI.icon('swap')} تقسيم</button>${pv ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="mprev">${UI.icon('layers')} ربط بالسابقة</button>` : ''}${nx ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="mnext">${UI.icon('layers')} ربط بالتالية</button>` : ''}${p.allowAlt ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="pri">${UI.icon('refresh')} ${LV.pri(w) === 2 ? 'اجعلها الأولى' : 'اجعلها بديلة'}</button>` : ''}${coord && w.userId !== LV.me() ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="agree">${UI.icon('check')} ${w.state === 'agreed' ? 'إلغاء الاتفاق' : 'متفق عليها'}</button>` : ''}<span class="grow"></span><button type="button" class="icon-btn lv-bm-del" data-wm="del" title="حذف">${UI.icon('trash')}</button></div>`);
+      <div class="lp-wm-a"><button type="button" class="btn btn-sm btn-soft" data-wm="edit">${UI.icon('edit')} تعديل كامل</button><button type="button" class="btn btn-sm btn-ghost" data-wm="split">${UI.icon('swap')} تقسيم</button><button type="button" class="btn btn-sm btn-ghost" data-wm="look">${UI.icon('palette')} اللون والأيقونة</button>${pv ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="mprev">${UI.icon('layers')} ربط بالسابقة</button>` : ''}${nx ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="mnext">${UI.icon('layers')} ربط بالتالية</button>` : ''}${p.allowAlt ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="pri">${UI.icon('refresh')} ${LV.pri(w) === 2 ? 'اجعلها الأولى' : 'اجعلها بديلة'}</button>` : ''}${coord && w.userId !== LV.me() ? html`<button type="button" class="btn btn-sm btn-ghost" data-wm="agree">${UI.icon('check')} ${w.state === 'agreed' ? 'إلغاء الاتفاق' : 'متفق عليها'}</button>` : ''}<span class="grow"></span><button type="button" class="icon-btn lv-bm-del" data-wm="del" title="حذف">${UI.icon('trash')}</button></div>`);
     document.body.appendChild(pop);
     const rc = el.getBoundingClientRect(), W = pop.offsetWidth, H = pop.offsetHeight; let top = rc.bottom + 6; if (top + H > innerHeight - 8) top = Math.max(8, rc.top - H - 6);
     pop.style.top = `${Math.round(top)}px`; pop.style.left = `${Math.round(clamp(rc.left + rc.width / 2 - W / 2, 8, innerWidth - W - 8))}px`;
@@ -27524,6 +27739,7 @@ Object.assign(LV, {
       if (a === 'dur') run(() => LV.wishResize(w.id, st.from, st.to));
       else if (a === 'edit') run(() => LV.wishEdit(p.id, w.id));
       else if (a === 'split') run(() => LV.wishSplit(w.id));
+      else if (a === 'look') { LV.closeBM(); setTimeout(() => LV.lookMenu('wish', w, el, after), 0); }
       else if (a === 'mnext' || a === 'mprev') run(() => LV.wishMerge(w.id, a === 'mnext' ? 'next' : 'prev'));
       else if (a === 'pri') run(() => LV.wishPri(w.id));
       else if (a === 'agree') run(async () => { await DB.put('leaves', { ...w, state: w.state === 'agreed' ? 'wish' : 'agreed', updatedAt: now() }); if (w.state !== 'agreed') await Data.notify([w.userId], { title: `اتُّفق على رغبتك في «${p.title}»`, body: LV.range(w.from, w.to), link: LV.link(p.id), kind: 'info' }); Bus.emit('leaves', {}); });
@@ -27604,7 +27820,7 @@ Object.assign(LV, {
     for (const w of list) {
       const clash = recs.find((r) => LV.live(r) && r.userId === w.userId && LV.over(r, w.from, w.to));
       if (clash) { skipped.push(`${Data.userName(w.userId)} (${LV.range(w.from, w.to)})`); continue; }
-      const lv = { id: uid('lv'), kind: 'leave', planId: p.id, userId: w.userId, type: w.type || 'annual', title: w.title || '', from: w.from, to: w.to, status: res.st, vis: res.vis, share: [], note: [w.note, `من خطة «${p.title}»`].filter(Boolean).join(' — '), dayNotes: {}, createdBy: me, createdAt: t, updatedAt: t };
+      const lv = { id: uid('lv'), kind: 'leave', planId: p.id, userId: w.userId, type: w.type || 'annual', title: w.title || '', color: LV.hex(w.color), icon: w.icon || '', from: w.from, to: w.to, status: res.st, vis: res.vis, share: [], note: [w.note, `من خطة «${p.title}»`].filter(Boolean).join(' — '), dayNotes: {}, createdBy: me, createdAt: t, updatedAt: t };
       await DB.put('leaves', lv); recs.push(lv); made.push(lv);
       await DB.put('leaves', { ...w, leaveId: lv.id, state: 'agreed', updatedAt: t });
     }
@@ -27738,8 +27954,8 @@ Object.assign(LV, {
     pop.innerHTML = String(html`<div class="lv-bm-h">${LV.who(u, { color: st.color || pc })}<button type="button" class="icon-btn" data-bmx aria-label="إغلاق">${UI.icon('x')}</button></div>
       <div class="lv-bm-m">${LV.range(r.from, r.to)} · ${fmtNum(LV.workDays(r.from, r.to))} عمل ${LV.stChip(r)}</div>
       <label class="lv-bm-l">عنوان الإجازة</label><input class="input" data-bmt maxlength="60" value="${st.title}" placeholder="${(LV.TYPES[r.type] || LV.TYPES.other).label}">
-      <label class="lv-bm-l">لون الشريط</label><div class="lv-bm-cols"><button type="button" class="lv-col lv-col-none${st.color ? '' : ' on'}" data-bmc="" title="لون الفني" style="--c:${pc}"></button>${LV.COLORS.map((c) => html`<button type="button" class="lv-col${st.color === c ? ' on' : ''}" data-bmc="${c}" style="--c:${c}" aria-label="${c}"></button>`)}</div>
-      <label class="lv-bm-l">الأيقونة</label><div class="lv-bm-ics"><button type="button" class="lv-ico lv-ico-none${st.icon ? '' : ' on'}" data-bmi="" title="أيقونة النوع">${UI.icon(typeIc)}</button>${LV.LICONS.map((i) => html`<button type="button" class="lv-ico${st.icon === i ? ' on' : ''}" data-bmi="${i}">${UI.icon(i)}</button>`)}</div>
+      <label class="lv-bm-l">لون الشريط</label>${LV.colPick('bmc', st.color, pc, 'sm')}
+      <label class="lv-bm-l">الأيقونة</label>${LV.icPick('bmi', st.icon, typeIc, 'sm')}
       <div class="lv-bm-acts"><button type="button" class="btn btn-sm btn-primary" data-bm="save">${UI.icon('check')} حفظ</button><button type="button" class="btn btn-sm btn-soft" data-bm="edit">${UI.icon('edit')} تعديل كامل</button><span class="grow"></span><button type="button" class="icon-btn" data-bm="print" title="طباعة طلب الإجازة">${UI.icon('print')}</button><button type="button" class="icon-btn lv-bm-del" data-bm="del" title="حذف الإجازة">${UI.icon('trash')}</button></div>`);
     document.body.appendChild(pop);
     const rc = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
@@ -27750,12 +27966,11 @@ Object.assign(LV, {
     const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); LV.closeBM(); } else if (e.key === 'Enter' && e.target.matches('[data-bmt]')) { e.preventDefault(); pop.querySelector('[data-bm="save"]').click(); } };
     LV._bm = { pop, restore, out, key };
     setTimeout(() => { document.addEventListener('pointerdown', out, true); }, 0); document.addEventListener('keydown', key, true);
-    const sel = (attr, v) => $$(`[${attr}]`, pop).forEach((b) => b.classList.toggle('on', b.getAttribute(attr) === v));
+    LV.pickBind(pop, 'bmc', 'bmi', (k, v) => { st[k] = v; paint(st.color || pc, st.icon || typeIc); const av = pop.querySelector('.lv-who'); if (av) av.style.setProperty('--c', st.color || pc); });
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.matches('[data-bmx]')) { LV.closeBM(); return; }
-      if (b.hasAttribute('data-bmc')) { st.color = b.dataset.bmc; sel('data-bmc', st.color); paint(st.color || pc, st.icon || typeIc); const av = pop.querySelector('.lv-who'); if (av) av.style.setProperty('--c', st.color || pc); return; }
-      if (b.hasAttribute('data-bmi')) { st.icon = b.dataset.bmi; sel('data-bmi', st.icon); paint(st.color || pc, st.icon || typeIc); return; }
+      if (b.hasAttribute('data-bmc') || b.hasAttribute('data-bmi')) return;
       const act = b.dataset.bm; if (!act) return;
       if (act === 'save') {
         st.title = $('[data-bmt]', pop).value.trim().slice(0, 60);
