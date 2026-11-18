@@ -4744,13 +4744,21 @@ Pages.browse = async (ctx) => {
         : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}${INKCAT.prnLine(i)}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
     if (st.cat === INKCAT.cat && Auth.can('inventory.manage') && !st._inkAuto) { st._inkAuto = 1; try { if (!(await DB.get('meta', 'inkcat:synced')) && (await INKCAT.missing()).length) { const r = await INKCAT.sync(); if (r.added || r.linked) { UI.toast(`أُضيفت الأحبار من «الطابعات والأحبار»: ${fmtNum(r.added)} نموذج${r.linked ? `، ورُبط ${fmtNum(r.linked)} صنف موجود` : ''}`); return draw(); } } } catch (_) { /* تجاهل */ } }
     const inkBanner = await INKCAT.banner(st); if (!ctx.alive()) return;
+    try { BRW._ord = ((await DB.get('meta', 'inkord')) || {}).value || {}; } catch (_) { BRW._ord = {}; }
+    if (!ctx.alive()) return;
+    /* خانة البحث تُستبدل مع الصفحة: يُحفظ ما كُتب فيها وموضع المؤشر ويُعاد إليها */
+    const q0 = $('#bq', ctx.view), keep = q0 && document.activeElement === q0 ? { v: q0.value, a: q0.selectionStart, z: q0.selectionEnd } : null;
     ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${INVR.btns(st)}${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>${st.cat === INKCAT.cat ? html`<button class="btn btn-ghost" data-act="inksync" title="إضافة كل حبر في «الطابعات والأحبار» نموذجاً هنا، وربط الموجود برقمه">${UI.icon('refresh')} مزامنة الأحبار</button>` : ''}` : ''}` })}${inkBanner}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
     UI.hydrate(ctx.view); UI.tilt(ctx.view);
-    const s = $('#bq', ctx.view); s.addEventListener('input', debounce(async (e) => {
+    const s = $('#bq', ctx.view);
+    if (keep) { s.value = keep.v; s.focus(); try { s.setSelectionRange(keep.a, keep.z); } catch (_) { /* تجاهل */ } }
+    s.addEventListener('input', debounce(async (e) => {
       st.q = e.target.value.trim();
       if (st.q.length > 3) { const a = await Data.assets.bySerial(st.q); if (a) { UI.toast(`الرقم التسلسلي ${a.serial}: ${ASSET_STATUS[a.status].label}`); Router.go(`/inventory/items/${a.itemId}`); return; } }
       draw();
     }, 350));
+    /* ما كُتب أثناء التحميل يُبحث عنه أيضاً */
+    if (keep && keep.v.trim() !== st.q) s.dispatchEvent(new Event('input', { bubbles: true }));
   };
   UI.on(ctx.view, 'click', '[data-act="lend"]', async (e, el) => { if (await Pages.loanModal(el.dataset.item)) draw(); });
   UI.on(ctx.view, 'change', 'input[name="devview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_devview', st.view); draw(); });
@@ -23426,6 +23434,28 @@ document.addEventListener('click', async (e) => {
   document.addEventListener('dragover', (e) => { if (!dragId) return; const c = catOf(e.target); if (!c) return; e.preventDefault(); const t = e.target.closest('.folder-tile, .crumbs a'); $$('.brw-over').forEach((x) => { if (x !== t) x.classList.remove('brw-over'); }); t.classList.add('brw-over'); });
   document.addEventListener('drop', async (e) => { if (!dragId) return; const c = catOf(e.target); if (!c) return; e.preventDefault(); const id = dragId; dragId = ''; $$('.brw-over').forEach((x) => x.classList.remove('brw-over')); try { const n = await Data.inv.moveToFolder([id], c); UI.toast(n ? `نُقل الصنف إلى «${IC.label(c)}»` : 'الصنف في هذا المجلد أصلاً'); } catch (ex) { UI.error(ex); } });
 }
+
+/* ══════════ الجولة 50: الكتابة في خانات البحث لا تتوقف بعد أول حرف ══════════
+   صفحات كثيرة تعيد رسم نفسها كاملة عند البحث فتُستبدل الخانة ويضيع التركيز. إن اختفت الخانة التي يُكتب فيها
+   وظهرت مكانها خانة بالمعرّف نفسه (أو الاسم أو النص الإرشادي) خلال ثانيتين من آخر حرف، يعود إليها التركيز
+   وما كُتب ولم يصلها بعد، ثم تُبلَّغ الصفحة بالنص الكامل. */
+{
+  let last = null;
+  const typ = (t) => t instanceof HTMLInputElement && ['search', 'text'].includes(t.type);
+  document.addEventListener('input', (e) => { const t = e.target; if (!typ(t)) return; last = { el: t, id: t.id, name: t.name, ph: t.placeholder, at: Date.now(), hash: location.hash }; }, true);
+  const find = (L) => { const css = (v) => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/["\\]/g, '\\$&')); const q = L.id ? `#${css(L.id)}` : L.name ? `input[name="${css(L.name)}"]` : L.ph ? `input[placeholder="${css(L.ph)}"]` : ''; if (!q) return null; return [...document.querySelectorAll(q)].find((n) => typ(n) && n.isConnected && !n.disabled && n.offsetParent !== null) || null; };
+  new MutationObserver(() => {
+    const L = last; if (!L || Date.now() - L.at > 2000 || L.el.isConnected) return;
+    if (L.hash !== location.hash) { last = null; return; } /* انتقال إلى صفحة أخرى: لا يُنقل ما كُتب إليها */
+    const a = document.activeElement; if (a && a !== document.body && a.isConnected) return;
+    const n = find(L); if (!n) return;
+    const v = L.el.value; last = { ...L, el: n };
+    const more = n.value !== v && v.startsWith(n.value);
+    if (more) n.value = v;
+    n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (_) { /* تجاهل */ }
+    if (more) n.dispatchEvent(new Event('input', { bubbles: true }));
+  }).observe(document.body, { childList: true, subtree: true });
+}
 /* داخل المجلد: الموديلات ظاهرة مباشرة تحت ماركاتها (بدل خانة لكل ماركة)، أو الماركات كما كانت */
 const BRW = {
   mode() { try { return localStorage.getItem('sq_brw_mode') || 'models'; } catch (_) { return 'models'; } },
@@ -23433,17 +23463,79 @@ const BRW = {
   card(i, o) {
     const tone = i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal', note = DevNote.item(i);
     return html`<div class="brw-card tone-${tone}${i.archived ? ' x-off' : ''}"${o.man ? raw(` draggable="true" data-idrag="${esc(i.id)}" title="اسحبه إلى مجلد لنقله"`) : ''}>
-      <button type="button" class="brw-main" data-device="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${INKCAT.dot(i)}${i.model || i.name}</b>${INKCAT.printersOf(i).length ? INKCAT.prnLine(i) : html`<small>${i.name}</small>`}</span><span class="brw-n" title="في المخزن">${fmtNum(i.onHand)}</span></button>
+      <button type="button" class="brw-main" data-device="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${INKCAT.dot(i)}${i.model || i.name}</b>${o.inkp != null ? BRW.inkSub(i, o.inkp) : INKCAT.printersOf(i).length ? INKCAT.prnLine(i) : html`<small>${i.name}</small>`}</span><span class="brw-n" title="في المخزن">${fmtNum(i.onHand)}</span></button>
       ${note ? html`<div class="dn-inline" title="${note}">${UI.icon('alert')}<span>${note}</span></div>` : ''}
       <div class="brw-acts">${o.mv ? html`<button type="button" class="icon-btn" data-move="receive" data-item="${i.id}" title="استلام">${UI.icon('download')}</button><button type="button" class="icon-btn" data-move="issue" data-item="${i.id}" title="صرف"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')}</button>` : ''}${o.ln ? html`<button type="button" class="icon-btn" data-act="lend" data-item="${i.id}" title="إعارة"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')}</button>` : ''}${o.mv ? html`<button type="button" class="icon-btn" data-cart-add="${i.id}" title="أضف إلى السلة">${UI.icon('cart')}</button>` : ''}<span class="grow"></span>${o.man ? html`<button type="button" class="icon-btn" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button type="button" class="icon-btn" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}</div></div>`;
   },
+  /* ══ الجولة 50: الأحبار تحت طابعاتها ══
+     كل طابعة عنوان، وتحتها أحبارها (الأسود ثم الأزرق فالأحمر فالأصفر)، ثم فراغ ثم الطابعة التالية.
+     الطابعات الملونة أولاً، ويرتبها مسؤول المخزن بالسحب أو بالأسهم فيُحفظ الترتيب للجميع. عرض شبكة أو قائمة */
+  inkView() { try { return localStorage.getItem('sq_ink_view') || 'grid'; } catch (_) { return 'grid'; } },
+  inky(st, list) { const n = list.filter((i) => INKCAT.printersOf(i).length).length; return n > 0 && (IC.subtree(INKCAT.cat).has(st.cat) || n * 2 >= list.length); },
+  inkN: (n) => (n === 1 ? 'حبر واحد' : n === 2 ? 'حبران' : n <= 10 ? `${fmtNum(n)} أحبار` : `${fmtNum(n)} حبراً`),
+  inkSub(i, pn) {
+    const ps = INKCAT.printersOf(i).filter((x) => x !== pn), c = i.inkColor && INK_COLORS_MAP[i.inkColor] ? INK_COLORS_MAP[i.inkColor][0] : '';
+    return html`<small class="brw-prn" title="${ps.length ? `يُستخدم أيضاً في: ${ps.join('، ')}` : i.name}">${c || i.name}${ps.length ? html` · ${UI.icon('printer')} ${ps.length === 1 ? 'وتستخدمه طابعة أخرى' : `وتستخدمه ${fmtNum(ps.length)} طابعات أخرى`}` : ''}</small>`;
+  },
+  inkGroups(brand, list) {
+    const info = new Map();
+    Data.list('printers').forEach((pr) => (pr.models || []).forEach((md) => { const pn = `${pr.name} ${md.name || ''}`.trim(); info.set(pn, md.color === 1 || md.color === true || md.type === 'color' || (md.inks || []).some((k) => k.color && !['black', 'other', ''].includes(k.color))); }));
+    const g = new Map(), none = [];
+    list.forEach((i) => { const ps = INKCAT.printersOf(i); if (!ps.length) { none.push(i); return; } ps.forEach((pn) => { if (!g.has(pn)) g.set(pn, []); g.get(pn).push(i); }); });
+    const CO = { black: 0, cyan: 1, magenta: 2, yellow: 3, color: 4, other: 5 }, so = (a, b) => (CO[a.inkColor] != null ? CO[a.inkColor] : 6) - (CO[b.inkColor] != null ? CO[b.inkColor] : 6) || AR_COLL.compare(String(a.model || a.name || ''), String(b.model || b.name || ''));
+    const ord = (BRW._ord || {})[INKSTK.norm(brand)] || [], at = (pn) => { const x = ord.indexOf(pn); return x < 0 ? 1e6 : x; };
+    const out = [...g.entries()].map(([pn, items]) => ({ pn, items: items.sort(so), color: !!info.get(pn) || items.some((i) => i.inkColor && i.inkColor !== 'black'), units: items.reduce((a, i) => a + Math.max(0, i.onHand), 0), out0: items.filter((i) => i.onHand <= 0).length }));
+    out.sort((a, b) => at(a.pn) - at(b.pn) || Number(b.color) - Number(a.color) || b.items.length - a.items.length || AR_COLL.compare(a.pn, b.pn));
+    return { groups: out, none: none.sort(so) };
+  },
+  inkSec(b, list, st, o, page) {
+    const { groups, none } = BRW.inkGroups(b, list), cat = Data.c.itemCategories.get(st.cat) || {}, bk = INKSTK.norm(b), v = page ? st.view : BRW.inkView(), canOrd = o.man && groups.length > 1;
+    const rx = new RegExp(`^${b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), units = list.reduce((a, i) => a + Math.max(0, i.onHand), 0);
+    const cards = (items, pn) => html`<div class="${v === 'list' ? 'ink-list' : 'brw-grid'}">${items.map((i) => BRW.card(i, { ...o, inkp: pn }))}</div>`;
+    const tag = (clr) => (clr ? html`<span class="ink-ctag" title="طابعة ملونة">${['black', 'cyan', 'magenta', 'yellow'].map((c) => html`<i style="background:${INK_COLORS_MAP[c][1]}"></i>`)} ملونة</span>` : html`<span class="ink-ctag mono" title="طابعة أحادية اللون"><i style="background:${INK_COLORS_MAP.black[1]}"></i> أحادية</span>`);
+    const pg = (g, x) => html`<div class="ink-pg${g.color ? ' clr' : ''}" data-pg="${g.pn}"><div class="ink-ph"${canOrd ? raw(` draggable="true" data-pgdrag="${esc(g.pn)}" title="اسحب الطابعة مع أحبارها إلى مكانها"`) : ''}>${canOrd ? html`<span class="ink-grip" aria-hidden="true">⋮⋮</span>` : ''}<span class="ink-pn">${fmtNum(x + 1)}</span><span class="ink-pic">${UI.icon('printer')}</span><b title="${g.pn}">${g.pn.replace(rx, '') || g.pn}</b>${tag(g.color)}<small>${BRW.inkN(g.items.length)} · ${fmtNum(g.units)} في المخزن</small>${g.out0 ? html`<span class="chip tone-red">نفد ${fmtNum(g.out0)}</span>` : ''}<span class="grow"></span>${canOrd ? html`<span class="ink-mv"><button type="button" class="icon-btn" data-pgmv="-1" title="نقل للأعلى" aria-label="نقل للأعلى">${UI.icon('arrowUp')}</button><button type="button" class="icon-btn flipv" data-pgmv="1" title="نقل للأسفل" aria-label="نقل للأسفل">${UI.icon('arrowUp')}</button></span>` : ''}</div>${cards(g.items, g.pn)}</div>`;
+    return html`<section class="brw-sec ink-sec${cat.tone ? ` tone-${cat.tone}` : ''}"><header class="brw-h"><span class="brw-logo">${UI.illu(o.bIcons.get(`${st.cat}|${b}`) || cat.illustration || 'ink', 'mini')}</span><b>${b}</b><small>${fmtNum(groups.length)} طابعة · ${BRW.inkN(list.length)} · ${fmtNum(units)} في المخزن</small><span class="grow"></span>
+      ${page ? '' : html`<div class="seg sm" role="radiogroup" aria-label="عرض الأحبار">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="inkview" value="${k}"${v === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`}
+      ${canOrd && ((BRW._ord || {})[bk] || []).length ? html`<button type="button" class="btn btn-ghost btn-sm" data-inkreset="${bk}" title="إلغاء الترتيب اليدوي والعودة إلى: الملونة أولاً">${UI.icon('refresh')} ترتيب تلقائي</button>` : ''}
+      ${page ? '' : html`${o.man && list.length > 1 ? html`<button type="button" class="btn btn-ghost btn-sm" data-imove="${list.map((i) => i.id).join(',')}">${UI.icon('swap')} نقل الماركة إلى مجلد</button>` : ''}<a class="btn btn-ghost btn-sm" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}">${UI.icon('external')} صفحة الماركة</a>`}</header>
+      <div class="ink-pgs" data-inkb="${bk}">${groups.map(pg)}${none.length ? html`<div class="ink-pg none"><div class="ink-ph"><span class="ink-pic">${UI.icon('alert')}</span><b>أحبار غير مرتبطة بطابعة</b><small>اربطها برقمها في «الإعدادات ← الطابعات والأحبار» لتظهر تحت طابعتها</small></div>${cards(none, '')}</div>` : ''}</div>
+      ${canOrd ? html`<p class="hint ink-hint">${UI.icon('info')} اسحب عنوان أي طابعة (أو استخدم السهمين) لنقلها مع أحبارها إلى مكانها. يُحفظ الترتيب ويظهر للجميع.</p>` : ''}</section>`;
+  },
+  async saveOrd(bk, names) {
+    if (!Auth.can('inventory.manage')) return;
+    const cur = ((await DB.get('meta', 'inkord')) || {}).value || {}, v = { ...cur };
+    if (names) v[bk] = names; else delete v[bk];
+    await DB.put('meta', { key: 'inkord', value: v }); BRW._ord = v;
+    $$(`[data-inkb="${bk}"] .ink-pg[data-pg] .ink-pn`).forEach((x, i) => { x.textContent = fmtNum(i + 1); });
+  },
   body(st, o) {
+    if (st.cat && st.brand) { const lst = o.inCat.filter((i) => (i.brand || 'غير محدد') === st.brand && (!i.archived || o.man)); if (BRW.inky(st, lst)) return BRW.inkSec(st.brand, lst, st, o, true); }
     if (!st.cat || st.brand || BRW.mode() !== 'models') return o.body;
     const cat = Data.c.itemCategories.get(st.cat) || {}, groups = o.brands.map((b) => [b, o.inCat.filter((i) => (i.brand || 'غير محدد') === b)]).filter(([, l]) => l.length);
     const tiles = o.folderTiles.length || o.man ? html`<div class="tiles stagger">${o.folderTiles}${o.man ? html`<button type="button" class="tile tile-add" data-icnew="${st.cat}">${UI.icon('plus')}<b>مجلد فرعي</b><small>داخل «${cat.name || ''}»</small></button>` : ''}</div>` : '';
-    return html`${tiles}${groups.length ? html`<div class="brw-secs">${groups.map(([b, list]) => html`<section class="brw-sec${cat.tone ? ` tone-${cat.tone}` : ''}"><header class="brw-h"><span class="brw-logo">${UI.illu(o.bIcons.get(`${st.cat}|${b}`) || cat.illustration || 'box', 'mini')}</span><b>${b}</b><small>${arCount(list.length, AR.item)} · ${fmtNum(list.reduce((s, i) => s + Math.max(0, i.onHand), 0))} في المخزن</small><span class="grow"></span>${o.man && list.length > 1 ? html`<button type="button" class="btn btn-ghost btn-sm" data-imove="${list.map((i) => i.id).join(',')}">${UI.icon('swap')} نقل الماركة إلى مجلد</button>` : ''}<a class="btn btn-ghost btn-sm" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}">${UI.icon('external')} صفحة الماركة</a></header><div class="brw-grid">${list.map((i) => BRW.card(i, o))}</div></section>`)}</div>${o.man ? html`<p class="hint mt">${UI.icon('info')} اسحب بطاقة أي موديل إلى مجلد فرعي (أو إلى مجلد أعلى في المسار) لنقله، أو استخدم زر النقل عليه.</p>` : ''}` : o.folderTiles.length ? '' : UI.empty({ illu: cat.illustration || 'box', title: 'لا أصناف في هذا المجلد', text: 'أضف صنفاً جديداً أو انقل أصنافاً إليه.' })}`;
+    return html`${tiles}${groups.length ? html`<div class="brw-secs">${groups.map(([b, list]) => (BRW.inky(st, list) ? BRW.inkSec(b, list, st, o) : html`<section class="brw-sec${cat.tone ? ` tone-${cat.tone}` : ''}"><header class="brw-h"><span class="brw-logo">${UI.illu(o.bIcons.get(`${st.cat}|${b}`) || cat.illustration || 'box', 'mini')}</span><b>${b}</b><small>${arCount(list.length, AR.item)} · ${fmtNum(list.reduce((s, i) => s + Math.max(0, i.onHand), 0))} في المخزن</small><span class="grow"></span>${o.man && list.length > 1 ? html`<button type="button" class="btn btn-ghost btn-sm" data-imove="${list.map((i) => i.id).join(',')}">${UI.icon('swap')} نقل الماركة إلى مجلد</button>` : ''}<a class="btn btn-ghost btn-sm" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}">${UI.icon('external')} صفحة الماركة</a></header><div class="brw-grid">${list.map((i) => BRW.card(i, o))}</div></section>`))}</div>${o.man ? html`<p class="hint mt">${UI.icon('info')} اسحب بطاقة أي موديل إلى مجلد فرعي (أو إلى مجلد أعلى في المسار) لنقله، أو استخدم زر النقل عليه.</p>` : ''}` : o.folderTiles.length ? '' : UI.empty({ illu: cat.illustration || 'box', title: 'لا أصناف في هذا المجلد', text: 'أضف صنفاً جديداً أو انقل أصنافاً إليه.' })}`;
   }
 };
+document.addEventListener('change', (e) => { if (e.target.name !== 'inkview') return; try { localStorage.setItem('sq_ink_view', e.target.value); } catch (_) { /* تجاهل */ } Router.resolve(); });
+/* ترتيب الطابعات بالسحب أو بالأسهم، والعودة إلى الترتيب التلقائي */
+{
+  let pg = null;
+  const clean = () => $$('.ink-drop-b,.ink-drop-a,.ink-dragging').forEach((x) => x.classList.remove('ink-drop-b', 'ink-drop-a', 'ink-dragging'));
+  const names = (box) => [...box.querySelectorAll(':scope > .ink-pg[data-pg]')].map((x) => x.dataset.pg);
+  /* الإفلات في الفراغ بين طابعتين يُحسب على أقربهما */
+  const tgt = (e) => { const t = e.target.closest && e.target.closest('.ink-pg[data-pg]'); if (t) return t; if (!(e.target.closest && e.target.closest('[data-inkb]') === pg.box)) return null; let best = null, d0 = Infinity; pg.box.querySelectorAll(':scope > .ink-pg[data-pg]').forEach((x) => { const r = x.getBoundingClientRect(), d = Math.abs(e.clientY - (r.top + r.height / 2)); if (d < d0) { d0 = d; best = x; } }); return best; };
+  const save = async (box) => { try { await BRW.saveOrd(box.dataset.inkb, names(box)); UI.toast('حُفظ ترتيب الطابعات، ويظهر هكذا للجميع', 'ok', 1800); } catch (ex) { UI.error(ex); } };
+  document.addEventListener('dragstart', (e) => { const h = e.target.closest && e.target.closest('[data-pgdrag]'); if (!h) return; e.stopPropagation(); pg = { el: h.closest('.ink-pg'), box: h.closest('[data-inkb]') }; try { e.dataTransfer.setData('text/plain', `printer:${h.dataset.pgdrag}`); e.dataTransfer.effectAllowed = 'move'; } catch (_) { /* تجاهل */ } setTimeout(() => pg && pg.el.classList.add('ink-dragging'), 0); });
+  document.addEventListener('dragover', (e) => { if (!pg) return; const t = tgt(e); if (!t || t === pg.el || t.parentNode !== pg.box) return; e.preventDefault(); const r = t.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2; $$('.ink-drop-b,.ink-drop-a').forEach((x) => { if (x !== t) x.classList.remove('ink-drop-b', 'ink-drop-a'); }); t.classList.toggle('ink-drop-a', after); t.classList.toggle('ink-drop-b', !after); });
+  document.addEventListener('drop', (e) => { if (!pg) return; const t = tgt(e), cur = pg; pg = null; clean(); if (!t || t === cur.el || t.parentNode !== cur.box) return; e.preventDefault(); const r = t.getBoundingClientRect(); cur.box.insertBefore(cur.el, e.clientY > r.top + r.height / 2 ? t.nextSibling : t); save(cur.box); });
+  document.addEventListener('dragend', () => { if (pg) { pg = null; clean(); } });
+  document.addEventListener('click', async (e) => {
+    const mv = e.target.closest && e.target.closest('[data-pgmv]');
+    if (mv) { e.preventDefault(); e.stopPropagation(); const el = mv.closest('.ink-pg'), box = el.parentNode, sib = mv.dataset.pgmv === '-1' ? el.previousElementSibling : el.nextElementSibling; if (!sib || !sib.matches('.ink-pg[data-pg]')) return; box.insertBefore(el, mv.dataset.pgmv === '-1' ? sib : sib.nextSibling); el.classList.add('ink-moved'); setTimeout(() => el.classList.remove('ink-moved'), 700); save(box); return; }
+    const rs = e.target.closest && e.target.closest('[data-inkreset]');
+    if (rs) { e.preventDefault(); try { await BRW.saveOrd(rs.dataset.inkreset, null); UI.toast('عاد الترتيب التلقائي: الطابعات الملونة أولاً'); Router.resolve(); } catch (ex) { UI.error(ex); } }
+  });
+}
 document.addEventListener('change', (e) => { if (e.target.name !== 'brwmode') return; try { localStorage.setItem('sq_brw_mode', e.target.value); } catch (_) { /* تجاهل */ } Router.resolve(); });
 
 /* ══════════ توزيع العهدة: تكبير وتصغير، وتحريك المخطط بالسحب، وطي الفروع وإظهارها ══════════ */

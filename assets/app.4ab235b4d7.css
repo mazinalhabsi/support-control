@@ -7640,7 +7640,7 @@ body.vle-rowrs,body.vle-rowrs *{cursor:row-resize!important;user-select:none}
 .vle-fitc input{position:absolute;opacity:0;pointer-events:none}
 .vle-fitc b{font-size:12.5px}
 .vle-fitc small{font-size:11px;color:var(--ink-3);line-height:1.45}
-.vle-fitc:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.vle-fitc:has(input:checked){border-color:rgb(var(--accent));box-shadow:inset 0 0 0 1px rgb(var(--accent));background:rgba(var(--accent),.09)}
 .vle-griphint{display:flex;gap:5px;align-items:flex-start;margin-top:6px}
 .vle-griphint .ic{width:14px;height:14px;flex:none;margin-top:2px}
 .vle-mcnt{margin:-2px 0 8px}
@@ -7648,5 +7648,38 @@ body.vle-rowrs,body.vle-rowrs *{cursor:row-resize!important;user-select:none}
 /* ══ الجولة 49: الاستمارات مجمّعة في «حسب الاستمارة» ══ */
 .vlf-kg{display:flex;align-items:center;gap:6px;margin:14px 2px 6px;font-size:13.5px;color:var(--ink-2,#334)}
 .vlf-kg:first-child{margin-top:4px}
-.vlf-kg .ic{width:16px;height:16px;color:var(--accent)}
+.vlf-kg .ic{width:16px;height:16px;color:rgb(var(--accent))}
 .vlf-kg small{font-weight:600;color:var(--ink-3);background:var(--surface-2);border-radius:999px;padding:0 7px;font-size:11px}
+
+/* ══ الجولة 50: الأحبار تحت طابعاتها ══ */
+.ink-pgs{display:flex;flex-direction:column;gap:16px}
+.ink-pg{border:1px solid var(--line-2);border-radius:16px;padding:10px 12px 12px;background:var(--surface-solid);transition:box-shadow .15s,opacity .15s}
+.ink-pg.clr{background:linear-gradient(180deg,rgba(212,42,60,.035),rgba(31,111,209,.03) 60px,transparent 120px),var(--surface-solid)}
+.ink-pg.none{border-style:dashed}
+.ink-ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding-bottom:8px;border-bottom:1px dashed var(--line-2)}
+.ink-ph b{font-size:15px;font-weight:800}
+.ink-ph small{color:var(--ink-3);font-size:12px}
+.ink-ph[draggable="true"]{cursor:grab}
+.ink-ph[draggable="true"]:active{cursor:grabbing}
+.ink-grip{color:var(--ink-3);font-weight:900;letter-spacing:-3px;padding-inline-end:3px;user-select:none}
+.ink-pn{min-width:24px;height:24px;border-radius:8px;background:var(--surface-2);display:inline-grid;place-items:center;font-size:12px;font-weight:800;color:var(--ink-2,#445)}
+.ink-pic{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(var(--accent),.12);color:rgb(var(--accent))}
+.ink-pic .ic{width:17px;height:17px}
+.ink-ctag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2,#445)}
+.ink-ctag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.ink-ctag.mono{opacity:.85}
+.ink-mv{display:inline-flex;gap:2px}
+.ink-mv .icon-btn{width:28px;height:28px}
+.ink-mv .flipv .ic{transform:rotate(180deg)}
+.ink-dragging{opacity:.4}
+.ink-drop-b{box-shadow:0 -4px 0 0 rgb(var(--accent))}
+.ink-drop-a{box-shadow:0 4px 0 0 rgb(var(--accent))}
+.ink-moved{box-shadow:0 0 0 3px rgba(var(--accent),.45)}
+.ink-list{display:flex;flex-direction:column;gap:6px}
+.ink-list .brw-card{flex-direction:row;align-items:center;gap:10px;border-top-width:1.5px;border-inline-start:4px solid rgb(var(--t));padding:6px 10px}
+.ink-list .brw-card:hover{transform:none}
+.ink-list .brw-main{flex:1;min-width:0}
+.ink-list .brw-acts{border-top:0;padding-top:0;flex:none}
+.ink-list .dn-inline{flex:none;max-width:30%}
+.ink-hint{margin:10px 2px 0}
+@media (max-width:700px){.ink-list .brw-card{flex-wrap:wrap}.ink-list .brw-acts{width:100%;justify-content:flex-end}}

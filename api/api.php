@@ -1344,6 +1344,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'mtcfg') return can_any($user, ['settings', 'mtrack.manage']) ? $new : null;
       if ($key === 'navnames') return can_any($user, ['settings', 'nav.manage']) ? $new : null;
       if ($key === 'invkits') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
+      /* ترتيب الطابعات وأحبارها في «تصفح المخزن» */
+      if ($key === 'inkord') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* آخر اعتماد لنموذج أجهزة: نسخة ما قبله للتراجع */
       if ($key === 'mdlapply:last') return can_any($user, ['settings', 'inventory.manage']) ? $new : null;
       /* بناء النماذج من الأجهزة الموزعة: إعداد الربط التلقائي، وآخر بناء للتراجع عنه */
