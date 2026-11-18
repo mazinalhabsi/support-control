@@ -2410,6 +2410,31 @@ const slaDial = (t) => {
   const open = OPEN.includes(t.status), end = open ? now() : t.resolvedAt || t.closedAt || now(), total = Math.max(1, t.dueAt - t.createdAt), used = Math.max(0, end - t.createdAt), p = clamp(used / total, 0, 1), late = end > t.dueAt, tone = late ? 'red' : p > 0.75 ? 'amber' : 'teal', r = 72, C = 2 * Math.PI * r, arc = C * 0.75;
   return raw(`<div class="gauge tone-${tone}"><svg viewBox="0 0 180 180" aria-hidden="true"><g transform="rotate(135 90 90)"><circle class="trk" cx="90" cy="90" r="${r}" stroke-dasharray="${arc.toFixed(1)} ${C.toFixed(1)}"/><circle class="val" cx="90" cy="90" r="${r}" stroke-dasharray="${(arc * Math.max(p, 0.01)).toFixed(1)} ${C.toFixed(1)}"/></g></svg><div class="g-center"><b style="font-size:21px">${open ? (late ? 'متأخر' : esc(fmtDuration(t.dueAt - now()))) : late ? 'بعد الموعد' : 'ضمن الموعد'}</b><small>${open ? (late ? `منذ ${esc(fmtDuration(now() - t.dueAt))}` : 'متبقٍ على الموعد') : `استغرق ${esc(fmtDuration(used))}`}</small></div></div>`);
 };
+/* ══ الجولة 48: تعديل الردود وحذفها في البلاغات ══
+   يعدّل الرد أو يحذفه كاتبه، ومسؤول البلاغات والمشرف. يظهر «معدّل» على الرد المعدّل، والمحذوف يبقى أثراً للفنيين وحدهم
+   («حذف فلان رداً») بلا نصه، ولا يظهر للموظف. إن كان الرد هو الملاحظة الظاهرة على البلاغ تتحدث معه أو تُزال */
+const TKR = {
+  can: (e) => !!Auth.user && e.type === 'comment' && !e.removed && (e.userId === Auth.user.id || Auth.can('tickets.manage') || Auth.user.role === 'supervisor'),
+  isNote: (t, e) => !!t && t.noteBy === e.userId && Math.abs((Number(t.noteAt) || 0) - (Number(e.at) || 0)) < 120000,
+  async edit(evId, text) {
+    text = String(text || '').trim(); if (!text) throw new AppError('اكتب نص الرد');
+    const ev = await DB.get('ticketEvents', evId); if (!ev || ev.type !== 'comment' || ev.removed) throw new AppError('لم يعد هذا الرد موجوداً');
+    if (!TKR.can(ev)) throw new AppError('تعديل الرد لكاتبه أو لمسؤول البلاغات');
+    if (text === ev.text) return ev;
+    const t0 = now(), rec = { ...ev, text, editedAt: t0, editedBy: Auth.user.id, edits: (Number(ev.edits) || 0) + 1 };
+    await DB.put('ticketEvents', rec);
+    const t = await DB.get('tickets', ev.ticketId); if (t && !ev.internal && TKR.isNote(t, ev)) await DB.put('tickets', { ...t, noteText: text.slice(0, 300), updatedAt: t0 });
+    await Data.log('update', 'ticket', ev.ticketId, `تعديل رد${t ? ` في البلاغ ${t.number}` : ''}`); Bus.emit('tickets', { id: ev.ticketId }); return rec;
+  },
+  async remove(evId) {
+    const ev = await DB.get('ticketEvents', evId); if (!ev || ev.removed) return false;
+    if (!TKR.can(ev)) throw new AppError('حذف الرد لكاتبه أو لمسؤول البلاغات');
+    if (!(await UI.confirm('حذف هذا الرد؟ يُزال نصه نهائياً، ويبقى للفنيين أثر بأنه حُذف.', { ok: 'حذف', danger: true }))) return false;
+    const t0 = now(); await DB.put('ticketEvents', { ...ev, text: '', removed: 1, removedAt: t0, removedBy: Auth.user.id });
+    const t = await DB.get('tickets', ev.ticketId); if (t && !ev.internal && TKR.isNote(t, ev)) await DB.put('tickets', { ...t, noteAt: 0, noteBy: '', noteFrom: '', noteReply: 0, noteText: '', updatedAt: t0 });
+    await Data.log('delete', 'ticket', ev.ticketId, `حذف رد${t ? ` في البلاغ ${t.number}` : ''}`); Bus.emit('tickets', { id: ev.ticketId }); UI.toast('حُذف الرد'); return true;
+  }
+};
 const EVENT_VIEW = {
   created: (e) => ['inbox', 'sky', html`<b>${Data.userName(e.userId)}</b> أنشأ البلاغ`],
   assigned: (e) => ['user-plus', 'violet', !e.userId ? html`إسناد تلقائي إلى <b>${Data.userName(e.to)}</b> حسب التخصص` : e.to === e.userId ? html`<b>${Data.userName(e.userId)}</b> استلم البلاغ` : html`<b>${Data.userName(e.userId)}</b> أسند البلاغ إلى <b>${Data.userName(e.to)}</b>`],
@@ -2453,7 +2478,7 @@ Pages.ticket = async (ctx) => {
     if ((mine && ['new', 'assigned'].includes(t.status)) || (mgr && OPEN.includes(t.status))) acts.push(html`<button class="btn btn-ghost" data-act="cancel">${UI.icon('x')} إلغاء</button>`);
     acts.push(html`<button class="icon-btn" data-act="print" title="طباعة" aria-label="طباعة">${UI.icon('print')}</button>`);
     const gallery = atts.map((a) => { let thumb = UI.icon('file'); if (a.blob && String(a.type).startsWith('image/')) { a._url = URL.createObjectURL(a.blob); urls.push(a._url); thumb = html`<img src="${a._url}" alt="">`; } return html`<div class="file" data-att="${a.id}" title="${a.name}"><div class="thumb">${thumb}</div><div class="fname">${a.name}</div></div>`; });
-    const tl = events.filter((e) => staff || !e.internal).map((e) => { const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e), hot = noteEv && e === noteEv; return html`<div class="tl${hot ? ` tl-note tone-${nk === 'staff' ? 'amber' : 'teal'}` : ''}"${hot ? raw(' id="tlNote"') : ''}><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}${hot ? html` <span class="tl-flag">${nFresh ? 'جديدة' : 'بانتظار الرد'}</span>` : ''}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span></div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
+    const tl = events.filter((e) => (staff || !e.internal) && (staff || !e.removed)).map((e) => { if (e.removed) return html`<div class="tl tl-removed"><span class="tl-icon tone-slate">${UI.icon('trash')}</span><div class="tl-head faint">${e.removedBy && e.removedBy !== e.userId ? `حذف ${Data.userName(e.removedBy)} رداً كتبه ${Data.userName(e.userId)}` : `حذف ${Data.userName(e.userId)} رداً`}<span class="tl-time" title="${fmtDateTime(e.removedAt || e.at)}">${timeAgo(e.removedAt || e.at)}</span></div></div>`; const [ic, tone, headline] = (EVENT_VIEW[e.type] || EVENT_VIEW.comment)(e), hot = noteEv && e === noteEv, ed = TKR.can(e); return html`<div class="tl${hot ? ` tl-note tone-${nk === 'staff' ? 'amber' : 'teal'}` : ''}"${hot ? raw(' id="tlNote"') : ''} data-evid="${e.id}"><span class="tl-icon tone-${tone}">${UI.icon(ic)}</span><div style="min-width:0"><div class="tl-head">${headline}${hot ? html` <span class="tl-flag">${nFresh ? 'جديدة' : 'بانتظار الرد'}</span>` : ''}${e.editedAt ? html` <span class="tl-edited" title="عدّله ${Data.userName(e.editedBy || e.userId)} — ${fmtDateTime(e.editedAt)}">${UI.icon('edit')} معدّل</span>` : ''}<span class="tl-time" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</span>${ed ? html`<span class="tl-evacts"><button type="button" class="icon-btn" data-evedit="${e.id}" title="تعديل الرد" aria-label="تعديل الرد">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-evdel="${e.id}" title="حذف الرد" aria-label="حذف الرد">${UI.icon('trash')}</button></span>` : ''}</div>${e.text ? html`<div class="bubble ${e.type === 'handover' ? 'ho' : e.internal ? 'internal' : e.userId === me.id ? 'mine' : ''}">${e.text}</div>` : ''}</div></div>`; });
     view.innerHTML = String(html`
       ${UI.pageHead({ crumbs: html`<a href="#/tickets">البلاغات</a>${UI.icon('chevron-left')}<span class="ltr">${t.number}</span>`, title: t.title, illu: 'cat:' + c.id, sub: html`<span class="row" style="gap:8px;margin-top:6px">${UI.status(t.status)}${UI.priority(t.priority)}<span class="faint small">فُتح ${timeAgo(t.createdAt)} بواسطة ${Data.userName(t.requesterId)}</span></span>`, actions: acts })}
       ${staff ? html`<div id="liveWork"></div>${Pages.handoverBox(t, me, mgr)}` : ''}${Ratings.ticketBar(t, staff)}
@@ -2512,6 +2537,17 @@ Pages.ticket = async (ctx) => {
   });
   window.__ticketCtx = { number: t.number, name: Data.userName(t.requesterId), category: Data.nameOf('categories', t.categoryId, '') };
   UI.on(view, 'click', '[data-act="printcards"]', () => Pages.printAccessCards(t));
+  /* تعديل الرد في مكانه وحذفه */
+  UI.on(view, 'click', '[data-evedit]', async (e, el) => {
+    const row = el.closest('[data-evid]'), ev = await DB.get('ticketEvents', el.dataset.evedit); if (!row || !ev) return;
+    const bub = row.querySelector('.bubble'); if (!bub || row.querySelector('.tl-edit')) return;
+    bub.outerHTML = String(html`<div class="tl-edit"><textarea class="input" rows="3" maxlength="4000">${ev.text}</textarea><div class="tl-edit-a"><button type="button" class="btn btn-sm btn-primary" data-evsave="${ev.id}">${UI.icon('check')} حفظ التعديل</button><button type="button" class="btn btn-sm btn-ghost" data-evcancel>إلغاء</button><small class="faint">Ctrl+Enter للحفظ</small></div></div>`);
+    const ta = row.querySelector('.tl-edit textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    ta.addEventListener('keydown', (k) => { if (k.key === 'Enter' && (k.ctrlKey || k.metaKey)) { k.preventDefault(); row.querySelector('[data-evsave]').click(); } else if (k.key === 'Escape') { k.stopPropagation(); draw(); } });
+  });
+  UI.on(view, 'click', '[data-evcancel]', () => draw());
+  UI.on(view, 'click', '[data-evsave]', async (e, el) => { const row = el.closest('[data-evid]'), ta = row && row.querySelector('.tl-edit textarea'); if (!ta) return; UI.busy(el, true); try { await TKR.edit(el.dataset.evsave, ta.value); UI.toast('حُفظ تعديل الرد'); await draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
+  UI.on(view, 'click', '[data-evdel]', async (e, el) => { try { if (await TKR.remove(el.dataset.evdel)) await draw(); } catch (ex) { UI.error(ex); } });
   UI.on(view, 'click', '[data-issue]', async (e, el) => { const it = await DB.get('items', el.dataset.issue); const mv = await Pages.moveModal({ type: 'issue', itemId: el.dataset.issue, ref: t.number, departmentId: t.departmentId, qty: el.dataset.qty }); if (mv && it) run(() => Data.tickets.comment(id, `صُرف من المخزن: ${fmtNum(mv.qty)} ${it.unit || ''} من «${it.name}» لهذا البلاغ.`, true), 'تم الصرف وتسجيله في البلاغ'); });
   UI.on(view, 'click', '[data-att]', (e, el) => {
     const a = atts.find((x) => x.id === el.dataset.att); if (!a || !a.blob) return;
@@ -4704,8 +4740,10 @@ Pages.browse = async (ctx) => {
       ? html`<div class="tiles stagger">${folderTiles}${man ? html`<button type="button" class="tile tile-add" data-icnew="">${UI.icon('plus')}<b>مجلد جديد</b><small>في المستوى الرئيسي</small></button>` : ''}</div>`
       : !st.brand
         ? html`<div class="tiles stagger">${folderTiles}${man ? html`<button type="button" class="tile tile-add" data-icnew="${st.cat}">${UI.icon('plus')}<b>مجلد فرعي</b><small>داخل «${Data.nameOf('itemCategories', st.cat)}»</small></button>` : ''}${brands.map((b) => { const items = inCat.filter((i) => (i.brand || 'غير محدد') === b), units = items.reduce((s, i) => s + Math.max(0, i.onHand), 0); return html`<a class="tile tilt" href="#/inventory/browse?cat=${st.cat}&brand=${encodeURIComponent(b)}"><span class="count">${fmtNum(units)}</span>${Auth.can('inventory.manage') ? html`<button type="button" class="tile-edit" data-bicon="${b}" title="تغيير أيقونة الماركة">${UI.icon('edit')}</button>` : ''}${UI.illu(bIcons.get(`${st.cat}|${b}`) || (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box')}<b>${b}</b><small>${arCount(items.length, AR.item)}</small></a>`; })}</div>`
-        : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
-    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${INVR.btns(st)}${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>` : ''}` })}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
+        : st.view === 'list' ? html`<div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>الموديل</th><th>الصنف</th><th>الرصيد</th><th></th></tr></thead><tbody class="stagger">${inBrand.map((i) => html`<tr><td><button type="button" class="t-title link-title" data-device="${i.id}">${UI.illu(itemIllu(i))}<div><div>${i.model || i.name}</div><div class="t-sub ltr" style="text-align:start">${i.sku || ''}</div></div></button></td><td class="small">${i.name}${INKCAT.prnLine(i)}</td><td><b>${fmtNum(i.onHand)}</b></td><td class="nowrap">${mv ? html`<button class="btn btn-ghost btn-sm" data-move="receive" data-item="${i.id}">${UI.icon('download')}</button><button class="btn btn-ghost btn-sm" data-move="issue" data-item="${i.id}">${UI.icon('upload')}</button>` : ''}${ln ? html`<button class="btn btn-ghost btn-sm" data-act="lend" data-item="${i.id}">${UI.icon('clipboard')}</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-ghost btn-sm') : ''}</td></tr>`)}</tbody></table></div></div>` : html`<div class="grid g-3 stagger">${inBrand.map((i) => html`<div class="model-card tone-${i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal'}${i.archived ? ' x-off' : ''}">${i.archived ? html`<span class="chip tone-red arch-chip">${UI.icon('archive')} مؤرشف</span>` : ''}${UI.illu(itemIllu(i))}<div class="mc-head"><b>${i.model || i.name}</b><span class="mc-count">${fmtNum(i.onHand)}</span></div><div class="t-sub ellipsis">${i.name}</div><div class="row" style="gap:6px">${UI.meter(i)}${isSerialItem(i) ? UI.chip('sky', 'مُسلسل', 'tag') : ''}</div><div class="mc-actions">${man ? html`<button class="btn btn-sm btn-ghost" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button class="btn btn-sm btn-ghost" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}${mv ? html`<button class="btn btn-sm btn-ok" data-move="receive" data-item="${i.id}">${UI.icon('download')} استلام</button><button class="btn btn-sm btn-primary" data-move="issue" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')} صرف</button>` : ''}${ln ? html`<button class="btn btn-sm btn-soft" data-act="lend" data-item="${i.id}"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')} إعارة</button>` : ''}${mv ? UI.cartBtn(i.id, 'btn btn-sm') : ''}<button class="btn btn-sm btn-ghost" data-device="${i.id}">${UI.icon('eye')} تفاصيل</button></div></div>`)}</div>${inBrand.length ? '' : UI.empty({ illu: 'box', title: 'لا توجد أصناف هنا', text: 'جرّب ماركة أخرى أو أضف صنفاً جديداً.' })}`;
+    if (st.cat === INKCAT.cat && Auth.can('inventory.manage') && !st._inkAuto) { st._inkAuto = 1; try { if (!(await DB.get('meta', 'inkcat:synced')) && (await INKCAT.missing()).length) { const r = await INKCAT.sync(); if (r.added || r.linked) { UI.toast(`أُضيفت الأحبار من «الطابعات والأحبار»: ${fmtNum(r.added)} نموذج${r.linked ? `، ورُبط ${fmtNum(r.linked)} صنف موجود` : ''}`); return draw(); } } } catch (_) { /* تجاهل */ } }
+    const inkBanner = await INKCAT.banner(st); if (!ctx.alive()) return;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ crumbs, title: st.brand || (st.cat ? Data.nameOf('itemCategories', st.cat) : 'تصفح المخزن'), sub: st.brand ? 'اختر الموديل ثم نفّذ الصرف أو الإعارة مباشرة' : st.cat ? 'المجلدات الفرعية، ثم الماركة، ثم الموديل' : 'المجلدات (بلا حدود للتداخل)، ثم الماركة، ثم الموديل', illu: st.cat ? (Data.c.itemCategories.get(st.cat) || {}).illustration || 'box' : 'box', actions: html`${INVR.btns(st)}${st.cat && !st.brand ? BRW.seg() : ''}${st.brand ? html`<div class="seg sm">${[['grid', 'شبكة', 'grid'], ['list', 'قائمة', 'menu']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>` : ''}<div class="search-box" style="min-width:240px">${UI.icon('search')}<input id="bq" type="search" placeholder="ابحث باسم أو رقم تسلسلي" value="${st.q}"></div>${UI.scanBtn('bq', 'btn btn-ghost')}${Auth.can('inventory.manage') ? html`<button class="btn btn-primary" data-act="newitem" data-cat="${st.cat}" data-brand="${st.brand}">${UI.icon('plus')} صنف جديد</button>${st.cat ? html`<button class="btn btn-soft" data-icedit="${st.cat}">${UI.icon('edit')} تعديل المجلد</button>` : ''}<button class="btn btn-soft" data-icnew="${st.cat}">${UI.icon('layers')} مجلد ${st.cat ? 'فرعي' : 'جديد'}</button>${st.cat === INKCAT.cat ? html`<button class="btn btn-ghost" data-act="inksync" title="إضافة كل حبر في «الطابعات والأحبار» نموذجاً هنا، وربط الموجود برقمه">${UI.icon('refresh')} مزامنة الأحبار</button>` : ''}` : ''}` })}${inkBanner}${BRW.body(st, { body, folderTiles, inCat, brands, man, mv, ln, bIcons })}`);
     UI.hydrate(ctx.view); UI.tilt(ctx.view);
     const s = $('#bq', ctx.view); s.addEventListener('input', debounce(async (e) => {
       st.q = e.target.value.trim();
@@ -4717,6 +4755,7 @@ Pages.browse = async (ctx) => {
   UI.on(ctx.view, 'change', 'input[name="devview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_devview', st.view); draw(); });
   UI.on(ctx.view, 'click', '[data-bicon]', async (e, el) => { e.preventDefault(); e.stopPropagation(); const b = el.dataset.bicon, map = await Data.brands.map(); if (await Pages.brandIconModal(st.cat, b, map.get(`${st.cat}|${b}`) || '')) draw(); });
   UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, { store: true }); draw(); });
+  UI.on(ctx.view, 'click', '[data-act="inksync"]', async (e, el) => { UI.busy(el, true); try { const r = await INKCAT.sync(); UI.toast(r.added || r.linked ? `أُضيف ${fmtNum(r.added)} نموذج حبر${r.linked ? `، ورُبط ${fmtNum(r.linked)} صنف موجود برقمه` : ''}` : 'كل أحبار الكتالوج لها نماذج في المخزن'); await draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
   Pages.bindInv(ctx, draw);
   await draw();
 };
@@ -5665,6 +5704,7 @@ Pages.deviceModal = async (itemId, scope = {}) => {
   const res = await UI.modal({
     title: it.name, icon: 'box', size: 'lg',
     body: html`<div class="dev-head">${UI.illu(itemIllu(it), 'lg')}<div class="grow"><h3 style="margin:0 0 4px">${it.name}</h3><div class="row" style="gap:6px;flex-wrap:wrap">${UI.chip('sky', IC.label(it.categoryId) || Data.nameOf('itemCategories', it.categoryId), 'tag')}${it.brand ? UI.chip('violet', it.brand) : ''}${it.model ? UI.chip('teal', it.model) : ''}${isSerialItem(it) ? UI.chip('brass', 'مُسلسل', 'tag') : ''}${it.archived ? UI.chip('red', 'مؤرشف', 'archive') : ''}</div><div class="t-sub ltr mt" style="text-align:start">${it.sku || ''}</div></div></div>
+      ${INKCAT.printersOf(it).length ? html`<div class="ink-prns">${UI.icon('printer')}<b>الطابعات التي تستخدمه:</b>${INKCAT.printersOf(it).map((x) => html`<span class="chip">${x}</span>`)}</div>` : ''}
       ${DevNote.html(it, mine)}${DAL.can() ? html`<div class="dal-add"><button type="button" class="btn btn-ghost btn-sm" data-dalert="item:${it.id}">${UI.icon('alert')} ${DAL.live(it) ? 'تعديل تنبيه الصنف' : 'إضافة تنبيه على كل أجهزة هذا الصنف'}</button></div>` : ''}
       ${mine.some((a) => a.specs && Object.keys(a.specs).length) ? html`<p class="hint mt">${UI.icon('info')} ${fmtNum(mine.filter((a) => a.specs && Object.keys(a.specs).length).length)} وحدة لها مواصفات خاصة (من اعتماد نموذج على مواقع بعينها): اضغط رقمها التسلسلي لعرضها.</p>` : ''}
       <div class="kpis mt" style="border-radius:14px">
@@ -23071,7 +23111,7 @@ const BRW = {
   card(i, o) {
     const tone = i.onHand <= 0 ? 'red' : i.minQty > 0 && i.onHand <= i.minQty ? 'amber' : 'teal', note = DevNote.item(i);
     return html`<div class="brw-card tone-${tone}${i.archived ? ' x-off' : ''}"${o.man ? raw(` draggable="true" data-idrag="${esc(i.id)}" title="اسحبه إلى مجلد لنقله"`) : ''}>
-      <button type="button" class="brw-main" data-device="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${i.model || i.name}</b><small>${i.name}</small></span><span class="brw-n" title="في المخزن">${fmtNum(i.onHand)}</span></button>
+      <button type="button" class="brw-main" data-device="${i.id}">${UI.illu(itemIllu(i), 'mini')}<span class="grow"><b>${INKCAT.dot(i)}${i.model || i.name}</b>${INKCAT.printersOf(i).length ? INKCAT.prnLine(i) : html`<small>${i.name}</small>`}</span><span class="brw-n" title="في المخزن">${fmtNum(i.onHand)}</span></button>
       ${note ? html`<div class="dn-inline" title="${note}">${UI.icon('alert')}<span>${note}</span></div>` : ''}
       <div class="brw-acts">${o.mv ? html`<button type="button" class="icon-btn" data-move="receive" data-item="${i.id}" title="استلام">${UI.icon('download')}</button><button type="button" class="icon-btn" data-move="issue" data-item="${i.id}" title="صرف"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('upload')}</button>` : ''}${o.ln ? html`<button type="button" class="icon-btn" data-act="lend" data-item="${i.id}" title="إعارة"${i.onHand <= 0 ? raw(' disabled') : ''}>${UI.icon('clipboard')}</button>` : ''}${o.mv ? html`<button type="button" class="icon-btn" data-cart-add="${i.id}" title="أضف إلى السلة">${UI.icon('cart')}</button>` : ''}<span class="grow"></span>${o.man ? html`<button type="button" class="icon-btn" data-imove="${i.id}" title="نقل إلى مجلد">${UI.icon('swap')}</button><button type="button" class="icon-btn" data-itemedit="${i.id}" title="تعديل الصنف أو حذفه">${UI.icon('edit')}</button>` : ''}</div></div>`;
   },
@@ -25155,6 +25195,77 @@ const TINK = {
 /* ══════════ الجولة 38: المخزون المتوفر لكل حبر مطلوب في بلاغات الأحبار ══════════
    يُطابق رقم الحبر مع أصناف المخزن (الاسم/الموديل/الرمز) مع تمييز اللون، ويُعرض المتوفر والمطلوب وحالة الكفاية
    في تفاصيل البلاغ (قائمة بكل نوع مطلوب)، ولوحة «المخزون للأحبار المطلوبة» مع الصرف، وشارة في قائمة البلاغات. */
+/* ══════════ الجولة 48: الأحبار من «الطابعات والأحبار» نماذجَ في المخزن ══════════
+   كل حبر في كتالوج الطابعات (الماركة، والرقم، واللون) نموذجٌ في فئة «أحبار ومستهلكات»: الماركة مجلدها، والرقم موديلها،
+   وتحته بخط رفيع أسماء الطابعات التي تستخدمه (من الكتالوج نفسه، فتبقى محدّثة). المعرّف ثابت لكل حبر، فلا يتكرر النموذج
+   ولو أضافه جهازان معاً، والصنف الموجود سلفاً لنفس الرقم يُربط به بدل إنشاء صنف مكرر */
+const INKCAT = {
+  cat: 'ic_ink',
+  key: (brand, code, color) => `${INKSTK.norm(brand)}|${INKSTK.norm(code)}|${color || ''}`,
+  hash(s0) { let h = 5381; for (let i = 0; i < s0.length; i++) h = ((h << 5) + h + s0.charCodeAt(i)) >>> 0; return h.toString(36); },
+  catalog() {
+    const m = new Map(), colors = new Map();
+    Data.list('printers').forEach((pr) => (pr.models || []).forEach((md) => (md.inks || []).forEach((k) => {
+      const code = String(k.code || '').trim(); if (!code) return; const color = k.color && k.color !== 'other' ? k.color : '', brand = String(pr.name || '').trim();
+      const kk = INKCAT.key(brand, code, color), ck = INKCAT.key(brand, code, '');
+      if (!m.has(kk)) m.set(kk, { brand, code, color, printers: [], kk });
+      if (!colors.has(ck)) colors.set(ck, new Set()); colors.get(ck).add(color);
+      const e = m.get(kk), pn = `${brand} ${md.name || ''}`.trim(); if (!e.printers.includes(pn)) e.printers.push(pn);
+    })));
+    return [...m.values()].map((e) => ({ ...e, multi: colors.get(INKCAT.key(e.brand, e.code, '')).size > 1 }));
+  },
+  model: (k) => `${k.code}${k.color && k.multi ? ` ${(INK_COLORS_MAP[k.color] || [''])[0]}` : ''}`,
+  find(all, k) {
+    const id = `it_ink_${INKCAT.hash(k.kk)}`, byId = all.find((i) => i.id === id); if (byId) return byId;
+    const c0 = INKSTK.norm(k.code), inks = all.filter((i) => !i.archived && (i.categoryId === INKCAT.cat || (i.inkCodes || []).length || /حبر|toner|ink/i.test(`${i.name} ${i.model}`)));
+    let hits = inks.filter((i) => (i.inkCodes || []).includes(c0) || [i.model, i.name, i.sku].some((v) => INKSTK.norm(v).includes(c0)));
+    if (k.color) { const cn = normalizeAr((INK_COLORS_MAP[k.color] || [''])[0]), byC = hits.filter((i) => i.inkColor === k.color || (!i.inkColor && normalizeAr(`${i.name} ${i.model}`).includes(cn))); hits = k.multi ? byC : byC.length ? byC : hits; }
+    return hits[0] || null;
+  },
+  async missing() { const all = await DB.getAll('items'); return INKCAT.catalog().filter((k) => !INKCAT.find(all, k)); },
+  async sync() {
+    if (!Auth.can('inventory.manage')) throw new AppError('إضافة الأحبار لمن يملك إدارة الأصناف');
+    if (!Data.c.itemCategories.get(INKCAT.cat)) { await DB.put('itemCategories', { id: INKCAT.cat, name: 'أحبار ومستهلكات', illustration: 'ink', order: 11 }); await Data.refresh('itemCategories'); }
+    const all = await DB.getAll('items'), skus = new Set(all.map((i) => String(i.sku || '').toUpperCase())), t = now(), add = [], upd = [];
+    for (const k of INKCAT.catalog()) {
+      const c0 = INKSTK.norm(k.code), hit = INKCAT.find(all, k);
+      if (hit) {
+        const p0 = { ...hit }; let ch = false;
+        if (!(hit.inkCodes || []).includes(c0)) { p0.inkCodes = [...(hit.inkCodes || []), c0]; ch = true; }
+        if (!hit.brand && k.brand) { p0.brand = k.brand; ch = true; }
+        if (k.color && !hit.inkColor) { p0.inkColor = k.color; ch = true; }
+        /* الصنف القديم في فئة لم تعد موجودة (أو «أخرى») ينتقل إلى «أحبار ومستهلكات»، ويأخذ رقم الحبر موديلاً إن لم يكن له */
+        if (hit.categoryId !== INKCAT.cat && (!Data.c.itemCategories.get(hit.categoryId) || ['ink', 'ic_other', 'other'].includes(hit.categoryId))) { p0.categoryId = INKCAT.cat; ch = true; }
+        if (!String(hit.model || '').trim()) { p0.model = INKCAT.model(k); ch = true; }
+        if (ch) { p0.updatedAt = t; p0.search = Data.inv.searchOf(p0); upd.push(p0); }
+        continue;
+      }
+      let sku = `INK-${k.code.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24)}${k.color && k.multi ? `-${k.color.slice(0, 3).toUpperCase()}` : ''}`; let n = 2; while (skus.has(sku)) sku = `${sku.replace(/-\d+$/, '')}-${n++}`; skus.add(sku);
+      const it = { id: `it_ink_${INKCAT.hash(k.kk)}`, sku, name: `حبر ${INKCAT.model(k)}`, categoryId: INKCAT.cat, unit: 'علبة', minQty: 0, brand: k.brand, model: INKCAT.model(k), serial: '', notes: '', onHand: 0, inkCodes: [c0], inkColor: k.color || '', serialized: 0, createdAt: t, updatedAt: t };
+      it.search = Data.inv.searchOf(it); add.push(it); all.push(it);
+    }
+    if (add.length) await DB.bulkPut('items', add);
+    for (const r of upd) await DB.put('items', r);
+    try { await DB.put('meta', { key: 'inkcat:synced', value: t }); } catch (_) { /* تجاهل */ }
+    if (add.length || upd.length) { await Data.log('create', 'inventory', INKCAT.cat, `الأحبار من كتالوج الطابعات: ${fmtNum(add.length)} نموذج جديد، و${fmtNum(upd.length)} صنف رُبط برقمه`); Bus.emit('inventory', {}); }
+    return { added: add.length, linked: upd.length };
+  },
+  /* الطابعات التي تستخدم حبر الصنف (من رموزه المربوطة أو موديله)، وللحبر الملون لونه */
+  printersOf(i) {
+    if (!i || (i.categoryId !== INKCAT.cat && !(i.inkCodes || []).length)) return [];
+    const codes = new Set([...(i.inkCodes || [])]); if (!codes.size && i.model) codes.add(INKSTK.norm(String(i.model).replace(/\s+(أسود|أزرق|أحمر|أصفر|ثلاثي الألوان)$/, '')));
+    const out = []; Data.list('printers').forEach((pr) => (pr.models || []).forEach((md) => (md.inks || []).forEach((k) => { if (codes.has(INKSTK.norm(k.code)) && (!i.inkColor || !k.color || k.color === i.inkColor)) { const pn = `${pr.name} ${md.name || ''}`.trim(); if (!out.includes(pn)) out.push(pn); } })));
+    return out;
+  },
+  prnLine(i) { const ps = INKCAT.printersOf(i); return ps.length ? html`<small class="brw-prn" title="${ps.join('، ')}">${UI.icon('printer')} ${ps.slice(0, 3).join('، ')}${ps.length > 3 ? ` و${fmtNum(ps.length - 3)} أخرى` : ''}</small>` : ''; },
+  dot: (i) => (i.inkColor && INK_COLORS_MAP[i.inkColor] ? html`<i class="ink-cdot" style="background:${INK_COLORS_MAP[i.inkColor][1]}" title="${INK_COLORS_MAP[i.inkColor][0]}"></i>` : ''),
+  async banner(st) {
+    if (st.cat !== INKCAT.cat || !Auth.can('inventory.manage')) return '';
+    const miss = await INKCAT.missing(); if (!miss.length) return '';
+    return html`<div class="banner tone-sky ink-sync">${UI.icon('printer')}<div class="grow"><b>${fmtNum(miss.length)} حبراً في «الطابعات والأحبار» بلا نموذج في المخزن</b><small>${miss.slice(0, 6).map((k) => INKCAT.model(k)).join('، ')}${miss.length > 6 ? '…' : ''}</small></div><button type="button" class="btn btn-sm btn-primary" data-act="inksync">${UI.icon('plus')} إضافتها نماذجَ</button></div>`;
+  }
+};
+
 const INKSTK = {
   _c: null, _at: 0, _n: 0, _run: 0,
   /* فريق البلاغات يرى المتوفر (من كتالوج الأصناف المتزامن لديه)؛ تفصيل المخازن والصرف لمن له صلاحيات المخزن */

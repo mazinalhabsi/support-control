@@ -7593,3 +7593,25 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lp-mnav .lp-yr.on{background:rgb(var(--accent));color:#fff;border-color:rgb(var(--accent))}
 .lp-gsel select{font-weight:600}
 .lp-per{margin-top:2px}
+
+/* ══ الجولة 48: تعديل الردود وحذفها ══ */
+.tl-evacts{display:inline-flex;gap:2px;opacity:.0;transition:opacity .15s}
+.tl:hover .tl-evacts,.tl:focus-within .tl-evacts{opacity:1}
+@media (hover:none){.tl-evacts{opacity:1}}
+.tl-evacts .icon-btn{width:28px;height:28px}
+.tl-evacts .icon-btn .ic{width:15px;height:15px}
+.tl-edited{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--ink-3);font-weight:600}
+.tl-edited .ic{width:11px;height:11px}
+.tl-edit{margin-top:6px;display:flex;flex-direction:column;gap:6px;max-width:100%}
+.tl-edit textarea{min-height:80px;resize:vertical}
+.tl-edit-a{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tl-removed .tl-head{font-size:12px;font-style:italic}
+
+/* ══ الجولة 48: الأحبار نماذجَ في المخزن ══ */
+.brw-prn{display:flex;align-items:center;gap:4px;font-weight:400!important;font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.1px}
+.brw-prn .ic{width:12px;height:12px;flex:none;opacity:.7}
+td .brw-prn{margin-top:2px}
+.ink-cdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:1px;box-shadow:0 0 0 1.5px var(--surface-solid),0 0 0 2.5px var(--line-2)}
+.ink-sync{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ink-sync small{display:block;color:var(--ink-3)}
+.ink-prns{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:12.5px}
