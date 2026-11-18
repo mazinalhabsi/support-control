@@ -616,10 +616,10 @@ function leave_clean(array $d, string $kind): ?array {
   }
   $from = (string) ($d['from'] ?? ''); $to = (string) ($d['to'] ?? '');
   if ($kind === 'lplan') {
-    if (!leave_day($from) || !leave_day($to) || $to < $from || (strtotime($to . ' 12:00:00') - strtotime($from . ' 12:00:00')) / 86400 > 400) return null;
+    if (!leave_day($from) || !leave_day($to) || $to < $from || (strtotime($to . ' 12:00:00') - strtotime($from . ' 12:00:00')) / 86400 > 800) return null;
     $title = cut(trim((string) ($d['title'] ?? '')), 120); if ($title === '') return null;
     $dl = (string) ($d['deadline'] ?? ''); $ps = (string) ($d['state'] ?? 'collect');
-    return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
+    return ['id' => $id, 'kind' => 'lplan', 'title' => $title, 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'balId' => cut((string) ($d['balId'] ?? ''), 120), 'open' => empty($d['open']) ? 0 : 1, 'from' => $from, 'to' => $to, 'deadline' => leave_day($dl) ? $dl : '', 'members' => leave_ids($d['members'] ?? [], 300),
       'maxOff' => max(0, min(50, (int) ($d['maxOff'] ?? 0))), 'allowAlt' => empty($d['allowAlt']) ? 0 : 1, 'state' => in_array($ps, ['collect', 'arrange', 'final', 'closed'], true) ? $ps : 'collect',
       'maxHard' => empty($d['maxHard']) ? 0 : 1, 'quota' => max(0, min(365, (int) ($d['quota'] ?? 0))),
       'vis' => (string) ($d['vis'] ?? 'team') === 'members' ? 'members' : 'team', 'share' => leave_ids($d['share'] ?? [], 100), 'approver' => cut((string) ($d['approver'] ?? ''), 120),
@@ -641,7 +641,7 @@ function leave_clean(array $d, string $kind): ?array {
   if ($kind === 'wish') {
     $pid = (string) ($d['planId'] ?? ''); if ($pid === '' || strlen($pid) > 120) return null;
     $o = $d['orig'] ?? null; $o = is_array($o) && leave_day((string) ($o['from'] ?? '')) && leave_day((string) ($o['to'] ?? '')) ? ['from' => (string) $o['from'], 'to' => (string) $o['to']] : null;
-    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
+    return ['id' => $id, 'kind' => 'wish', 'planId' => $pid, 'userId' => (string) ($d['userId'] ?? ''), 'title' => cut(trim((string) ($d['title'] ?? '')), 60), 'color' => leave_hex($d['color'] ?? ''), 'icon' => leave_icon($d['icon'] ?? ''), 'balId' => cut((string) ($d['balId'] ?? ''), 120), 'from' => $from, 'to' => $to, 'type' => $type, 'pri' => (int) ($d['pri'] ?? 1) === 2 ? 2 : 1,
       'state' => ($d['state'] ?? '') === 'agreed' ? 'agreed' : 'wish', 'note' => cut(trim((string) ($d['note'] ?? '')), 1000), 'changeNote' => cut(trim((string) ($d['changeNote'] ?? '')), 500),
       'orig' => $o, 'changedBy' => (string) ($d['changedBy'] ?? ''), 'changedAt' => (int) ($d['changedAt'] ?? 0), 'leaveId' => cut((string) ($d['leaveId'] ?? ''), 120), 'updatedAt' => (int) ($d['updatedAt'] ?? now_ms())];
   }
@@ -735,11 +735,14 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
     /* أيام كل مشارك: لا يتجاوز مجموع فتراته (بالأولوية نفسها) العدد المحدد، ولا عدد الفترات «متصلة فقط» أو الحد الأقصى؛
        وتعديل رغبة قائمة لا يُرفض ما دام لا يزيد التجاوز (إن خُفّض العدد بعد التسجيل) */
     $q = (int) ($p['quota'] ?? 0); $sp = (int) ($p['split'] ?? 0);
-    if ($q > 0 || $sp > 0) {
+    /* الجولة 47: خطة مبنية على إجازة ممنوحة: أيام المشارك هي أيامه في تلك الإجازة (ولا تزيد على عدد الخطة إن حُدد) */
+    $gid = (string) ($p['balId'] ?? ''); $linked = false;
+    if ($gid !== '') { $g = doc_data('leaves', $gid); if (is_array($g) && ($g['kind'] ?? '') === 'bal' && in_array($c['userId'], array_map('strval', (array) ($g['userIds'] ?? [])), true)) { $per = (array) ($g['per'] ?? []); $gd = (int) floor((float) ($per[$c['userId']] ?? ($g['days'] ?? 0))); $q = $q > 0 ? min($q, $gd) : $gd; $linked = true; } }
+    if ($q > 0 || $sp > 0 || $linked) {
       $same = $old && ((int) ($old['pri'] ?? 1) === 2 ? 2 : 1) === $c['pri'];
       $sib = leave_wish_sibs($c['planId'], $c['userId'], $c['pri'], $c['id']);
       if ($sp > 0 && !$same && count($sib) + 1 > $sp) return null;
-      if ($q > 0) {
+      if ($q > 0 || $linked) {
         $used = 0; foreach ($sib as $w) $used += leave_count((string) ($w['from'] ?? ''), (string) ($w['to'] ?? ''));
         $tot = $used + leave_count($c['from'], $c['to']); $prev = $same ? $used + leave_count((string) ($old['from'] ?? ''), (string) ($old['to'] ?? '')) : $used;
         if ($tot > $q && $tot > $prev) return null;
@@ -2264,6 +2267,32 @@ case 'svstats': {
   out(['n' => $n, 'q' => (object) $agg]);
 }
 
+/* ══ الجولة 47: سلامة أرصدة المخزن — المرجع هو الخادم لا الجهاز ══
+   inv_item: سجلات الصنف (الصنف، وأرصدة مخازنه، ووحداته) من الخادم مباشرة، فيُصلح الجهاز ما نقص في مزامنته عند الصرف.
+   inv_health: لكل صنف: الرصيد الكلي، وأرصدة المخازن، ودفتر الحركات، والوحدات المسلسلة في المخزن، والمخازن الموجودة */
+case 'inv_item': {
+  $user = session_user();
+  if (!is_sup($user) && !can_any($user, array_merge(INV_PERMS, ['inventory.read']))) fail('للمخولين بالمخزن فقط', 403);
+  $id = (string) ($_GET['item'] ?? ''); if ($id === '' || strlen($id) > 120) fail('صنف غير صالح', 400);
+  $q = db()->prepare("SELECT store, doc_id, rev, deleted, data FROM docs WHERE (store = 'items' AND doc_id = ?) OR (store = 'stock' AND SUBSTRING_INDEX(doc_id, '|', -1) = ?) OR (store = 'assets' AND deleted = 0 AND JSON_UNQUOTE(JSON_EXTRACT(data, '$.itemId')) = ?)");
+  $q->execute([$id, $id, $id]);
+  $docs = [];
+  foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) { $dd = (int) $r['deleted']; $docs[] = ['store' => $r['store'], 'id' => $r['doc_id'], 'rev' => (int) $r['rev'], 'deleted' => $dd, 'data' => $dd ? null : json_decode((string) $r['data'])]; }
+  out(['docs' => $docs]);
+}
+case 'inv_health': {
+  $user = session_user();
+  if (!is_sup($user) && !can_any($user, array_merge(INV_PERMS, ['inventory.read']))) fail('للمخولين بالمخزن فقط', 403);
+  $pdo = db(); $J = fn(string $f) => "JSON_UNQUOTE(JSON_EXTRACT(data, '$.$f'))";
+  $items = [];
+  foreach ($pdo->query("SELECT doc_id, {$J('name')} n, {$J('onHand')} oh, {$J('archived')} ar FROM docs WHERE store = 'items' AND deleted = 0")->fetchAll(PDO::FETCH_ASSOC) as $r) $items[$r['doc_id']] = ['n' => (string) $r['n'], 'oh' => round((float) $r['oh'], 3), 'ar' => in_array((string) $r['ar'], ['1', 'true'], true) ? 1 : 0];
+  $wh = $pdo->query("SELECT doc_id FROM docs WHERE store = 'warehouses' AND deleted = 0")->fetchAll(PDO::FETCH_COLUMN);
+  $grp = function (string $sql) use ($pdo) { $o = []; foreach ($pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) as $r) $o[(string) $r['i']][(string) $r['w']] = round((float) $r['q'], 3); return (object) array_map(fn($x) => (object) $x, $o); };
+  $stock = $grp("SELECT {$J('itemId')} i, {$J('warehouseId')} w, SUM(CAST(COALESCE({$J('qty')}, '0') AS DECIMAL(14,3))) q FROM docs WHERE store = 'stock' AND deleted = 0 GROUP BY i, w");
+  $ledger = $grp("SELECT {$J('itemId')} i, {$J('warehouseId')} w, SUM(CAST(COALESCE({$J('delta')}, '0') AS DECIMAL(14,3))) q FROM docs WHERE store = 'movements' AND deleted = 0 AND COALESCE({$J('warehouseId')}, '') <> '' GROUP BY i, w");
+  $units = $grp("SELECT {$J('itemId')} i, COALESCE({$J('warehouseId')}, '') w, COUNT(*) q FROM docs WHERE store = 'assets' AND deleted = 0 AND {$J('status')} = 'in_store' GROUP BY i, w");
+  out(['items' => (object) $items, 'wh' => $wh, 'stock' => $stock, 'ledger' => $ledger, 'units' => $units, 'at' => now_ms()]);
+}
 case 'diag': {
   /* فحص سرعة الخادم وإعداداته: يظهر للمشرف في نافذة «المزامنة والخادم» */
   $user = session_user();

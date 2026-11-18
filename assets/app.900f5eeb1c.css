@@ -7523,3 +7523,73 @@ tr:hover .cact.inl,tr:focus-within .cact.inl{opacity:1}
 .lp-steps .ic.l3d,.chip .ic.l3d{width:16px;height:16px}
 .btn .ic.l3d{width:20px;height:20px;margin-block:-4px}
 .lv-keys .ic.l3d{width:14px;height:14px}
+
+/* ══ الجولة 47: سلامة أرصدة المخزن ══ */
+.wh-av.warn{background:rgba(217,119,6,.10);border-color:rgba(217,119,6,.45);color:#92400e;flex-wrap:wrap}
+.invh{display:flex;flex-direction:column;gap:10px}
+.invh-sum{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line-2)}
+.invh-sum>div{flex:1;display:flex;flex-direction:column}.invh-sum small{color:var(--ink-3)}
+.invh-sum.ok{background:rgba(15,138,95,.08);border-color:rgba(15,138,95,.35)}.invh-sum.ok>.ic{color:#0f8a5f}
+.invh-sum.bad{background:rgba(217,119,6,.08);border-color:rgba(217,119,6,.4)}.invh-sum.bad>.ic{color:#d97706}
+.invh-to{display:flex;align-items:center;gap:8px;font-size:12.5px}.invh-to select{max-width:240px;height:34px}
+.invh-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto}
+.invh-row{border:1px solid var(--line-2);border-radius:12px;padding:9px 11px;background:var(--surface-solid);display:flex;flex-direction:column;gap:6px}
+.invh-row.arch{opacity:.7}
+.invh-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}.invh-h small{flex-basis:100%;font-size:11.5px}
+.invh-i{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px}
+
+/* ══ الجولة 47: أجهزة الموديل ══ */
+.mdv h3 small{font-weight:600;margin-inline-start:6px}
+.mdv-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:6px 0 10px}
+.mdv-fl{display:flex;flex-wrap:wrap;gap:5px}
+.mdv-f{font:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-solid);color:var(--ink-2);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.mdv-f b{font-size:11px;padding:0 6px;border-radius:999px;background:var(--surface-2)}
+.mdv-f.on{border-color:rgb(var(--accent));background:rgba(var(--accent),.12);color:rgb(var(--accent))}
+.mdv-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mdv-q{min-width:220px}
+.mdv-tbl td{vertical-align:middle}
+.mdv-nt{max-width:200px;white-space:normal;color:var(--ink-2)}
+.mdv-tacts,.mdv-acts{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.mdv-st{height:30px;max-width:130px;font-size:12px}
+.mdv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.mdv-card{border:1px solid var(--line-2);border-radius:14px;padding:10px 12px;background:var(--surface-solid);display:flex;flex-direction:column;gap:8px;border-inline-start:4px solid rgba(var(--accent),.6);transition:box-shadow .2s,transform .2s}
+.mdv-card:hover{box-shadow:0 10px 24px -14px rgba(11,21,48,.35);transform:translateY(-1px)}
+.mdv-card.s-in_store{border-inline-start-color:#0f8a5f}.mdv-card.s-issued{border-inline-start-color:#7c3aed}.mdv-card.s-loaned{border-inline-start-color:#d97706}.mdv-card.s-maintenance{border-inline-start-color:#0284c7}.mdv-card.s-retired{border-inline-start-color:#dc2626;opacity:.75}
+.mdv-ch{display:flex;align-items:center;gap:8px;min-width:0}
+.mdv-sn .link-sn{font-weight:800;font-size:13.5px}
+.mdv-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12px}
+.mdv-kv dt{color:var(--ink-3)}.mdv-kv dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mdv-note{margin:0;font-size:12px;color:var(--ink-2);display:flex;gap:5px;align-items:flex-start}
+.mdv-note .ic{flex:none}
+.mdv-ed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end;width:100%}
+.mdv-ed label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:700;color:var(--ink-3)}
+.mdv-ed label.w{grid-column:1 / -1}
+.mdv-ed .input{height:34px}
+.mdv-eda{grid-column:1 / -1;display:flex;gap:6px}
+.mdv-card .mdv-ed{grid-template-columns:1fr}
+.mdv-edrow td{background:rgba(var(--accent),.05)}
+.mdv-empty{padding:10px 0}
+@media (max-width:640px){.mdv-ed{grid-template-columns:1fr}.mdv-q{min-width:0;flex:1}}
+.mdv-tacts{flex-wrap:nowrap!important;justify-content:flex-end}
+.mdv-st{min-width:112px;flex:none}
+.mdv-tbl td.mdv-tacts{display:table-cell;white-space:nowrap}
+.mdv-tbl td.mdv-tacts>*{vertical-align:middle;margin-inline-end:4px}
+.mdv-acts .mdv-st{flex:1;max-width:none}
+.mdv-tbl td.ltr,.mdv-tbl .t-num{white-space:nowrap}
+.mdv-tbl th,.mdv-tbl td{padding-inline:8px}
+.mdv-tbl .mdv-st{min-width:118px;height:32px}
+
+/* ══ الجولة 47: أيامي في الخطة، والسنوات في لوحة الخطة ══ */
+.lp-mine{position:relative;display:inline-flex;align-items:center;gap:8px;padding:4px 10px 6px;border-radius:999px;font-size:11.5px;font-weight:700;border:1px solid var(--line-2);background:var(--surface-solid);overflow:hidden}
+.lp-mine b{font-weight:800}
+.lp-mine i{position:absolute;inset-inline-start:0;bottom:0;height:3px;background:currentColor;opacity:.55;border-radius:3px}
+.lp-mine.none{color:#b45309;border-color:rgba(217,119,6,.45);background:rgba(217,119,6,.07)}
+.lp-mine.part{color:#b45309;border-color:rgba(217,119,6,.45);background:rgba(217,119,6,.07)}
+.lp-mine.full{color:#0f8a5f;border-color:rgba(15,138,95,.45);background:rgba(15,138,95,.08)}
+.lp-mine.over{color:#b91c1c;border-color:rgba(220,38,38,.45);background:rgba(220,38,38,.07)}
+.lp-mine-t{color:var(--ink-2);font-weight:600}
+.lp-yrs{display:inline-flex;gap:3px;padding:3px;border-radius:999px;background:var(--surface-2);margin-inline:4px}
+.lp-mnav .lp-yr{border-radius:999px;padding:3px 12px;font-weight:800}
+.lp-mnav .lp-yr.on{background:rgb(var(--accent));color:#fff;border-color:rgb(var(--accent))}
+.lp-gsel select{font-weight:600}
+.lp-per{margin-top:2px}
