@@ -2643,7 +2643,7 @@ Pages.inventory = async (ctx) => {
 Pages.moveTable = async (rows) => {
   if (!rows.length) return html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد حركات بعد', text: 'ستظهر هنا عمليات الاستلام والصرف والتحويل.' })}</div>`;
   const items = new Map((await Promise.all([...new Set(rows.map((m) => m.itemId))].map((id) => DB.get('items', id)))).filter(Boolean).map((i) => [i.id, i]));
-  return html`<div class="table-wrap"><table class="table"><thead><tr><th>التاريخ</th><th>الحركة</th><th>الصنف</th><th>المخزن</th><th>الكمية</th><th>الرصيد بعدها</th><th>الجهة / المرجع</th><th>بواسطة</th></tr></thead><tbody class="stagger">${rows.map((m) => { const it = items.get(m.itemId); return html`<tr${it ? raw(` data-href="#/inventory/items/${esc(it.id)}"`) : ''}><td class="nowrap faint">${fmtDateTime(m.at)}</td><td>${UI.chip(MOVE_TONE[m.type] || 'slate', (MOVES[m.type] || {}).label || m.type)}</td><td><div class="t-title" style="min-width:180px">${UI.illu(itemIllu(it))}<div class="ellipsis">${it ? it.name : 'صنف محذوف'}</div></div></td><td>${Data.nameOf('warehouses', m.warehouseId)}</td><td class="nowrap" style="font-weight:700;color:rgb(var(${m.delta >= 0 ? '--teal-ink' : '--red-ink'}))"><span class="ltr">${m.delta > 0 ? '+' : ''}${fmtNum(m.delta)}</span></td><td>${m.balance == null ? '—' : fmtNum(m.balance)}</td><td class="small">${m.party || m.departmentId || m.ref ? html`${[m.party, Data.nameOf('departments', m.departmentId, '')].filter(Boolean).join(' — ')}${m.ref ? html`<div class="t-num">${m.ref}</div>` : ''}` : '—'}</td><td class="small">${m.userId ? Data.userName(m.userId) : 'ترحيل'}</td></tr>`; })}</tbody></table></div>`;
+  return html`<div class="table-wrap"><table class="table"><thead><tr><th>التاريخ</th><th>الحركة</th><th>الصنف</th><th>المخزن</th><th>الكمية</th><th>الرصيد بعدها</th><th>الجهة / المرجع</th><th>بواسطة</th><th class="qfix-th"></th></tr></thead><tbody class="stagger">${rows.map((m) => { const it = items.get(m.itemId); return html`<tr${it ? raw(` data-href="#/inventory/items/${esc(it.id)}"`) : ''}><td class="nowrap faint">${fmtDateTime(m.at)}</td><td>${UI.chip(MOVE_TONE[m.type] || 'slate', (MOVES[m.type] || {}).label || m.type)}</td><td><div class="t-title" style="min-width:180px">${UI.illu(itemIllu(it))}<div class="ellipsis">${it ? it.name : 'صنف محذوف'}</div></div></td><td>${Data.nameOf('warehouses', m.warehouseId)}</td><td class="nowrap" style="font-weight:700;color:rgb(var(${m.delta >= 0 ? '--teal-ink' : '--red-ink'}))"><span class="ltr">${m.type === 'dept_opening' ? `+${fmtNum(m.qty)}` : `${m.delta > 0 ? '+' : ''}${fmtNum(m.delta)}`}</span>${QFIX.tag(m)}</td><td>${m.balance == null ? '—' : fmtNum(m.balance)}</td><td class="small">${m.party || m.departmentId || m.ref ? html`${[m.party, Data.nameOf('departments', m.departmentId, '')].filter(Boolean).join(' — ')}${m.ref ? html`<div class="t-num">${m.ref}</div>` : ''}` : '—'}</td><td class="small">${m.userId ? Data.userName(m.userId) : 'ترحيل'}</td><td class="qfix-td">${QFIX.btn(m)}</td></tr>`; })}</tbody></table></div>`;
 };
 
 /* ── الأصناف ── */
@@ -3289,7 +3289,7 @@ Object.entries(ROLE_INFO).forEach(([k, r]) => { ROLES[k] = r.label; });
 const BASE_PERMS = ['dashboard', 'profile', 'notifications'];
 const PERM_GROUPS = [
   { title: 'البلاغات', icon: 'ticket', items: [['tickets.create', 'تقديم البلاغات', 'فتح بلاغ أو طلب خدمة'], ['tickets.view', 'متابعة البلاغات', 'عرض البلاغات المسموح بها'], ['tickets.all', 'عرض كل البلاغات', 'بلاغات جميع الأقسام والمواقع'], ['tickets.work', 'استلام البلاغات وحلها', 'الاستلام والرد وتحديث الحالة'], ['chat.answer', 'الرد على الاستفسارات', 'استقبال استفسارات الموظفين والرد عليها'], ['users.password', 'إصدار كلمات المرور', 'إصدار أو تغيير كلمة مرور الحسابات الأدنى'], ['forms.manage', 'إدارة النماذج والاستمارات', 'إضافة الاستمارات وتعديلها وحذفها'], ['backup.manage', 'النسخ الاحتياطي والبيانات', 'أخذ النسخ والاسترداد وجدولة النسخ التلقائي'], ['announce.manage', 'التعاميم وحالة الخدمات', 'نشر الإعلانات وتحديث حالة الخدمات'], ['worklog', 'تسجيل أعمال القسم', 'تسجيل الأعمال اليومية والزيارات والورش'], ['worklog.all', 'الاطلاع على أعمال القسم كاملة', 'عرض أعمال جميع الفنيين والإداريين وتقاريرها'], ['works', 'متابعة الأعمال الداخلية والخارجية', 'المجلدات والمواضيع والمرفقات ومتابعتها'], ['tickets.manage', 'إدارة البلاغات', 'الإسناد لفني آخر وتغيير الأولوية والإلغاء']] },
-  { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة'], ['extmaint.read', 'عرض الصيانة الخارجية', 'الاطلاع على الأجهزة المرسلة للجهات الخارجية ومتابعتها'], ['extmaint.manage', 'إدارة الصيانة الخارجية', 'إرسال الأجهزة للجهات واستلامها وتسليمها وتسمية القسم'], ['vouchers.design', 'تصميم الاستمارات الرسمية', 'تعديل الشعار والترويسة والخطوط والتواقيع لسندات الصرف والإعارة والنقل والاستبدال']] },
+  { title: 'المخازن والعهد', icon: 'warehouse', items: [['inventory.read', 'عرض المخازن والأرصدة', ''], ['inventory.move', 'حركات المخزون', 'الاستلام والصرف والتحويل'], ['loans.manage', 'العهد والإعارات', 'تسليم العهد وإرجاعها'], ['inventory.manage', 'إدارة الأصناف', 'إضافة الأصناف وتعديلها والجرد'], ['inventory.fix', 'تصحيح عدد الإضافات', 'تعديل عدد الأجهزة المستلمة في المخزن أو المضافة لعهدة الإدارات بعد حفظها عند الخطأ، مع سبب التعديل وسجله (تلزم معها صلاحية من صلاحيات المخزن)'], ['custody.direct', 'إضافة عهدة للإدارات مباشرة', 'تسجيل عهدة قائمة دون صرف من المخزن، فقط عندما يفتح المشرف الإضافة المباشرة'], ['extmaint.read', 'عرض الصيانة الخارجية', 'الاطلاع على الأجهزة المرسلة للجهات الخارجية ومتابعتها'], ['extmaint.manage', 'إدارة الصيانة الخارجية', 'إرسال الأجهزة للجهات واستلامها وتسليمها وتسمية القسم'], ['vouchers.design', 'تصميم الاستمارات الرسمية', 'تعديل الشعار والترويسة والخطوط والتواقيع لسندات الصرف والإعارة والنقل والاستبدال']] },
   { title: 'الصيانة', icon: 'tools', items: [['maint.work', 'صيانة الأجهزة', 'استلام الجهاز برقمه التسلسلي، وتسجيل ما تم فيه، وتسليمه إلى موقعه، مع سجل كل صيانة سابقة']] },
   { title: 'المعرفة', icon: 'book', items: [['kb.read', 'قراءة قاعدة المعرفة', ''], ['kb.write', 'كتابة مقالات الحلول', ''], ['forms', 'النماذج والاستمارات', ''], ['forms.hide', 'إخفاء المستندات', 'إخفاء النماذج والاستمارات عن الموظفين وإظهارها'], ['categories.docs', 'مستندات فئات البلاغات', 'إضافة مستند لكل فئة وإلزام إرفاقه'], ['formfill.manage', 'إدارة التعبئة الفورية', 'إيقاف التعبئة الفورية للاستمارات أو إتاحتها، وحفظ قوالب التعبئة']] },
   { title: 'الاستبيانات والتقييم', icon: 'poll', items: [['surveys.manage', 'إدارة الاستبيانات', 'إنشاء الاستبيانات والاختبارات ونشرها ومتابعة نتائجها'], ['ratings.manage', 'إدارة تقييم البلاغات', 'تفعيل التقييم وإعداده ومتابعة رضا المستفيدين'], ['replies.manage', 'الردود الجاهزة العامة', 'إضافة الردود والحلول الجاهزة لكل الفنيين وتعديلها']] },
@@ -5565,6 +5565,7 @@ Pages.deptDetail = async (ctx) => {
           ${UI.panel({ title: 'كل أصناف الإدارة', icon: 'box', flush: st.view !== 'grid', tools: html`${Auth.can('inventory.move') ? html`<button class="btn btn-sm btn-soft" data-act="bulk">${UI.icon('swap')} نقل المحدد</button>` : ''}<div class="seg sm">${[['list', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid']].map(([k, l, ic]) => html`<label><input type="radio" name="devview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div>`, body: st.view === 'grid' ? (rows.length ? html`<div class="dev-grid">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', categoryId: '' }; return CACT.card(it, r.qty, { itemId: r.itemId, dep: id }); })}</div>` : UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة.' })) : rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th style="width:36px"></th><th>الصنف</th><th>التصنيف</th><th>الكمية</th><th>الموزّع</th><th></th></tr></thead><tbody class="stagger">${rows.map((r) => { const it = items.get(r.itemId) || { name: 'صنف محذوف', sku: '' }, dist = unitData.rows.filter((x) => x.itemId === r.itemId).reduce((a, x) => a + x.qty, 0); return html`<tr><td><input type="checkbox" data-sel="${r.itemId}" aria-label="تحديد"></td><td><button type="button" class="t-title link-title" data-device="${r.itemId}">${UI.illu(itemIllu(it))}<div><div dir="auto">${it.id ? DNM.model(it) : it.name}</div><div class="t-sub" style="text-align:start">${it.id ? DNM.brand(it) : ''}</div></div></button></td><td>${Data.nameOf('itemCategories', it.categoryId)}</td><td><b>${fmtNum(r.qty)}</b></td><td>${dist >= r.qty ? UI.chip('teal', 'موزّع بالكامل') : UI.chip('amber', `${fmtNum(dist)} من ${fmtNum(r.qty)}`)}</td><td class="nowrap">${Auth.can('inventory.move') ? html`<button class="btn btn-ghost btn-sm" data-assign="${r.itemId}" data-name="${it.name}">${UI.icon('pin')} توزيع</button><button class="btn btn-ghost btn-sm" data-xfer="${r.itemId}">${UI.icon('swap')} نقل</button><button class="btn btn-ghost btn-sm" data-swap="${r.itemId}">${UI.icon('refresh')} استبدال</button><button class="btn btn-ghost btn-sm" data-maint="${r.itemId}">${UI.icon('tools')} صيانة</button><button class="btn btn-ghost btn-sm" data-ret="${r.itemId}">${UI.icon('undo')}</button>` : ''}</td></tr>`; })}</tbody></table></div>` : html`<div class="panel-body">${UI.empty({ illu: 'box', title: 'لا توجد عهدة لهذه الإدارة', text: 'اصرف صنفاً من المخزن إلى هذه الإدارة لتظهر هنا.' })}</div>` })}
         </div>
         <div class="stack">
+          ${await QFIX.deptPanel(id)}
           ${UI.panel({ title: 'عهد أفراد الإدارة', icon: 'clipboard', body: mine.length ? html`<div class="list">${mine.map((l) => html`<div class="list-row"><div class="grow"><b>${l.itemName}</b><div class="t-sub">${l.borrower} — ${l.number}</div></div>${l.dueAt && l.dueAt < now() ? UI.chip('red', 'متأخرة', 'alert') : UI.chip('sky', fmtNum(l.qty - l.returnedQty))}</div>`)}</div>` : UI.noData('لا توجد عهد أفراد نشطة') })}
           ${UI.panel({ title: 'أعلى المكاتب', icon: 'chart', body: unitData.byUnit.size ? UI.chart.hbars([...unitData.byUnit.entries()].sort((a, b) => b[1].units - a[1].units).slice(0, 8).map(([uid2, v], i) => { const all = tree.flatMap((s) => s.offices); return { label: unitName(uid2, all) || 'موقع', value: v.units, tone: TONES[i % TONES.length] }; })) : UI.noData('لم توزَّع العهدة على المكاتب بعد') })}
         </div>
@@ -12125,7 +12126,7 @@ Data.dept.addDirect = async ({ departmentId, itemId, qty, unitId = '', serials =
   await DB.run(['movements', 'deptStock'], async (T) => {
     const ds = (await T.get('deptStock', [departmentId, itemId])) || { departmentId, itemId, qty: 0 };
     ds.qty += n; ds.updatedAt = at;
-    mv = { id: uid('mv'), type: 'dept_opening', itemId, warehouseId: '', qty: n, delta: 0, balance: null, at, userId: me, note: note || 'إضافة مباشرة لعهدة الإدارة', ref: '', party: holder || Data.nameOf('departments', departmentId), departmentId };
+    mv = { id: uid('mv'), type: 'dept_opening', itemId, warehouseId: '', qty: n, delta: 0, balance: null, at, userId: me, note: note || 'إضافة مباشرة لعهدة الإدارة', ref: '', party: holder || Data.nameOf('departments', departmentId), departmentId, unitId: unitId || '', sns: pairs.length };
     await T.put('deptStock', ds); await T.put('movements', mv);
   });
   if (pairs.length) await DB.bulkPut('assets', pairs.map((p) => ({ id: uid('as'), itemId, serial: p.serial || p.tag, tag: p.tag || '', host: String(p.host || '').trim(), status: 'issued', warehouseId: '', departmentId, unitId: unitId || '', holder, holderId, loanId: '', note: 'إضافة مباشرة', addedAt: at, updatedAt: at })));
@@ -23435,6 +23436,109 @@ document.addEventListener('click', async (e) => {
   document.addEventListener('drop', async (e) => { if (!dragId) return; const c = catOf(e.target); if (!c) return; e.preventDefault(); const id = dragId; dragId = ''; $$('.brw-over').forEach((x) => x.classList.remove('brw-over')); try { const n = await Data.inv.moveToFolder([id], c); UI.toast(n ? `نُقل الصنف إلى «${IC.label(c)}»` : 'الصنف في هذا المجلد أصلاً'); } catch (ex) { UI.error(ex); } });
 }
 
+
+/* ══════════ الجولة 51: تصحيح عدد الإضافة بعد حفظها ══════════
+   الاستلام في المخزن والإضافة المباشرة لعهدة الإدارة يُصحَّح عددهما عند الخطأ، لمن منحه المشرف «تصحيح عدد الإضافات».
+   تُعدَّل الحركة نفسها (فتبقى التقارير وإعادة بناء العهد صحيحة)، ويتغير الرصيد بالفرق فقط:
+   رصيد المخزن والرصيد الكلي للصنف، أو عهدة الإدارة ومكتبها. لا يُنقص ما صُرف أو نُقل بعد الإضافة، ولا ما سُجل برقمه التسلسلي.
+   لكل تعديل سبب وسجل (من، متى، من كم إلى كم)، ويُبلَّغ من أضاف إن عدّله غيره. */
+const QFIX = {
+  TYPES: ['receive', 'dept_opening'],
+  can: () => !!Auth.user && canUser(Auth.user, 'inventory.fix') && ['inventory.manage', 'inventory.move', 'custody.direct', 'loans.manage', 'settings'].some((p) => canUser(Auth.user, p)),
+  ok: (m) => !!m && QFIX.TYPES.includes(m.type) && !m.voided,
+  btn: (m) => (QFIX.ok(m) && QFIX.can() ? html`<button type="button" class="btn btn-ghost btn-sm qfix-b" data-qfix="${m.id}" title="تعديل العدد عند الخطأ">${UI.icon('edit')} تعديل العدد</button>` : ''),
+  tag: (m) => ((m.fixes || []).length ? html`<span class="qfix-tag" title="${m.fixes.map((f) => `${fmtDateTime(f.at)} — ${Data.userName(f.by)}: من ${fmtNum(f.from)} إلى ${fmtNum(f.to)}${f.reason ? ` (${f.reason})` : ''}`).join('\n')}">${UI.icon('edit')} معدّل من ${fmtNum(m.fixes[0].from)}</span>` : ''),
+  place: (m) => (m.type === 'dept_opening' ? `عهدة ${Data.nameOf('departments', m.departmentId, 'الإدارة')}` : `المخزن: ${Data.nameOf('warehouses', m.warehouseId, '—')}`),
+  /* ما يحدث للأرصدة لو صار العدد n، وسبب المنع إن وُجد */
+  async plan(m, n) {
+    const it = (await DB.get('items', m.itemId)) || {}, d = n - (Number(m.qty) || 0), ser = isSerialItem(it);
+    const units = ser ? (await Data.assets.byItem(m.itemId)).filter((a) => (m.type === 'receive' ? a.status === 'in_store' && a.warehouseId === m.warehouseId : a.status === 'issued' && a.departmentId === m.departmentId)) : [];
+    if (m.type === 'receive') {
+      const cur = Number(((await DB.get('stock', [m.warehouseId, m.itemId])) || {}).qty) || 0, nx = cur + d;
+      const why = nx < 0 ? `لا يمكن إنقاص ${fmtNum(-d)}: رصيد «${it.name || 'الصنف'}» في ${Data.nameOf('warehouses', m.warehouseId)} الآن ${fmtNum(cur)} فقط، فقد صُرف أو نُقل جزء منه بعد الاستلام. أرجعه أولاً أو صحّحه بتسوية الجرد.` : ser && nx < units.length ? `في هذا المخزن ${fmtNum(units.length)} وحدة مسجلة بأرقامها التسلسلية، فلا يقل الرصيد عنها. احذف الوحدات الزائدة من «أجهزة الموديل» أولاً.` : '';
+      return { it, d, why, lines: [[`رصيد ${Data.nameOf('warehouses', m.warehouseId)}`, cur, nx], ['الرصيد الكلي للصنف', Number(it.onHand) || 0, (Number(it.onHand) || 0) + d]] };
+    }
+    const ds = Number(((await DB.get('deptStock', [m.departmentId, m.itemId])) || {}).qty) || 0, nx = ds + d;
+    const alloc = (await DB.getAll('unitStock')).filter((r) => r.departmentId === m.departmentId && r.itemId === m.itemId).reduce((a, r) => a + (Number(r.qty) || 0), 0);
+    const uq = m.unitId ? Number(((await DB.get('unitStock', [m.unitId, m.itemId])) || {}).qty) || 0 : 0;
+    const why = nx < 0 ? `لا يمكن إنقاص ${fmtNum(-d)}: عهدة الإدارة من هذا الصنف الآن ${fmtNum(ds)} فقط، فقد أُرجع أو نُقل جزء منها بعد الإضافة.` : ser && nx < units.length ? `في عهدة الإدارة ${fmtNum(units.length)} وحدة مسجلة بأرقامها التسلسلية، فلا تقل العهدة عنها. احذف الوحدات الزائدة من صفحة الإدارة أولاً.` : d < 0 && !m.unitId && nx < alloc ? `وُزّع من هذا الصنف ${fmtNum(alloc)} على مكاتب الإدارة، فلا تقل العهدة عن الموزّع. أنقص توزيع المكاتب أولاً ثم صحّح العدد.` : d < 0 && m.unitId && uq + d < 0 ? `في ${Data.nameOf('deptUnits', m.unitId, 'المكتب')} الآن ${fmtNum(uq)} فقط من هذا الصنف بعد نقل جزء منه.` : '';
+    return { it, d, why, lines: [[`عهدة ${Data.nameOf('departments', m.departmentId)}`, ds, nx], ...(m.unitId ? [[Data.nameOf('deptUnits', m.unitId, 'المكتب'), uq, Math.max(0, uq + d)]] : [])] };
+  },
+  async apply(mvId, qty, reason) {
+    if (!QFIX.can()) throw new AppError('تصحيح العدد لمن منحه المشرف صلاحية «تصحيح عدد الإضافات»');
+    const n = Math.floor(Number(qty)); if (!(n >= 0) || String(qty).trim() === '') throw new AppError('أدخل العدد الصحيح (صفر أو أكثر)');
+    reason = String(reason || '').trim(); if (reason.length < 3) throw new AppError('اكتب سبب التعديل');
+    const m0 = await DB.get('movements', mvId); if (!QFIX.ok(m0)) throw new AppError('هذه الحركة لا يُعدَّل عددها');
+    if (n === Number(m0.qty)) throw new AppError('العدد لم يتغير');
+    const p = await QFIX.plan(m0, n); if (p.why) throw new AppError(p.why);
+    const at = now(), me = Auth.user.id; let from = 0;
+    await DB.run(['items', 'stock', 'movements', 'deptStock', 'unitStock'], async (T) => {
+      const m = await T.get('movements', mvId); if (!QFIX.ok(m)) throw new AppError('هذه الحركة لا يُعدَّل عددها');
+      from = Number(m.qty) || 0; const d = n - from; if (!d) return;
+      if (m.type === 'receive') {
+        const item = await T.get('items', m.itemId); if (!item) throw new AppError('الصنف غير موجود');
+        const st = (await T.get('stock', [m.warehouseId, m.itemId])) || { warehouseId: m.warehouseId, itemId: m.itemId, qty: 0 };
+        if (st.qty + d < 0) throw new AppError(p.why || 'الرصيد الحالي لا يكفي للإنقاص');
+        st.qty += d; st.updatedAt = at; item.onHand = (Number(item.onHand) || 0) + d; item.updatedAt = at;
+        await T.put('stock', st); await T.put('items', item);
+        m.delta = n; if (m.balance != null) m.balance = (Number(m.balance) || 0) + d;
+      } else {
+        const ds = (await T.get('deptStock', [m.departmentId, m.itemId])) || { departmentId: m.departmentId, itemId: m.itemId, qty: 0 };
+        if (ds.qty + d < 0) throw new AppError(p.why || 'عهدة الإدارة الحالية لا تكفي للإنقاص');
+        ds.qty += d; ds.updatedAt = at; await T.put('deptStock', ds);
+        if (m.unitId) { const us = (await T.get('unitStock', [m.unitId, m.itemId])) || { unitId: m.unitId, departmentId: m.departmentId, itemId: m.itemId, qty: 0 }; us.qty = Math.max(0, (Number(us.qty) || 0) + d); us.updatedAt = at; await T.put('unitStock', us); }
+      }
+      m.fixes = [...(m.fixes || []), { at, by: me, from, to: n, reason }];
+      if (m.origQty == null) m.origQty = from;
+      Object.assign(m, { qty: n, fixedAt: at, fixedBy: me, updatedAt: at });
+      await T.put('movements', m);
+    });
+    const it = p.it || {};
+    await Data.log('update', 'inventory', m0.itemId, `تصحيح عدد ${m0.type === 'receive' ? 'استلام' : 'إضافة عهدة'}: ${it.name || 'صنف'} (${QFIX.place(m0)}) من ${fmtNum(from)} إلى ${fmtNum(n)} — ${reason}`);
+    if (m0.userId && m0.userId !== me) { try { await Data.notify([m0.userId], { title: `عُدّل عدد ${m0.type === 'receive' ? 'استلام' : 'إضافة عهدة'} سجّلتها`, body: `${it.name || 'صنف'}: من ${fmtNum(from)} إلى ${fmtNum(n)} — ${Data.userName(me)}: ${reason}`, link: `/inventory/items/${m0.itemId}`, kind: 'inventory' }); } catch (_) { /* تجاهل */ } }
+    Bus.emit('inventory', { itemId: m0.itemId }); return { from, to: n };
+  },
+  async open(mvId) {
+    if (!QFIX.can()) { UI.toast('تصحيح العدد لمن منحه المشرف صلاحية «تصحيح عدد الإضافات»', 'warn'); return false; }
+    const m = await DB.get('movements', mvId); if (!QFIX.ok(m)) { UI.toast('هذه الحركة لا يُعدَّل عددها', 'warn'); return false; }
+    const it = (await DB.get('items', m.itemId)) || {}, dep = m.type === 'dept_opening', q0 = Number(m.qty) || 0;
+    const hist = (m.fixes || []).length ? html`<div class="qfix-hist"><b>${UI.icon('clock')} تعديلات سابقة</b>${m.fixes.map((f) => html`<div><span class="ltr">${fmtNum(f.from)} ← ${fmtNum(f.to)}</span><small>${Data.userName(f.by)} · ${fmtDateTime(f.at)}${f.reason ? ` · ${f.reason}` : ''}</small></div>`)}</div>` : '';
+    return UI.modal({ title: dep ? 'تعديل عدد إضافة العهدة' : 'تعديل عدد الاستلام', icon: 'edit', size: 'md',
+      body: html`<div class="qfix-card">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b dir="auto">${it.name || 'صنف'}</b><small>${QFIX.place(m)}${dep && m.unitId ? ` — ${Data.nameOf('deptUnits', m.unitId, '')}` : ''} · ${fmtDateTime(m.at)} · ${m.userId ? Data.userName(m.userId) : 'ترحيل'}</small>${m.note ? html`<small>${m.note}</small>` : ''}</div><div class="qfix-q"><small>المسجل</small><b>${fmtNum(q0)}</b></div></div>
+        <div class="form-grid qfix-f">
+          <label class="field"><span class="field-label">العدد الصحيح</span><div class="qfix-step"><button type="button" class="icon-btn" data-qst="-1" aria-label="إنقاص">−</button><input class="input" type="number" name="qty" min="0" step="1" value="${q0}" dir="ltr" required><button type="button" class="icon-btn" data-qst="1" aria-label="زيادة">+</button></div><small class="faint">صفر يلغي الإضافة كلها</small></label>
+          <label class="field"><span class="field-label">سبب التعديل</span><input class="input" name="reason" maxlength="200" placeholder="مثال: أُدخل 10 بدل 1 بالخطأ" required></label>
+        </div>
+        <div class="qfix-eff" data-qeff></div>${hist}`,
+      onMount: (f) => {
+        const inp = f.querySelector('[name="qty"]'), eff = f.querySelector('[data-qeff]'); let tk = 0;
+        const upd = async () => {
+          const t = ++tk, n = Math.floor(Number(inp.value)); if (!(n >= 0)) { eff.innerHTML = ''; return; }
+          const p = await QFIX.plan(m, n); if (t !== tk) return;
+          eff.innerHTML = String(p.d ? html`<div class="qfix-chg ${p.d > 0 ? 'up' : 'down'}">${UI.icon(p.d > 0 ? 'arrowUp' : 'download')} ${p.d > 0 ? `زيادة ${fmtNum(p.d)}` : `إنقاص ${fmtNum(-p.d)}`}</div><div class="qfix-rows">${p.lines.map(([l, a, b]) => html`<div><span>${l}</span><b class="ltr">${fmtNum(a)} ← ${fmtNum(b)}</b></div>`)}</div>${p.why ? html`<div class="banner tone-red qfix-why">${UI.icon('alert')}<div>${p.why}</div></div>` : ''}` : html`<p class="faint small">اكتب العدد الصحيح فيظهر أثره على الأرصدة قبل الحفظ.</p>`);
+        };
+        inp.addEventListener('input', debounce(upd, 120));
+        UI.on(f, 'click', '[data-qst]', (e, b) => { inp.value = Math.max(0, (Math.floor(Number(inp.value)) || 0) + Number(b.dataset.qst)); upd(); });
+        upd(); setTimeout(() => { inp.focus(); inp.select(); }, 60);
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'حفظ التعديل', kind: 'primary', icon: 'check', submit: true, handler: async (f) => {
+        const r = await QFIX.apply(m.id, f.querySelector('[name="qty"]').value, f.querySelector('[name="reason"]').value);
+        UI.toast(`صُحّح العدد من ${fmtNum(r.from)} إلى ${fmtNum(r.to)}، وعُدّلت الأرصدة`); return true;
+      } }] });
+  },
+  /* صفحة عهدة الإدارة: آخر الإضافات المباشرة */
+  async deptPanel(depId) {
+    const rows = (await DB.getAll('movements', 'at', KR(now() - 365 * DAY, Infinity))).filter((m) => m.type === 'dept_opening' && m.departmentId === depId).sort((a, b) => b.at - a.at).slice(0, 12);
+    if (!rows.length) return '';
+    const items = new Map((await Promise.all([...new Set(rows.map((m) => m.itemId))].map((x) => DB.get('items', x)))).filter(Boolean).map((i) => [i.id, i]));
+    return UI.panel({ title: 'آخر الإضافات المباشرة', icon: 'plus', sub: QFIX.can() ? 'صحّح العدد إن أُدخل خطأ' : 'آخر ما أُضيف لعهدة الإدارة مباشرة', flush: true, body: html`<div class="list qfix-list">${rows.map((m) => { const it = items.get(m.itemId) || {}; return html`<div class="list-row"><div class="grow ellipsis"><b dir="auto">${it.id ? DNM.model(it) : 'صنف محذوف'}</b><div class="t-sub">${fmtDateTime(m.at)} · ${m.userId ? Data.userName(m.userId) : '—'}${m.unitId ? ` · ${Data.nameOf('deptUnits', m.unitId, '')}` : ''}</div>${QFIX.tag(m)}</div><span class="qfix-n">${fmtNum(m.qty)}</span>${QFIX.btn(m)}</div>`; })}</div>` });
+  }
+};
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-qfix]'); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  QFIX.open(b.dataset.qfix).catch(UI.error);
+}, true);
 /* ══════════ الجولة 50: الكتابة في خانات البحث لا تتوقف بعد أول حرف ══════════
    صفحات كثيرة تعيد رسم نفسها كاملة عند البحث فتُستبدل الخانة ويضيع التركيز. إن اختفت الخانة التي يُكتب فيها
    وظهرت مكانها خانة بالمعرّف نفسه (أو الاسم أو النص الإرشادي) خلال ثانيتين من آخر حرف، يعود إليها التركيز

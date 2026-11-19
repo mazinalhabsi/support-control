@@ -7683,3 +7683,32 @@ body.vle-rowrs,body.vle-rowrs *{cursor:row-resize!important;user-select:none}
 .ink-list .dn-inline{flex:none;max-width:30%}
 .ink-hint{margin:10px 2px 0}
 @media (max-width:700px){.ink-list .brw-card{flex-wrap:wrap}.ink-list .brw-acts{width:100%;justify-content:flex-end}}
+
+/* ══ الجولة 51: تصحيح عدد الإضافة ══ */
+.qfix-td{width:1%;white-space:nowrap}
+.qfix-b{white-space:nowrap}
+.qfix-tag{display:inline-flex;align-items:center;gap:3px;margin-inline-start:6px;font-size:10.5px;font-weight:700;color:rgb(var(--amber-ink,180,83,9));background:rgba(var(--amber,217,119,6),.13);border-radius:999px;padding:1px 7px;vertical-align:1px;white-space:nowrap}
+.qfix-tag .ic{width:11px;height:11px}
+.qfix-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:14px;background:var(--surface-2);margin-bottom:12px}
+.qfix-card .grow{min-width:0;display:flex;flex-direction:column;gap:2px}
+.qfix-card small{color:var(--ink-3);font-size:12px}
+.qfix-q{display:flex;flex-direction:column;align-items:center;min-width:64px;padding:4px 10px;border-radius:12px;background:var(--surface-solid);border:1px solid var(--line-2)}
+.qfix-q b{font:800 22px var(--f-display)}
+.qfix-q small{font-size:10.5px}
+.qfix-step{display:flex;align-items:center;gap:6px}
+.qfix-step .input{text-align:center;font:800 18px var(--f-display);max-width:120px}
+.qfix-step .icon-btn{width:38px;height:38px;font-size:20px;font-weight:800}
+.qfix-eff{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.qfix-chg{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;font-weight:800;border-radius:999px;padding:3px 12px}
+.qfix-chg.up{background:rgba(var(--teal),.14);color:rgb(var(--teal-ink,15,118,110))}
+.qfix-chg.down{background:rgba(var(--red),.12);color:rgb(var(--red-ink,185,28,28))}
+.qfix-chg .ic{width:14px;height:14px}
+.qfix-rows{display:grid;gap:6px}
+.qfix-rows>div{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border:1px dashed var(--line-2);border-radius:10px}
+.qfix-rows span{color:var(--ink-3)}
+.qfix-why{margin:0}
+.qfix-hist{margin-top:14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.qfix-hist>div{display:flex;flex-direction:column;gap:1px;padding:6px 10px;border-inline-start:3px solid rgba(var(--amber,217,119,6),.6);background:var(--surface-2);border-radius:8px}
+.qfix-hist small{color:var(--ink-3)}
+.qfix-list .list-row{gap:10px}
+.qfix-n{font:800 16px var(--f-display);min-width:34px;text-align:center}
