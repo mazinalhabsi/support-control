@@ -12261,8 +12261,11 @@ Pages.icDeleteModal = async (id) => {
   if (!items.length && !kids.length) { if (!(await UI.confirm(`حذف المجلد «${c.name}»؟ المجلد فارغ.`, { danger: true, ok: 'حذف' }))) return false; await Data.icats.remove(id); UI.toast('حُذف المجلد'); return true; }
   const targets = Data.list('itemCategories').filter((x) => !sub.has(x.id)).map((x) => ({ value: x.id, label: IC.label(x.id) })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
   if (!targets.length) { UI.toast('أنشئ مجلداً آخر أولاً لنقل المحتويات إليه', 'warn'); return false; }
+  const subItems = (await DB.getAll('items')).filter((i) => sub.has(i.categoryId)), names = new Map(subItems.map((i) => [i.id, i.name]));
+  const sns = (await DB.getAll('assets')).filter((a) => names.has(a.itemId) && a.status !== 'retired');
+  if (sns.length && !(await SNL.confirm(sns, { title: `حذف المجلد «${c.name}»`, text: 'لن تُحذف هذه الأجهزة: تنتقل مع أصنافها إلى المجلد الذي تختاره بعد قليل. هذا تنبيه لتتأكد أنك تحذف المجلد الصحيح.', ok: 'متابعة', item: (a) => names.get(a.itemId) }))) return false;
   return UI.modal({ title: `حذف المجلد: ${c.name}`, icon: 'trash', size: 'sm',
-    body: html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">يحتوي المجلد على ${arCount(items.length, AR.item)} و${fmtNum(kids.length)} مجلد فرعي. تُنقل كلها إلى المجلد الذي تختاره، ولا تتأثر الأرصدة أو العهد.</div></div>${UI.field({ name: 'to', label: 'نقل المحتويات إلى', type: 'select', options: targets, required: true, wide: true }, (Data.c.itemCategories.get(c.parentId) || {}).id || '')}`,
+    body: html`<div class="banner tone-amber">${UI.icon('alert')}<div class="grow">يحتوي المجلد على ${arCount(items.length, AR.item)} و${fmtNum(kids.length)} مجلد فرعي${sns.length ? ` و${SNL.dev(sns.length)} بأرقام تسلسلية` : ''}. تُنقل كلها إلى المجلد الذي تختاره، ولا تتأثر الأرصدة أو العهد.</div></div>${UI.field({ name: 'to', label: 'نقل المحتويات إلى', type: 'select', options: targets, required: true, wide: true }, (Data.c.itemCategories.get(c.parentId) || {}).id || '')}`,
     actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'نقل ثم حذف', kind: 'danger', icon: 'trash', submit: true, handler: async (f) => { const to = f.querySelector('[name="to"]').value; const r = await Data.icats.remove(id, to); UI.toast(`حُذف المجلد ونُقل ${arCount(r.items, AR.item)} و${fmtNum(r.folders)} مجلد إلى «${Data.nameOf('itemCategories', to)}»`); return true; } }] });
 };
 Data.inv.removeItem = async (id) => {
@@ -17362,7 +17365,8 @@ Pages.itemDeleteFlow = async (id) => {
         <label class="purge-opt${canArchive ? '' : ' off'}"><input type="radio" name="how" value="archive"${canArchive ? raw(' checked') : raw(' disabled')}><span><b>${UI.icon('archive')} أرشفة</b><small>${canArchive ? 'يختفي من المخزن والقوائم، ويبقى سجله في التقارير، ويمكن استعادته.' : 'غير متاحة: عليه أرصدة أو عهد قائمة.'}</small></span></label>
         ${locked ? '' : html`<label class="purge-opt danger"><input type="radio" name="how" value="purge"${canArchive ? '' : raw(' checked')}><span><b>${UI.icon('trash')} حذف نهائي مع كل ما يتعلق به</b><small>يُحذف الصنف وأرصدته في المخازن وعهده لدى الإدارات والأقسام ووحداته المسلسلة وإعاراته وصيانته وحركاته من الخادم ومن كل الأجهزة. السندات المطبوعة سابقاً تبقى.</small></span></label>`}
       </div>
-      ${locked ? '' : html`<label class="chk mt purge-ok"><input type="checkbox" name="sure"> أفهم أن الحذف النهائي لا يمكن التراجع عنه</label>`}`,
+      ${locked ? '' : html`<label class="chk mt purge-ok"><input type="checkbox" name="sure"> أفهم أن الحذف النهائي لا يمكن التراجع عنه</label>`}
+      ${u.assets.length ? html`<div class="mt">${SNL.list(u.assets, { title: 'أجهزته المسجلة بأرقامها التسلسلية', tone: 'amber' })}</div>` : ''}`,
     onMount: (form) => {
       const btn = form.querySelector('.modal-foot .btn-danger'), sync = () => { const how = (form.querySelector('[name="how"]:checked') || {}).value; if (btn) btn.disabled = !how || (how === 'purge' && !form.querySelector('[name="sure"]').checked); };
       form.addEventListener('change', sync); sync();
@@ -17370,7 +17374,7 @@ Pages.itemDeleteFlow = async (id) => {
     actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'تنفيذ', kind: 'danger', icon: 'check', submit: true, handler: async (form) => {
       const how = (form.querySelector('[name="how"]:checked') || {}).value;
       if (how === 'archive') { await Data.inv.archive(id); return 'archived'; }
-      if (how === 'purge') { if (!form.querySelector('[name="sure"]').checked) throw new AppError('أكّد الحذف النهائي'); await Data.inv.purgeItem(id); return 'purged'; }
+      if (how === 'purge') { if (!form.querySelector('[name="sure"]').checked) throw new AppError('أكّد الحذف النهائي'); if (u.assets.length && !(await SNL.confirm(u.assets, { text: `أجهزة «${it.name}» كلها، في المخازن والعهد والإعارات.`, ok: 'حذف الصنف وأرقامه' }))) return false; await Data.inv.purgeItem(id); return 'purged'; }
       return null;
     } }]
   });
@@ -22855,6 +22859,7 @@ Pages.modelsBulkDelete = async (ids) => {
         <label class="purge-opt"><input type="radio" name="how" value="safe" checked><span><b>${UI.icon('shield')} حذف آمن</b><small>${[free.length ? `${locked ? 'أرشفة' : 'حذف'} ${fmtNum(free.length)}` : '', hist.length ? `أرشفة ${fmtNum(hist.length)}` : '', busy.length ? `تخطي ${fmtNum(busy.length)}` : ''].filter(Boolean).join(' · ')}</small></span></label>
         ${locked ? '' : html`<label class="purge-opt danger"><input type="radio" name="how" value="purge"><span><b>${UI.icon('trash')} حذف نهائي للكل مع كل ما يتعلق به</b><small>تُحذف النماذج وأرصدتها في المخازن وعهدها لدى الإدارات ووحداتها المسلسلة وإعاراتها وصيانتها وحركاتها. السندات المطبوعة تبقى</small></span></label>`}
       </div>
+      ${info.some((x) => x.u.assets.length) ? html`<div class="mt">${SNL.list(info.flatMap((x) => x.u.assets.map((a) => ({ ...a, _m: x.it.name }))), { title: 'أجهزة مسجلة بأرقامها التسلسلية (تُحذف في الحذف النهائي)', tone: 'amber', item: (a) => a._m })}</div>` : ''}
       ${locked ? html`<div class="banner tone-red mt">${UI.icon('lock')}<div class="grow"><b>حذف الأجهزة مقفل</b><div class="small">الأرشفة متاحة فقط. لفتح الحذف: الإعدادات ← أقفال المخزن والعهد.</div></div></div>` : html`<label class="chk mt purge-ok" hidden><input type="checkbox" name="sure"> أفهم أن الحذف النهائي لا يمكن التراجع عنه</label>`}`,
     onMount: (form) => {
       const btn = form.querySelector('.modal-foot .btn-danger'), ok = form.querySelector('.purge-ok');
@@ -22866,6 +22871,8 @@ Pages.modelsBulkDelete = async (ids) => {
       const run = async (x, fn) => { try { const v = await fn(); if (v === 'archived') r.archived++; else r.deleted++; } catch (ex) { r.failed.push(`${x.it.name}: ${ex.message || ex}`); } };
       if (how === 'purge') {
         if (!form.querySelector('[name="sure"]').checked) throw new AppError('أكّد الحذف النهائي');
+        const allSn = info.flatMap((x) => x.u.assets.map((a) => ({ ...a, _m: x.it.name })));
+        if (allSn.length && !(await SNL.confirm(allSn, { text: `من ${fmtNum(info.filter((x) => x.u.assets.length).length)} نموذج.`, ok: 'حذف النماذج وأرقامها', item: (a) => a._m }))) return false;
         for (const x of info) await run(x, async () => { await Data.inv.purgeItem(x.it.id); return 'deleted'; });
       } else {
         for (const x of free) await run(x, async () => { if (locked) { await Data.inv.archive(x.it.id); return 'archived'; } return Data.inv.removeItem(x.it.id); });
@@ -23442,21 +23449,63 @@ document.addEventListener('click', async (e) => {
    في المخزن: من بطاقة الموديل (اضغط العدد) أو صفحة الصنف، يُكتب العدد الصحيح في كل مخزن فيُسجَّل الفرق تسويةً بسببها.
    في العهدة: من صفحة الإدارة (قائمة الأصناف أو مكاتبها)، يُكتب العدد الصحيح غير الموزّع وفي كل مكتب.
    لمن يملك عمليات المخزن أو العهدة، بلا صلاحية خاصة. لا يقل العدد عن الوحدات المسجلة بأرقامها التسلسلية. */
+/* الأرقام التسلسلية: قائمة بمكان كل وحدة، ونافذة تأكيد تعرض ما سيُحذف منها */
+const SNL = {
+  dev: (n) => (n === 1 ? 'جهاز واحد' : n === 2 ? 'جهازان' : n <= 10 ? `${fmtNum(n)} أجهزة` : `${fmtNum(n)} جهازاً`),
+  /* منصوب بعد «حدد» */
+  pick: (n) => (n === 1 ? 'رقماً تسلسلياً واحداً' : n === 2 ? 'رقمين تسلسليين' : n <= 10 ? `${fmtNum(n)} أرقام تسلسلية` : `${fmtNum(n)} رقماً تسلسلياً`),
+  num: (n) => (n === 1 ? 'رقم تسلسلي واحد' : n === 2 ? 'رقمان تسلسليان' : n <= 10 ? `${fmtNum(n)} أرقام تسلسلية` : `${fmtNum(n)} رقماً تسلسلياً`),
+  place(a) {
+    if (a.status === 'in_store') return `المخزن: ${Data.nameOf('warehouses', a.warehouseId, '—')}`;
+    if (a.status === 'issued') return [`عهدة ${Data.nameOf('departments', a.departmentId, '')}`, a.unitId ? Data.nameOf('deptUnits', a.unitId, '') : '', a.holder].filter(Boolean).join(' — ');
+    return [((typeof ASSET_STATUS !== 'undefined' && ASSET_STATUS[a.status]) || {}).label || a.status, a.holder].filter(Boolean).join(' — ');
+  },
+  list(assets, o = {}) {
+    const n = assets.length; if (!n) return '';
+    return html`<div class="snl${o.tone ? ` tone-${o.tone}` : ''}"><div class="snl-h">${UI.icon('tag')}<b>${o.title || 'الأرقام التسلسلية'}</b><small>${fmtNum(n)}</small></div><div class="snl-l">${assets.slice(0, 400).map((a) => html`<div class="snl-r"><span class="ltr snl-sn">${a.serial}</span>${a.tag ? html`<small class="ltr snl-tag">${a.tag}</small>` : ''}<small class="snl-p">${o.item ? `${o.item(a)} · ` : ''}${SNL.place(a)}</small></div>`)}${n > 400 ? html`<div class="snl-more">وغيرها: ${SNL.num(n - 400)}</div>` : ''}</div></div>`;
+  },
+  confirm(assets, { title = 'تأكيد حذف الأرقام التسلسلية', text = '', ok = 'حذف', item = null } = {}) {
+    return UI.modal({ title, icon: 'alert', size: 'md',
+      body: html`<div class="banner tone-red">${UI.icon('alert')}<div class="grow"><b>${assets.length === 1 ? 'سيُحذف جهاز واحد برقمه التسلسلي نهائياً' : `ستُحذف ${SNL.dev(assets.length)} بأرقامها التسلسلية نهائياً`}</b>${text ? html`<div class="small">${text}</div>` : ''}</div></div>${SNL.list(assets, { title: 'الأرقام التي ستُحذف', tone: 'red', item })}`,
+      actions: [{ label: 'تراجع', kind: 'ghost', value: false }, { label: ok, kind: 'danger', icon: 'trash', value: true }] });
+  }
+};
+/* ══════════ الجولة 52: تعديل العدد مباشرة ══════════
+   في المخزن: من بطاقة الموديل (اضغط العدد) أو صفحة الصنف، يُكتب العدد الصحيح في كل مخزن فيُسجَّل الفرق تسويةً بسببها.
+   في العهدة: من صفحة الإدارة (قائمة الأصناف أو مكاتبها)، يُكتب العدد الصحيح غير الموزّع وفي كل مكتب.
+   الجولة 53: إن نقص العدد وفي المكان أجهزة بأرقام تسلسلية، تظهر أرقامها لتحديد ما يُحذف منها (إلزامياً إن نزل العدد عن عددها)،
+   ثم نافذة تأكيد تعرض الأرقام المحددة قبل الحذف. */
 const QEDIT = {
   STORE: ['inventory.move', 'inventory.manage', 'settings'],
   DEPT: ['custody.direct', 'inventory.move', 'inventory.manage', 'settings'],
   canStore: () => !!Auth.user && QEDIT.STORE.some((p) => canUser(Auth.user, p)),
   canDept: () => !!Auth.user && QEDIT.DEPT.some((p) => canUser(Auth.user, p)),
-  row: (l, cur, name, min, extra = '') => html`<div class="qe-row"><div class="grow"><b>${l}</b>${extra ? html`<small>${extra}</small>` : ''}</div><span class="qe-cur" title="الحالي">${fmtNum(cur)}</span><span class="qe-ar">←</span><div class="qfix-step"><button type="button" class="icon-btn" data-qst="-1" aria-label="إنقاص">−</button><input class="input" type="number" name="${name}" min="${min}" step="1" value="${cur}" data-cur="${cur}" data-min="${min}" dir="ltr"><button type="button" class="icon-btn" data-qst="1" aria-label="زيادة">+</button></div></div>`,
+  row: (l, cur, name, extra = '') => html`<div class="qe-row"><div class="grow"><b>${l}</b>${extra ? html`<small>${extra}</small>` : ''}</div><span class="qe-cur" title="الحالي">${fmtNum(cur)}</span><span class="qe-ar">←</span><div class="qfix-step"><button type="button" class="icon-btn" data-qst="-1" aria-label="إنقاص">−</button><input class="input" type="number" name="${name}" min="0" step="1" value="${cur}" data-cur="${cur}" dir="ltr"><button type="button" class="icon-btn" data-qst="1" aria-label="زيادة">+</button></div></div>`,
+  /* مكان (مخزن أو مكتب) بعدده وأجهزته المسلسلة فيه */
+  loc: (key, label, cur, name, units, extra = '') => html`<div class="qe-wrap" data-loc="${key}" data-label="${label}">${QEDIT.row(label, cur, name, extra || (units.length ? `${SNL.dev(units.length)} بأرقام تسلسلية` : ''))}${units.length ? html`<div class="qe-sns" hidden><div class="qe-snh" data-snh></div><div class="qe-snl">${units.map((a) => html`<label class="qe-sn"><input type="checkbox" value="${a.id}" data-sn="${a.serial}"><span class="ltr">${a.serial}</span>${a.tag ? html`<small class="ltr">${a.tag}</small>` : ''}${a.host ? html`<small class="ltr">${a.host}</small>` : ''}${a.holder && a.status === 'issued' ? html`<small>${a.holder}</small>` : ''}</label>`)}</div></div>` : ''}</div>`,
   bind(f, total) {
-    const ins = () => [...f.querySelectorAll('.qe-row input')], eff = f.querySelector('[data-qeff]');
+    const eff = f.querySelector('[data-qeff]');
     const upd = () => {
-      let a = 0, z = 0, bad = ''; ins().forEach((i) => { const c = Number(i.dataset.cur) || 0, n = Math.floor(Number(i.value)), mn = Number(i.dataset.min) || 0; a += c; z += n >= 0 ? n : c; i.closest('.qe-row').classList.toggle('chg', n >= 0 && n !== c); if (!(n >= 0)) bad = 'أدخل عدداً صحيحاً (صفر أو أكثر)'; else if (n < mn) bad = `لا يقل العدد عن ${fmtNum(mn)} — الوحدات المسجلة بأرقامها التسلسلية هنا. احذف الزائد منها أولاً من «أجهزة الموديل»`; });
+      let a = 0, z = 0, bad = ''; const del = [];
+      f.querySelectorAll('.qe-wrap').forEach((w) => {
+        const i = w.querySelector('.qe-row input'), c = Number(i.dataset.cur) || 0, n = Math.floor(Number(i.value)), ok = n >= 0;
+        a += c; z += ok ? n : c; w.querySelector('.qe-row').classList.toggle('chg', ok && n !== c);
+        if (!ok) { bad = bad || 'أدخل عدداً صحيحاً (صفر أو أكثر)'; return; }
+        const box = w.querySelector('.qe-sns'); if (!box) return;
+        const cbs = [...box.querySelectorAll('input[type="checkbox"]')], U = cbs.length, red = Math.max(0, c - n), need = Math.max(0, U - n);
+        box.hidden = !(red > 0); if (!red) cbs.forEach((x) => { x.checked = false; });
+        const sel = cbs.filter((x) => x.checked);
+        box.classList.toggle('need', sel.length < need);
+        box.querySelector('[data-snh]').innerHTML = String(html`${UI.icon('tag')} ${need ? html`<b>حدد ${SNL.pick(need)} للحذف</b>` : html`<b>اختياري: حدد الأرقام التي تُحذف مع الإنقاص</b>`}<small>${fmtNum(sel.length)} محدد${red > need ? ` · حتى ${fmtNum(red)}` : ''}</small>`);
+        cbs.forEach((x) => { x.disabled = !x.checked && sel.length >= red; x.closest('label').classList.toggle('on', x.checked); });
+        if (sel.length < need) bad = bad || `في ${w.dataset.label}: العدد الجديد ${fmtNum(n)} أقل من الأجهزة المسجلة بأرقامها التسلسلية (${fmtNum(U)}). حدد ${SNL.pick(need - sel.length)}${sel.length ? ' أخرى' : ''} للحذف`;
+        sel.forEach((x) => del.push({ id: x.value, serial: x.dataset.sn, loc: w.dataset.loc }));
+      });
       const d = z - a;
-      eff.innerHTML = String(html`<div class="qe-tot"><span>${total}</span><b class="ltr">${fmtNum(a)} ← ${fmtNum(z)}</b>${d ? html`<em class="qfix-chg ${d > 0 ? 'up' : 'down'}">${d > 0 ? `+${fmtNum(d)}` : `−${fmtNum(-d)}`}</em>` : ''}</div>${bad ? html`<div class="banner tone-red qfix-why">${UI.icon('alert')}<div>${bad}</div></div>` : ''}`);
-      return { d, bad };
+      eff.innerHTML = String(html`<div class="qe-tot"><span>${total}</span><b class="ltr">${fmtNum(a)} ← ${fmtNum(z)}</b>${d ? html`<em class="qfix-chg ${d > 0 ? 'up' : 'down'}">${d > 0 ? `+${fmtNum(d)}` : `−${fmtNum(-d)}`}</em>` : ''}${del.length ? html`<em class="qe-deln">${UI.icon('trash')} ${SNL.num(del.length)} للحذف</em>` : ''}</div>${bad ? html`<div class="banner tone-red qfix-why">${UI.icon('alert')}<div>${bad}</div></div>` : ''}`);
+      return { d, bad, del };
     };
-    f.addEventListener('input', upd);
+    f.addEventListener('input', upd); f.addEventListener('change', upd);
     UI.on(f, 'click', '[data-qst]', (e, b) => { const i = b.parentNode.querySelector('input'); i.value = Math.max(0, (Math.floor(Number(i.value)) || 0) + Number(b.dataset.qst)); upd(); });
     upd(); setTimeout(() => { const i = f.querySelector('.qe-row input'); if (i) { i.focus(); i.select(); } }, 60);
     return upd;
@@ -23465,41 +23514,47 @@ const QEDIT = {
     if (!QEDIT.canStore()) { UI.toast('تعديل العدد في المخزن لمن يستلم ويصرف فيه', 'warn'); return false; }
     const it = await DB.get('items', itemId); if (!it) return false;
     const rows = await DB.getAll('stock', 'itemId', KR(itemId)), q = new Map(rows.map((r) => [r.warehouseId, Number(r.qty) || 0]));
-    const ser = isSerialItem(it), units = ser ? (await Data.assets.byItem(itemId)).filter((a) => a.status === 'in_store') : [];
+    const units = (await Data.assets.byItem(itemId)).filter((a) => a.status === 'in_store');
     const whs = Data.list('warehouses').filter((w) => !w.archived || q.get(w.id)).sort((a, b) => (q.get(b.id) || 0) - (q.get(a.id) || 0));
     if (!whs.length) { UI.toast('لا توجد مخازن', 'warn'); return false; }
     return UI.modal({ title: 'تعديل العدد في المخزن', icon: 'hash', size: 'md',
-      body: html`<div class="qfix-card">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it) || it.name}</b><small>${[DNM.brand(it), Data.nameOf('itemCategories', it.categoryId, '')].filter(Boolean).join(' · ')}</small></div><div class="qfix-q"><small>في المخزن</small><b>${fmtNum(it.onHand)}</b></div></div>
-        <div class="qe-list">${whs.map((w) => { const sn = units.filter((a) => a.warehouseId === w.id).length; return QEDIT.row(w.name, q.get(w.id) || 0, `w_${w.id}`, sn, sn ? `${fmtNum(sn)} وحدة برقمها التسلسلي` : ''); })}</div>
+      body: html`<div class="qfix-card">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it) || it.name}</b><small>${[DNM.brand(it), Data.nameOf('itemCategories', it.categoryId, '')].filter(Boolean).join(' · ')}${units.length ? ` · ${SNL.dev(units.length)} بأرقام تسلسلية` : ''}</small></div><div class="qfix-q"><small>في المخزن</small><b>${fmtNum(it.onHand)}</b></div></div>
+        <div class="qe-list">${whs.map((w) => QEDIT.loc(w.id, w.name, q.get(w.id) || 0, `w_${w.id}`, units.filter((a) => a.warehouseId === w.id)))}</div>
         <div class="qfix-eff" data-qeff></div>
         <label class="field" style="margin-top:10px"><span class="field-label">سبب التعديل</span><input class="input" name="reason" maxlength="200" placeholder="مثال: أُدخل العدد خطأ عند الاستلام" required></label>
-        <p class="faint small qe-hint">${UI.icon('info')} يُسجَّل الفرق تسويةً في «حركات المخزون» باسمك وسببك. ولتصحيح استلام بعينه استخدم «تعديل العدد» على حركته.</p>`,
+        <p class="faint small qe-hint">${UI.icon('info')} يُسجَّل الفرق تسويةً في «حركات المخزون» باسمك وسببك، ومعه الأرقام التسلسلية المحذوفة.</p>`,
       onMount: (f) => { f._upd = QEDIT.bind(f, 'إجمالي المخزن'); },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'حفظ العدد', kind: 'primary', icon: 'check', submit: true, handler: async (f) => {
-        const { d, bad } = f._upd(); if (bad) throw new AppError(bad);
+        const { d, bad, del } = f._upd(); if (bad) throw new AppError(bad);
         const reason = String(f.querySelector('[name="reason"]').value || '').trim(); if (reason.length < 3) throw new AppError('اكتب سبب التعديل');
         const targets = whs.map((w) => [w.id, Math.floor(Number(f.querySelector(`[name="w_${w.id}"]`).value)), q.get(w.id) || 0]).filter(([, n, c]) => n !== c);
         if (!targets.length) throw new AppError('لم يتغير العدد');
-        await QEDIT.storeSave(itemId, targets.map(([w, n]) => [w, n]), reason);
-        UI.toast(`حُفظ العدد: ${d > 0 ? `زيادة ${fmtNum(d)}` : d < 0 ? `إنقاص ${fmtNum(-d)}` : 'نقل بين المخازن'}`); return true;
+        if (del.length) { const sel = units.filter((a) => del.some((x) => x.id === a.id)); if (!(await SNL.confirm(sel, { text: `من «${DNM.model(it) || it.name}». يُنقص العدد ويُسجَّل الحذف في حركات المخزون.`, ok: 'حذفها وحفظ العدد' }))) return false; }
+        await QEDIT.storeSave(itemId, targets.map(([w, n]) => [w, n]), reason, del.map((x) => x.id));
+        UI.toast(`حُفظ العدد: ${d > 0 ? `زيادة ${fmtNum(d)}` : d < 0 ? `إنقاص ${fmtNum(-d)}` : 'نقل بين المخازن'}${del.length ? `، وحُذف ${SNL.num(del.length)}` : ''}`); return true;
       } }] });
   },
-  async storeSave(itemId, targets, reason) {
+  async storeSave(itemId, targets, reason, delIds = []) {
     if (!QEDIT.canStore()) throw new AppError('تعديل العدد في المخزن لمن يستلم ويصرف فيه');
     const it = await DB.get('items', itemId); if (!it) throw new AppError('الصنف غير موجود');
-    if (isSerialItem(it)) { const units = (await Data.assets.byItem(itemId)).filter((a) => a.status === 'in_store'); for (const [w, n] of targets) { const sn = units.filter((a) => a.warehouseId === w).length; if (n < sn) throw new AppError(`لا يقل العدد في ${Data.nameOf('warehouses', w)} عن ${fmtNum(sn)} وحدة مسجلة بأرقامها التسلسلية`); } }
+    if (delIds.length) await InvLock.guard();
+    const units = (await Data.assets.byItem(itemId)).filter((a) => a.status === 'in_store'), gone = new Set(delIds);
+    for (const [w, n] of targets) { const left = units.filter((a) => a.warehouseId === w && !gone.has(a.id)).length; if (n < left) throw new AppError(`لا يقل العدد في ${Data.nameOf('warehouses', w)} عن الأجهزة المسجلة بأرقامها التسلسلية (${fmtNum(left)}). حدد ما يُحذف منها`); }
     const at = now(), me = Auth.user.id; let tot = 0;
-    await DB.run(['items', 'stock', 'movements'], async (T) => {
+    await DB.run(['items', 'stock', 'movements', 'assets'], async (T) => {
       const item = await T.get('items', itemId); if (!item) throw new AppError('الصنف غير موجود'); tot = 0;
+      const dels = []; for (const id of delIds) { const a = await T.get('assets', id); if (!a || a.itemId !== itemId || a.status !== 'in_store') throw new AppError('أحد الأرقام التسلسلية المحددة لم يعد في المخزن'); dels.push(a); }
       for (const [w, n0] of targets) {
         const n = Math.floor(Number(n0)); if (!(n >= 0)) throw new AppError('أدخل عدداً صحيحاً (صفر أو أكثر)');
         const st = (await T.get('stock', [w, itemId])) || { warehouseId: w, itemId, qty: 0 }, c = Number(st.qty) || 0, d = n - c; if (!d) continue;
+        const sns = dels.filter((a) => a.warehouseId === w).map((a) => a.serial);
         st.qty = n; st.updatedAt = at; await T.put('stock', st); tot += d;
-        await T.put('movements', { id: uid('mv'), type: 'adjust', itemId, warehouseId: w, qty: Math.abs(d), delta: d, balance: n, at, userId: me, note: `تعديل العدد من ${fmtNum(c)} إلى ${fmtNum(n)}: ${reason}`, ref: 'تعديل مباشر للعدد', party: '', departmentId: '', fix: 1, from: c, to: n });
+        await T.put('movements', { id: uid('mv'), type: 'adjust', itemId, warehouseId: w, qty: Math.abs(d), delta: d, balance: n, at, userId: me, note: `تعديل العدد من ${fmtNum(c)} إلى ${fmtNum(n)}: ${reason}${sns.length ? ` — حُذف: ${sns.join('، ')}` : ''}`, ref: 'تعديل مباشر للعدد', party: '', departmentId: '', fix: 1, from: c, to: n, ...(sns.length ? { serials: sns } : {}) });
       }
+      for (const a of dels) await T.del('assets', a.id);
       item.onHand = (Number(item.onHand) || 0) + tot; item.updatedAt = at; await T.put('items', item);
     });
-    await Data.log('update', 'item', itemId, `تعديل عدد ${it.name} في المخزن (${tot > 0 ? '+' : ''}${fmtNum(tot)}): ${reason}`);
+    await Data.log('update', 'item', itemId, `تعديل عدد ${it.name} في المخزن (${tot > 0 ? '+' : ''}${fmtNum(tot)}): ${reason}${delIds.length ? ` — حذف ${SNL.num(delIds.length)}` : ''}`);
     Bus.emit('inventory', { itemId }); return tot;
   },
   async dept(depId, itemId, focus = '') {
@@ -23507,24 +23562,27 @@ const QEDIT = {
     const it = (await DB.get('items', itemId)) || { name: 'صنف' }, ds = Number(((await DB.get('deptStock', [depId, itemId])) || {}).qty) || 0;
     const urows = (await DB.getAll('unitStock', 'itemId', KR(itemId))).filter((r) => r.departmentId === depId && r.qty > 0), units = await DB.getAll('deptUnits');
     const assigned = urows.reduce((a, r) => a + (Number(r.qty) || 0), 0), free = Math.max(0, ds - assigned);
-    const ser = isSerialItem(it), issued = ser ? (await Data.assets.byItem(itemId)).filter((a) => a.status === 'issued' && a.departmentId === depId) : [];
+    const issued = (await Data.assets.byItem(itemId)).filter((a) => a.status === 'issued' && a.departmentId === depId), locIds = new Set(urows.map((r) => r.unitId));
+    const unitsAt = (u) => issued.filter((a) => (u ? a.unitId === u : !a.unitId || !locIds.has(a.unitId)));
     const unitLabel = (u) => orgLabel(depId, u, units).split(' / ').slice(1).join(' / ') || Data.nameOf('deptUnits', u, 'مكتب');
     const locs = [['', 'غير موزّع على المكاتب', free], ...urows.map((r) => [r.unitId, unitLabel(r.unitId), Number(r.qty) || 0])].sort((a, b) => (a[0] === focus ? -1 : b[0] === focus ? 1 : 0));
     return UI.modal({ title: 'تعديل العدد في العهدة', icon: 'hash', size: 'md',
-      body: html`<div class="qfix-card">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b dir="auto">${it.id ? DNM.model(it) : it.name}</b><small>عهدة ${Data.nameOf('departments', depId)}${ser && issued.length ? ` · ${fmtNum(issued.length)} وحدة برقمها التسلسلي` : ''}</small></div><div class="qfix-q"><small>العهدة</small><b>${fmtNum(ds)}</b></div></div>
-        <div class="qe-list">${locs.map(([u, l, c]) => QEDIT.row(l, c, `u_${u || 'free'}`, 0, u ? '' : 'لدى الإدارة دون مكتب محدد'))}</div>
+      body: html`<div class="qfix-card">${UI.illu(itemIllu(it), 'mini')}<div class="grow"><b dir="auto">${it.id ? DNM.model(it) : it.name}</b><small>عهدة ${Data.nameOf('departments', depId)}${issued.length ? ` · ${SNL.dev(issued.length)} بأرقام تسلسلية` : ''}</small></div><div class="qfix-q"><small>العهدة</small><b>${fmtNum(ds)}</b></div></div>
+        <div class="qe-list">${locs.map(([u, l, c]) => QEDIT.loc(u || 'free', l, c, `u_${u || 'free'}`, unitsAt(u), u ? '' : `لدى الإدارة دون مكتب محدد${unitsAt(u).length ? ` · ${SNL.dev(unitsAt(u).length)} بأرقام تسلسلية` : ''}`))}</div>
         <div class="qfix-eff" data-qeff></div>
         <label class="field" style="margin-top:10px"><span class="field-label">سبب التعديل</span><input class="input" name="reason" maxlength="200" placeholder="مثال: الموجود فعلاً 3 أجهزة" required></label>
-        <p class="faint small qe-hint">${UI.icon('info')} يُسجَّل الفرق «تصحيح عهدة» باسمك وسببك.</p>`,
+        <p class="faint small qe-hint">${UI.icon('info')} يُسجَّل الفرق «تصحيح عهدة» باسمك وسببك، ومعه الأرقام التسلسلية المحذوفة.</p>`,
       onMount: (f) => { f._upd = QEDIT.bind(f, 'إجمالي عهدة الإدارة'); },
       actions: [{ label: 'إلغاء', kind: 'ghost', value: false }, { label: 'حفظ العدد', kind: 'primary', icon: 'check', submit: true, handler: async (f) => {
-        const { d, bad } = f._upd(); if (bad) throw new AppError(bad);
+        const { d, bad, del } = f._upd(); if (bad) throw new AppError(bad);
         const reason = String(f.querySelector('[name="reason"]').value || '').trim(); if (reason.length < 3) throw new AppError('اكتب سبب التعديل');
         const ch = locs.map(([u, , c]) => [u, Math.floor(Number(f.querySelector(`[name="u_${u || 'free'}"]`).value)), c]).filter(([, n, c]) => n !== c);
         if (!ch.length) throw new AppError('لم يتغير العدد');
-        if (ser && ds + d < issued.length) throw new AppError(`لا تقل عهدة الإدارة عن ${fmtNum(issued.length)} وحدة مسجلة بأرقامها التسلسلية. احذف الزائد منها أولاً`);
+        if (del.length) { const sel = issued.filter((a) => del.some((x) => x.id === a.id)); if (!(await SNL.confirm(sel, { text: `من عهدة ${Data.nameOf('departments', depId)} — «${it.id ? DNM.model(it) : it.name}». يُنقص العدد ويُسجَّل الحذف «تصحيح عهدة».`, ok: 'حذفها وحفظ العدد' }))) return false; await InvLock.guard(); }
+        /* حذف الوحدة يُنقص مكانها، ثم يُثبَّت عدد كل مكان على ما كُتب */
+        for (const x of del) await Data.assets.purge(x.id);
         for (const [u, n] of ch) await Data.custodyFix.set({ departmentId: depId, unitId: u, itemId, qty: n, note: `تعديل العدد: ${reason}` });
-        UI.toast(`حُفظ عدد العهدة: ${d > 0 ? `زيادة ${fmtNum(d)}` : d < 0 ? `إنقاص ${fmtNum(-d)}` : 'نقل بين المكاتب'}`); return true;
+        UI.toast(`حُفظ عدد العهدة: ${d > 0 ? `زيادة ${fmtNum(d)}` : d < 0 ? `إنقاص ${fmtNum(-d)}` : 'نقل بين المكاتب'}${del.length ? `، وحُذف ${SNL.num(del.length)}` : ''}`); return true;
       } }] });
   },
   pen: (attrs) => raw(`<button type="button" class="icon-btn qe-pen" ${attrs} title="تعديل العدد" aria-label="تعديل العدد">${String(UI.icon('hash'))}</button>`)
