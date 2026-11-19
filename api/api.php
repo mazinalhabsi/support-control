@@ -1476,11 +1476,6 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
   }
   /* ── المخزن والعهد ── */
   if (in_array($store, INV_STORES, true)) {
-    /* تصحيح عدد إضافة سابقة (استلام في المخزن أو إضافة عهدة مباشرة): للمشرف ومن مُنح «تصحيح عدد الإضافات» */
-    if ($store === 'movements' && $old && !$deleted && in_array((string) ($old['type'] ?? ''), ['receive', 'dept_opening'], true)
-      && ((int) ($data['qty'] ?? 0) !== (int) ($old['qty'] ?? 0) || count((array) ($data['fixes'] ?? [])) !== count((array) ($old['fixes'] ?? [])))) {
-      return can($user, 'inventory.fix') && can_any($user, INV_PERMS) ? $new : null;
-    }
     if (can_any($user, INV_PERMS)) return $new;
     /* تنبيهات تأخر العهد تُرسل من أجهزة الفنيين: يُقبل منها ختم التنبيه فقط */
     if ($store === 'loans' && $old && !$deleted && can_any($user, TICKET_STAFF)) { $m = $old; foreach (['lateNotifiedAt', 'dueNotifiedAt'] as $k) if (isset($data[$k])) $m[$k] = $data[$k]; return $m; }
