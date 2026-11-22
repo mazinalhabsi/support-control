@@ -7992,3 +7992,13 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .lp-hd{color:var(--ink-3);font-size:11.5px;white-space:nowrap}
 @media (max-width:640px){.lp-hist li{grid-template-columns:1fr;gap:2px}}
 .lp-tr.out{background:rgba(220,38,38,.12);color:#b91c1c;box-shadow:inset 0 0 0 1px rgba(220,38,38,.35)}
+
+/* ══ الجولة 61: واضع الخطة ══ */
+.lp-owner{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 10px 4px 12px;margin-bottom:6px;border-radius:999px;background:rgba(var(--accent),.08);border:1px solid rgba(var(--accent),.25);font-size:12.5px}
+.lp-owner > svg{width:14px;height:14px;color:rgb(var(--accent))}
+.lp-ol{font-weight:700;color:rgb(var(--accent))}
+.lp-owner small{color:var(--ink-3);font-size:11.5px}
+.lp-own{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:rgb(var(--accent));background:rgba(var(--accent),.1);border-radius:999px;padding:1px 7px;margin-top:2px;width:max-content}
+.lp-own svg{width:11px;height:11px}
+.lp-sby{display:flex;align-items:center;gap:4px}
+.lp-sby svg{width:11px;height:11px}
