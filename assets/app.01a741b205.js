@@ -13134,9 +13134,9 @@ const Surveys = {
   resultCard(s, q, a, num, { pub = false } = {}) {
     const T = SV_TYPES[q.t] || SV_TYPES.text, n = (a && a.n) || 0;
     const quiz = s.quiz && Surveys.isQuiz(q), okN = quiz && n ? (q.t === 'multi' ? null : a.c[q.ans] || 0) : null;
-    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label} · ${n ? `${fmtNum(n)} إجابة` : 'لا توجد إجابات'}</small></div>${okN != null ? UI.chip(okN / n >= 0.7 ? 'teal' : okN / n >= 0.4 ? 'amber' : 'red', `${Math.round((okN / n) * 100)}% أجابوا صحيحاً`, 'check') : ''}</div>`;
+    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label}${SVB.nocnt && n ? '' : ` · ${n ? `${fmtNum(n)} إجابة` : 'لا توجد إجابات'}`}</small></div>${okN != null ? UI.chip(okN / n >= 0.7 ? 'teal' : okN / n >= 0.4 ? 'amber' : 'red', `${Math.round((okN / n) * 100)}% أجابوا صحيحاً`, 'check') : ''}</div>`;
     if (!n) return html`<div class="svr-q">${head}<div class="empty-mini">${UI.icon('info')} لم يُجب أحد على هذا السؤال بعد</div></div>`;
-    const bars = (list, total) => html`<ul class="svr-bars">${list.map(([k, l, tone, ok]) => { const c = a.c[k] || 0, p = total ? (c / total) * 100 : 0; return html`<li class="tone-${ok ? 'teal' : tone}${ok ? ' ok' : ''}"><span class="svr-l" title="${l}">${ok ? UI.icon('check') : ''}${l}</span><span class="svr-t"><i style="width:${p.toFixed(1)}%"></i></span><b>${fmtNum(Math.round(p))}%</b><small>${fmtNum(c)}</small></li>`; })}</ul>`;
+    const bars = (list, total) => html`<ul class="svr-bars">${list.map(([k, l, tone, ok]) => { const c = a.c[k] || 0, p = total ? (c / total) * 100 : 0; return html`<li class="tone-${ok ? 'teal' : tone}${ok ? ' ok' : ''}"><span class="svr-l" title="${l}">${ok ? UI.icon('check') : ''}${l}</span><span class="svr-t"><i style="width:${p.toFixed(1)}%"></i></span><b>${fmtNum(Math.round(p))}%</b>${SVB.nocnt ? '' : html`<small>${fmtNum(c)}</small>`}</li>`; })}</ul>`;
     let body = '';
     if (SV_CHOICE.includes(q.t)) {
       const opts = (T.fixed || (q.o || []).filter(Boolean)).map((o, j) => [o, o, T.fixed ? (j ? 'red' : 'teal') : SV_BAR_TONES[j % SV_BAR_TONES.length], quiz && (q.t === 'multi' ? [].concat(q.ans || []).includes(o) : q.ans === o)]);
@@ -13147,7 +13147,7 @@ const Surveys = {
       body = html`<div class="svr-avg sm"><b>${avg.toFixed(1)}</b><div><small>متوسط الموافقة من 5</small><span>${LIKERT[Math.max(0, Math.round(avg) - 1)] || ''}</span></div></div>${bars(LIKERT.map((l, k) => [k + 1, l, ['red', 'amber', 'slate', 'teal', 'green'][k]]).reverse(), n)}`;
     } else if (q.t === 'rating') {
       const avg = a.num ? a.sum / a.num : 0;
-      body = html`<div class="svr-avg"><b>${avg.toFixed(1)}</b><div>${UI.stars(Math.round(avg))}<small>من 5 — ${fmtNum(a.num)} تقييم</small></div></div>${bars([5, 4, 3, 2, 1].map((k) => [k, `${k} ${RATE_FACES[k][0]}`, RATE_FACES[k][1]]), n)}`;
+      body = html`<div class="svr-avg"><b>${avg.toFixed(1)}</b><div>${UI.stars(Math.round(avg))}<small>من 5${SVB.nocnt ? '' : ` — ${fmtNum(a.num)} تقييم`}</small></div></div>${bars([5, 4, 3, 2, 1].map((k) => [k, `${k} ${RATE_FACES[k][0]}`, RATE_FACES[k][1]]), n)}`;
     } else if (q.t === 'nps') {
       let pro = 0, pas = 0, det = 0; Object.entries(a.c).forEach(([k, c]) => { const x = Number(k); if (x >= 9) pro += c; else if (x >= 7) pas += c; else det += c; });
       const tot = pro + pas + det || 1, nps = Math.round(((pro - det) / tot) * 100), pc = (x) => `${Math.round((x / tot) * 100)}%`;
@@ -13165,7 +13165,7 @@ const Surveys = {
     }
     if (!pub && a.texts && a.texts.length) {
       const list = a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0));
-      body = html`${body}${body ? html`<b class="svr-sub">${q.t === 'textarea' || q.t === 'text' ? '' : 'إجابات «أخرى»'}</b>` : ''}<div class="svr-texts">${list.slice(0, 25).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${timeAgo(x.at)}</small></blockquote>`)}</div>${list.length > 25 ? html`<button type="button" class="btn btn-ghost btn-sm mt" data-alltexts="${q.id}">${UI.icon('list')} عرض كل الإجابات (${fmtNum(list.length)})</button>` : ''}`;
+      body = html`${body}${body ? html`<b class="svr-sub">${q.t === 'textarea' || q.t === 'text' ? '' : 'إجابات «أخرى»'}</b>` : ''}<div class="svr-texts">${list.slice(0, SVB.tmax || 25).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${timeAgo(x.at)}</small></blockquote>`)}</div>${list.length > (SVB.tmax || 25) ? (SVB.printing ? html`<small class="faint svb-more">${SVB.nocnt ? 'وإجابات أخرى لم تُطبع' : `و${fmtNum(list.length - SVB.tmax)} من الإجابات لم تُطبع`}</small>` : html`<button type="button" class="btn btn-ghost btn-sm mt" data-alltexts="${q.id}">${UI.icon('list')} عرض كل الإجابات (${fmtNum(list.length)})</button>`) : ''}`;
     }
     if (pub && ['text', 'textarea', 'date'].includes(q.t)) return '';
     return html`<div class="svr-q">${head}${body}</div>`;
@@ -25415,7 +25415,7 @@ const SVX = {
   texts(s, a, label = '') {
     if (!a.texts || !a.texts.length) return '';
     const list = a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0));
-    return html`${label ? html`<b class="svr-sub">${label}</b>` : ''}<div class="svr-texts">${list.slice(0, 12).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${fmtDate(x.at)}</small></blockquote>`)}</div>${list.length > 12 ? html`<small class="faint">و${fmtNum(list.length - 12)} إجابة أخرى</small>` : ''}`;
+    return html`${label ? html`<b class="svr-sub">${label}</b>` : ''}<div class="svr-texts">${list.slice(0, SVB.tmax || 12).map((x) => html`<blockquote><p>${x.v}</p><small>${!s.anonymous && x.uid ? `${Data.userName(x.uid)} — ` : ''}${fmtDate(x.at)}</small></blockquote>`)}</div>${list.length > (SVB.tmax || 12) ? html`<small class="faint">${SVB.nocnt ? 'وإجابات أخرى' : `و${fmtNum(list.length - (SVB.tmax || 12))} من الإجابات الأخرى`}</small>` : ''}`;
   },
   card(s, q, a, num, o, { print = false } = {}) {
     const mode = o.per[q.id] || o.chart, modes = SVX.modesFor(q), use = modes.includes(mode) ? mode : 'auto';
@@ -25423,7 +25423,7 @@ const SVX = {
     const sc = SVX.score(q, a);
     if (use === 'auto' || !a || !a.n) { const c = Surveys.resultCard(s, q, a, num, { pub: !o.texts }); return c ? html`<div class="svx-c" data-svxq="${q.id}">${tools}${c}</div>` : ''; }
     const T = SV_TYPES[q.t] || SV_TYPES.text, D = SVX.dist(s, q, a);
-    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label} · ${fmtNum(a.n)} إجابة</small></div>${sc != null ? html`<span class="chip tone-${SVX.tone(sc)}">${fmtNum(Math.round(sc))}%</span>` : ''}</div>`;
+    const head = html`<div class="svr-head"><span class="sv-q-n">${fmtNum(num)}</span><div class="grow"><b>${q.l}</b><small>${T.label}${SVB.nocnt ? '' : ` · ${fmtNum(a.n)} إجابة`}</small></div>${sc != null ? html`<span class="chip tone-${SVX.tone(sc)}">${fmtNum(Math.round(sc))}%</span>` : ''}</div>`;
     return html`<div class="svx-c" data-svxq="${q.id}">${tools}<div class="svr-q svx-q-${use}">${head}${SVX.summaryLine(q, a)}${SVX.chart(q, a, D, use, o)}${o.texts ? SVX.texts(s, a, 'إجابات «أخرى»') : ''}</div></div>`;
   },
   ordered(s, agg, o) {
@@ -30511,18 +30511,19 @@ const SVB = {
     ['head', 'الترويسة', 'file', [['logo', 'الشعار واسم الجهة وتاريخ الطباعة'], ['title', 'عنوان التقرير'], ['desc', 'وصف الاستبيان'], ['meta', 'تاريخ النشر والتصفية']]],
     ['kpi', 'المؤشرات', 'chart', [['k_part', 'المشاركات'], ['k_aud', 'المستهدفون'], ['k_rate', 'نسبة المشاركة'], ['k_dur', 'متوسط مدة الإجابة'], ['k_idx', 'مؤشر الرضا العام']]],
     ['ana', 'التحليل', 'target', [['a_idx', 'مقياس مؤشر الرضا العام'], ['a_top', 'نقاط القوة'], ['a_low', 'فرص التحسين'], ['a_dep', 'المقارنة بين الإدارات'], ['a_time', 'المشاركات عبر الزمن'], ['a_words', 'الكلمات الأكثر تكراراً'], ['a_notes', 'التوصيات وخطة التحسين']]],
-    ['qs', 'نتائج الأسئلة', 'list', [['qs', 'نتائج الأسئلة'], ['texts', 'الإجابات النصية تحت كل سؤال']]],
+    ['qs', 'نتائج الأسئلة', 'list', [['qs', 'نتائج الأسئلة'], ['cnt', 'عدد الإجابات (في كل سؤال وكل خيار)'], ['texts', 'الإجابات النصية تحت كل سؤال'], ['names', 'أسماء أصحاب الإجابات النصية']]],
+    ['ppl', 'المشاركون', 'users', [['plist', 'قائمة من شارك بأسمائهم'], ['pmiss', 'من لم يشارك بعد من المستهدفين']]],
     ['end', 'الختام', 'edit', [['sign', 'التوقيعات']]]
   ],
   POS: [['top', 'بعد العنوان'], ['mid', 'بعد التحليل'], ['end', 'في نهاية التقرير']],
   def(D) {
     const o = SVX.state(D.s.id), parts = {}; SVB.GROUPS.forEach(([, , , its]) => its.forEach(([k]) => { parts[k] = 1; }));
-    if (D.s.anonymous) parts.a_dep = 0; parts.texts = o.texts ? 1 : 0;
+    if (D.s.anonymous) { parts.a_dep = 0; parts.names = 0; } parts.texts = o.texts ? 1 : 0; parts.plist = 0; parts.pmiss = 0;
     const ids = new Set(D.s.questions.filter(Surveys.answerable).map((q) => q.id));
-    return { parts, qOff: (o.hide || []).filter((x) => ids.has(x)), title: '', blocks: [], signA: 'أعدّه', signB: 'اعتمده', signName: 1, orient: 'portrait', cols: clamp(Number(o.cols) || 2, 1, 3), per: 0 };
+    return { parts, qOff: (o.hide || []).filter((x) => ids.has(x)), ansOff: [], tmax: 0, title: '', blocks: [], signA: 'أعدّه', signB: 'اعتمده', signName: 1, orient: 'portrait', cols: clamp(Number(o.cols) || 2, 1, 3), per: 0 };
   },
-  init(D) { const d = SVB.def(D), sv = (D.s.report || {}).print; if (!sv) return d; return { ...d, ...sv, parts: { ...d.parts, ...(sv.parts || {}) }, qOff: Array.isArray(sv.qOff) ? sv.qOff : d.qOff, blocks: Array.isArray(sv.blocks) ? sv.blocks.map((b) => ({ ...b })) : [] }; },
-  pack: (P) => ({ parts: { ...P.parts }, qOff: [...P.qOff], title: P.title, blocks: P.blocks.filter((b) => b.title || b.text).map((b) => ({ title: String(b.title || '').slice(0, 120), text: String(b.text || '').slice(0, 4000), pos: b.pos })), signA: P.signA, signB: P.signB, signName: P.signName, orient: P.orient, cols: P.cols, per: P.per }),
+  init(D) { const d = SVB.def(D), sv = (D.s.report || {}).print; if (!sv) return d; return { ...d, ...sv, parts: { ...d.parts, ...(sv.parts || {}) }, qOff: Array.isArray(sv.qOff) ? sv.qOff : d.qOff, ansOff: Array.isArray(sv.ansOff) ? sv.ansOff : [], blocks: Array.isArray(sv.blocks) ? sv.blocks.map((b) => ({ ...b })) : [] }; },
+  pack: (P) => ({ parts: { ...P.parts }, qOff: [...P.qOff], ansOff: [...(P.ansOff || [])], tmax: Number(P.tmax) || 0, title: P.title, blocks: P.blocks.filter((b) => b.title || b.text).map((b) => ({ title: String(b.title || '').slice(0, 120), text: String(b.text || '').slice(0, 4000), pos: b.pos })), signA: P.signA, signB: P.signB, signName: P.signName, orient: P.orient, cols: P.cols, per: P.per }),
   /* ما لا يمكن طباعته في هذا الاستبيان (وسببه) */
   why(D, k) {
     const has = D.rows.length > 0, idx = SVX.index(D.s, D.agg);
@@ -30531,15 +30532,18 @@ const SVB = {
     if ((k === 'a_idx' || k === 'k_idx') && idx == null) return 'لا أسئلة تقييم لحسابه';
     if (k === 'a_notes' && !String((D.s.report || {}).notes || '').trim()) return 'اكتب التوصيات في «التحليل والتوصيات» أولاً';
     if (k === 'desc' && !D.s.desc) return 'لا وصف للاستبيان';
+    if (['names', 'plist', 'pmiss'].includes(k) && D.s.anonymous) return 'الاستبيان مجهول الهوية';
+    if (k === 'plist' && !D.marks.length) return 'لا مشاركات بعد';
+    if (k === 'pmiss' && !SVB.missing(D).length) return 'شارك كل المستهدفين';
     return '';
   },
-  report(D, P) {
+  report0(D, P) {
     const { s, rows, marks, aud, all, agg } = D, X = P.parts || {}, o = SVX.state(s.id), set = Data.c.settings || {}, fl = SVX.filters(D), on = (k) => !!X[k] && !SVB.why(D, k);
     const rate = aud.length ? Math.min(100, (marks.length / aud.length) * 100) : 0, secs = rows.length ? rows.reduce((x, r) => x + (r.secs || 0), 0) / rows.length : 0, idx = SVX.index(s, agg);
     const box = (l, v, tone) => html`<div class="svx-k tone-${tone}"><b>${v}</b><small>${l}</small></div>`;
     const kp = [on('k_part') && box('المشاركات', fmtNum(marks.length), 'sky'), on('k_aud') && box('المستهدفون', fmtNum(aud.length), 'violet'), on('k_rate') && box('نسبة المشاركة', `${fmtNum(Math.round(rate))}%`, rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red'), on('k_dur') && box('متوسط مدة الإجابة', secs ? `${fmtNum(Math.max(1, Math.round(secs / 60)))} د` : '—', 'slate'), on('k_idx') && box('مؤشر الرضا العام', `${fmtNum(Math.round(idx))}%`, SVX.tone(idx))].filter(Boolean);
     const its = SVX.items(s, agg), top = its.slice().sort((a, b) => b.sc - a.sc).slice(0, 3), low = its.slice().sort((a, b) => a.sc - b.sc).filter((x) => !top.includes(x) || its.length <= 3).slice(0, 3);
-    const li = (x) => html`<li class="tone-${SVX.tone(x.sc)}"><span class="svx-pc">${fmtNum(Math.round(x.sc))}%</span><div class="grow"><b>${x.label}</b><small>${x.sub ? `${x.sub} · ` : ''}${fmtNum(x.n)} إجابة</small></div></li>`;
+    const li = (x) => html`<li class="tone-${SVX.tone(x.sc)}"><span class="svx-pc">${fmtNum(Math.round(x.sc))}%</span><div class="grow"><b>${x.label}</b><small>${x.sub || ''}${X.cnt ? `${x.sub ? ' · ' : ''}${fmtNum(x.n)} إجابة` : ''}</small></div></li>`;
     const lbl = idx == null ? '' : idx >= 85 ? 'ممتاز' : idx >= 75 ? 'جيد جداً' : idx >= 60 ? 'جيد' : idx >= 45 ? 'مقبول' : 'يحتاج تحسيناً';
     const A1 = [on('a_idx') && html`<section class="svx-box svx-idx"><h3>${UI.icon('target')} مؤشر الرضا العام</h3>${UI.chart.gauge(Math.round(idx), { label: lbl, tone: SVX.tone(idx) })}<p class="svx-note">متوسط درجات أسئلة التقييم بعد تحويلها إلى نسبة من 100.</p></section>`,
       on('a_top') && html`<section class="svx-box"><h3>${UI.icon('star')} نقاط القوة</h3>${top.length ? html`<ol class="svx-rank">${top.map(li)}</ol>` : html`<p class="hint">لا بيانات كافية.</p>`}</section>`,
@@ -30562,7 +30566,8 @@ const SVB = {
         ${A2.length ? html`<div class="svx-ins two mt" style="grid-template-columns:repeat(${A2.length},minmax(0,1fr))">${A2}</div>` : ''}
         ${notes ? html`<section class="svx-box mt"><h3>${UI.icon('edit')} التوصيات وخطة التحسين</h3><p class="svx-notes">${notes}</p></section>` : ''}` : ''}
       ${blocks('mid')}
-      ${qOn ? html`<h2 class="svx-ps${anyA ? ' pb' : ''}">نتائج الأسئلة</h2>${SVX.grid(D, { ...o, hide: P.qOff || [], texts: X.texts ? o.texts || 1 : 0 }, { print: true, cols: P.cols, per: P.per })}` : ''}
+      ${qOn ? html`<h2 class="svx-ps${anyA ? ' pb' : ''}">نتائج الأسئلة</h2>${SVX.grid(D, { ...o, hide: P.qOff || [], texts: X.texts ? o.texts || 1 : 0, cnt: X.cnt ? o.cnt : 0, pct: X.cnt ? o.pct : 1 }, { print: true, cols: P.cols, per: P.per })}` : ''}
+      ${SVB.people(D, P)}
       ${blocks('end')}
       ${X.sign ? html`<div class="svx-sign"><div><b>${P.signA || 'أعدّه'}</b><span>${P.signName && Auth.user ? Auth.user.name : ''}</span><i></i></div><div><b>${P.signB || 'اعتمده'}</b><span></span><i></i></div></div>` : ''}
     </div>`;
@@ -30575,7 +30580,8 @@ const SVB = {
       ${SVB.GROUPS.map(([g, name, ic, items]) => html`<details class="svb-g" open><summary><label class="svb-gck"><input type="checkbox" data-svbg="${g}"><b>${UI.icon(ic)} ${name}</b></label><small class="svb-gc" data-svbc="${g}"></small></summary><div class="svb-items">
         ${items.map(([k, l]) => it(k, l))}
         ${g === 'head' ? html`<div class="field svb-f"><label>نص العنوان المطبوع</label><input class="input" data-svbtitle maxlength="200" value="${P.title || ''}" placeholder="${D.s.title}"></div>` : ''}
-        ${g === 'qs' && qs.length ? html`<div class="svb-qs"><div class="svb-qh"><b>الأسئلة المطبوعة</b><button type="button" class="btn btn-xs btn-ghost" data-svbq="1">الكل</button><button type="button" class="btn btn-xs btn-ghost" data-svbq="0">لا شيء</button></div>${qs.map((q, i) => html`<label class="svb-it svb-q"><input type="checkbox" data-svbqid="${q.id}"${(P.qOff || []).includes(q.id) ? '' : raw(' checked')}><span><b>س${fmtNum(i + 1)}</b> ${q.l}</span></label>`)}</div>` : ''}
+        ${g === 'qs' && qs.length ? html`<div class="svb-qs"><div class="svb-qh"><b>الأسئلة المطبوعة</b><button type="button" class="btn btn-xs btn-ghost" data-svbq="1">الكل</button><button type="button" class="btn btn-xs btn-ghost" data-svbq="0">لا شيء</button></div>${qs.map((q, i) => html`<label class="svb-it svb-q"><input type="checkbox" data-svbqid="${q.id}"${(P.qOff || []).includes(q.id) ? '' : raw(' checked')}><span><b>س${fmtNum(i + 1)}</b> ${q.l}</span></label>${SVB.ansList(D, P, q)}`)}</div>` : ''}
+        ${g === 'qs' ? html`<div class="field svb-f"><label>الإجابات النصية المطبوعة لكل سؤال</label><select class="input" data-svbtmax>${[[0, 'كلها'], [5, 'أول 5'], [10, 'أول 10'], [25, 'أول 25']].map(([v, l]) => html`<option value="${v}"${(Number(P.tmax) || 0) === v ? raw(' selected') : ''}>${l}</option>`)}</select></div>` : ''}
         ${g === 'end' ? html`<div class="svb-sg"><div class="field svb-f"><label>التوقيع الأول</label><input class="input" data-svbsa maxlength="40" value="${P.signA || ''}" placeholder="أعدّه"></div><div class="field svb-f"><label>التوقيع الثاني</label><input class="input" data-svbsb maxlength="40" value="${P.signB || ''}" placeholder="اعتمده"></div></div><label class="svb-it"><input type="checkbox" data-svbsn${P.signName ? raw(' checked') : ''}><span>اسمي تحت التوقيع الأول</span></label>` : ''}
       </div></details>`)}
       <details class="svb-g" open><summary><b>${UI.icon('plus')} فقرات تضيفها</b><small class="svb-gc">${fmtNum(P.blocks.length)}</small></summary><div class="svb-items"><div data-svbblocks>${P.blocks.map(blk)}</div><button type="button" class="btn btn-soft btn-sm" data-svbadd>${UI.icon('plus')} إضافة فقرة</button></div></details>
@@ -30605,6 +30611,8 @@ const SVB = {
         const read = () => {
           $$('[data-svbk]', side).forEach((x) => { if (!x.disabled) P.parts[x.dataset.svbk] = x.checked ? 1 : 0; });
           P.qOff = $$('[data-svbqid]', side).filter((x) => !x.checked).map((x) => x.dataset.svbqid);
+          P.ansOff = $$('[data-svbans]', side).filter((x) => !x.checked).map((x) => x.dataset.svbans); const tm = side.querySelector('[data-svbtmax]'); P.tmax = tm ? Number(tm.value) || 0 : 0;
+          $$('[data-svbac]', side).forEach((c) => { const bx = $$(`[data-svbans][data-q="${c.dataset.svbac}"]`, side); c.textContent = `${fmtNum(bx.filter((x) => x.checked).length)} من ${fmtNum(bx.length)}`; });
           const tv = side.querySelector('[data-svbtitle]'); P.title = tv ? tv.value.trim() : '';
           const sa = side.querySelector('[data-svbsa]'), sb = side.querySelector('[data-svbsb]'), sn = side.querySelector('[data-svbsn]'); P.signA = sa ? sa.value.trim() || 'أعدّه' : 'أعدّه'; P.signB = sb ? sb.value.trim() || 'اعتمده' : 'اعتمده'; P.signName = sn && sn.checked ? 1 : 0;
           P.blocks = $$('.svb-blk', side).map((b) => ({ title: b.querySelector('[data-bt]').value.trim(), text: b.querySelector('[data-bx]').value.trim(), pos: b.querySelector('[data-bp]').value }));
@@ -30633,6 +30641,7 @@ const SVB = {
         });
         side.addEventListener('input', (e) => { if (e.target.matches('input[type="text"], input:not([type]), textarea')) changed(); });
         UI.on(side, 'click', '[data-svball]', (e, b) => { const v = b.dataset.svball === '1'; $$('[data-svbk], [data-svbqid]', side).forEach((x) => { if (!x.disabled) x.checked = v; }); changed(); });
+        UI.on(side, 'click', '[data-svbaa]', (e, b) => { e.preventDefault(); const [qid, v] = b.dataset.svbaa.split('|'); $$(`[data-svbans][data-q="${qid}"]`, side).forEach((x) => { x.checked = v === '1'; }); changed(); });
         UI.on(side, 'click', '[data-svbq]', (e, b) => { const v = b.dataset.svbq === '1'; $$('[data-svbqid]', side).forEach((x) => { x.checked = v; }); const q = side.querySelector('[data-svbk="qs"]'); if (q && v) q.checked = true; changed(); });
         UI.on(side, 'click', '[data-svbdef]', () => { P = SVB.def(D); side.innerHTML = String(SVB.side(D, P)); counts(); refresh(); });
         UI.on(side, 'click', '[data-svbadd]', () => { read(); P.blocks.push({ title: '', text: '', pos: 'end' }); side.innerHTML = String(SVB.side(D, P)); counts(); const last = $$('.svb-blk [data-bx]', side).pop(); if (last) last.focus(); });
@@ -30649,6 +30658,50 @@ const SVB = {
 };
 SVX.report = (D, P) => SVB.report(D, P);
 SVX.printDialog = (ctx) => SVB.dialog(ctx);
+
+/* ══════════ الجولة 59: حجب العدد والأسماء والإجابات في تقرير الاستبيان ══════════
+   - «عدد الإجابات»: يُخفي عدد المجيبين في كل سؤال، وعدد كل خيار، ورقم وسط الدائري، ويبقى النسب.
+   - الإجابات النصية: كلها أو أول 5 أو 10 أو 25، ولكل سؤال قائمة إجاباته لحجب إجابة بعينها وإظهار غيرها.
+   - «أسماء أصحاب الإجابات النصية»: تظهر أو تُخفى، و«المشاركون»: قائمة من شارك ومن لم يشارك بعد بأسمائهم.
+   - زر «عرض كل الإجابات» أداة على الشاشة فلا يُطبع؛ يُكتب بدله عدد ما لم يُطبع. */
+Object.assign(SVB, {
+  printing: 0, nocnt: false, tmax: 0,
+  akey: (qid, x) => `${qid}|${x.at || 0}|${x.uid || ''}|${INKCAT.hash(String(x.v || ''))}`,
+  missing(D) { const done = new Set(D.marks.map((m) => m.userId)); return (D.aud || []).filter((u) => u && !done.has(u.id)); },
+  /* نسخة من التجميع للطباعة: دون الإجابات المحجوبة، ودون الأسماء إن أُخفيت */
+  view(D, P) {
+    const off = new Set(P.ansOff || []), names = !!(P.parts || {}).names && !D.s.anonymous, q = {};
+    Object.entries((D.agg && D.agg.q) || {}).forEach(([id, a]) => { q[id] = a && Array.isArray(a.texts) ? { ...a, texts: a.texts.filter((x) => !off.has(SVB.akey(id, x))).map((x) => (names ? x : { ...x, uid: '' })) } : a; });
+    return { ...D, agg: { ...D.agg, q } };
+  },
+  report(D, P) {
+    const X = P.parts || {};
+    SVB.printing = 1; SVB.nocnt = !X.cnt; SVB.tmax = Number(P.tmax) > 0 ? Number(P.tmax) : 1e6;
+    let out;
+    try { out = String(SVB.report0(SVB.view(D, P), P)); } finally { SVB.printing = 0; SVB.nocnt = false; SVB.tmax = 0; }
+    const t = document.createElement('template'); t.innerHTML = out;
+    t.content.querySelectorAll('[data-alltexts]').forEach((b) => b.remove());
+    if (!X.cnt) t.content.querySelectorAll('.donut .c-num, .donut .c-lbl, .donut .legend b').forEach((e) => e.remove());
+    return raw(t.innerHTML);
+  },
+  people(D, P) {
+    const X = P.parts || {}, on = (k) => !!X[k] && !SVB.why(D, k); if (!on('plist') && !on('pmiss')) return '';
+    const rdep = new Map((D.all || []).filter((r) => r.userId).map((r) => [r.userId, r.departmentId])), flt = D.st && (D.st.dep || D.st.role), inRows = new Set((D.rows || []).map((r) => r.userId));
+    const dep = (uid, u) => Data.nameOf('departments', (u || Data.c.users.get(uid) || {}).departmentId || rdep.get(uid), '—');
+    const done = D.marks.filter((m) => !flt || inRows.has(m.userId)).sort((a, b) => (a.at || 0) - (b.at || 0)), miss = SVB.missing(D).slice().sort((a, b) => AR_COLL.compare(String(a.name || ''), String(b.name || '')));
+    return html`${on('plist') ? html`<h2 class="svx-ps">من شارك${X.cnt ? html` <small>(${fmtNum(done.length)})</small>` : ''}</h2><table class="svx-tbl svb-ppl"><thead><tr><th>م</th><th>الاسم</th><th>الإدارة</th><th>تاريخ المشاركة</th></tr></thead><tbody>${done.map((m, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${Data.userName(m.userId)}</td><td>${dep(m.userId)}</td><td>${m.at ? fmtDateTime(m.at) : '—'}</td></tr>`)}</tbody></table>` : ''}
+      ${on('pmiss') ? html`<h2 class="svx-ps">لم يشارك بعد${X.cnt ? html` <small>(${fmtNum(miss.length)})</small>` : ''}</h2><table class="svx-tbl svb-ppl"><thead><tr><th>م</th><th>الاسم</th><th>الإدارة</th><th>نوع الحساب</th></tr></thead><tbody>${miss.map((u, i) => html`<tr><td>${fmtNum(i + 1)}</td><td>${u.name || '—'}</td><td>${dep(u.id, u)}</td><td>${ROLES[u.role] || ''}</td></tr>`)}</tbody></table>` : ''}`;
+  },
+  /* قائمة الإجابات النصية لسؤال في المحرر: لكل إجابة مربع يُظهرها أو يحجبها */
+  ansList(D, P, q) {
+    const a = (D.agg.q || {})[q.id]; if (!a || !Array.isArray(a.texts) || !a.texts.length) return '';
+    const off = new Set(P.ansOff || []), list = a.texts.slice().sort((x, y) => (y.at || 0) - (x.at || 0)), shown = list.filter((x) => !off.has(SVB.akey(q.id, x))).length;
+    return html`<details class="svb-ans"><summary>${UI.icon('message')} الإجابات النصية <b data-svbac="${q.id}">${fmtNum(shown)} من ${fmtNum(list.length)}</b></summary>
+      <div class="svb-ah"><button type="button" class="btn btn-xs btn-ghost" data-svbaa="${q.id}|1">إظهار الكل</button><button type="button" class="btn btn-xs btn-ghost" data-svbaa="${q.id}|0">حجب الكل</button></div>
+      ${list.map((x) => { const k = SVB.akey(q.id, x); return html`<label class="svb-it svb-a"><input type="checkbox" data-svbans="${k}" data-q="${q.id}"${off.has(k) ? '' : raw(' checked')}><span>${x.v}<small>${!D.s.anonymous && x.uid ? `${Data.userName(x.uid)} · ` : ''}${x.at ? fmtDate(x.at) : ''}</small></span></label>`; })}</details>`;
+  }
+});
+SVX.report = (D, P) => SVB.report(D, P);
 
 boot();
 })();
