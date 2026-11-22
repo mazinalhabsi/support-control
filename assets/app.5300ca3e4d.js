@@ -28935,7 +28935,7 @@ Object.assign(LV, {
           ${coord && !LV.isOpen(p) ? html`<button type="button" class="btn btn-sm btn-ghost" data-lpstate="arrange|${p.id}">${UI.icon('undo')} إعادة فتح</button>` : ''}
           ${coord ? html`<button type="button" class="btn btn-sm btn-ghost" data-lpshare="${p.id}">${UI.icon('users')} مشاركة</button>${p.apprState === 'pending' ? (p.approver === me ? '' : html`<button type="button" class="btn btn-sm btn-ghost" data-lpapprx="${p.id}">${UI.icon('x')} إلغاء طلب الاعتماد</button>`) : html`<button type="button" class="btn btn-sm btn-soft" data-lpappr="${p.id}">${UI.icon('shield')} ${p.apprState === 'approved' ? 'إعادة الإرسال للاعتماد' : 'إرسال للاعتماد'}</button>`}` : ''}
           <button type="button" class="icon-btn" data-lpprint="${p.id}" title="طباعة الخطة">${UI.icon('print')}</button><button type="button" class="icon-btn" data-lpxl="${p.id}" title="Excel">${UI.icon('download')}</button>
-          ${coord ? html`<button type="button" class="icon-btn" data-lpedit="${p.id}" title="تعديل الخطة">${UI.icon('edit')}</button><button type="button" class="icon-btn" data-lpdel="${p.id}" title="حذف الخطة">${UI.icon('trash')}</button>` : ''}</div></div>
+          ${coord ? html`<button type="button" class="btn btn-sm btn-soft" data-lpedit="${p.id}">${UI.icon('edit')} تعديل الخطة</button><button type="button" class="icon-btn" data-lpcopy="${p.id}" title="نسخ الخطة لفترة أخرى بالإعدادات والأفراد أنفسهم">${UI.icon('copy')}</button><button type="button" class="icon-btn" data-lpdel="${p.id}" title="حذف الخطة">${UI.icon('trash')}</button>` : ''}</div></div>
       <ol class="lp-steps">${steps.map((k, i) => html`<li class="${k === state ? 'on' : i < steps.indexOf(state) ? 'done' : ''}">${UI.icon(LV.PST[k][2])} ${LV.PST[k][0]}</li>`)}</ol>
       ${p.apprState ? html`<div class="lp-appr ${p.apprState}">${UI.icon(p.apprState === 'approved' ? 'shield' : p.apprState === 'rejected' ? 'x' : 'clock')}<div class="grow">${p.apprState === 'pending' ? html`<b>${p.approver === me ? 'طُلب منك اعتماد هذه الخطة' : `بانتظار اعتماد ${Data.userName(p.approver)}`}</b><small>أرسلها ${Data.userName(p.apprReqBy || p.createdBy)}${p.apprReqAt ? ` في ${fmtDate(p.apprReqAt)}` : ''}${p.apprReqNote ? ` — ${p.apprReqNote}` : ''}</small>` : html`<b>${p.apprState === 'approved' ? 'اعتمدها' : 'ردّها'} ${Data.userName(p.apprBy)}${p.apprAt ? ` في ${fmtDate(p.apprAt)}` : ''}</b>${p.apprNote ? html`<small>${p.apprNote}</small>` : ''}`}</div>${p.apprState === 'pending' && p.approver === me ? html`<button type="button" class="btn btn-sm btn-primary" data-lpok="${p.id}">${UI.icon('check')} اعتماد</button><button type="button" class="btn btn-sm btn-ghost" data-lpno="${p.id}">${UI.icon('x')} ردّ بملاحظة</button>` : ''}</div>` : ''}
       ${p.note ? html`<p class="lp-note">${UI.icon('info')}<span>${p.note}</span></p>` : ''}
@@ -29008,7 +29008,7 @@ Object.assign(LV, {
     const old = id ? recs.find((r) => r.id === id && r.kind === 'lplan') : null; if (id && (!old || !LV.isCoord(old))) return null;
     const me = LV.me(), cands = LV.candidates(), now0 = new Date(), y = now0.getFullYear() + (now0.getMonth() > 6 ? 1 : 0);
     const grants = recs.filter((r) => r.kind === 'bal').sort((a, b) => String(b.from).localeCompare(String(a.from)));
-    const r0 = old || { title: preset.from ? `إجازات ${LV.range(preset.from, preset.to || preset.from)}` : `إجازات صيف ${y}`, from: preset.from || `${y}-06-01`, to: preset.to || preset.from || `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), maxHard: 1, allowAlt: 1, members: cands.map((u) => u.id), note: '', quota: 0, qexact: 0, split: 0 };
+    const r0 = old || preset.copy || { title: preset.from ? `إجازات ${LV.range(preset.from, preset.to || preset.from)}` : `إجازات صيف ${y}`, from: preset.from || `${y}-06-01`, to: preset.to || preset.from || `${y}-09-30`, deadline: '', maxOff: Math.max(1, cands.length - (Number(LV.cfg().minCover) || 0)), maxHard: 1, allowAlt: 1, members: cands.map((u) => u.id), note: '', quota: 0, qexact: 0, split: 0 };
     const q0 = LV.quota(r0), sp0 = Number(r0.split) || 0, pv0 = r0.vis || (old ? 'team' : 'members');
     const res = await UI.modal({ title: old ? 'تعديل خطة الإجازات' : 'خطة إجازات جديدة', icon: 'lv-team', size: 'lg',
       body: html`<div class="lvm">
@@ -29066,12 +29066,14 @@ Object.assign(LV, {
       } }] });
     if (!res) return null;
     const t = now(), { notify, ...v } = res, rec = { ...(old || {}), ...v, id: old ? old.id : uid('lpl'), kind: 'lplan', state: old ? old.state || 'collect' : 'collect', createdBy: old ? old.createdBy : me, createdAt: old ? old.createdAt : t, updatedAt: t };
+    LV.histDiff(old, rec);
     await DB.put('leaves', rec);
     await Data.log(old ? 'update' : 'create', 'leaves', rec.id, `${old ? 'تعديل' : 'إنشاء'} خطة الإجازات «${rec.title}»`);
     const added = rec.members.filter((x) => !((old && old.members) || []).includes(x));
     if ((old || notify) && added.length) await Data.notify(added, { title: `دعاك ${Auth.user.name} إلى خطة الإجازات «${rec.title}»`, body: `سجّل رغبتك في الفترة ${LV.range(rec.from, rec.to)}${rec.deadline ? ` قبل ${LV.fmtY(rec.deadline)}` : ''}${LV.hasQ(rec) ? ` — ${LV.qText(rec)}` : ''}`, link: LV.link(rec.id), kind: 'info' });
     /* تغيّر الحصة أو طريقة الأخذ: يُشعر المشاركون السابقون */
     if (old && (LV.quota(old) !== LV.quota(rec) || (Number(old.split) || 0) !== (Number(rec.split) || 0) || !!old.qexact !== !!rec.qexact)) { const keep = rec.members.filter((x) => (old.members || []).includes(x)); if (keep.length) await Data.notify(keep, { title: `تغيّرت أيام كل مشارك في «${rec.title}»`, body: LV.qText(rec), link: LV.link(rec.id), kind: 'info' }); }
+    if (old) await LV.afterPlanEdit(old, rec);
     Bus.emit('leaves', {}); UI.toast(old ? 'حُفظت الخطة' : `أُنشئت الخطة${notify && added.filter((x) => x !== me).length ? ' وأُشعر المشاركون' : ''}`); return rec;
   },
 
@@ -30395,13 +30397,13 @@ Object.assign(LV, {
   team2(D, p) {
     const me = LV.me(), coord = LV.isCoord(p), open = LV.isOpen(p), S = LV.pmembers(p).map((u) => ({ u, s: LV.mstat(D.recs, p, u.id) }));
     const nSet = S.filter((x) => x.s.k !== 'none').length, nFull = S.filter((x) => x.s.k === 'full').length, hasQ = S.some((x) => x.s.q), nm = (x) => (x === me ? 'أنت' : Data.userName(x));
-    return html`<div class="lp-team"><div class="lp-teamh"><b>${UI.icon('users')} أفراد المجموعة</b><span class="chip tone-${nSet === S.length ? 'teal' : 'amber'}">حدد ${fmtNum(nSet)} من ${fmtNum(S.length)}</span>${hasQ ? html`<span class="chip tone-teal">${UI.icon('check')} مكتملة ${fmtNum(nFull)}</span>` : ''}<span class="grow"></span><small class="faint">${coord ? (open ? 'اضغط على أي فرد لتحديد إجازته أو تعديلها، ولو لم يحددها بنفسه' : 'اضغط على أي فرد لعرض إجازته أو تعديلها') : 'اضغط على أي فرد لعرض ما حدده'}</small></div>
-      <div class="lp-tgrid">${S.map(({ u, s }) => html`<button type="button" class="lp-tm k-${s.k}${u.id === me ? ' me' : ''}" data-lptm="${p.id}|${u.id}" style="--c:${D.styOf(u.id).color}">
+    return html`<div class="lp-team"><div class="lp-teamh"><b>${UI.icon('users')} أفراد المجموعة</b><span class="chip tone-${nSet === S.length ? 'teal' : 'amber'}">حدد ${fmtNum(nSet)} من ${fmtNum(S.length)}</span>${hasQ ? html`<span class="chip tone-teal">${UI.icon('check')} مكتملة ${fmtNum(nFull)}</span>` : ''}<span class="grow"></span>${coord ? html`<button type="button" class="btn btn-sm btn-primary" data-lpadd="${p.id}">${UI.icon('user-plus')} إضافة أفراد</button>` : ''}<small class="faint">${coord ? (open ? 'اضغط على أي فرد لتحديد إجازته أو تعديلها، ولو لم يحددها بنفسه' : 'اضغط على أي فرد لعرض إجازته أو تعديلها') : 'اضغط على أي فرد لعرض ما حدده'}</small></div>
+      <div class="lp-tgrid">${S.map(({ u, s }) => html`<button type="button" class="lp-tm k-${s.k}${u.id === me ? ' me' : ''}" data-lptm="${p.id}|${u.id}" style="--c:${D.styOf(u.id).color}">${coord ? html`<span class="lp-tmx" role="button" tabindex="0" data-lprm="${p.id}|${u.id}" title="إزالة ${u.name} من الخطة" aria-label="إزالة من الخطة">${UI.icon('x')}</span>` : ''}
         <span class="lp-tmh">${LV.who(u, D.styOf(u.id), 'sm')}<span class="lp-tms">${UI.icon(s.k === 'none' ? 'clock' : s.k === 'full' ? 'check' : 'calendar')} ${LV.mlbl(s)}</span></span>
         ${s.q || s.ws.length ? html`<span class="lp-tbar"><i style="width:${s.pct}%"></i></span>` : ''}
-        ${s.w1.length || s.alt.length ? html`<span class="lp-trs">${s.w1.slice(0, 3).map((w) => html`<span class="lp-tr${w.state === 'agreed' || w.leaveId ? ' ok' : ''}">${LV.range(w.from, w.to)}</span>`)}${s.w1.length > 3 ? html`<span class="faint small">+${fmtNum(s.w1.length - 3)}</span>` : ''}${s.alt.length ? html`<span class="lp-tr alt">بديلة ${fmtNum(s.alt.length)}</span>` : ''}</span>` : ''}
+        ${s.w1.length || s.alt.length ? html`<span class="lp-trs">${s.w1.slice(0, 3).map((w) => html`<span class="lp-tr${w.state === 'agreed' || w.leaveId ? ' ok' : ''}${w.from < p.from || w.to > p.to ? ' out' : ''}"${w.from < p.from || w.to > p.to ? raw(' title="خارج فترة الخطة بعد تعديلها — تحتاج تعديلاً"') : ''}>${LV.range(w.from, w.to)}${w.from < p.from || w.to > p.to ? ' · خارج الفترة' : ''}</span>`)}${s.w1.length > 3 ? html`<span class="faint small">+${fmtNum(s.w1.length - 3)}</span>` : ''}${s.alt.length ? html`<span class="lp-tr alt">بديلة ${fmtNum(s.alt.length)}</span>` : ''}</span>` : ''}
         ${s.by.length || s.ed.length ? html`<small class="lp-tby">${UI.icon('edit')} ${s.by.length ? `حددها ${s.by.map(nm).join('، ')}` : `عدّلها ${s.ed.map(nm).join('، ')}`}</small>` : ''}
-      </button>`)}</div></div>`;
+      </button>`)}</div></div>${LV.histBox(D, p)}`;
   },
   /* نافذة الفرد: إجازاته في الخطة، وتحديد إجازة له (لواضع الخطة أو لصاحبها) */
   async memberWishes(pid, uid) {
@@ -30416,8 +30418,9 @@ Object.assign(LV, {
         ${s.q ? html`<div class="lp-qbar"><i class="${s.days > s.q ? 'over' : s.days === s.q ? 'full' : ''}" style="width:${s.pct}%"></i></div><p class="hint">${s.days >= s.q ? `اكتملت ${uid === me ? 'أيامك' : 'أيامه'} في الخطة (${LV.dayW(s.q)}${LV.qUnit()})` : `${uid === me ? 'حددت' : 'حدد'} ${LV.dayW(s.days)} من ${LV.dayW(s.q)}${LV.qUnit()} · المتبقي ${LV.dayW(s.q - s.days)}`}</p>` : ''}
         ${s.ws.length ? html`<ul class="lp-mml">${s.ws.map((w) => { const T = LV.TYPES[w.type] || LV.TYPES.annual, ed = LV.canWish(p, w); return html`<li><button type="button" class="lp-mmw${LV.pri(w) === 2 ? ' alt' : ''}" data-mmw="${w.id}" style="--c:${LV.hex(w.color) || sty.color}"><span class="lv-tp">${UI.icon(LV.icn(w.icon) || T.icon)} ${w.title || T.label}</span><b>${LV.range(w.from, w.to)}</b><small>${LV.dayW(LV.count(w.from, w.to))}${LV.qUnit()} · ${LV.pri(w) === 2 ? 'بديلة' : 'الأولى'}${w.state === 'agreed' ? ' · متفق عليها' : ''}${w.leaveId ? ' · ثُبّتت في التقويم' : ''}${w.createdBy && w.createdBy !== uid ? ` · حددها ${Data.userName(w.createdBy)}` : ''}</small>${UI.icon(ed ? 'edit' : 'eye')}</button></li>`; })}</ul>` : html`<p class="faint">${uid === me ? 'لم تحدد إجازتك بعد.' : 'لم يحدد إجازته بعد.'}</p>`}</div>`,
       onMount: (f, finish) => { UI.on(f, 'click', '[data-mmw]', (e, b) => finish(`w:${b.dataset.mmw}`)); },
-      actions: [{ label: 'إغلاق', kind: 'ghost', value: null }, ...(canAdd ? [{ label: s.ws.length ? 'إضافة فترة' : 'تحديد إجازته', kind: 'primary', icon: 'plus', value: 'add' }] : [])]
+      actions: [...(coord && uid !== p.createdBy && (p.members || []).includes(uid) ? [{ label: 'إزالة من الخطة', kind: 'ghost', icon: 'trash', value: 'rm' }] : []), { label: 'إغلاق', kind: 'ghost', value: null }, ...(canAdd ? [{ label: s.ws.length ? 'إضافة فترة' : 'تحديد إجازته', kind: 'primary', icon: 'plus', value: 'add' }] : [])]
     });
+    if (res === 'rm') return LV.removeMember(pid, uid);
     if (res === 'add') return LV.wishEdit(pid, '', { userId: uid });
     if (typeof res === 'string' && res.startsWith('w:')) return LV.wishEdit(pid, res.slice(2));
     return null;
@@ -30496,7 +30499,7 @@ Object.assign(LV, {
   LV.planBind = function (ctx, st, draw, sync, go) {
     pb0.call(this, ctx, st, draw, sync, go);
     const on = (sel, fn) => UI.on(ctx.view, 'click', sel, (e, b) => { e.stopPropagation(); go(() => fn(b, e)); });
-    on('[data-lptm]', async (b) => { const [pid, uid] = b.dataset.lptm.split('|'); if (await LV.memberWishes(pid, uid)) return draw(); return null; });
+    on('[data-lptm]', async (b, e) => { if (e && e.target.closest('[data-lprm]')) return null; const [pid, uid] = b.dataset.lptm.split('|'); if (await LV.memberWishes(pid, uid)) return draw(); return null; });
     on('[data-lpmine]', async (b) => { if (await LV.memberWishes(b.dataset.lpmine, LV.me())) return draw(); return null; });
     ctx.view.addEventListener('change', (e) => { if (e.target.matches && e.target.matches('[data-lvwishes]')) { st.wish = e.target.checked; LV.setPref('wishes', st.wish ? 1 : 0); go(draw); } });
   };
@@ -30702,6 +30705,121 @@ Object.assign(SVB, {
   }
 });
 SVX.report = (D, P) => SVB.report(D, P);
+
+/* ══════════ الجولة 60: تعديل خطة الإجازات وأفرادها ══════════
+   - «تعديل الخطة» زر ظاهر بنصه، و«إضافة أفراد» في قائمة المجموعة: يصل كل من يُضاف إشعار لتحديد إجازته (مع رسالة اختيارية)،
+     وتُعاد الخطة المثبتة أو المغلقة للتسجيل إن اخترت ذلك.
+   - إزالة فرد من الخطة (من بطاقته أو نافذته) مع رغباته فيها، ويصله إشعار.
+   - بعد تعديل الخطة: إشعار المشاركين بتغيّر الفترة أو آخر موعد، وتنبيه أصحاب الرغبات التي صارت خارج الفترة الجديدة،
+     وحذف رغبات من أُزيلوا (بتأكيد)، وإعادة الفتح إن أُضيف أفراد إلى خطة مثبتة.
+   - «سجل الخطة»: من غيّر ماذا ومتى (العنوان والفترة والأفراد والأيام والحالة)، مع ما حدده الأفراد من إجازات.
+   - نسخ الخطة لفترة أخرى بإعداداتها وأفرادها. */
+Object.assign(LV, {
+  histPush(rec, t) { if (!t) return rec; rec.hist = [...(rec.hist || []), { id: uid('lh'), at: now(), by: LV.me(), t: String(t).slice(0, 300) }].slice(-80); return rec; },
+  histDiff(old, rec) {
+    if (!old) { LV.histPush(rec, `أنشأ الخطة ${(() => { const n = (rec.members || []).length; return n === 1 ? 'بمشارك واحد' : n === 2 ? 'بمشاركَين' : n <= 10 ? `بـ${fmtNum(n)} مشاركين` : `بـ${fmtNum(n)} مشاركاً`; })()}`); return rec; }
+    const nm = (ids) => ids.map((x) => Data.userName(x)).join('، '), add = (rec.members || []).filter((x) => !(old.members || []).includes(x)), rm = (old.members || []).filter((x) => !(rec.members || []).includes(x));
+    if (old.title !== rec.title) LV.histPush(rec, `العنوان: «${old.title}» ← «${rec.title}»`);
+    if (old.from !== rec.from || old.to !== rec.to || !!old.open !== !!rec.open) LV.histPush(rec, `الفترة: ${LV.prange(old)} ← ${LV.prange(rec)}`);
+    if ((old.deadline || '') !== (rec.deadline || '')) LV.histPush(rec, `آخر موعد للتسجيل: ${old.deadline ? LV.fmtY(old.deadline) : 'بلا موعد'} ← ${rec.deadline ? LV.fmtY(rec.deadline) : 'بلا موعد'}`);
+    if (add.length) LV.histPush(rec, `أضاف إلى المجموعة: ${nm(add)}`);
+    if (rm.length) LV.histPush(rec, `أزال من المجموعة: ${nm(rm)}`);
+    if (LV.qText(old) !== LV.qText(rec)) LV.histPush(rec, `أيام كل مشارك: ${LV.qText(old)} ← ${LV.qText(rec)}`);
+    if ((Number(old.maxOff) || 0) !== (Number(rec.maxOff) || 0) || !!old.maxHard !== !!rec.maxHard) LV.histPush(rec, `المسموح لهم في اليوم: ${old.maxOff ? fmtNum(old.maxOff) : 'بلا حد'} ← ${rec.maxOff ? fmtNum(rec.maxOff) : 'بلا حد'}${rec.maxOff ? (rec.maxHard ? ' (ملزم)' : ' (تنبيه)') : ''}`);
+    if (!!old.allowAlt !== !!rec.allowAlt) LV.histPush(rec, rec.allowAlt ? 'سمح بالرغبة البديلة' : 'ألغى الرغبة البديلة');
+    if ((old.vis || 'team') !== (rec.vis || 'team')) LV.histPush(rec, rec.vis === 'members' ? 'جعلها للمعنيين فقط' : 'جعلها للمشاركين والإدارة');
+    if ((old.balId || '') !== (rec.balId || '')) LV.histPush(rec, rec.balId ? 'ربطها بإجازة ممنوحة' : 'ألغى ربطها بالإجازة الممنوحة');
+    if ((old.note || '') !== (rec.note || '')) LV.histPush(rec, 'عدّل قواعد الخطة وملاحظاتها');
+    return rec;
+  },
+  /* بعد حفظ التعديل: من أُزيل، وتغيّر الفترة، والرغبات خارجها، وإعادة الفتح لمن أُضيف */
+  async afterPlanEdit(old, rec) {
+    const me = LV.me(), recs = await DB.getAll('leaves'), ws = recs.filter((r) => r.kind === 'wish' && r.planId === rec.id);
+    const add = (rec.members || []).filter((x) => !(old.members || []).includes(x)), rm = (old.members || []).filter((x) => !(rec.members || []).includes(x)), stay = (rec.members || []).filter((x) => (old.members || []).includes(x) && x !== me);
+    if (rm.length) {
+      const others = rm.filter((x) => x !== me); if (others.length) await Data.notify(others, { title: `أُزلت من خطة الإجازات «${rec.title}»`, body: `أزالك ${Auth.user.name} من المجموعة`, link: '/leaves', kind: 'info' });
+      const orphan = ws.filter((w) => rm.includes(w.userId) && !w.leaveId);
+      if (orphan.length && (await UI.confirm(`لمن أُزيلوا ${fmtNum(orphan.length)} رغبة في الخطة (${[...new Set(orphan.map((w) => Data.userName(w.userId)))].join('، ')}). حذفها؟`, { ok: 'حذف رغباتهم', cancel: 'إبقاؤها' }))) { for (const w of orphan) await DB.del('leaves', w.id); }
+    }
+    const per = old.from !== rec.from || old.to !== rec.to || !!old.open !== !!rec.open, dl = (old.deadline || '') !== (rec.deadline || '');
+    if ((per || dl) && stay.length) await Data.notify(stay, { title: `تغيّرت ${per ? 'فترة' : 'آخر موعد'} خطة الإجازات «${rec.title}»`, body: `${per ? `الفترة الآن ${LV.prange(rec)}` : ''}${per && dl ? ' — ' : ''}${dl ? (rec.deadline ? `آخر موعد للتسجيل ${LV.fmtY(rec.deadline)}` : 'بلا موعد أخير للتسجيل') : ''}`, link: LV.link(rec.id), kind: 'info' });
+    if (per) {
+      const out = ws.filter((w) => (rec.members || []).includes(w.userId) && !w.leaveId && (w.from < rec.from || w.to > rec.to));
+      if (out.length) {
+        const owners = [...new Set(out.map((w) => w.userId))];
+        await Data.notify(owners.filter((x) => x !== me), { title: `رغبتك في «${rec.title}» صارت خارج فترة الخطة`, body: `الفترة الجديدة ${LV.prange(rec)} — عدّل إجازتك لتدخل فيها`, link: LV.link(rec.id), kind: 'info', tone: 'urgent' });
+        UI.toast(`${fmtNum(out.length)} رغبة صارت خارج الفترة الجديدة (${owners.map((x) => Data.userName(x)).join('، ')})، وأُشعر أصحابها`, 'warn', 9000);
+      }
+    }
+    if (add.length && !LV.isOpen(rec) && (await UI.confirm(`الخطة ${(LV.PST[rec.state] || LV.PST.final)[0]}، ولن يستطيع من أضفتهم تحديد إجازاتهم. إعادة فتحها للتسجيل؟`, { ok: 'إعادة الفتح', cancel: 'لاحقاً' }))) {
+      const cur = await DB.get('leaves', rec.id); if (cur) { cur.state = 'arrange'; cur.updatedAt = now(); LV.histPush(cur, 'أعاد فتح الخطة للتسجيل بعد إضافة أفراد'); await DB.put('leaves', cur); }
+    }
+  },
+  /* إضافة أفراد من قائمة المجموعة مباشرة */
+  async addMembers(pid) {
+    const recs = await DB.getAll('leaves'); LV._recs = recs; await LV.loadCfg();
+    const p = recs.find((r) => r.id === pid && r.kind === 'lplan'); if (!p || !LV.isCoord(p)) return null;
+    const cands = LV.candidates().filter((u) => !(p.members || []).includes(u.id));
+    if (!cands.length) { UI.toast('كل من يمكن إضافتهم مشاركون في الخطة', 'info'); return null; }
+    const res = await UI.modal({
+      title: `إضافة أفراد إلى «${p.title}»`, icon: 'user-plus', size: 'md',
+      body: html`<p class="hint" style="margin-top:0">${UI.icon('bell')} يصل كل من تضيفه إشعار لتحديد إجازته في الفترة ${LV.prange(p)}${p.deadline ? ` قبل ${LV.fmtY(p.deadline)}` : ''}${LV.hasQ(p) ? ` — ${LV.qText(p)}` : ''}.</p>
+        <div class="field"><label>الأفراد <button type="button" class="btn btn-xs btn-ghost" data-lpaall>الكل</button></label><div class="lv-share lp-mem">${cands.map((u) => html`<label class="lv-pick"><input type="checkbox" name="add" value="${u.id}"><span>${u.name}<small>${ROLES[u.role] || ''}</small></span></label>`)}</div></div>
+        <div class="field"><label>رسالة مع الإشعار <small class="faint">— اختيارية</small></label><input class="input" name="msg" maxlength="300" placeholder="مثلاً: انضممت إلى خطة الصيف، حدد إجازتك قبل نهاية الأسبوع"></div>
+        ${LV.isOpen(p) ? '' : html`<label class="chk"><input type="checkbox" name="reopen" checked> إعادة فتح الخطة للتسجيل (هي الآن «${(LV.PST[p.state] || LV.PST.final)[0]}»)</label>`}`,
+      onMount: (f) => { UI.on(f, 'click', '[data-lpaall]', () => $$('[name="add"]', f).forEach((x) => { x.checked = true; })); },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'إضافة وإشعارهم', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const ids = $$('[name="add"]:checked', f).map((x) => x.value); if (!ids.length) throw new AppError('اختر فرداً واحداً على الأقل'); return { ids, msg: f.querySelector('[name="msg"]').value.trim(), reopen: !!(f.querySelector('[name="reopen"]') || {}).checked }; } }]
+    });
+    if (!res) return null;
+    const cur = await DB.get('leaves', pid), rec = { ...cur, members: [...new Set([...(cur.members || []), ...res.ids])], updatedAt: now() };
+    if (res.reopen && !LV.isOpen(cur)) { rec.state = 'arrange'; }
+    LV.histPush(rec, `أضاف إلى المجموعة: ${res.ids.map((x) => Data.userName(x)).join('، ')}${res.reopen && !LV.isOpen(cur) ? '، وأعاد فتح الخطة' : ''}`);
+    await DB.put('leaves', rec);
+    const to = res.ids.filter((x) => x !== LV.me());
+    if (to.length) await Data.notify(to, { title: `أُضفت إلى خطة الإجازات «${rec.title}»`, body: `${res.msg ? `${res.msg} — ` : ''}حدد إجازتك في الفترة ${LV.prange(rec)}${rec.deadline ? ` قبل ${LV.fmtY(rec.deadline)}` : ''}${LV.hasQ(rec) ? ` — ${LV.qText(rec)}` : ''}`, link: LV.link(rec.id), kind: 'info' });
+    await Data.log('update', 'leaves', rec.id, `إضافة ${fmtNum(res.ids.length)} إلى خطة الإجازات «${rec.title}»`);
+    Bus.emit('leaves', {}); UI.toast(`أُضيف ${fmtNum(res.ids.length)} إلى المجموعة${to.length ? ' وأُشعروا لتحديد إجازاتهم' : ''}`); return rec;
+  },
+  async removeMember(pid, uid) {
+    const recs = await DB.getAll('leaves'), p = recs.find((r) => r.id === pid && r.kind === 'lplan'); if (!p || !LV.isCoord(p)) return null;
+    if (uid === p.createdBy) { UI.toast('واضع الخطة لا يُزال منها؛ يمكنه تعديل مشاركته من «تعديل الخطة»', 'warn'); return null; }
+    const ws = recs.filter((r) => r.kind === 'wish' && r.planId === pid && r.userId === uid), live = ws.filter((w) => !w.leaveId), name = Data.userName(uid);
+    if (!(await UI.confirm(`إزالة ${name} من خطة «${p.title}»؟${live.length ? ` تُحذف رغباته فيها (${fmtNum(live.length)}).` : ''}${ws.length - live.length ? ' الإجازات المثبتة في التقويم تبقى كما هي.' : ''} ويصله إشعار بذلك.`, { danger: true, ok: 'إزالة' }))) return null;
+    for (const w of live) await DB.del('leaves', w.id);
+    const cur = await DB.get('leaves', pid), rec = { ...cur, members: (cur.members || []).filter((x) => x !== uid), updatedAt: now() };
+    LV.histPush(rec, `أزال من المجموعة: ${name}${live.length ? ` (مع ${fmtNum(live.length)} رغبة)` : ''}`);
+    await DB.put('leaves', rec);
+    if (uid !== LV.me()) await Data.notify([uid], { title: `أُزلت من خطة الإجازات «${rec.title}»`, body: `أزالك ${Auth.user.name} من المجموعة${live.length ? '، وحُذفت رغباتك فيها' : ''}`, link: '/leaves', kind: 'info' });
+    await Data.log('update', 'leaves', rec.id, `إزالة ${name} من خطة الإجازات «${rec.title}»`);
+    Bus.emit('leaves', {}); UI.toast(`أُزيل ${name} من الخطة`); return rec;
+  },
+  /* سجل الخطة: تعديلات الخطة نفسها، وما حدده الأفراد أو عدّله واضع الخطة */
+  histBox(D, p) {
+    const ws = LV.wishes(D.recs, p.id), nm = (x) => (x === LV.me() ? 'أنت' : Data.userName(x));
+    const ev = [...(p.hist || []).map((h) => ({ at: h.at, by: h.by, t: h.t, k: 'plan' })),
+      ...ws.filter((w) => w.createdAt).map((w) => ({ at: w.createdAt, by: w.createdBy || w.userId, t: w.createdBy && w.createdBy !== w.userId ? `حدد إجازة ${Data.userName(w.userId)}: ${LV.range(w.orig ? w.orig.from : w.from, w.orig ? w.orig.to : w.to)}` : `حدد إجازته: ${LV.range(w.orig ? w.orig.from : w.from, w.orig ? w.orig.to : w.to)}`, k: 'wish' })),
+      ...ws.filter((w) => w.changedAt && w.changedBy && w.orig).map((w) => ({ at: w.changedAt, by: w.changedBy, t: `عدّل رغبة ${Data.userName(w.userId)}: ${LV.range(w.orig.from, w.orig.to)} ← ${LV.range(w.from, w.to)}${w.changeNote ? ` — ${w.changeNote}` : ''}`, k: 'move' }))].filter((e) => e.at).sort((a, b) => b.at - a.at);
+    if (!ev.length) return '';
+    return html`<details class="lp-hist"><summary>${UI.icon('clock')} سجل الخطة <small>${fmtNum(ev.length)}</small><span class="grow"></span><small class="faint">آخر تغيير ${timeAgo(ev[0].at)}</small></summary>
+      <ol>${ev.slice(0, 60).map((e) => html`<li class="k-${e.k}"><span class="lp-hd">${fmtDateTime(e.at)}</span><span><b>${nm(e.by)}</b> ${e.t}</span></li>`)}</ol>${ev.length > 60 ? html`<p class="hint">يظهر آخر 60 تغييراً.</p>` : ''}</details>`;
+  }
+});
+{
+  /* تغيّر حالة الخطة (التنسيق، والتثبيت، وإعادة الفتح) يُسجَّل في سجلها */
+  const ST = (s0) => ((LV.PST[s0] || [])[0] || s0);
+  const wrap = (name, label) => { const f0 = LV[name]; LV[name] = async function (id, ...rest) { const b0 = await DB.get('leaves', id); const r = await f0.call(this, id, ...rest); try { const cur = await DB.get('leaves', id); if (cur && b0 && cur.state !== b0.state) { LV.histPush(cur, label(b0.state, cur.state)); await DB.put('leaves', cur); } } catch (e) { console.warn('plan hist', e); } return r; }; };
+  wrap('setPlanState', (a, b) => (LV.isOpen({ state: b }) && !LV.isOpen({ state: a }) ? 'أعاد فتح الخطة' : `غيّر الحالة: ${ST(a)} ← ${ST(b)}`));
+  wrap('planFinal', () => 'ثبّت الخطة في التقويم');
+  const pb1 = LV.planBind;
+  LV.planBind = function (ctx, st, draw, sync, go) {
+    pb1.call(this, ctx, st, draw, sync, go);
+    const on = (sel, fn) => UI.on(ctx.view, 'click', sel, (e, b) => { e.preventDefault(); e.stopPropagation(); go(() => fn(b, e)); });
+    on('[data-lpadd]', async (b) => { if (await LV.addMembers(b.dataset.lpadd)) return draw(); return null; });
+    on('[data-lprm]', async (b) => { const [pid, uid] = b.dataset.lprm.split('|'); if (await LV.removeMember(pid, uid)) return draw(); return null; });
+    on('[data-lpcopy]', async (b) => { const p = LV.plan(b.dataset.lpcopy); if (!p) return null; const r = await LV.planEdit('', { copy: { ...p, id: '', title: `${p.title} (نسخة)`, hist: [], state: 'collect', apprState: '', approver: '' } }); if (r) { st.view = 'plans'; st.plan = r.id; st.pm = ''; sync(); } return draw(); });
+    ctx.view.addEventListener('keydown', (e) => { const x = e.target.closest && e.target.closest('[data-lprm]'); if (x && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); x.click(); } });
+  };
+}
 
 boot();
 })();

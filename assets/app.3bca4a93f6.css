@@ -7972,3 +7972,23 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .svb-more{display:block;margin-top:6px}
 .svb-ppl{width:100%;margin-bottom:12px}
 .svb-ppl td:first-child,.svb-ppl th:first-child{width:36px;text-align:center}
+
+/* ══ الجولة 60: تعديل الخطة وأفرادها ══ */
+.lp-tm{position:relative}
+.lp-tmx{position:absolute;top:6px;inset-inline-end:6px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;opacity:0;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);transition:opacity .12s}
+.lp-tmx svg{width:12px;height:12px}
+.lp-tm:hover .lp-tmx,.lp-tm:focus-within .lp-tmx,.lp-tmx:focus-visible{opacity:1}
+.lp-tmx:hover{color:#b91c1c;border-color:rgba(220,38,38,.45);background:rgba(220,38,38,.08)}
+@media (hover:none){.lp-tmx{opacity:.8}}
+.lp-hist{border:1px solid var(--line);border-radius:14px;margin:0 0 12px;background:var(--surface)}
+.lp-hist > summary{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;list-style:none;font-weight:600}
+.lp-hist > summary::-webkit-details-marker{display:none}
+.lp-hist > summary svg{width:16px;height:16px}
+.lp-hist ol{list-style:none;margin:0;padding:0 12px 10px;display:flex;flex-direction:column;gap:2px;max-height:320px;overflow:auto}
+.lp-hist li{display:grid;grid-template-columns:130px 1fr;gap:10px;font-size:12.5px;padding:5px 8px;border-radius:8px;border-inline-start:3px solid rgba(var(--accent),.5)}
+.lp-hist li.k-wish{border-inline-start-color:#0d9488}
+.lp-hist li.k-move{border-inline-start-color:#d97706}
+.lp-hist li:nth-child(odd){background:var(--surface-2)}
+.lp-hd{color:var(--ink-3);font-size:11.5px;white-space:nowrap}
+@media (max-width:640px){.lp-hist li{grid-template-columns:1fr;gap:2px}}
+.lp-tr.out{background:rgba(220,38,38,.12);color:#b91c1c;box-shadow:inset 0 0 0 1px rgba(220,38,38,.35)}

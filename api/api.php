@@ -602,6 +602,20 @@ function leave_look($x): ?array {
   return ['wd' => $wd, 'we' => leave_hex($x['we'] ?? ''), 'hol' => leave_hex($x['hol'] ?? ''), 'a' => max(4, min(45, (int) ($x['a'] ?? 14))), 'pat' => ($x['pat'] ?? '') === 'solid' ? 'solid' : 'stripe'];
 }
 /** حقول معروفة بأحجام معقولة؛ null إن كانت البيانات غير صالحة */
+/** سجل خطة الإجازات: يُحفظ القديم كما هو، وتُضاف الإدخالات الجديدة فقط (بمعرّفها) باسم من عدّل ووقت الخادم */
+function leave_hist(?array $old, array $data, string $me): array {
+  $oh = array_values(array_filter((array) (($old ?? [])['hist'] ?? []), 'is_array'));
+  $ids = []; foreach ($oh as $h) $ids[(string) ($h['id'] ?? '')] = 1;
+  $add = [];
+  foreach ((array) ($data['hist'] ?? []) as $h) {
+    if (!is_array($h)) continue;
+    $id = cut((string) ($h['id'] ?? ''), 40); $t = cut(trim((string) ($h['t'] ?? '')), 300);
+    if ($id === '' || $t === '' || isset($ids[$id])) continue;
+    $ids[$id] = 1; $add[] = ['id' => $id, 'at' => now_ms(), 'by' => $me, 't' => $t];
+    if (count($add) >= 20) break;
+  }
+  return array_slice(array_merge($oh, $add), -80);
+}
 function leave_clean(array $d, string $kind): ?array {
   $id = (string) ($d['id'] ?? ''); if ($id === '' || strlen($id) > 120) return null;
   $vis = (string) ($d['vis'] ?? 'team');
@@ -703,6 +717,7 @@ function leave_write(array $user, ?array $old, $new, bool $deleted) {
     if ($old && $c['id'] !== (string) ($old['id'] ?? '')) return null;
     $c['createdBy'] = $old ? (string) ($old['createdBy'] ?? $me) : $me;
     $c['createdAt'] = $old ? (int) ($old['createdAt'] ?? now_ms()) : now_ms();
+    $c['hist'] = leave_hist($old, $data, $me);
     /* حالة الاعتماد: يطلبها واضع الخطة أو يلغيها، ولا يقررها إلا المعتمِد المختار */
     $o = $old ?: [];
     $same = (string) ($o['approver'] ?? '') === $c['approver'] && (string) ($o['apprState'] ?? '') === $c['apprState'];
