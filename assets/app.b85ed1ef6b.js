@@ -102,7 +102,20 @@ const timeAgo = (ts) => { if (!ts) return '—'; const d = now() - ts; if (d < M
 const dateInput = (ts) => { if (!ts) return ''; const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const fromDateInput = (s, end) => { if (!s) return 0; const [y, m, d] = s.split('-').map(Number); return end ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime() : new Date(y, m - 1, d).getTime(); };
 const startOfDay = (ts = now()) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
-const normalizeAr = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\u064B-\u065F\u0670]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+const normalizeAr = (s) => String(s == null ? '' : s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/\s+/g, ' ').trim();
+/* الجولة 63: البحث بجزء من النص في كل المنصة — يطابق إن وُجد النص في أي موضع، أو وُجدت كل كلماته بأي ترتيب،
+   أو تطابق بعد حذف المسافات والشرطات والنقاط (m 404 = M404 = M-404)، والأرقام العربية كاللاتينية، و«ال» في أول الكلمة اختيارية */
+const SRCH = {
+  compact: (s) => normalizeAr(s).replace(/[\s\-_.\/\\(),:;'"`|+#*–—]+/g, ''),
+  has(hay, q) {
+    const n = normalizeAr(q); if (!n) return true;
+    const h = normalizeAr(hay); if (h.includes(n)) return true;
+    const ws = n.split(' ').filter(Boolean);
+    if (ws.length > 1 && ws.every((w) => h.includes(w) || (w.length > 3 && w.startsWith('ال') && h.includes(w.slice(2))))) return true;
+    if (ws.length === 1 && n.length > 3 && n.startsWith('ال') && h.includes(n.slice(2))) return true;
+    const c = SRCH.compact(n); return c.length >= 2 && SRCH.compact(h).includes(c);
+  }
+};
 const latinDigits = (s) => String(s == null ? '' : s).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 /* مفتاح الرقم العسكري الموحّد: أرقام لاتينية، بلا مسافات، أحرف صغيرة — لكشف التكرار في النموذج والاستيراد */
 const milKey = (v) => latinDigits(v).replace(/\s+/g, '').toLowerCase();
@@ -731,7 +744,7 @@ Data.tickets = {
     else if (f.overdue) { index = 'openDue'; range = KR(1, now()); }
     else { index = 'createdAt'; range = KR(lo, hi); }
     const q = f.q ? normalizeAr(f.q) : '', set = Array.isArray(f.status) ? new Set(f.status) : null;
-    const filter = (t) => (!set || set.has(t.status)) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (f.assigneeId == null || t.assigneeId === f.assigneeId) && t.createdAt >= lo && t.createdAt <= hi && (!q || String(t.search).includes(q));
+    const filter = (t) => (!set || set.has(t.status)) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (f.assigneeId == null || t.assigneeId === f.assigneeId) && t.createdAt >= lo && t.createdAt <= hi && (!q || SRCH.has(t.search || Data.tickets.searchOf(t), q));
     const needs = set || f.priority || f.categoryId || f.departmentId || q || (f.assigneeId != null && index !== 'assignee_status') || (index === 'openDue' && (lo || hi !== Infinity)) || (index === 'assignee_status' && (lo || hi !== Infinity));
     return DB.page('tickets', { index, range, dir: 'prev', offset: f.offset || 0, limit: f.limit || 25, filter: needs ? filter : null });
   },
@@ -756,7 +769,7 @@ Data.inv = {
   },
   items(f = {}) {
     const q = f.q ? normalizeAr(f.q) : '';
-    const filter = (i) => (!f.categoryId || i.categoryId === f.categoryId) && (!q || String(i.search).includes(q)) && (!f.low || (i.minQty > 0 && i.onHand <= i.minQty));
+    const filter = (i) => (!f.categoryId || i.categoryId === f.categoryId) && (!q || SRCH.has(i.search || Data.inv.searchOf(i), q)) && (!f.low || (i.minQty > 0 && i.onHand <= i.minQty));
     const needs = (f.categoryId && (q || f.low)) || q || f.low;
     return f.categoryId && !needs ? DB.page('items', { index: 'categoryId', range: KR(f.categoryId), dir: 'next', offset: f.offset, limit: f.limit }) : DB.page('items', { index: 'updatedAt', dir: 'prev', offset: f.offset, limit: f.limit, filter: needs ? filter : null });
   },
@@ -827,7 +840,7 @@ Data.inv = {
   },
   loans(f = {}) {
     const q = f.q ? normalizeAr(f.q) : '', t = now();
-    const filter = (l) => (!f.overdue || (l.status === 'active' && l.dueAt && l.dueAt < t)) && (!q || normalizeAr([l.number, l.itemName, l.borrower, Data.nameOf('departments', l.departmentId, '')].join(' ')).includes(q));
+    const filter = (l) => (!f.overdue || (l.status === 'active' && l.dueAt && l.dueAt < t)) && (!q || SRCH.has([l.number, l.itemName, l.borrower, Data.nameOf('departments', l.departmentId, '')].join(' '), q));
     const status = f.overdue ? 'active' : f.status;
     return DB.page('loans', status ? { index: 'status', range: KR(status), dir: 'prev', offset: f.offset, limit: f.limit, filter: q || f.overdue ? filter : null } : { index: 'issuedAt', dir: 'prev', offset: f.offset, limit: f.limit, filter: q ? filter : null });
   },
@@ -1708,13 +1721,13 @@ UI.palette = () => {
   };
   const search = debounce(async () => {
     const q = input.value.trim(), my = ++token, nq = normalizeAr(q);
-    let res = base().filter((i) => !q || normalizeAr(i.label).includes(nq));
+    let res = base().filter((i) => !q || SRCH.has(i.label, nq));
     if (q.length >= 2) {
       const [tk, it, kb, mts] = await Promise.all([
         Auth.can('tickets.view') ? Data.tickets.list({ q, limit: 6, requesterId: Auth.can('tickets.all') ? undefined : Auth.user.id }) : { rows: [] },
         Auth.can('inventory.read') ? Data.inv.items({ q, limit: 5 }) : { rows: [] },
         Auth.can('kb.read') ? Data.kb.search(q) : [],
-        typeof MT !== 'undefined' && MT.on() && MT.canRead() ? MT.list().then((rows) => rows.filter((r) => MT.text(r).includes(nq)).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6)).catch(() => []) : []
+        typeof MT !== 'undefined' && MT.on() && MT.canRead() ? MT.list().then((rows) => rows.filter((r) => SRCH.has(MT.text(r), nq)).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 6)).catch(() => []) : []
       ]);
       if (my !== token) return;
       res = [...tk.rows.map((t) => ({ group: 'البلاغات', icon: 'ticket', label: `${t.number} — ${t.title}`, sub: STATUS[t.status].label, run: () => Router.go(`/tickets/${t.id}`) })), ...it.rows.map((x) => ({ group: 'الأصناف', icon: 'box', label: `${x.name} (${x.sku})`, sub: `الرصيد ${fmtNum(x.onHand)}`, run: () => Router.go(`/inventory/items/${x.id}`) })), ...kb.slice(0, 4).map((a) => ({ group: 'قاعدة المعرفة', icon: 'book', label: a.title, run: () => Router.go(`/kb?open=${a.id}`) })), ...mts.map((r) => ({ group: MT.name(), icon: 'tools', label: `${r.number} — ${r.device.name}`, sub: MT.stage(r.status).label, run: () => Router.go(`/send-maint?m=${r.id}`) })), ...res];
@@ -2240,12 +2253,12 @@ Pages.tickets = async (ctx) => {
   const fetch = async (all = false) => {
     const f = filter(); if (all) { f.offset = 0; f.limit = 1e6; }
     if (st.scope === 'notes') {
-      const qn = normalizeAr(f.q), rows = (await Pages.noteTickets()).filter((t) => (!st.status || t.status === st.status) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to));
+      const qn = normalizeAr(f.q), rows = (await Pages.noteTickets()).filter((t) => (!st.status || t.status === st.status) && (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || SRCH.has(t.search || Data.tickets.searchOf(t), qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to));
       return { rows: rows.slice(f.offset, f.offset + f.limit), hasMore: rows.length > f.offset + f.limit };
     }
     if (staff && Array.isArray(f.status) && ['mine', 'open', 'spec'].includes(st.scope)) {
       const lists = await Promise.all(f.status.map((s) => (st.scope === 'mine' ? DB.getAll('tickets', 'assignee_status', KR([me, s])) : DB.getAll('tickets', 'status_createdAt', KR([s, f.from || 0], [s, f.to || Infinity])))));
-      const qn = normalizeAr(f.q), rows = lists.flat().filter((t) => (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || String(t.search).includes(qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to) && (st.scope !== 'spec' || (myCats.has(t.categoryId) && (!t.assigneeId || t.assigneeId === me)))).sort((a, b) => b.createdAt - a.createdAt);
+      const qn = normalizeAr(f.q), rows = lists.flat().filter((t) => (!f.priority || t.priority === f.priority) && (!f.categoryId || t.categoryId === f.categoryId) && (!f.departmentId || t.departmentId === f.departmentId) && (!qn || SRCH.has(t.search || Data.tickets.searchOf(t), qn)) && (!f.from || t.createdAt >= f.from) && (!f.to || t.createdAt <= f.to) && (st.scope !== 'spec' || (myCats.has(t.categoryId) && (!t.assigneeId || t.assigneeId === me)))).sort((a, b) => b.createdAt - a.createdAt);
       return { rows: rows.slice(f.offset, f.offset + f.limit), hasMore: rows.length > f.offset + f.limit };
     }
     if (f.status === '') delete f.status;
@@ -2661,7 +2674,7 @@ Pages.items = async (ctx) => {
     const lim = all ? 1e6 : st.limit, off = all ? 0 : st.offset;
     if (!st.wh) return Data.inv.items({ q: st.q, categoryId: st.categoryId, low: st.low, offset: off, limit: lim });
     const ids = new Set((await DB.getAll('stock', 'warehouseId', KR(st.wh))).filter((s) => s.qty > 0).map((s) => s.itemId)), qn = normalizeAr(st.q), rows = [];
-    await DB.each('items', { index: 'updatedAt', dir: 'prev' }, (i) => { if (ids.has(i.id) && (!st.categoryId || i.categoryId === st.categoryId) && (!qn || String(i.search).includes(qn)) && (!st.low || i.onHand <= i.minQty)) rows.push(i); });
+    await DB.each('items', { index: 'updatedAt', dir: 'prev' }, (i) => { if (ids.has(i.id) && (!st.categoryId || i.categoryId === st.categoryId) && (!qn || SRCH.has(i.search || Data.inv.searchOf(i), qn)) && (!st.low || i.onHand <= i.minQty)) rows.push(i); });
     return { rows: rows.slice(off, off + lim), hasMore: rows.length > off + lim };
   };
   const load = async () => {
@@ -3419,7 +3432,7 @@ Pages.users = async (ctx) => {
       && (!st.loc || u.locationId === st.loc) && (!st.rank || u.rankId === st.rank) && (st.active === '' || String(u.active) === st.active)
       && (!st.login || (st.login === 'never' ? !u.lastLoginAt : idle > Number(st.login) * DAY))
       && (!st.perm || (st.perm === 'mod') === !!((u.extraPerms || []).length || (u.deniedPerms || []).length))
-      && (!qn || normalizeAr([u.name, u.username, u.militaryNo, u.phone, u.office].join(' ')).includes(qn));
+      && (!qn || SRCH.has([u.name, u.username, u.militaryNo, u.phone, u.office].join(' '), qn));
   };
   const load = () => {
     const all = Data.list('users'), qn = normalizeAr(st.q), units = st.unit ? orgSubtree(Data.list('deptUnits'), st.unit) : new Set();
@@ -4244,7 +4257,7 @@ Data.dept = {
   },
   async report({ departments = [], warehouseId = '', categoryId = '', q = '' } = {}) {
     const qn = normalizeAr(q), items = new Map();
-    await DB.each('items', {}, (i) => { if ((!categoryId || i.categoryId === categoryId) && (!qn || String(i.search).includes(qn))) items.set(i.id, { item: i, store: 0, byWh: {}, depts: {}, deptTotal: 0 }); });
+    await DB.each('items', {}, (i) => { if ((!categoryId || i.categoryId === categoryId) && (!qn || SRCH.has(i.search || Data.inv.searchOf(i), qn))) items.set(i.id, { item: i, store: 0, byWh: {}, depts: {}, deptTotal: 0 }); });
     await DB.each('stock', {}, (s) => { const r = items.get(s.itemId); if (!r || s.qty <= 0) return; if (warehouseId && s.warehouseId !== warehouseId) return; r.store += s.qty; r.byWh[s.warehouseId] = (r.byWh[s.warehouseId] || 0) + s.qty; });
     const pick = new Set(departments);
     await DB.each('deptStock', {}, (d) => { const r = items.get(d.itemId); if (!r || d.qty <= 0) return; if (pick.size && !pick.has(d.departmentId)) return; r.depts[d.departmentId] = (r.depts[d.departmentId] || 0) + d.qty; r.deptTotal += d.qty; });
@@ -4728,7 +4741,8 @@ Pages.loanModal = async (itemId) => {
 Pages.browse = async (ctx) => {
   const st = { cat: ctx.query.cat || '', brand: ctx.query.brand || '', q: '', view: localStorage.getItem('sq_devview') || 'grid' };
   const draw = async () => {
-    const man = Auth.can('inventory.manage'), all = (await DB.getAll('items')).filter((i) => (!i.archived || man) && (!st.q || normalizeAr(i.search || i.name).includes(normalizeAr(st.q))));
+    const man = Auth.can('inventory.manage'), all = (await DB.getAll('items')).filter((i) => (!i.archived || man) && (!st.q || SRCH.has(`${i.search || ''} ${i.name || ''} ${i.model || ''} ${i.brand || ''} ${i.sku || ''}`, st.q)));
+    st._all = all; st._sn = st.q && SRCH.compact(st.q).length >= 3 ? (await DB.getAll('assets')).filter((a) => SRCH.has(`${a.serial || ''} ${a.tag || ''}`, st.q)).slice(0, 60) : []; if (st._sn.length) st._imap = new Map((await DB.getAll('items')).map((i) => [i.id, i]));
     const bIcons = await Data.brands.map();
     if (!ctx.alive()) return;
     const inCat = st.cat ? all.filter((i) => i.categoryId === st.cat) : [], inBrand = st.brand ? inCat.filter((i) => (i.brand || 'غير محدد') === st.brand) : [];
@@ -4934,7 +4948,7 @@ Pages.vouchers = async (ctx) => {
   const load = async () => {
     const all = (await DB.getAll('vouchers')).sort((a, b) => b.at - a.at), qn = normalizeAr(st.q);
     const rf = st.from ? startOfDay(fromDateInput(st.from, true)) : 0, rt = st.to ? startOfDay(fromDateInput(st.to, true)) + DAY - 1 : Infinity;
-    const rows = all.filter((v) => v.at >= rf && v.at <= rt && (!st.type || v.type === st.type) && (!qn || normalizeAr([v.number, v.holder, Data.nameOf('departments', v.departmentId, ''), v.lines.map((l) => l.name).join(' ')].join(' ')).includes(qn)));
+    const rows = all.filter((v) => v.at >= rf && v.at <= rt && (!st.type || v.type === st.type) && (!qn || SRCH.has([v.number, v.holder, Data.nameOf('departments', v.departmentId, ''), v.lines.map((l) => l.name).join(' ')].join(' '), qn)));
     if (!ctx.alive()) return;
     $('#vbody', ctx.view).innerHTML = String(rows.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>السند</th><th>النوع</th><th>المستلم</th><th>الإدارة</th><th>الأصناف</th><th>الوحدات</th><th>التاريخ</th><th></th></tr></thead><tbody class="stagger">${rows.slice(0, 200).map((v) => html`<tr><td class="t-num">${v.number}</td><td>${v.type === 'issue' ? UI.chip('violet', 'صرف عهدة', 'upload') : UI.chip('amber', 'إعارة', 'clipboard')}</td><td>${v.holder}</td><td>${Data.nameOf('departments', v.departmentId)}</td><td class="small">${v.lines.slice(0, 2).map((l) => l.name).join('، ')}${v.lines.length > 2 ? ` و${fmtNum(v.lines.length - 2)} أخرى` : ''}</td><td><b>${fmtNum(v.units)}</b></td><td class="faint nowrap">${fmtDateTime(v.at)}</td><td class="nowrap"><button class="btn btn-ghost btn-sm" data-vprint="${v.id}">${UI.icon('print')} طباعة</button><button class="btn btn-ghost btn-sm" data-vxls="${v.id}">${UI.icon('download')}</button></td></tr>`)}</tbody></table></div>` : UI.empty({ illu: 'card', title: 'لا توجد سندات بعد', text: 'أضف أصنافاً إلى السلة ثم اصرفها لتصدر أول سند.' }));
   };
@@ -5647,7 +5661,7 @@ const MDV = {
   setView(v) { try { localStorage.setItem('sq_mdv_view', v); } catch (_) { /* تجاهل */ } },
   canEdit: () => Auth.can('inventory.move') || Auth.can('inventory.manage'),
   where(a, uPath) { return a.status === 'in_store' ? Data.nameOf('warehouses', a.warehouseId, 'مخزن') : a.status === 'issued' ? [Data.nameOf('departments', a.departmentId, a.holder || '—'), a.unitId ? uPath(a.unitId) : ''].filter(Boolean).join(' — ') : a.extId && a.status === 'maintenance' ? `لدى ${XM.name()}` : a.holder || '—'; },
-  match(a, q, uPath) { if (!q) return true; return normalizeAr([a.serial, a.tag, a.host, a.note, a.holder, MDV.where(a, uPath)].join(' ')).includes(q); },
+  match(a, q, uPath) { if (!q) return true; return SRCH.has([a.serial, a.tag, a.host, a.note, a.holder, MDV.where(a, uPath)].join(' '), q); },
   list(st) { const q = normalizeAr(st.q || ''); return st.all.filter((a) => (st.f === 'all' || a.status === st.f) && MDV.match(a, q, st.uPath)); },
   specN: (a) => (a.specs && typeof a.specs === 'object' ? Object.keys(a.specs).length : 0),
   stChip: (a) => { const x = ASSET_STATUS[a.status] || ASSET_STATUS.in_store; return UI.chip(x.tone, x.label, x.icon); },
@@ -5981,17 +5995,17 @@ Pages.invSearch = async (ctx) => {
     const qn = normalizeAr(st.q);
     const [items, assets, deptRows, vouchers, loans] = await Promise.all([DB.getAll('items'), DB.getAll('assets'), DB.getAll('deptStock'), DB.getAll('vouchers'), DB.getAll('loans')]);
     if (!ctx.alive()) return;
-    const matchItem = (i) => (!qn || normalizeAr([i.name, i.sku, i.brand, i.model, Object.values(i.specs || {}).join(' '), Data.nameOf('itemCategories', i.categoryId, '')].join(' ')).includes(qn))
+    const matchItem = (i) => (!qn || SRCH.has([i.name, i.sku, i.brand, i.model, Object.values(i.specs || {}).join(' '), Data.nameOf('itemCategories', i.categoryId, '')].join(' '), qn))
       && (!st.cat || i.categoryId === st.cat) && (!st.brand || (i.brand || '') === st.brand)
       && (!st.stock || (st.stock === 'out' ? i.onHand <= 0 : st.stock === 'low' ? i.minQty > 0 && i.onHand > 0 && i.onHand <= i.minQty : i.onHand > 0))
       && (!st.serial || (st.serial === 'yes' ? isSerialItem(i) : !isSerialItem(i)))
       && (!st.port || normalizeAr(Object.values(i.specs || {}).join(' ')).includes(normalizeAr(st.port)));
     const foundItems = items.filter(matchItem);
     const itemById = new Map(items.map((i) => [i.id, i]));
-    const foundAssets = qn ? assets.filter((a) => normalizeAr(`${a.serial} ${a.tag || ''} ${a.host || ''} ${(itemById.get(a.itemId) || {}).name || ''}`).includes(qn)).slice(0, 40) : [];
+    const foundAssets = qn ? assets.filter((a) => SRCH.has(`${a.serial} ${a.tag || ''} ${a.host || ''} ${(itemById.get(a.itemId) || {}).name || ''}`, qn)).slice(0, 40) : [];
     const ids = new Set(foundItems.map((i) => i.id));
     const foundDept = deptRows.filter((d) => d.qty > 0 && ids.has(d.itemId)).slice(0, 40);
-    const foundDocs = qn ? [...vouchers.filter((v) => normalizeAr(`${v.number} ${v.holder} ${(v.lines || []).map((l) => l.name + ' ' + (l.serials || []).join(' ')).join(' ')}`).includes(qn)).slice(0, 15).map((v) => ({ kind: (VOUCHER_KIND[v.type] || {}).label || 'سند', number: v.number, who: v.holder || Data.nameOf('departments', v.departmentId, ''), at: v.at, id: v.id })), ...loans.filter((l) => normalizeAr(`${l.number} ${l.borrower} ${l.itemName}`).includes(qn)).slice(0, 10).map((l) => ({ kind: 'عهدة', number: l.number, who: l.borrower, at: l.issuedAt, id: l.id }))] : [];
+    const foundDocs = qn ? [...vouchers.filter((v) => SRCH.has(`${v.number} ${v.holder} ${(v.lines || []).map((l) => l.name + ' ' + (l.serials || []).join(' ')).join(' ')}`, qn)).slice(0, 15).map((v) => ({ kind: (VOUCHER_KIND[v.type] || {}).label || 'سند', number: v.number, who: v.holder || Data.nameOf('departments', v.departmentId, ''), at: v.at, id: v.id })), ...loans.filter((l) => SRCH.has(`${l.number} ${l.borrower} ${l.itemName}`, qn)).slice(0, 10).map((l) => ({ kind: 'عهدة', number: l.number, who: l.borrower, at: l.issuedAt, id: l.id }))] : [];
     const brands = [...new Set(items.map((i) => i.brand).filter(Boolean))].sort();
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'البحث في المخزن', sub: 'ابحث في الأصناف والأرقام التسلسلية وعهد الإدارات والسندات دفعة واحدة', illu: 'display', actions: html`<a class="btn btn-ghost" href="#/inventory/browse">${UI.icon('grid')} تصفح المخزن</a>` })}
@@ -6483,7 +6497,7 @@ Pages.repliesPicker = async (kind = '', ctx = {}) => {
     title: 'الردود الجاهزة', icon: 'book', size: 'lg',
     body: html`<div class="search-box mb">${UI.icon('search')}<input id="rq" type="search" placeholder="ابحث في الردود"></div><div data-rbody>${render(rows)}</div><button type="button" class="btn btn-soft btn-block mt" data-act="newreply">${UI.icon('plus')} رد جديد</button><p class="hint mt">ردودك المحفوظة خاصة بحسابك ولا يراها غيرك. ويمكنك استخدام متغيرات تُستبدل تلقائياً: {الاسم} و{رقم البلاغ} و{الفئة} و{اسم الفني}.</p>`,
     onMount: (form, finish) => {
-      const redraw = async () => { const q = normalizeAr(($('#rq', form) || {}).value || ''); const list = (await Data.replies.list(kind)).filter((r) => !q || normalizeAr(`${r.title} ${r.text}`).includes(q)); form.querySelector('[data-rbody]').innerHTML = String(render(list)); UI.hydrate(form.querySelector('[data-rbody]')); };
+      const redraw = async () => { const q = normalizeAr(($('#rq', form) || {}).value || ''); const list = (await Data.replies.list(kind)).filter((r) => !q || SRCH.has(`${r.title} ${r.text}`, q)); form.querySelector('[data-rbody]').innerHTML = String(render(list)); UI.hydrate(form.querySelector('[data-rbody]')); };
       $('#rq', form).addEventListener('input', debounce(redraw, 200));
       UI.on(form, 'click', '[data-pick]', async (e, el) => { const r = await DB.get('replies', el.dataset.pick); if (!r) return; await Data.replies.use(r.id); finish(fillVars(r.text, ctx)); });
       UI.on(form, 'click', '[data-del]', async (e, el) => { if (!(await UI.confirm('حذف هذا الرد؟', { danger: true, ok: 'حذف' }))) return; try { await Data.replies.remove(el.dataset.del); redraw(); } catch (ex) { UI.error(ex); } });
@@ -6609,7 +6623,7 @@ Pages.passwords = async (ctx) => {
   const picked = new Set();
   const me = Auth.user;
   const selectable = () => Data.list('users').filter((u) => u.active && canSetPassword(me, u));
-  const curRows = () => { const qn = normalizeAr(st.q); return selectable().filter((u) => (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!qn || normalizeAr(`${u.name} ${u.username} ${u.militaryNo || ''} ${Data.nameOf('departments', u.departmentId, '')}`).includes(qn))); };
+  const curRows = () => { const qn = normalizeAr(st.q); return selectable().filter((u) => (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!qn || SRCH.has(`${u.name} ${u.username} ${u.militaryNo || ''} ${Data.nameOf('departments', u.departmentId, '')}`, qn))); };
   const renderBulk = () => {
     const b = $('#pwBulk', ctx.view); if (!b) return; b.hidden = !picked.size; if (!picked.size) return;
     const rows = curRows(), rest = rows.filter((u) => !picked.has(u.id)).length;
@@ -7480,7 +7494,7 @@ Pages.maintenance = async (ctx) => {
     if (!ctx.alive()) return;
     const inRange = (r) => { const f = st.from ? startOfDay(fromDateInput(st.from, true)) : 0, t = st.to ? startOfDay(fromDateInput(st.to, true)) + DAY - 1 : Infinity; return r.openedAt >= f && r.openedAt <= t; };
     const qn = normalizeAr(st.q);
-    const rows = all.filter((r) => (st.tab === 'all' || r.status === st.tab) && inRange(r) && (!qn || normalizeAr(`${r.itemName} ${r.serial} ${r.tag} ${r.reason} ${r.workDone} ${Data.nameOf('departments', r.fromDepartmentId, '')}`).includes(qn)));
+    const rows = all.filter((r) => (st.tab === 'all' || r.status === st.tab) && inRange(r) && (!qn || SRCH.has(`${r.itemName} ${r.serial} ${r.tag} ${r.reason} ${r.workDone} ${Data.nameOf('departments', r.fromDepartmentId, '')}`, qn)));
     const count = (s) => all.filter((r) => r.status === s).length;
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'الصيانة', sub: 'استلام الأجهزة برقمها التسلسلي، وما تم فيها، وتسليمها إلى مواقعها، مع سجل كل صيانة سابقة', illu: 'tools', actions: html`${Auth.can('inventory.move') ? html`<button class="btn btn-ghost" data-act="send" title="يخرج الجهاز من رصيد عهدة الإدارة حتى يُرجع">${UI.icon('tools')} إرسال من العهدة</button>` : ''}${Auth.can('inventory.read') ? html`<a class="btn btn-ghost" href="#/inventory/retired">${UI.icon('x')} الخارج عن الخدمة</a>` : ''}<button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
@@ -7554,7 +7568,7 @@ Pages.retired = async (ctx) => {
     const rows = assets.filter((a) => {
       const f = st.from ? startOfDay(fromDateInput(st.from, true)) : 0, t = st.to ? startOfDay(fromDateInput(st.to, true)) + DAY - 1 : Infinity;
       const at = a.retiredAt || a.updatedAt || 0;
-      return at >= f && at <= t && (!qn || normalizeAr(`${a.serial} ${a.tag || ''} ${(items.get(a.itemId) || {}).name || ''} ${a.retireReason || ''} ${Data.nameOf('departments', a.retiredFrom, '')}`).includes(qn));
+      return at >= f && at <= t && (!qn || SRCH.has(`${a.serial} ${a.tag || ''} ${(items.get(a.itemId) || {}).name || ''} ${a.retireReason || ''} ${Data.nameOf('departments', a.retiredFrom, '')}`, qn));
     }).sort((a, b) => (b.retiredAt || 0) - (a.retiredAt || 0));
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'الأجهزة الخارجة عن الخدمة', sub: 'الأجهزة التي أُخرجت من الخدمة أو التالفة، لا تُحتسب ضمن أرصدة المخزن ولا عهد الإدارات', illu: 'box', actions: html`<a class="btn btn-ghost" href="#/maintenance">${UI.icon('tools')} الصيانة</a><button class="btn btn-ghost" data-act="xls">${UI.icon('download')} تصدير</button>` })}
@@ -7668,7 +7682,7 @@ Pages.formsPage = async (ctx) => {
     const all = await Data.forms.list();
     if (!ctx.alive()) return;
     const qn = normalizeAr(st.q);
-    const rows = all.filter((f) => (!f.hidden || canHideForms()) && (!st.cat || f.categoryId === st.cat) && (!qn || normalizeAr(`${f.title} ${f.desc} ${Data.nameOf('categories', f.categoryId, '')}`).includes(qn)));
+    const rows = all.filter((f) => (!f.hidden || canHideForms()) && (!st.cat || f.categoryId === st.cat) && (!qn || SRCH.has(`${f.title} ${f.desc} ${Data.nameOf('categories', f.categoryId, '')}`, qn)));
     const manage = canManageForms(), hider = canHideForms();
     ctx.view.innerHTML = String(html`
       ${UI.pageHead({ title: 'النماذج والاستمارات', sub: 'استمارات جاهزة للعرض داخل النظام والتحميل والطباعة', illu: 'paper', actions: html`${manage ? html`<button class="btn btn-primary" data-act="new">${UI.icon('plus')} نموذج جديد</button>` : ''}<button class="btn btn-ghost" data-blankcard>${UI.icon('print')} استمارة بطاقة فارغة</button>` })}
@@ -7801,7 +7815,7 @@ Pages.worklog = async (ctx) => {
     const rows = rows0.filter((r) => r.at >= f && r.at <= t
       && (st.scope === 'team' ? true : r.userId === Auth.user.id)
       && (!st.type || r.type === st.type) && (!st.user || r.userId === st.user)
-      && (!qn || normalizeAr(`${r.title} ${r.details} ${Data.userName(r.userId)} ${(r.departmentText || Data.nameOf('departments', r.departmentId, ''))}`).includes(qn)));
+      && (!qn || SRCH.has(`${r.title} ${r.details} ${Data.userName(r.userId)} ${(r.departmentText || Data.nameOf('departments', r.departmentId, ''))}`, qn)));
     const hours = rows.reduce((s, r) => s + (Number(r.hours) || 0), 0);
     const people = rows.reduce((s, r) => s + (Number(r.people) || 0), 0);
     const byType = new Map(), byUser = new Map(), byDep = new Map();
@@ -8045,9 +8059,9 @@ Pages.works = async (ctx) => {
     if (st.cwd && !idx.byId.has(st.cwd)) st.cwd = '';
     const scope = st.cwd ? new Set(idx.descend(st.cwd)) : null, qn = normalizeAr(st.q);
     const f0 = st.from ? startOfDay(fromDateInput(st.from)) : 0, t0 = st.to ? startOfDay(fromDateInput(st.to)) + DAY - 1 : Infinity;
-    const match = (i) => (!st.status || i.status === st.status) && (!st.owner || i.ownerId === st.owner) && (!st.deps.size || (i.departmentIds || []).some((d) => st.deps.has(d))) && i.createdAt >= f0 && i.createdAt <= t0 && (!qn || normalizeAr(`${i.title} ${i.desc} ${i.partner} ${i.notes}`).includes(qn));
+    const match = (i) => (!st.status || i.status === st.status) && (!st.owner || i.ownerId === st.owner) && (!st.deps.size || (i.departmentIds || []).some((d) => st.deps.has(d))) && i.createdAt >= f0 && i.createdAt <= t0 && (!qn || SRCH.has(`${i.title} ${i.desc} ${i.partner} ${i.notes}`, qn));
     const searching = filtering();
-    const subFolders = searching ? (qn ? folders.filter((f) => (!scope || scope.has(f.id)) && f.id !== st.cwd && normalizeAr(f.name).includes(qn)) : []) : idx.kids(st.cwd);
+    const subFolders = searching ? (qn ? folders.filter((f) => (!scope || scope.has(f.id)) && f.id !== st.cwd && SRCH.has(f.name, qn)) : []) : idx.kids(st.cwd);
     const rows = (searching ? items.filter((i) => (!scope || scope.has(i.folderId)) && match(i)) : idx.direct(st.cwd)).sort((a, b) => b.updatedAt - a.updatedAt);
     const scopeItems = scope ? items.filter((i) => scope.has(i.folderId)) : items, byStatus = (s) => scopeItems.filter((i) => i.status === s).length;
     const late = scopeItems.filter((i) => i.dueAt && i.dueAt < now() && !['done', 'canceled'].includes(i.status)).length;
@@ -8789,7 +8803,7 @@ const orgHeadField = (cur, here, locked) => {
 };
 UI.bindHeadSearch = (form) => {
   const q = form.querySelector('[data-headq]'), sel = form.querySelector('[name="headId"]'); if (!q || !sel) return;
-  q.addEventListener('input', () => { const k = normalizeAr(q.value); [...sel.options].forEach((o) => { o.hidden = !!o.value && !!k && !normalizeAr(o.textContent).includes(k); }); const hit = k && [...sel.options].find((o) => o.value && !o.hidden); if (hit) sel.value = hit.value; });
+  q.addEventListener('input', () => { const k = normalizeAr(q.value); [...sel.options].forEach((o) => { o.hidden = !!o.value && !!k && !SRCH.has(o.textContent, k); }); const hit = k && [...sel.options].find((o) => o.value && !o.hidden); if (hit) sel.value = hit.value; });
 };
 /* نافذة الإدارة أو الوحدة: الاسم والرمز والأيقونة واللون، وإضافة عدة فروع دفعة واحدة */
 Pages.orgNodeModal = async ({ kind, id = '', departmentId = '', parentId = '' }) => {
@@ -8904,7 +8918,7 @@ const PlacePick = {
     const clearRow = btn.dataset.clear === '1' ? html`<div class="pp-row"><span class="pp-x"></span><button type="button" class="pp-name${cur ? '' : ' on'}" data-ppv="">${btn.dataset.none}</button></div>` : '';
     if (qn) {
       const hits = [];
-      Data.list('departments').forEach((d) => { if (ok(d.id, '') && normalizeAr(d.name).includes(qn)) hits.push({ v: `${d.id}|`, path: d.name, k: `d:${d.id}` }); orgUnitsFlat(units, d.id).forEach(({ u, path }) => { if (ok(d.id, u.id) && normalizeAr(`${u.name} ${path}`).includes(qn)) hits.push({ v: `${d.id}|${u.id}`, path: `${d.name} / ${path}`, k: `u:${u.id}` }); }); });
+      Data.list('departments').forEach((d) => { if (ok(d.id, '') && SRCH.has(d.name, qn)) hits.push({ v: `${d.id}|`, path: d.name, k: `d:${d.id}` }); orgUnitsFlat(units, d.id).forEach(({ u, path }) => { if (ok(d.id, u.id) && SRCH.has(`${u.name} ${path}`, qn)) hits.push({ v: `${d.id}|${u.id}`, path: `${d.name} / ${path}`, k: `u:${u.id}` }); }); });
       tree.innerHTML = String(hits.length ? html`${hits.slice(0, 120).map((h) => html`<div class="pp-row"><button type="button" class="pp-name pp-hit${cur === h.v ? ' on' : ''}" data-ppv="${h.v}"><span class="grow">${h.path}</span><span class="pp-n">${fmtNum(total(h.k))}</span></button></div>`)}${hits.length > 120 ? html`<p class="hint">${fmtNum(hits.length - 120)} نتيجة أخرى، اكتب أكثر</p>` : ''}` : html`<p class="hint" style="padding:8px">لا موضع بهذا الاسم</p>`);
       return;
     }
@@ -8944,7 +8958,7 @@ Pages.orgMembers = async ({ departmentId, unitId = '', q = '' }) => {
       <details class="mt"><summary><b>${UI.icon('plus')} إضافة حسابات إلى هذا الموضع</b></summary><div class="search-box mt">${UI.icon('search')}<input type="search" data-addq placeholder="اكتب اسماً أو رقماً عسكرياً"></div><div class="list mt" data-addlist></div></details>` : ''}`,
     actions: [{ label: 'إغلاق', kind: 'ghost', value: true }, ...(canAssign() || OrgScope.covers(departmentId, unitId) ? [{ label: 'لوحة التوزيع على الفروع', kind: 'soft', icon: 'grid', handler: () => { Router.go(`/org/people?d=${encodeURIComponent(departmentId)}${unitId ? `&u=${encodeURIComponent(unitId)}` : ''}`); return true; } }] : [])],
     onMount: (form) => {
-      const match = (u, q) => !q || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(q);
+      const match = (u, q) => !q || SRCH.has(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`, q);
       const draw = () => {
         const base = orgPeople().filter((u) => inHere(u) && match(u, normalizeAr(st.q))), list = base.filter((u) => !st.wsf || (st.wsf === 'on') === wsBy.has(u.id)).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
         { const bar = $('[data-wsfbar]', form); if (bar) { const on = base.filter((u) => wsBy.has(u.id)).length; bar.innerHTML = String(html`${[['', 'الكل', base.length, 'users'], ['on', 'على محطة عمل', on, 'monitor'], ['off', 'بلا محطة', base.length - on, 'user-plus']].map(([k, l, n, ic]) => html`<button type="button" class="om-wsb${st.wsf === k ? ' on' : ''}${k === 'off' && n ? ' warn' : ''}" data-wsfv="${k}" aria-pressed="${st.wsf === k ? 'true' : 'false'}">${UI.icon(ic)} ${l} <b>${fmtNum(n)}</b></button>`)}`); } }
@@ -9147,7 +9161,7 @@ Pages.orgPeople = async (ctx) => {
     const trail = []; { let x = node, g = 0; while (x && g++ < 30) { trail.unshift(x); x = x.parentId ? byId.get(x.parentId) : null; } }
     const up = node ? { d: st.d, u: node.parentId && byId.has(node.parentId) ? node.parentId : '' } : null;
     const qn = normalizeAr(st.q);
-    const list = (st.view === 'here' ? direct : inNode).filter((p) => (!st.role || p.role === st.role) && (!qn || normalizeAr(`${p.name} ${p.militaryNo || ''} ${p.username || ''} ${rank(p)}`).includes(qn))).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
+    const list = (st.view === 'here' ? direct : inNode).filter((p) => (!st.role || p.role === st.role) && (!qn || SRCH.has(`${p.name} ${p.militaryNo || ''} ${p.username || ''} ${rank(p)}`, qn))).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
     [...st.pick].forEach((id) => { if (!inNode.some((p) => p.id === id)) st.pick.delete(id); });
     st.listIds = list.map((p) => p.id);
     const roles = [...new Set(inNode.map((p) => p.role))];
@@ -9779,7 +9793,7 @@ Pages.orgUnassigned = async () => {
     onMount: (form) => {
       if (!rows.length) return;
       const draw = () => {
-        const q = normalizeAr(st.q), list = rows.filter((r) => !q || normalizeAr(`${r.u.name} ${r.u.militaryNo || ''} ${r.hint}`).includes(q));
+        const q = normalizeAr(st.q), list = rows.filter((r) => !q || SRCH.has(`${r.u.name} ${r.u.militaryNo || ''} ${r.hint}`, q));
         $('[data-rows]', form).innerHTML = String(html`${list.slice(0, 300).map((r) => { const sel = r.suggest ? `${r.suggest.departmentId}|${r.suggest.unitId || ''}` : ''; return html`<tr><td><input type="checkbox" data-pick="${r.u.id}"${st.pick.has(r.u.id) ? raw(' checked') : ''}></td><td><b>${r.u.name}</b><div class="t-sub ltr">${r.u.militaryNo || r.u.username || ''}</div></td><td>${UI.chip(r.problem === 'unit' ? 'amber' : 'slate', why[r.problem])}${r.hint ? html`<div class="t-sub">${r.hint}</div>` : ''}</td><td>${PlacePick.html({ data: { to: r.u.id }, value: sel, none: '— اختر —' })}${r.suggest ? html`<div class="t-sub">${UI.chip(r.suggest.status === 'exact' ? 'teal' : 'amber', r.suggest.status === 'exact' ? 'مطابق' : 'أقرب تطابق')}</div>` : ''}</td></tr>`; })}`);
       };
       form.addEventListener('input', (e) => { if (e.target.matches('[data-q]')) { st.q = e.target.value; draw(); } });
@@ -9824,7 +9838,7 @@ Pages.orgHistory = async () => {
           <details data-det="${e.id}"${st.open.has(e.id) ? raw(' open') : ''}><summary class="small">${fmtNum(e.changes.length)} تغيير</summary><ul class="org-log-list">${e.changes.slice(0, 60).map((c) => html`<li>${orgLogLine(c, units)}</li>`)}${e.changes.length > 60 ? html`<li class="faint">و${fmtNum(e.changes.length - 60)} غيرها</li>` : ''}</ul></details></div>`;
       };
       const draw = () => {
-        const q = normalizeAr(st.q), list = rows.filter((e) => (!st.mine || e.userId === me) && (!q || normalizeAr(`${e.summary} ${Data.userName(e.userId)}`).includes(q)));
+        const q = normalizeAr(st.q), list = rows.filter((e) => (!st.mine || e.userId === me) && (!q || SRCH.has(`${e.summary} ${Data.userName(e.userId)}`, q)));
         $('[data-rows]', form).innerHTML = list.length ? String(html`${list.slice(0, 200).map(entry)}`) : String(UI.empty({ illu: 'check', title: 'لا توجد تغييرات مسجلة', text: 'كل إضافة أو تعديل أو نقل أو حذف في الهيكل يظهر هنا، ويمكن التراجع عنه.' }));
       };
       form.addEventListener('input', (e) => { if (e.target.matches('[data-q]')) { st.q = e.target.value; draw(); } });
@@ -9863,10 +9877,10 @@ Pages.org = async (ctx) => {
     const usersIn = (u) => uCnt.get(u.id) || 0, usersDep = (d) => dCnt.get(d.id) || 0;
     /* الهيكل الكبير يُفتح مطوياً (الإدارات فقط) ما لم يختر المستخدم غير ذلك؛ وكان يُرسم كله مفتوحاً فيتأخر ثواني */
     if (st.all === null) { let v = null; try { v = localStorage.getItem('sq_org_all'); } catch (_) { /* تجاهل */ } st.all = v === '1' ? true : v === '0' ? false : units.length <= ORG_BIG; st.autoFold = !st.all && v == null; }
-    const subMatch = (depId, u) => normalizeAr(`${u.name} ${u.head || ''} ${u.code || ''}`).includes(qn) || kidsOf(depId, u.id).some((k) => subMatch(depId, k));
-    const depMatch = (d) => !qn || normalizeAr(`${d.name} ${d.head || ''} ${d.code || ''}`).includes(qn) || kidsOf(d.id, '').some((u) => subMatch(d.id, u));
+    const subMatch = (depId, u) => SRCH.has(`${u.name} ${u.head || ''} ${u.code || ''}`, qn) || kidsOf(depId, u.id).some((k) => subMatch(depId, k));
+    const depMatch = (d) => !qn || SRCH.has(`${d.name} ${d.head || ''} ${d.code || ''}`, qn) || kidsOf(d.id, '').some((u) => subMatch(d.id, u));
     const isOpen = (key) => st.all || !!qn || st.open.has(key);
-    const hl = (t) => (qn && normalizeAr(t).includes(qn) ? ' org-hit' : '');
+    const hl = (t) => (qn && SRCH.has(t, qn) ? ' org-hit' : '');
     /* التحديد المتعدد: مربع على كل فرع يملك المستخدم تعديله */
     const selBox = (d, u) => (st.selMode && mine(d, u) ? html`<input type="checkbox" class="org-sel" data-sel="${u.id}"${st.sel.has(u.id) ? raw(' checked') : ''} aria-label="تحديد «${u.name}»">` : '');
     const selDBox = (d) => (st.selMode && mine(d) ? html`<input type="checkbox" class="org-sel" data-seld="${d.id}"${st.seld.has(d.id) ? raw(' checked') : ''} aria-label="تحديد إدارة «${d.name}»">` : ''), selDCls = (d) => (st.selMode && st.seld.has(d.id) ? ' is-sel' : '');
@@ -9930,7 +9944,7 @@ Pages.org = async (ctx) => {
         <div class="panel-body">${deps.length ? (st.mode === 'chart' ? chart() : cards()) : UI.empty({ illu: 'building', title: 'لا توجد إدارات بعد', text: 'ابدأ بإضافة إدارات الأكاديمية ثم فروعها.', action: edit ? html`<button class="btn btn-primary" data-act="adddep">${UI.icon('plus')} إدارة جديدة</button>` : '' })}</div>
         ${edit || head ? html`<div class="wx-hint">${UI.icon('info')} اسحب فرعاً وأفلته على وسط إدارة أو فرع لنقله إلى داخله مع كل ما يتبعه وحساباته، أو على طرف فرع لوضعه قبله أو بعده، أو على شعار الأكاديمية لتحويله إلى إدارة مستقلة. اسحب إدارة وأفلتها على إدارة أخرى لترتيبها أو نقلها إلى داخلها. وللنسخ بدل النقل اختر «السحب ينسخ» أو اضغط Ctrl أثناء الإفلات (لا تُنسخ الحسابات). وعلى الهاتف: «تحديد متعدد» ثم «نقل» أو «نسخ». اسحب خلفية المخطط لتحريكه، وCtrl مع عجلة الفأرة للتكبير والتصغير.</div>` : ''}</section>`);
     { const shown = deps.filter(depMatch), sd = new Set(shown.map((d) => d.id)), okU = (u) => { const d = deps.find((x) => x.id === u.departmentId); return d && sd.has(d.id) && mine(d, u); };
-      ctx.selPool = { units: units.filter(okU), deps: shown.filter((d) => mine(d)), hits: qn ? units.filter((u) => okU(u) && normalizeAr(`${u.name} ${u.head || ''} ${u.code || ''}`).includes(qn)) : [] }; }
+      ctx.selPool = { units: units.filter(okU), deps: shown.filter((d) => mine(d)), hits: qn ? units.filter((u) => okU(u) && SRCH.has(`${u.name} ${u.head || ''} ${u.code || ''}`, qn)) : [] }; }
     ctx.data = { deps, units }; selSync();
     const wrap = $('.oc-wrap', ctx.view), oc = $('.oc', ctx.view);
     if (wrap && oc) {
@@ -12529,7 +12543,7 @@ Pages.resolveModal = async (t, templates = []) => {
     let list = all;
     if (st.tab === 'cat') list = list.filter((r) => !r.cat || r.cat === t.categoryId).sort((a, b) => (b.cat === t.categoryId) - (a.cat === t.categoryId));
     else if (st.tab === 'mine') list = list.filter((r) => r.scope !== 'all');
-    const q = normalizeAr(st.q); if (q) list = list.filter((r) => normalizeAr(`${r.title} ${r.text}`).includes(q));
+    const q = normalizeAr(st.q); if (q) list = list.filter((r) => SRCH.has(`${r.title} ${r.text}`, q));
     return list;
   };
   const listHTML = () => { const list = rows(); return list.length ? html`${list.slice(0, 60).map((r) => html`<button type="button" class="rs-item${r.cat && r.cat === t.categoryId ? ' fit' : ''}" data-rs="${r.id}"><b>${r.title}</b><span>${fillVars(r.text, ctx)}</span><i>${r.cat && r.cat === t.categoryId ? html`${UI.icon('sparkle')} مقترح لهذه الفئة` : ''}${r.scope !== 'all' ? html`${UI.icon('user')} خاص بك` : ''}</i></button>`)}` : html`<div class="empty-mini">${UI.icon('info')} ${st.tab === 'mine' ? 'لم تحفظ ردوداً بعد. اكتب الحل وفعّل «احتفظ بهذا الحل» ليظهر هنا.' : 'لا توجد حلول مطابقة.'}</div>`; };
@@ -13346,7 +13360,7 @@ Pages.surveyEditor = async (ctx) => {
   const users = () => s.audience.users.map((uid2) => Data.c.users.get(uid2)).filter(Boolean);
   const audHTML = () => {
     const deps = Data.list('departments'), n = Surveys.audienceUsers(s).length, q = normalizeAr(userQ);
-    const found = q ? Data.list('users').filter((x) => x.active && !s.audience.users.includes(x.id) && normalizeAr(`${x.name} ${x.username || ''} ${x.militaryNo || ''}`).includes(q)).slice(0, 8) : [];
+    const found = q ? Data.list('users').filter((x) => x.active && !s.audience.users.includes(x.id) && SRCH.has(`${x.name} ${x.username || ''} ${x.militaryNo || ''}`, q)).slice(0, 8) : [];
     return html`<div class="sv-aud"><div class="sv-aud-count">${UI.icon('users')}<span>المستهدفون الآن: <b>${fmtNum(n)}</b> مستخدم — ${Surveys.audText(s)}</span></div>
       <div class="field"><label>أنواع الحسابات <small class="faint">— بلا تحديد = الجميع</small></label><div class="chip-pick">${SV_ROLES.map(([r, l]) => html`<label><input type="checkbox" data-audrole="${r}"${s.audience.roles.includes(r) ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div>
       ${deps.length ? html`<div class="field"><label>الإدارات <small class="faint">— بلا تحديد = كل الإدارات</small></label><div class="chip-pick sv-deps">${deps.map((d) => html`<label><input type="checkbox" data-auddep="${d.id}"${s.audience.departments.includes(d.id) ? raw(' checked') : ''}><span>${d.name}</span></label>`)}</div></div>` : ''}
@@ -13690,7 +13704,7 @@ Pages.printers = async (ctx) => {
     if (!models.some((m) => m.id === st.m)) st.m = (models[0] || {}).id || '';
     const model = models.find((m) => m.id === st.m);
     const nModels = tree.reduce((n, x) => n + x.models.length, 0), inkSet = new Set(); tree.forEach((x) => x.models.forEach((m) => (m.inks || []).forEach((k) => inkSet.add(k.code.toLowerCase()))));
-    const hits = q ? tree.flatMap(({ b, models: ms }) => ms.flatMap((m) => { const inks = (m.inks || []).filter((k) => normalizeAr(k.code).includes(q)); return normalizeAr(m.name).includes(q) || inks.length || normalizeAr(b.name).includes(q) ? [{ b, m, inks }] : []; })) : [];
+    const hits = q ? tree.flatMap(({ b, models: ms }) => ms.flatMap((m) => { const inks = (m.inks || []).filter((k) => SRCH.has(k.code, q)); return SRCH.has(m.name, q) || inks.length || SRCH.has(b.name, q) ? [{ b, m, inks }] : []; })) : [];
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الطابعات والأحبار', sub: 'الماركات وموديلاتها والأحبار المتوافقة مع كل موديل — تظهر للموظف عند تقديم بلاغ طابعة أو طلب حبر', illu: 'printer', actions: can ? html`<button class="btn btn-soft" data-pcsync title="ربط الموجود، وتوحيد الأسماء، وإضافة الناقص — دون تغيير أي رصيد أو عهدة">${UI.icon('refresh')} تحديث المخزن من الإعدادات</button><button class="btn btn-primary" data-pcadd="brand">${UI.icon('plus')} ماركة جديدة</button>` : '' })}
       <div class="kpis">${UI.kpi({ label: 'الماركات', icon: 'printer', tone: 'brass', value: all.length })}${UI.kpi({ label: 'الموديلات', icon: 'layers', tone: 'sky', value: nModels })}${UI.kpi({ label: 'أنواع الأحبار', icon: 'box', tone: 'violet', value: inkSet.size })}</div>
       ${PCL.alignBanner()}<section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
@@ -13919,7 +13933,7 @@ const PP = {
     const draw = () => {
       const q = normalizeAr(st.q);
       let rows = pool.filter((u) => (st.dep === '__none' ? !u.departmentId || !Data.c.departments.has(u.departmentId) : inScope(u)));
-      if (q) rows = rows.filter((u) => normalizeAr([u.name, u.militaryNo, u.username].join(' ')).includes(q));
+      if (q) rows = rows.filter((u) => SRCH.has([u.name, u.militaryNo, u.username].join(' '), q));
       rows.sort((a, b) => AR_COLL.compare(String(a.name), String(b.name)));
       $b('.pp-count').textContent = rows.length ? `${fmtNum(rows.length)} مستخدم${rows.length > 60 ? ' — يظهر أول 60، ضيّق البحث بالإدارة أو القسم' : ''}` : '';
       $b('.pp-list').innerHTML = rows.length ? String(html`${rows.slice(0, 60).map((u, i) => html`<button type="button" class="pp-item${i ? '' : ' first'}" data-ppid="${u.id}" role="option">${UI.avatar(u.id, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${[Data.nameOf('ranks', u.rankId, ''), Data.nameOf('departments', u.departmentId, ''), unitName(u)].filter(Boolean).join(' · ')}</small></span>${u.militaryNo ? html`<span class="pp-no ltr">${u.militaryNo}</span>` : ''}</button>`)}`) : String(html`<p class="pp-empty">لا يوجد مستخدمون مطابقون</p>`);
@@ -13981,7 +13995,7 @@ Pages.cartPicker = (form, rerender) => {
     const term = normalizeAr(q.value.trim()), cat = sel.value;
     if (!term && !cat) { box.hidden = true; box.innerHTML = ''; return; }
     const sub = cat ? IC.subtree(cat) : null;
-    const rows = (await load()).filter((i) => (!sub || sub.has(i.categoryId)) && (!term || normalizeAr([i.name, i.brand, i.model, i.sku].join(' ')).includes(term))).sort((a, b) => (b.onHand > 0) - (a.onHand > 0) || AR_COLL.compare(String(a.name), String(b.name))).slice(0, 30);
+    const rows = (await load()).filter((i) => (!sub || sub.has(i.categoryId)) && (!term || SRCH.has([i.name, i.brand, i.model, i.sku].join(' '), term))).sort((a, b) => (b.onHand > 0) - (a.onHand > 0) || AR_COLL.compare(String(a.name), String(b.name))).slice(0, 30);
     box.hidden = false;
     box.innerHTML = String(rows.length ? html`${rows.map((i) => { const inCart = Cart.lines.filter((l) => l.itemId === i.id).reduce((s, l) => s + Number(l.qty || 0), 0); return html`<div class="cp-item${i.onHand > 0 ? '' : ' off'}">${UI.illu(itemIllu(i), 'mini')}<div class="grow"><b>${i.name}</b><small>${[IC.label(i.categoryId), [i.brand, i.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}</small></div><span class="chip tone-${i.onHand > 0 ? 'teal' : 'red'}"><i class="dot"></i>المتاح ${fmtNum(i.onHand || 0)}</span>${inCart ? html`<span class="chip tone-sky">${UI.icon('cart')} ${fmtNum(inCart)}</span>` : ''}<button type="button" class="btn btn-primary btn-sm" data-cpadd="${i.id}"${i.onHand > 0 ? '' : raw(' disabled')}>${UI.icon('plus')} إضافة</button></div>`; })}` : html`<p class="cp-empty">لا توجد أصناف مطابقة${term ? '، وإن كان رقماً تسلسلياً فاضغط Enter' : ''}</p>`);
   };
@@ -14533,7 +14547,7 @@ Pages.extMaint = async (ctx) => {
     const all = (await XM.list()).sort((a, b) => b.sentAt - a.sentAt);
     if (!ctx.alive()) return;
     const manage = XM.canManage(), qn = normalizeAr(st.q);
-    const rows = all.filter((r) => inTab(r, st.tab) && (!st.vendor || r.vendor.name === st.vendor) && (!qn || normalizeAr(`${r.number} ${r.itemName} ${r.serial} ${r.newSerial} ${r.vendor.name} ${r.vendorRef} ${r.holder} ${Data.nameOf('departments', r.departmentId, '')} ${r.fault} ${XM.typeLabel(r.kind)} ${XM.extraText(r)}`).includes(qn)));
+    const rows = all.filter((r) => inTab(r, st.tab) && (!st.vendor || r.vendor.name === st.vendor) && (!qn || SRCH.has(`${r.number} ${r.itemName} ${r.serial} ${r.newSerial} ${r.vendor.name} ${r.vendorRef} ${r.holder} ${Data.nameOf('departments', r.departmentId, '')} ${r.fault} ${XM.typeLabel(r.kind)} ${XM.extraText(r)}`, qn)));
     const n = (t) => all.filter((r) => inTab(r, t)).length;
     const doneRows = all.filter((r) => r.receivedAt), avg = doneRows.length ? doneRows.reduce((s, r) => s + XM.days(r), 0) / doneRows.length : 0;
     const vend = [...new Set(all.map((r) => r.vendor.name))].sort((a, b) => AR_COLL.compare(a, b));
@@ -14824,9 +14838,9 @@ const notePicker = (box, sel, { roles = true, groups = true, exclude = '', onCha
   const list = () => {
     const qn = normalizeAr(st.q);
     if (st.tab === 'groups') {
-      return VAULT._g.length ? html`${VAULT._g.filter((g) => !qn || normalizeAr(g.name).includes(qn)).map((g) => html`<label class="np-row"><input type="checkbox" data-npg="${g.id}"${sel.groups.has(g.id) ? raw(' checked') : ''}><span class="np-gi">${UI.icon('users')}</span><span class="grow"><b>${g.name}</b><small>${fmtNum((g.members || []).length)} عضو · أنشأها ${Data.userName(g.createdBy)}</small></span></label>`)}` : html`<p class="hint np-empty">لا توجد مجموعات بعد. أنشئ مجموعة مثل «فريق الشبكات» واخترها في كل ملاحظة بنقرة.</p>`;
+      return VAULT._g.length ? html`${VAULT._g.filter((g) => !qn || SRCH.has(g.name, qn)).map((g) => html`<label class="np-row"><input type="checkbox" data-npg="${g.id}"${sel.groups.has(g.id) ? raw(' checked') : ''}><span class="np-gi">${UI.icon('users')}</span><span class="grow"><b>${g.name}</b><small>${fmtNum((g.members || []).length)} عضو · أنشأها ${Data.userName(g.createdBy)}</small></span></label>`)}` : html`<p class="hint np-empty">لا توجد مجموعات بعد. أنشئ مجموعة مثل «فريق الشبكات» واخترها في كل ملاحظة بنقرة.</p>`;
     }
-    const rows = people().filter(inTab).filter((u) => !qn || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(qn)).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
+    const rows = people().filter(inTab).filter((u) => !qn || SRCH.has(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`, qn)).sort((a, b) => AR_COLL.compare(a.name || '', b.name || ''));
     return rows.length ? html`${rows.slice(0, 300).map((u) => html`<label class="np-row"><input type="checkbox" data-npu="${u.id}"${sel.users.has(u.id) || sel.roles.has(u.role) ? raw(' checked') : ''}${sel.roles.has(u.role) ? raw(' disabled') : ''}>${UI.avatar(u, 'av-sm')}<span class="grow"><b>${u.name}</b><small>${Data.nameOf('departments', u.departmentId, ROLES[u.role] || '')}</small></span></label>`)}` : html`<p class="hint np-empty">لا حسابات هنا${qn ? ' تطابق البحث' : ''}</p>`;
   };
   const tabs = () => [...(groups ? [['groups', 'المجموعات', VAULT._g.length]] : []), ...NOTE_ROLES.map((r) => [r, NOTE_ROLE_TAB[r], people().filter((u) => u.role === r).length]), ['other', 'حسابات أخرى', people().filter((u) => !NOTE_ROLES.includes(u.role)).length]].filter(([k, , n]) => k === 'groups' || n);
@@ -14856,7 +14870,7 @@ const notePicker = (box, sel, { roles = true, groups = true, exclude = '', onCha
     const b = e.target.closest('button'); if (!b || !box.contains(b)) return;
     if (b.dataset.nptab) { st.tab = b.dataset.nptab; st.q = ''; render(); return; }
     if (b.dataset.npx) { const [k, ...rest] = b.dataset.npx.split(':'), id = rest.join(':'); ({ g: sel.groups, r: sel.roles, u: sel.users })[k].delete(id); render(); return; }
-    if (b.hasAttribute('data-npall') || b.hasAttribute('data-npnone')) { const on = b.hasAttribute('data-npall'), qn = normalizeAr(st.q); people().filter(inTab).filter((u) => !qn || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(qn)).forEach((u) => (on ? sel.users.add(u.id) : sel.users.delete(u.id))); render(); return; }
+    if (b.hasAttribute('data-npall') || b.hasAttribute('data-npnone')) { const on = b.hasAttribute('data-npall'), qn = normalizeAr(st.q); people().filter(inTab).filter((u) => !qn || SRCH.has(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`, qn)).forEach((u) => (on ? sel.users.add(u.id) : sel.users.delete(u.id))); render(); return; }
     if (b.hasAttribute('data-npnewg')) { const g = await Pages.noteGroupModal(); if (g) { sel.groups.add(g.id); render(); } return; }
     if (b.hasAttribute('data-npsaveg')) { const g = await Pages.noteGroupModal('', [...sel.users]); if (g) { [...sel.users].forEach((id) => { if ((g.members || []).includes(id)) sel.users.delete(id); }); sel.groups.add(g.id); st.tab = 'groups'; render(); } }
   });
@@ -15056,7 +15070,7 @@ Pages.vault = async (ctx) => {
     const qn = normalizeAr(st.q), manage = VAULT.canManage(), live = all.filter((n) => !n.archived);
     const [lk, lid] = st.link.split(':');
     const rows = all.filter((n) => inView(n, st.view) && (!st.type || n.type === st.type) && (!st.tag || (n.tags || []).includes(st.tag)) && (!st.link || (n.link && n.link.kind === lk && n.link.id === lid))
-      && (!qn || normalizeAr([n.title, n.body, (n.tags || []).join(' '), ...(n.items || []).map((i) => i.t), ...Object.entries(n.f || {}).filter(([k]) => !['password', 'key'].includes(k)).map(([, v]) => v)].join(' ')).includes(qn)))
+      && (!qn || SRCH.has([n.title, n.body, (n.tags || []).join(' '), ...(n.items || []).map((i) => i.t), ...Object.entries(n.f || {}).filter(([k]) => !['password', 'key'].includes(k)).map(([, v]) => v)].join(' '), qn)))
       .sort((a, b) => VAULT.isNew(b) - VAULT.isNew(a) || VAULT.today(b) - VAULT.today(a) || b.pinned - a.pinned || (b.important || 0) - (a.important || 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
     const due = live.filter((n) => ['soon', 'expired'].includes(VAULT.state(n))), fresh = live.filter((n) => VAULT.isNew(n));
     const tags = [...new Set(live.flatMap((n) => n.tags || []))].sort((a, b) => AR_COLL.compare(a, b));
@@ -16744,8 +16758,8 @@ Pages.ccPerms = (ctx) => {
     const all = people(), k = st.p, label = PERM_LABEL[k], hint = (PERM_GROUPS.flatMap((g) => g.items).find((i) => i[0] === k) || [])[2] || '';
     const holders = holdersOf(k), denied = all.filter((u) => permSource(u, k) === 'denied'), roles = ROLE_KEYS.filter((r) => (PERMS[r] || []).includes(k));
     const qn = normalizeAr(st.q), uq = normalizeAr(st.uq);
-    const cands = sup ? all.filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(uq))) : [];
-    const list = PERM_GROUPS.map((g) => html`<div class="pc-grp"><span class="pc-gt">${UI.icon(g.icon)} ${g.title}</span>${g.items.filter(([kk, l, h]) => !qn || normalizeAr(`${l} ${h} ${kk}`).includes(qn)).map(([kk, l]) => html`<button type="button" class="pm-item${kk === k ? ' on' : ''}" data-pk="${kk}"><span class="grow">${l}</span><b>${fmtNum(holdersOf(kk).length)}</b></button>`)}</div>`);
+    const cands = sup ? all.filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || SRCH.has(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`, uq))) : [];
+    const list = PERM_GROUPS.map((g) => html`<div class="pc-grp"><span class="pc-gt">${UI.icon(g.icon)} ${g.title}</span>${g.items.filter(([kk, l, h]) => !qn || SRCH.has(`${l} ${h} ${kk}`, qn)).map(([kk, l]) => html`<button type="button" class="pm-item${kk === k ? ' on' : ''}" data-pk="${kk}"><span class="grow">${l}</span><b>${fmtNum(holdersOf(kk).length)}</b></button>`)}</div>`);
     const permView = html`<div class="pm-cols">
       <aside class="panel pm-list"><div class="search-box">${UI.icon('search')}<input type="search" class="input" data-pq placeholder="ابحث عن صلاحية" value="${st.q}"></div><div class="pm-scroll">${list}</div></aside>
       <section class="stack" style="min-width:0">
@@ -16770,7 +16784,7 @@ Pages.ccPerms = (ctx) => {
     else if (e.target.matches('[data-pdep]')) { st.dep = e.target.value; st.pick.clear(); draw(); }
     else if (e.target.matches('[data-ppick]')) { if (e.target.checked) st.pick.add(e.target.dataset.ppick); else st.pick.delete(e.target.dataset.ppick); const b = $('[data-pgrant]', ctx.view); if (b) { b.disabled = !st.pick.size; b.lastChild.textContent = ` منح للمحدد (${fmtNum(st.pick.size)})`; } }
   });
-  UI.on(ctx.view, 'click', '[data-pall]', () => { const k = st.p, uq = normalizeAr(st.uq); people().filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || normalizeAr(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`).includes(uq))).forEach((u) => st.pick.add(u.id)); draw(); });
+  UI.on(ctx.view, 'click', '[data-pall]', () => { const k = st.p, uq = normalizeAr(st.uq); people().filter((u) => u.role !== 'supervisor' && !canUser(u, k) && permSource(u, k) !== 'denied' && (!st.role || u.role === st.role) && (!st.dep || u.departmentId === st.dep) && (!uq || SRCH.has(`${u.name} ${u.militaryNo || ''} ${u.username || ''}`, uq))).forEach((u) => st.pick.add(u.id)); draw(); });
   UI.on(ctx.view, 'click', '[data-pgrant]', (e, el) => { UI.busy(el, true); act([...st.pick].map((id) => ({ id, perm: st.p, on: 1 })), `مُنحت «${PERM_LABEL[st.p]}»`); });
   UI.on(ctx.view, 'click', '[data-prevoke]', async (e, el) => { const u = Data.c.users.get(el.dataset.prevoke); if (!u || !(await UI.confirm(`سحب «${PERM_LABEL[st.p]}» من ${u.name}؟${permSource(u, st.p) === 'role' ? ' هي من دوره، فتُسحب منه وحده ويبقى دوره كما هو.' : ''}`, { ok: 'سحب', danger: true }))) return; act([{ id: u.id, perm: st.p, on: 0 }], `سُحبت «${PERM_LABEL[st.p]}»`); });
   UI.on(ctx.view, 'click', '[data-prestore]', (e, el) => act([{ id: el.dataset.prestore, perm: st.p, on: 1 }], `أُعيدت «${PERM_LABEL[st.p]}»`));
@@ -17214,7 +17228,7 @@ Pages.descTools = (box, ta, catId) => {
     onMount: (form) => {
       const listEl = $('[data-dtlist]', form), q = $('[data-dtq]', form);
       const paint = () => {
-        const s = normalizeAr(q.value), rows = st.all.filter((r) => !s || normalizeAr(`${r.title} ${r.text}`).includes(s));
+        const s = normalizeAr(q.value), rows = st.all.filter((r) => !s || SRCH.has(`${r.title} ${r.text}`, s));
         const mine = (r) => r.scope !== 'all' ? r.userId === Auth.user.id : Data.replies.canShare();
         listEl.innerHTML = String(rows.length ? html`${rows.map((r) => html`<div class="dt-row"><button type="button" class="grow dt-pick" data-dtpick="${r.id}"><b>${r.title}</b><span>${r.text}</span><small class="faint">${r.cat ? Data.nameOf('categories', r.cat, '') : 'كل الفئات'}${r.scope === 'all' ? ' · لكل الموظفين' : ''}</small></button>${mine(r) ? html`<button type="button" class="icon-btn" data-dtedit="${r.id}" title="تعديل">${UI.icon('edit')}</button><button type="button" class="icon-btn danger" data-dtdel="${r.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`)}` : UI.noData('لا توجد أوصاف محفوظة'));
       };
@@ -18068,8 +18082,8 @@ XM.whereOf = async (a) => {
 XM.search = async (q) => {
   const qn = normalizeAr(q), N = Data.assets.norm(q); if (!qn && !N) return { assets: [], items: [] };
   const allItems = await DB.getAll('items'), itemsBy = new Map(allItems.map((i) => [i.id, i]));
-  const assets = (await DB.getAll('assets')).filter((a) => a.status !== 'retired' && ([a.serial, a.tag, a.host].some((v) => N && Data.assets.norm(v).includes(N)) || (qn.length > 2 && normalizeAr((itemsBy.get(a.itemId) || {}).name || '').includes(qn)))).slice(0, 8);
-  const items = allItems.filter((i) => !i.archived && normalizeAr(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`).includes(qn)).slice(0, 8);
+  const assets = (await DB.getAll('assets')).filter((a) => a.status !== 'retired' && ([a.serial, a.tag, a.host].some((v) => N && Data.assets.norm(v).includes(N)) || (qn.length > 2 && SRCH.has((itemsBy.get(a.itemId) || {}).name || '', qn)))).slice(0, 8);
+  const items = allItems.filter((i) => !i.archived && SRCH.has(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`, qn)).slice(0, 8);
   return { assets: await Promise.all(assets.map(async (a) => ({ a, it: itemsBy.get(a.itemId), where: await XM.whereOf(a) }))), items };
 };
 Pages.xmSendModal = async (preset = {}) => {
@@ -19512,7 +19526,7 @@ Pages.mtrack = async (ctx) => {
   const draw = async () => {
     const all = await MT.list(); if (!ctx.alive()) return;
     const qn = normalizeAr(st.q);
-    const base = all.filter((r) => (!st.label || (r.labels || []).includes(st.label)) && (!st.dept || r.departmentId === st.dept) && (!st.dest || (r.dest || {}).type === st.dest) && (!qn || MT.text(r).includes(qn)));
+    const base = all.filter((r) => (!st.label || (r.labels || []).includes(st.label)) && (!st.dept || r.departmentId === st.dept) && (!st.dest || (r.dest || {}).type === st.dest) && (!qn || SRCH.has(MT.text(r), qn)));
     const rows = base.filter((r) => (st.view === 'board' ? MT_OPEN.includes(r.status) || (r.status === 'returned' && (r.returnedAt || 0) > now() - 14 * DAY) : inTab(r, st.tab))).sort(sorter[st.sort] || sorter.new);
     st.shown = rows.map((r) => r.id);
     [...st.sel].forEach((id) => { if (!all.some((r) => r.id === id)) st.sel.delete(id); });
@@ -19805,8 +19819,8 @@ UI.orgSearch = (form) => {
     const q = normalizeAr(inp.value); if (q.length < 2) { res.hidden = true; return; }
     const units = await DB.getAll('deptUnits'); hits = []; act = 0;
     Data.list('departments').forEach((d) => {
-      if (normalizeAr(`${d.name} ${(d.aliases || []).join(' ')}`).includes(q)) hits.push({ dep: d.id, unit: '', name: d.name, type: 'إدارة', path: d.name, icon: d.icon || 'building' });
-      orgUnitsFlat(units, d.id).forEach(({ u, path }) => { if (normalizeAr(`${u.name} ${u.code || ''} ${(u.aliases || []).join(' ')}`).includes(q)) { const T = UNIT_TYPES[u.type] || UNIT_TYPES.section; hits.push({ dep: d.id, unit: u.id, name: u.name, type: T.label, path: `${d.name} ← ${path.replace(/ \/ /g, ' ← ')}`, icon: u.icon || T.icon }); } });
+      if (SRCH.has(`${d.name} ${(d.aliases || []).join(' ')}`, q)) hits.push({ dep: d.id, unit: '', name: d.name, type: 'إدارة', path: d.name, icon: d.icon || 'building' });
+      orgUnitsFlat(units, d.id).forEach(({ u, path }) => { if (SRCH.has(`${u.name} ${u.code || ''} ${(u.aliases || []).join(' ')}`, q)) { const T = UNIT_TYPES[u.type] || UNIT_TYPES.section; hits.push({ dep: d.id, unit: u.id, name: u.name, type: T.label, path: `${d.name} ← ${path.replace(/ \/ /g, ' ← ')}`, icon: u.icon || T.icon }); } });
     });
     hits = hits.slice(0, 14); show();
   }, 160));
@@ -20105,7 +20119,7 @@ Pages.bulkAddModal = async (preset = {}) => {
   const find = (v) => byName.get(normalizeAr(String(v || '').trim())) || null;
   const types = MDL.types(), deps = UI.opts('departments');
   const tile = (m) => html`<button type="button" class="ba-tile" data-bapick="${m.id}" title="${MDL.specs(m, 6).map(([k, v]) => `${k}: ${v}`).join(' · ') || m.name}">${UI.illu(itemIllu(m), 'mini')}<span><b>${m.name}</b><small>${MDL.sub(m) || Data.nameOf('itemCategories', m.categoryId, '')}</small></span><i>${UI.icon('plus')}</i></button>`;
-  const palette = () => { const qn = normalizeAr(fq); const list = models.filter((m) => (!ftype || MDL.typeOf(m) === ftype) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn))); return list.length ? html`${list.slice(0, 120).map(tile)}` : html`<p class="hint" style="padding:8px">لا نماذج${qn ? ' مطابقة' : ' في هذا النوع'}. اكتب اسم الجهاز في سطر جديد ليُضاف نموذجاً.</p>`; };
+  const palette = () => { const qn = normalizeAr(fq); const list = models.filter((m) => (!ftype || MDL.typeOf(m) === ftype) && (!qn || SRCH.has(m.search || normalizeAr(m.name), qn))); return list.length ? html`${list.slice(0, 120).map(tile)}` : html`<p class="hint" style="padding:8px">لا نماذج${qn ? ' مطابقة' : ' في هذا النوع'}. اكتب اسم الجهاز في سطر جديد ليُضاف نموذجاً.</p>`; };
   const typeOpts = () => types.map((c) => html`<option value="${c.id}">${c.name}</option>`);
   const row = (r = {}) => html`<div class="ba-row" data-barow>
     <span class="ba-ic" data-baic>${r.m ? UI.illu(itemIllu(r.m), 'mini') : UI.icon('box')}</span>
@@ -20293,7 +20307,7 @@ Pages.models = async (ctx) => {
     if (st.arch && !archived.length) st.arch = false;
     const all = st.arch ? archived : live, ed = MDL.canEdit();
     const qn = normalizeAr(st.q), types = MDL.types(), fam = MDB.fam(live);
-    const rows = all.filter((m) => (st.arch || !st.type || MDL.typeOf(m) === st.type) && (!qn || String(m.search || normalizeAr(m.name)).includes(qn)) && (st.arch || qn || st.linked || !fam.linked.has(m.id)));
+    const rows = all.filter((m) => (st.arch || !st.type || MDL.typeOf(m) === st.type) && (!qn || SRCH.has(m.search || normalizeAr(m.name), qn)) && (st.arch || qn || st.linked || !fam.linked.has(m.id)));
     rowsNow = rows; const ids = new Set(rows.map((m) => m.id)); [...st.sel].forEach((id) => { if (!ids.has(id)) st.sel.delete(id); });
     const card = (m) => { const fm = st.arch ? [m] : [m, ...(fam.of.get(m.id) || [])], sp = MDL.specs(m, 5), s = fm.reduce((t, x) => t + (cnt.st.get(x.id) || 0), 0), d = fm.reduce((t, x) => t + (cnt.dp.get(x.id) || 0), 0), on = st.sel.has(m.id); return html`<article class="mdl-card${on ? ' sel' : ''}${m.archived ? ' arch' : ''}" data-mcard="${m.id}">
       <header>${ed ? html`<label class="mdl-pick" title="تحديد"><input type="checkbox" data-mpick="${m.id}"${on ? raw(' checked') : ''} aria-label="تحديد ${m.name}"></label>` : ''}${UI.illu(itemIllu(m), 'mini')}<div class="grow" style="min-width:0"><b>${m.name}</b><small>${[MDL.sub(m), Data.nameOf('itemCategories', m.categoryId, '')].filter(Boolean).join(' · ')}</small></div>${m.archived ? html`<span class="chip tone-red" title="مؤرشف: مخفي من المخزن والقوائم، وسجله باقٍ">${UI.icon('archive')} مؤرشف</span>` : isSerialItem(m) ? html`<span class="chip tone-slate" title="يُتابع برقمه التسلسلي">${UI.icon('hash')}</span>` : ''}</header>
@@ -20634,7 +20648,7 @@ Pages.iconBank = (current = '') => {
       UI.on(form, 'click', '[data-ibo3dk]', (e, b) => { ibTone.set(tone); finish(`o3d:${b.dataset.ibo3dk}:${tone}`); });
       UI.on(form, 'click', '[data-ibtab]', (e, b) => { $$('[data-ibtab]', form).forEach((x) => x.classList.toggle('active', x === b)); $$('[data-ibpane]', form).forEach((p) => { p.hidden = p.dataset.ibpane !== b.dataset.ibtab; }); });
       form.addEventListener('change', (e) => { if (e.target.name !== 'ibtone') return; tone = e.target.value; const g = $('[data-ibo3d]', form); g.className = g.className.replace(/\btone-[a-z]+/, `tone-${tone}`); });
-      form.querySelector('[data-ibq]').addEventListener('input', (e) => { const q = normalizeAr(e.target.value.trim()); $$('[data-ibpane] .ib-cell', form).forEach((c) => { c.hidden = !!q && !normalizeAr(String(c.dataset.q)).includes(q); }); });
+      form.querySelector('[data-ibq]').addEventListener('input', (e) => { const q = normalizeAr(e.target.value.trim()); $$('[data-ibpane] .ib-cell', form).forEach((c) => { c.hidden = !!q && !SRCH.has(String(c.dataset.q), q); }); });
     },
     actions: [{ label: 'إغلاق', kind: 'ghost', value: null }] });
 };
@@ -21012,7 +21026,7 @@ Pages.custodyMap = async (ctx) => {
   const card = (it, extra = '', payload = `i:${it.id}`) => html`<div class="cm-model${st.armed === payload ? ' armed' : ''}" draggable="true" data-pdrag="${payload}" tabindex="0" role="button" title="اسحبه إلى الموضع، أو اضغطه ثم اضغط الموضع">${UI.illu(cmIllu(it), 'mini')}<div class="grow"><b dir="auto">${DNM.model(it)}</b><small>${extra || PSRC.sub(it, counts.st.get(it.id) || 0)}</small></div>${UI.icon('menu')}</div>`;
   const grp = (k, title, n, body, lead = '', cls = '') => { const o = isOpen(k); return html`<div class="cm-grp ${cls}${o ? ' open' : ''}"><button type="button" class="cm-gh" data-gtog="${k}" aria-expanded="${o ? 'true' : 'false'}">${UI.icon(o ? 'chevron-down' : 'chevron-left')}${lead}<b>${title}</b><small>${fmtNum(n)}</small></button>${o ? html`<div class="cm-gb">${body()}</div>` : ''}</div>`; };
   const treeData = () => {
-    const qn = normalizeAr(st.q.trim()), match = (i) => !qn || normalizeAr(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`).includes(qn);
+    const qn = normalizeAr(st.q.trim()), match = (i) => !qn || SRCH.has(`${i.name} ${i.brand || ''} ${i.model || ''} ${i.sku || ''}`, qn);
     const ms = models().filter(match).filter((i) => PSRC.get() !== 'store' || (counts.st.get(i.id) || 0) > 0), types = MDL.types(), seen = new Set(), out = [];
     types.forEach((c) => { const sub = IC.subtree(c.id), list = ms.filter((i) => sub.has(i.categoryId)); list.forEach((i) => seen.add(i.id)); if (list.length) out.push({ k: `t:${c.id}`, c, list }); });
     const rest = ms.filter((i) => !seen.has(i.id)); if (rest.length) out.push({ k: 't:_', c: { name: 'أخرى', illustration: 'box' }, list: rest });
@@ -21029,9 +21043,9 @@ Pages.custodyMap = async (ctx) => {
   const kitCard = (kt) => html`<div class="cm-model kit${st.armed === `k:${kt.id}` ? ' armed' : ''}" draggable="true" data-pdrag="k:${kt.id}" tabindex="0" role="button" title="${kt.name}">${UI.illu('box', 'mini')}<div class="grow"><b>${kt.name}</b><small>${kt.rows.map((r) => `${fmtNum(r.qty)}× ${(items.get(r.itemId) || {}).name || ''}`).join('، ')}</small></div>${UI.icon('menu')}</div>`;
   /* أقسام العروض الثلاثة: الحزم، والعهدة العامة للإدارة، ثم كل نوع بنماذجه مرتبة بالماركة */
   const palSections = () => {
-    const qn = normalizeAr(st.q.trim()), out = [], kits = MDL.kits().filter((kt) => !qn || normalizeAr(kt.name).includes(qn));
+    const qn = normalizeAr(st.q.trim()), out = [], kits = MDL.kits().filter((kt) => !qn || SRCH.has(kt.name, qn));
     if (kits.length && PSRC.get() !== 'store') out.push({ k: 'k', name: 'الحزم', ic: UI.illu('box', 'mini'), n: kits.length, body: () => kits.map(kitCard) });
-    const po = st.dep ? pool(st.dep) : new Map(), pl = [...po].filter(([id]) => items.get(id) && (!qn || normalizeAr(items.get(id).name).includes(qn)));
+    const po = st.dep ? pool(st.dep) : new Map(), pl = [...po].filter(([id]) => items.get(id) && (!qn || SRCH.has(items.get(id).name, qn)));
     if (pl.length && PSRC.get() === 'all') out.push({ k: 'a', name: 'العهدة العامة', hot: true, ic: UI.illu('archive', 'mini'), n: pl.reduce((s2, [, q]) => s2 + q, 0), body: () => pl.map(([id, q]) => card(items.get(id), `في العهدة العامة: ${fmtNum(q)}`, `a:${id}`)) });
     treeData().forEach(({ k, c, list }) => { const l = [...list].sort((a, b) => AR_COLL.compare(brandOf(a), brandOf(b)) || AR_COLL.compare(a.name || '', b.name || '')); out.push({ k, name: c.name, tone: c.tone || '', ic: UI.illu(c.illustration || 'box', 'mini'), n: l.length, list: l, body: () => l.map((i) => card(i)) }); });
     return out;
@@ -21603,7 +21617,7 @@ Pages.reportCenter = async (ctx) => {
       && (st.state === 'all' || (st.state === 'open' && r.open) || (st.state === 'done' && r.done) || (st.state === 'late' && r.late))
       && (!st.by || r.byId === st.by)
       && (!st.cats.size || r.src !== 'tickets' || st.cats.has(r.catId || '_'))
-      && (!qn || normalizeAr(`${r.title} ${r.sub} ${r.ref} ${r.who} ${r.by} ${Data.nameOf('departments', r.dep, '')} ${r.unit ? orgLabel(r.dep, r.unit, units) : ''}`).includes(qn)));
+      && (!qn || SRCH.has(`${r.title} ${r.sub} ${r.ref} ${r.who} ${r.by} ${Data.nameOf('departments', r.dep, '')} ${r.unit ? orgLabel(r.dep, r.unit, units) : ''}`, qn)));
   };
   const scopeText = () => { const ds = [...st.deps].map((d) => Data.nameOf('departments', d, '')).filter(Boolean), us = [...st.units].map((u) => { const x = units.find((y) => y.id === u); return x ? x.name : ''; }).filter(Boolean); return ds.length || us.length ? [...ds, ...us].join('، ') : 'كل الإدارات'; };
   const perText = () => { const [a, b] = range(); return `${(RC_PER.find(([k]) => k === st.p) || ['', ''])[1]}: ${fmtDate(a)}${startOfDay(a) === startOfDay(b) ? '' : ` — ${fmtDate(b)}`}`; };
@@ -21976,7 +21990,7 @@ Pages.formStudio = (host, opts) => {
   const filterBank = () => {
     const b = $r('[data-fsbank]'), q = normalizeAr(st.q.trim());
     $$('[data-fspane]', b).forEach((p) => { p.hidden = !q && p.dataset.fspane !== st.tab; });
-    $$('[data-fspane] .fs-tile, [data-fspane] .fs-ico', b).forEach((t) => { const hit = !q || normalizeAr(String(t.dataset.q || '')).includes(q); (t.closest('.fs-tw') || t).hidden = !hit; });
+    $$('[data-fspane] .fs-tile, [data-fspane] .fs-ico', b).forEach((t) => { const hit = !q || SRCH.has(String(t.dataset.q || ''), q); (t.closest('.fs-tw') || t).hidden = !hit; });
     $$('.fs-oc', b).forEach((x) => { const any = $$('.fs-tile', x).some((t) => !(t.closest('.fs-tw') || t).hidden); x.hidden = !any; if (q && any) x.open = true; });
     $$('.fs-bnote, .fs-tones', b).forEach((x) => { x.hidden = !!q; });
     $$('[data-fspane] h5', b).forEach((h) => { let n = h.nextElementSibling; while (n && n.tagName === 'P') n = n.nextElementSibling; h.hidden = !!q && !(n && n.matches('.fs-tiles, .fs-icons') && $$('.fs-tile, .fs-ico', n).some((t) => !(t.closest('.fs-tw') || t).hidden)); });
@@ -22821,7 +22835,7 @@ const CMV = {
       const inp = $('[data-cmdq]', V); if (!inp) return;
       if (inp.value !== dq) inp.value = dq;
       const qn = normalizeAr(dq.trim()); let shown = 0;
-      $$('.cm-depbar .cm-dep', V).forEach((b) => { const ok = !qn || b.classList.contains('on') || normalizeAr(b.textContent).includes(qn); b.hidden = !ok; if (ok) shown++; });
+      $$('.cm-depbar .cm-dep', V).forEach((b) => { const ok = !qn || b.classList.contains('on') || SRCH.has(b.textContent, qn); b.hidden = !ok; if (ok) shown++; });
       const bar = $('.cm-depbar', V); if (bar) bar.classList.toggle('cm-dq-none', !!qn && !shown);
     };
     const center = () => {
@@ -22993,13 +23007,13 @@ Pages.vouchers = async (ctx) => {
     </section>`);
   const icons = (v, n = 3) => html`<span class="vc-its">${(v.lines || []).slice(0, n).map((l) => html`<i title="${l.name}${Number(l.qty) > 1 ? ` ×${l.qty}` : ''}">${UI.illu(itemIllu(its.get(l.itemId) || l), 'mini')}</i>`)}${(v.lines || []).length > n ? html`<b>+${fmtNum(v.lines.length - n)}</b>` : ''}</span>`;
   const names = (v) => { const l = v.lines || []; return l.slice(0, 2).map((x) => `${x.name}${Number(x.qty) > 1 ? ` ×${fmtNum(x.qty)}` : ''}`).join('، ') + (l.length > 2 ? ` و${fmtNum(l.length - 2)} أخرى` : ''); };
-  const hits = (v, qn) => (qn ? (v.lines || []).flatMap((l) => l.serials || []).filter((s) => normalizeAr(s).includes(qn)).slice(0, 2) : []);
+  const hits = (v, qn) => (qn ? (v.lines || []).flatMap((l) => l.serials || []).filter((s) => SRCH.has(s, qn)).slice(0, 2) : []);
   const acts = (v) => html`<button type="button" class="icon-btn" data-vpv="${v.id}" title="معاينة السند">${UI.icon('eye')}</button><button type="button" class="icon-btn" data-vprint="${v.id}" title="طباعة السند">${UI.icon('print')}</button><button type="button" class="icon-btn" data-vxls="${v.id}" title="تنزيل Excel">${UI.icon('download')}</button>`;
   const load = async () => {
     const [all, il] = await Promise.all([DB.getAll('vouchers'), DB.getAll('items')]); if (!ctx.alive()) return;
     all.sort((a, b) => b.at - a.at); its = new Map(il.map((i) => [i.id, i]));
     const [rf, rt] = VC.range(st.per, st.from, st.to), qn = normalizeAr(st.q.trim());
-    const base = all.filter((v) => v.at >= rf && v.at <= rt && (!st.dep || v.departmentId === st.dep) && (!qn || VC.text(v).includes(qn)));
+    const base = all.filter((v) => v.at >= rf && v.at <= rt && (!st.dep || v.departmentId === st.dep) && (!qn || SRCH.has(VC.text(v), qn)));
     const cnt = new Map(); base.forEach((v) => cnt.set(v.type, (cnt.get(v.type) || 0) + 1));
     rows = st.type ? base.filter((v) => v.type === st.type) : base;
     const tb = $('[data-vtypes]', ctx.view);
@@ -23969,7 +23983,7 @@ IC.tonePick = (cur) => html`<div class="field mt"><label>لون المجلد</la
     let box = $('.pres-q', p);
     if (!box) { const list = $('.pres-list', p); if (!list) return; list.insertAdjacentHTML('beforebegin', String(html`<div class="search-box pres-q">${UI.icon('search')}<input type="search" placeholder="ابحث في المتواجدين" aria-label="ابحث في المتواجدين"></div>`)); box = $('.pres-q', p); }
     const inp = $('input', box); if (inp.value !== (Presence.q || '')) inp.value = Presence.q || '';
-    const flt = () => { const q = normalizeAr(Presence.q || ''); $$('.pres-row', p).forEach((r) => { r.hidden = !!q && !normalizeAr(r.textContent).includes(q); }); };
+    const flt = () => { const q = normalizeAr(Presence.q || ''); $$('.pres-row', p).forEach((r) => { r.hidden = !!q && !SRCH.has(r.textContent, q); }); };
     if (!inp._b) { inp._b = 1; inp.addEventListener('input', () => { Presence.q = inp.value; flt(); }); inp.addEventListener('click', (e) => e.stopPropagation()); }
     flt();
   };
@@ -24201,7 +24215,7 @@ Pages.modelApply = async (tplId) => {
     onMount: (form) => {
       const list = $('[data-maplist]', form), sc = $('[data-mapsc]', form), pv = $('[data-mappv]', form);
       const drawList = () => {
-        const qn = normalizeAr(st.q), rows = cands.filter((c) => !qn || normalizeAr(`${c.x.name} ${c.x.brand || ''} ${c.x.model || ''} ${c.x.sku || ''}`).includes(qn)), shown = st.more || qn ? rows : rows.filter((c) => c.sc >= 1 || st.sel.has(c.x.id));
+        const qn = normalizeAr(st.q), rows = cands.filter((c) => !qn || SRCH.has(`${c.x.name} ${c.x.brand || ''} ${c.x.model || ''} ${c.x.sku || ''}`, qn)), shown = st.more || qn ? rows : rows.filter((c) => c.sc >= 1 || st.sel.has(c.x.id));
         list.innerHTML = String(html`${shown.length ? shown.map((c) => { const n = Object.values(c.x.specs || {}).filter((v) => String(v || '').trim()).length, u = (byItem.get(c.x.id) || []).length; return html`<label class="map-it${st.sel.has(c.x.id) ? ' on' : ''}"><input type="checkbox" data-mapit="${c.x.id}"${st.sel.has(c.x.id) ? raw(' checked') : ''}>${UI.illu(itemIllu(c.x), 'mini')}<span class="grow"><b>${c.x.name}</b><small>${[MDL.sub(c.x), `مواصفات ${fmtNum(n)}`, `المخزن ${fmtNum(cnt.st.get(c.x.id) || 0)}`, `الإدارات ${fmtNum(cnt.dp.get(c.x.id) || 0)}`, u ? `${fmtNum(u)} وحدة مسلسلة` : ''].filter(Boolean).join(' · ')}</small></span>${c.sc === 4 ? html`<em class="map-b tone-teal">مرتبط بالنموذج</em>` : c.sc === 3 ? html`<em class="map-b tone-teal">مطابق</em>` : c.sc === 2 ? html`<em class="map-b tone-sky">مرجّح</em>` : ''}</label>`; }) : html`<p class="hint">لا أجهزة مطابقة. اضغط «عرض كل أجهزة النوع».</p>`}${!st.more && !qn && shown.length < rows.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-mapmore>${UI.icon('chevron-down')} عرض كل أجهزة النوع (${fmtNum(rows.length)})</button>` : ''}`);
       };
       const drawScope = () => {
@@ -24386,7 +24400,7 @@ const VTF = {
     </article>`;
   },
   list({ q = '', g = '', sample = VTF.SAMPLE, cur = null } = {}) {
-    const qn = normalizeAr(q.trim()), xs = VTF.all().filter((x) => (!g || x.g === g) && (!qn || normalizeAr(`${x.f} ${x.l} ${x.d} ${x.fb}`).includes(qn)));
+    const qn = normalizeAr(q.trim()), xs = VTF.all().filter((x) => (!g || x.g === g) && (!qn || SRCH.has(`${x.f} ${x.l} ${x.d} ${x.fb}`, qn)));
     if (!xs.length) return html`<p class="vtf-none">${UI.icon('search')} لا يوجد خط بهذا الاسم</p>`;
     return html`${VTF.GROUPS.filter((G) => xs.some((x) => x.g === G.k)).map((G) => html`<section class="vtf-grp vtf-${G.k}"><h4>${UI.icon(G.icon)} ${G.t}<small>${G.d}</small></h4><div class="vtf-grid">${xs.filter((x) => x.g === G.k).map((x) => VTF.card(x, sample, cur))}</div></section>`)}`;
   },
@@ -24910,7 +24924,7 @@ Pages.mdbBuild = async () => {
   };
   const draw = (form) => {
     const qn = normalizeAr(st.q), s = stats();
-    const vis = P.groups.filter((g) => (st.f === 'all' || (st.f === 'need' ? g.status !== 'ready' || target(g) : g.status === 'ready' && !target(g))) && (!qn || normalizeAr(`${g.brand} ${g.model} ${g.rows.map((r) => r.it.name).join(' ')}`).includes(qn)));
+    const vis = P.groups.filter((g) => (st.f === 'all' || (st.f === 'need' ? g.status !== 'ready' || target(g) : g.status === 'ready' && !target(g))) && (!qn || SRCH.has(`${g.brand} ${g.model} ${g.rows.map((r) => r.it.name).join(' ')}`, qn)));
     const types = new Map(); vis.forEach((g) => { if (!types.has(g.type)) types.set(g.type, []); types.get(g.type).push(g); });
     const order = MDL.types().map((c) => c.id);
     const secs = [...types.entries()].sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99));
@@ -27028,7 +27042,7 @@ const VLF = {
       <span class="grow"></span>${ro ? '' : html`<button type="button" class="btn btn-primary btn-sm" data-lb="new||">${UI.icon('plus')} استمارة جديدة</button>`}</div>`;
     const body = () => {
       if (st.tab === 'kinds') { const seen = new Set(), grp = VLX.GROUPS.map(([g, ic, ks]) => [g, ic, ks.filter((k) => VT_KINDS.some(([x]) => x === k))]).filter(([, , ks]) => ks.length); grp.forEach(([, , ks]) => ks.forEach((k) => seen.add(k))); const rest = VT_KINDS.filter(([k]) => !seen.has(k)).map(([k]) => k); if (rest.length) grp.push(['أخرى', 'file', rest]); return html`${grp.map(([g, ic, ks]) => html`<h4 class="vlf-kg">${UI.icon(ic)} ${g} <small>${fmtNum(ks.length)}</small></h4><div class="vlf-klist">${ks.map((k) => krow(VT_KINDS.find(([x]) => x === k)))}</div>`)}`; }
-      const q = normalizeAr(st.q.trim()), xs = lib.tpls.filter((t) => (!q || normalizeAr(String(t.name || '')).includes(q)) && (!st.f || (st.f === 'ok') === VLF.official(lib, t)));
+      const q = normalizeAr(st.q.trim()), xs = lib.tpls.filter((t) => (!q || SRCH.has(String(t.name || ''), q)) && (!st.f || (st.f === 'ok') === VLF.official(lib, t)));
       return xs.length ? html`<div class="vlf-grid">${xs.map(card)}</div>` : UI.empty({ illu: 'file', title: 'لا توجد نماذج مطابقة', text: st.f === 'dr' ? 'كل النماذج معتمدة.' : 'غيّر البحث أو أنشئ استمارة جديدة.' });
     };
     const mkFor = (k, sv) => {
@@ -30902,6 +30916,25 @@ Object.assign(PCL, {
   const ix0 = PCL.index;
   PCL.index = async function () { const r = await ix0.call(this); try { const all = await DB.getAll('items'), pl = PCL.plan(all); r.miss = pl.mods.filter(({ b, m }) => !b.hidden && !pl.mItem.has(m.id)).length + pl.grps.filter((g) => !pl.gItem.has(g.kk)).length; } catch (_) { r.miss = 0; } return r; };
 }
+
+/* ══════════ الجولة 63: نتائج البحث في تصفح المخزن ══════════
+   كان البحث في «تصفح المخزن» يغيّر أعداد المجلدات فقط، فلا يظهر الصنف حتى تدخل مجلده. الآن تظهر النماذج المطابقة مباشرة
+   (من كل المجلدات، أو من المجلد الحالي وما تحته) مجمّعة حسب المجلد، ومعها الأجهزة التي يتضمن رقمها التسلسلي أو التاج النص. */
+{
+  const bb0 = BRW.body;
+  BRW.body = function (st, o) {
+    if (!st.q || st.brand) return bb0.call(this, st, o);
+    const scope = st.cat ? IC.subtree(st.cat) : null, im = st._imap || new Map(), list = (st._all || []).filter((i) => (!scope || scope.has(i.categoryId)) && (!i.archived || o.man)), sn = (st._sn || []).filter((a) => { const it = im.get(a.itemId); return it && (!it.archived || o.man) && (!scope || scope.has(it.categoryId)); });
+    const groups = new Map(); list.forEach((i) => { const k = i.categoryId || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+    const path = (cid) => (cid ? IC.chain(cid).map((c) => c.name).join(' ← ') : 'بلا مجلد');
+    const AS = typeof ASSET_STATUS !== 'undefined' ? ASSET_STATUS : {};
+    return html`<div class="srch-head">${UI.icon('search')}<b>نتائج «${st.q}»</b><span class="chip tone-sky">${fmtNum(list.length)} نموذج</span>${sn.length ? html`<span class="chip tone-violet">${fmtNum(sn.length)} جهاز برقمه</span>` : ''}<small class="faint">${st.cat ? `داخل «${Data.nameOf('itemCategories', st.cat)}» وما تحته` : 'في كل المجلدات'} — يُبحث بجزء من الاسم أو الموديل أو الرمز أو الرقم التسلسلي</small></div>
+      ${!list.length && !sn.length ? UI.empty({ illu: 'box', title: 'لا نتائج', text: 'جرّب جزءاً أقصر من الاسم أو الرقم، مثل 401 بدل M401dn.' }) : ''}
+      ${[...groups.entries()].sort((a, b) => AR_COLL.compare(path(a[0]), path(b[0]))).map(([cid, items]) => html`<section class="srch-sec"><h4><a href="#/inventory/browse?cat=${cid}">${UI.icon('layers')} ${path(cid)}</a><small>${fmtNum(items.length)}</small></h4><div class="brw-grid">${items.sort((a, b) => AR_COLL.compare(String(a.brand || ''), String(b.brand || '')) || AR_COLL.compare(String(a.model || a.name), String(b.model || b.name))).map((i) => BRW.card(i, o))}</div></section>`)}
+      ${sn.length ? html`<section class="srch-sec"><h4>${UI.icon('tag')} أجهزة يتضمن رقمها التسلسلي أو التاج «${st.q}»</h4><div class="srch-sn">${sn.map((a) => { const it = im.get(a.itemId) || {}; return html`<button type="button" class="srch-snr" data-snopen="${a.id}"><code class="ltr">${a.serial || '—'}</code>${a.tag ? html`<small class="ltr">TAG ${a.tag}</small>` : ''}<span class="grow">${it.name || 'صنف محذوف'}</span><span class="chip">${(AS[a.status] || {}).label || a.status || ''}</span></button>`; })}</div></section>` : ''}`;
+  };
+}
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-snopen]'); if (!b) return; e.preventDefault(); Pages.assetDetail(b.dataset.snopen); });
 
 boot();
 })();
