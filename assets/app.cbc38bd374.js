@@ -4764,6 +4764,7 @@ Pages.browse = async (ctx) => {
   UI.on(ctx.view, 'change', 'input[name="devview"]', (e, el) => { st.view = el.value; localStorage.setItem('sq_devview', st.view); draw(); });
   UI.on(ctx.view, 'click', '[data-bicon]', async (e, el) => { e.preventDefault(); e.stopPropagation(); const b = el.dataset.bicon, map = await Data.brands.map(); if (await Pages.brandIconModal(st.cat, b, map.get(`${st.cat}|${b}`) || '')) draw(); });
   UI.on(ctx.view, 'click', '[data-device]', async (e, el) => { await Pages.deviceModal(el.dataset.device, { store: true }); draw(); });
+  UI.on(ctx.view, 'click', '[data-act="prnsync"]', async (e, el) => { UI.busy(el, true); try { const r = await PCL.create(PCL.models().filter(({ b }) => !b.hidden).map(({ m }) => m.id), []); UI.toast(r.added ? `أُضيف ${fmtNum(r.added)} موديل طابعة من «الطابعات والأحبار»` : 'كل موديلات الإعدادات لها نماذج في المخزن'); await draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
   UI.on(ctx.view, 'click', '[data-act="inksync"]', async (e, el) => { UI.busy(el, true); try { const r = await INKCAT.sync(); UI.toast(r.added || r.linked ? `أُضيف ${fmtNum(r.added)} نموذج حبر${r.linked ? `، ورُبط ${fmtNum(r.linked)} صنف موجود برقمه` : ''}` : 'كل أحبار الكتالوج لها نماذج في المخزن'); await draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
   Pages.bindInv(ctx, draw);
   await draw();
@@ -13680,6 +13681,7 @@ Pages.printerInkModal = (brand, model, k = {}) => {
 
 Pages.printers = async (ctx) => {
   await PrintCat.seed().catch((e) => console.warn('printcat seed', e));
+  await PCL.index().catch((e) => console.warn('pcl index', e));
   const st = { b: ctx.query.b || '', m: '', q: '' }, can = PrintCat.can();
   const draw = () => {
     const tree = PrintCat.tree(), all = Data.list('printers'), q = normalizeAr(st.q);
@@ -13691,12 +13693,12 @@ Pages.printers = async (ctx) => {
     const hits = q ? tree.flatMap(({ b, models: ms }) => ms.flatMap((m) => { const inks = (m.inks || []).filter((k) => normalizeAr(k.code).includes(q)); return normalizeAr(m.name).includes(q) || inks.length || normalizeAr(b.name).includes(q) ? [{ b, m, inks }] : []; })) : [];
     ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الطابعات والأحبار', sub: 'الماركات وموديلاتها والأحبار المتوافقة مع كل موديل — تظهر للموظف عند تقديم بلاغ طابعة أو طلب حبر', illu: 'printer', actions: can ? html`<button class="btn btn-primary" data-pcadd="brand">${UI.icon('plus')} ماركة جديدة</button>` : '' })}
       <div class="kpis">${UI.kpi({ label: 'الماركات', icon: 'printer', tone: 'brass', value: all.length })}${UI.kpi({ label: 'الموديلات', icon: 'layers', tone: 'sky', value: nModels })}${UI.kpi({ label: 'أنواع الأحبار', icon: 'box', tone: 'violet', value: inkSet.size })}</div>
-      <section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
+      ${PCL.alignBanner()}<section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
       ${q ? html`<div class="pc-hits">${hits.length ? hits.map(({ b, m, inks }) => html`<button type="button" class="pc-hit" data-pcgo="${b.id}" data-pcm="${m.id}"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name} ${m.name}</b><div class="t-sub">${(inks.length ? inks : m.inks || []).map((k) => PrintCat.inkLabel(k)).join('، ') || 'لا توجد أحبار مسجلة'}</div></div>${UI.icon('chevron-left')}</button>`) : UI.noData('لا توجد نتائج مطابقة')}</div>` : html`
       <div class="pc-cols">
         <div class="pc-col"><div class="pc-colh">${UI.icon('printer')} الماركات</div><div class="pc-list">${all.map((b) => html`<div class="pc-row${b.id === st.b ? ' on' : ''}${b.hidden ? ' off' : ''}" data-pcb="${b.id}" tabindex="0"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name}</b><div class="t-sub">${fmtNum(PrintCat.models(b).length)} موديل${b.hidden ? ' · مخفية' : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="brand" data-id="${b.id}" title="تعديل الماركة" aria-label="تعديل ${b.name}">${UI.icon('edit')}</button><button class="icon-btn" data-pcdel="brand" data-id="${b.id}" title="حذف الماركة" aria-label="حذف ${b.name}">${UI.icon('trash')}</button>` : ''}</div>`)}</div></div>
-        <div class="pc-col"><div class="pc-colh">${UI.icon('layers')} موديلات ${cur ? cur.name : ''}${can && cur ? html`<button class="btn btn-soft btn-sm" data-pcadd="model">${UI.icon('plus')} موديل</button>` : ''}</div><div class="pc-list">${models.length ? models.map((m) => html`<div class="pc-row${m.id === st.m ? ' on' : ''}" data-pcmodel="${m.id}" tabindex="0"><div class="grow"><b class="ltr">${m.name}</b><div class="t-sub">${PRINTER_KINDS[m.kind] || ''}${m.kind ? ' · ' : ''}${fmtNum((m.inks || []).length)} حبر${m.note ? ` · ${m.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="model" data-id="${m.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="model" data-id="${m.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">لا توجد موديلات لهذه الماركة بعد.</p>`}</div></div>
-        <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} أحبار</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div></div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('layers')} موديلات ${cur ? cur.name : ''}${can && cur ? html`<button class="btn btn-soft btn-sm" data-pcadd="model">${UI.icon('plus')} موديل</button>` : ''}</div><div class="pc-list">${models.length ? models.map((m) => html`<div class="pc-row${m.id === st.m ? ' on' : ''}" data-pcmodel="${m.id}" tabindex="0"><div class="grow"><b class="ltr">${m.name}</b><div class="t-sub">${PRINTER_KINDS[m.kind] || ''}${m.kind ? ' · ' : ''}${fmtNum((m.inks || []).length)} حبر${m.note ? ` · ${m.note}` : ''}</div>${PCL.chipM(m)}</div>${can ? html`<button class="icon-btn" data-pcedit="model" data-id="${m.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="model" data-id="${m.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">لا توجد موديلات لهذه الماركة بعد.</p>`}</div></div>
+        <div class="pc-col"><div class="pc-colh">${UI.icon('box')} أحبار ${model ? model.name : ''}${can && model ? html`<button class="btn btn-soft btn-sm" data-pcadd="ink">${UI.icon('plus')} أحبار</button>` : ''}</div><div class="pc-list">${model && (model.inks || []).length ? model.inks.map((k) => html`<div class="pc-row"><i class="pc-dot lg" style="background:${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[1]}"></i><div class="grow"><b class="ltr">${k.code}</b><div class="t-sub">${(INK_COLORS_MAP[k.color] || INK_COLORS_MAP.other)[0]}${k.note ? ` · ${k.note}` : ''}</div>${PCL.chipK(k)}</div>${can ? html`<button class="icon-btn" data-pcedit="ink" data-id="${k.id}" title="تعديل">${UI.icon('edit')}</button><button class="icon-btn danger" data-pcdel="ink" data-id="${k.id}" title="حذف">${UI.icon('trash')}</button>` : ''}</div>`) : html`<p class="faint pc-empty">${model ? 'لا توجد أحبار مسجلة لهذا الموديل.' : 'اختر موديلاً لعرض أحباره.'}</p>`}</div></div>
       </div>`}</section>`);
     UI.hydrate(ctx.view);
     const qi = $('#pcq', ctx.view); if (st.q) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
@@ -13737,6 +13739,9 @@ Pages.printers = async (ctx) => {
     UI.toast('حُذف'); draw();
   });
   ctx.onCleanup(Bus.on('data:printers', debounce((e) => { if (ctx.alive() && e.detail && e.detail.remote && !document.querySelector('dialog[open]')) Data.refresh('printers').then(draw); }, 300)));
+  ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) PCL.index().then(draw).catch(() => {}); }, 350)));
+  UI.on(ctx.view, 'click', '[data-pcalign]', async (e, el) => { const r = await PCL.alignModal(); if (r) { UI.toast(`وُحّد اسم ${fmtNum(r)} صنف في المخزن مع الإعدادات`); await PCL.index(); draw(); } });
+  UI.on(ctx.view, 'click', '[data-pcstore]', async (e, el) => { e.stopPropagation(); UI.busy(el, true); try { const r = await PCL.create(el.dataset.pcstore === 'model' ? [el.dataset.id] : [], el.dataset.pcstore === 'ink' ? [el.dataset.id] : []); UI.toast(r.added ? 'أُضيف نموذجه في المخزن' : 'له نموذج في المخزن مسبقاً'); await PCL.index(); draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
   draw();
 };
 PrintCat.iconOf = (b) => (b.icon ? Forms.optIco({ oi: { x: b.icon } }, 'x') : html`<b class="pc-ini">${String(b.name || '?').slice(0, 2)}</b>`);
@@ -30073,6 +30078,250 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('scroll', (e) => { if (FMENU.el && !FMENU.el.contains(e.target)) FMENU.close(); }, true);
 window.addEventListener('resize', () => FMENU.close());
 window.addEventListener('hashchange', () => FMENU.close());
+
+/* ══════════ الجولة 56: المخزن يتبع «الطابعات والأحبار» ══════════
+   أسماء الماركات وموديلات الطابعات وأرقام الأحبار تُدار من الإعدادات، والمخزن يتبعها:
+   - كل نموذج طابعة في المخزن يُربط بموديله في الإعدادات (pcModel)، وكل نموذج حبر بسجلات رقمه في كل موديل (pcInks)،
+     ومعهما آخر اسم رآه من الإعدادات (pcSnap). الربط بالمعرّف لا بالاسم، فيبقى بعد تغيير الاسم.
+   - تغيير الاسم في الإعدادات يغيّره في المخزن: الماركة، والموديل، ورقم الحبر ولونه (ويبقى رقم القطعة الخاص إن كان للصنف).
+   - موديل أو حبر جديد في الإعدادات يُنشأ نموذجه في المخزن تلقائياً برصيد صفر.
+   - الحذف من الإعدادات لا يحذف من المخزن: للصنف رصيد وحركات.
+   - الربط الأول للأصناف الموجودة يجري قبل أول تعديل، بالرقم أو الموديل (M404 ↔ M404dn)، ولا يغيّر أسماءها. */
+const PCL = {
+  can: () => !!Auth.user && (Auth.can('inventory.manage') || Auth.can('settings')),
+  _idx: null,
+  n: (v) => INKSTK.norm(v),
+  esc: (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  /* استبدال بلا اعتبار لحالة الأحرف، أول مرة فقط */
+  sub(str, a, b) { if (!a || a === b) return str; const rx = new RegExp(PCL.esc(a), 'i'); return rx.test(str) ? String(str).replace(rx, b) : str; },
+  /* الماركة كلمة مستقلة في الاسم (حتى لا يتغير «HP» داخل كلمة أخرى) */
+  word(str, a, b) { if (!a || a === b) return str; return String(str).replace(new RegExp(`(^|[\\s(])${PCL.esc(a)}(?=$|[\\s)])`, 'i'), `$1${b}`); },
+  toks: (v) => String(v || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => /\d/.test(t)),
+  pcat() { if (Data.c.itemCategories.get('ic_printer')) return 'ic_printer'; const c = Data.list('itemCategories').find((x) => x.illustration === 'printer' && !x.parentId); return c ? c.id : 'ic_printer'; },
+  prnSet: () => IC.subtree(PCL.pcat()),
+  inkSet: () => IC.subtree(INKCAT.cat),
+  models(list = Data.list('printers')) { const out = []; list.forEach((b) => (Array.isArray(b.models) ? b.models : []).forEach((m) => { if (m && m.id) out.push({ b, m }); })); return out; },
+  /* مجموعات الأحبار (الماركة + الرقم + اللون) ومعرّفات سجلاتها في كل موديل */
+  groups(list = Data.list('printers')) {
+    const m = new Map(), colors = new Map();
+    list.forEach((pr) => (Array.isArray(pr.models) ? pr.models : []).forEach((md) => (md.inks || []).forEach((k) => {
+      const code = String(k.code || '').trim(); if (!code) return; const color = k.color && k.color !== 'other' ? k.color : '', brand = String(pr.name || '').trim();
+      const kk = INKCAT.key(brand, code, color), ck = INKCAT.key(brand, code, '');
+      if (!m.has(kk)) m.set(kk, { brand, code, color, kk, ids: [], printers: [] });
+      if (!colors.has(ck)) colors.set(ck, new Set()); colors.get(ck).add(color);
+      const e = m.get(kk); if (k.id && !e.ids.includes(k.id)) e.ids.push(k.id);
+      const pn = `${brand} ${md.name || ''}`.trim(); if (!e.printers.includes(pn)) e.printers.push(pn);
+    })));
+    return [...m.values()].map((e) => ({ ...e, multi: colors.get(INKCAT.key(e.brand, e.code, '')).size > 1 }));
+  },
+  skey: (s) => (s ? INKCAT.key(s.b, s.c, s.k) : ''),
+  /* من يقابل كل موديل وكل حبر في المخزن، وما يلزم حفظه من روابط جديدة (دون تغيير أي اسم) */
+  plan(all, list = Data.list('printers')) {
+    const mods = PCL.models(list), grps = PCL.groups(list), mIds = new Set(mods.map((x) => x.m.id)), kIds = new Set(grps.flatMap((g) => g.ids));
+    const mItem = new Map(), gItem = new Map(), patch = new Map(), used = new Set();
+    const put = (i, p) => patch.set(i.id, { ...(patch.get(i.id) || {}), ...p });
+    for (const i of all) if (i.pcModel && mIds.has(i.pcModel) && !mItem.has(i.pcModel)) { mItem.set(i.pcModel, i); used.add(i.id); }
+    const ps = PCL.prnSet(), pool = all.filter((i) => !used.has(i.id) && !i.archived && ps.has(i.categoryId));
+    const exact = (b, m, i) => { const mn = PCL.n(m.name); return PCL.n(i.model) === mn || PCL.n(i.name) === PCL.n(`${b.name} ${m.name}`) || PCL.n(i.name) === PCL.n(`طابعة ${b.name} ${m.name}`); };
+    const close = (m, i) => { const mt = PCL.toks(m.name), it = [...PCL.toks(i.model), ...PCL.toks(i.name)]; return mt.length > 0 && mt.every((t) => it.some((u) => u === t || (u.startsWith(t) && /^[a-z]+$/.test(u.slice(t.length))))); };
+    for (const pass of [exact, (b, m, i) => close(m, i)]) for (const { b, m } of mods) {
+      if (mItem.has(m.id)) continue;
+      const hit = pool.filter((i) => !used.has(i.id) && PCL.n(i.brand) === PCL.n(b.name) && pass(b, m, i));
+      if (hit.length !== 1) continue;
+      const i = hit[0]; mItem.set(m.id, i); used.add(i.id); put(i, { pcModel: m.id, pcSnap: { b: b.name, m: m.name } });
+    }
+    const inkLinked = (i) => (i.pcInks || []).some((x) => kIds.has(x));
+    for (const g of grps) {
+      let i = all.find((x) => (x.pcInks || []).some((id) => g.ids.includes(id)) && (!x.pcSnap || PCL.skey(x.pcSnap) === g.kk || !(x.pcInks || []).some((id) => !g.ids.includes(id) && kIds.has(id))));
+      if (i) { if (PCL.skey(i.pcSnap) === g.kk && g.ids.some((id) => !(i.pcInks || []).includes(id))) put(i, { pcInks: [...new Set([...(i.pcInks || []).filter((id) => g.ids.includes(id) || !kIds.has(id)), ...g.ids])] }); }
+      else {
+        const free = all.filter((x) => !used.has(x.id) && !inkLinked(x) && !gItem.has(x.id)), hid = `it_ink_${INKCAT.hash(g.kk)}`, c0 = PCL.n(g.code);
+        i = free.find((x) => x.id === hid) || free.find((x) => !x.archived && (x.inkCodes || []).includes(c0) && x.inkColor === g.color) || INKCAT.find(free, g);
+        if (i) put(i, { pcInks: g.ids.slice(), pcSnap: { b: g.brand, c: g.code, k: g.color } });
+      }
+      if (i) { gItem.set(g.kk, i); used.add(i.id); }
+    }
+    return { mods, grps, mItem, gItem, patch };
+  },
+  /* حفظ الروابط فقط (لا يتغير اسم ولا تاريخ تحديث) */
+  async link() {
+    const all = await DB.getAll('items'), pl = PCL.plan(all); let n = 0;
+    for (const [id, p] of pl.patch) { const i = all.find((x) => x.id === id); if (i) { await DB.put('items', { ...i, ...p }); n++; } }
+    return n;
+  },
+  renameP(i, s, B, M) {
+    let name = String(i.name || ''), model = String(i.model || ''), brand = String(i.brand || '');
+    if (s.m !== M) {
+      const m0 = model;
+      model = !model || model === s.m ? M : PCL.sub(model, s.m, M) !== model ? PCL.sub(model, s.m, M) : M;
+      const n1 = m0 && PCL.sub(name, m0, model); name = n1 && n1 !== name ? n1 : PCL.sub(name, s.m, M);
+    }
+    if (s.b !== B) { if (!brand || PCL.n(brand) === PCL.n(s.b)) brand = B; name = PCL.word(name, s.b, B); }
+    return { name, model: model || M, brand: brand || B, pcSnap: { b: B, m: M } };
+  },
+  renameK(i, s, g) {
+    const L = (c) => (c && INK_COLORS_MAP[c] ? INK_COLORS_MAP[c][0] : '');
+    let name = String(i.name || ''), model = String(i.model || ''), brand = String(i.brand || '');
+    if (s.c !== g.code) { name = PCL.sub(name, s.c, g.code); model = model ? PCL.sub(model, s.c, g.code) : INKCAT.model(g); }
+    if ((s.k || '') !== (g.color || '')) { const a = L(s.k), b = L(g.color); if (a && b) { name = PCL.sub(name, a, b); model = PCL.sub(model, a, b); } }
+    if (s.b !== g.brand && (!brand || PCL.n(brand) === PCL.n(s.b))) brand = g.brand;
+    const c0 = PCL.n(s.c), c1 = PCL.n(g.code), codes = [...new Set([...(i.inkCodes || []).map((x) => (x === c0 ? c1 : x)), c1])];
+    return { name, model, brand, inkCodes: codes, inkColor: (s.k || '') !== (g.color || '') ? g.color || i.inkColor || '' : i.inkColor || g.color || '', pcInks: g.ids.slice(), pcSnap: { b: g.brand, c: g.code, k: g.color } };
+  },
+  async ensureCat(id, name, illustration, order) { if (!Data.c.itemCategories.get(id)) { await DB.put('itemCategories', { id, name, illustration, order }); await Data.refresh('itemCategories'); } },
+  /* إنشاء نماذج المخزن لموديلات وأحبار محددة إن لم يكن لها نموذج */
+  async create(modelIds = [], inkIds = [], ctx = null) {
+    if (!PCL.can()) throw new AppError('إضافة النماذج لمن يملك إدارة المخزن');
+    const all = ctx ? ctx.all : await DB.getAll('items'), pl = ctx ? ctx.pl : PCL.plan(all), t = now(), add = [];
+    if (!ctx) for (const [id, p] of pl.patch) { const i = all.find((x) => x.id === id); if (i) await DB.put('items', { ...i, ...p }); }
+    const ids = new Set(all.map((i) => i.id)), skus = new Set(all.map((i) => String(i.sku || '').toUpperCase())), mset = new Set(modelIds), kset = new Set(inkIds);
+    const free = (id) => (ids.has(id) ? uid('it') : id);
+    const wantM = pl.mods.filter(({ m }) => mset.has(m.id) && !pl.mItem.has(m.id)), wantK = pl.grps.filter((g) => g.ids.some((id) => kset.has(id)) && !pl.gItem.has(g.kk));
+    if (wantM.length) await PCL.ensureCat(PCL.pcat(), 'طابعات', 'printer', 5);
+    if (wantK.length) await PCL.ensureCat(INKCAT.cat, 'أحبار ومستهلكات', 'ink', 11);
+    let seq = wantM.length ? ((await DB.get('meta', 'seq:item')) || { value: 0 }).value : 0;
+    for (const { b, m } of wantM) {
+      let sku; do { seq += 1; sku = `ITM-${pad(seq, 5)}`; } while (skus.has(sku)); skus.add(sku);
+      const it = { id: free(`it_pm_${m.id}`), sku, name: `طابعة ${b.name} ${m.name}`, categoryId: PCL.pcat(), unit: 'جهاز', minQty: 0, brand: b.name, model: m.name, serial: '', notes: '', onHand: 0, serialized: 1, model0: 1, specs: {}, pcModel: m.id, pcSnap: { b: b.name, m: m.name }, createdAt: t, updatedAt: t };
+      it.search = Data.inv.searchOf(it); add.push(it); ids.add(it.id);
+    }
+    if (wantM.length) await DB.put('meta', { key: 'seq:item', value: seq });
+    for (const g of wantK) {
+      let sku = `INK-${g.code.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24)}${g.color && g.multi ? `-${g.color.slice(0, 3).toUpperCase()}` : ''}`; let n = 2; while (skus.has(sku)) sku = `${sku.replace(/-\d+$/, '')}-${n++}`; skus.add(sku);
+      const it = { id: free(`it_ink_${INKCAT.hash(g.kk)}`), sku, name: `حبر ${INKCAT.model(g)}`, categoryId: INKCAT.cat, unit: 'علبة', minQty: 0, brand: g.brand, model: INKCAT.model(g), serial: '', notes: '', onHand: 0, inkCodes: [PCL.n(g.code)], inkColor: g.color || '', serialized: 0, pcInks: g.ids.slice(), pcSnap: { b: g.brand, c: g.code, k: g.color }, createdAt: t, updatedAt: t };
+      it.search = Data.inv.searchOf(it); add.push(it); ids.add(it.id);
+    }
+    if (add.length) { await DB.bulkPut('items', add); await Data.log('create', 'inventory', PCL.pcat(), `من «الطابعات والأحبار» إلى المخزن: ${add.map((x) => x.name).join('، ')}`); Bus.emit('inventory', {}); }
+    return { added: add.length, items: add };
+  },
+  /* بعد حفظ الإعدادات: تغيير الأسماء في المخزن، ونقل ترتيب الطابعات وأيقونات الماركات، وإنشاء الجديد */
+  async apply(before) {
+    const after = Data.list('printers'), all = await DB.getAll('items'), t = now(), ch = new Map(), named = new Set();
+    const get = (i) => ch.get(i.id) || i, upd = (i, p, nm = true) => { ch.set(i.id, { ...get(i), ...p }); if (nm) named.add(i.id); };
+    const mods = PCL.models(after), mById = new Map(mods.map((x) => [x.m.id, x]));
+    for (const i of all) {
+      if (!i.pcModel || !mById.has(i.pcModel)) continue;
+      const { b, m } = mById.get(i.pcModel), s = i.pcSnap || { b: b.name, m: m.name };
+      if (s.b !== b.name || s.m !== m.name) upd(i, PCL.renameP(i, s, b.name, m.name));
+    }
+    const grps = PCL.groups(after), gBy = new Map(grps.map((g) => [g.kk, g])), idG = new Map(); grps.forEach((g) => g.ids.forEach((id) => idG.set(id, g)));
+    for (const i of all) {
+      const mine = (i.pcInks || []).filter((id) => idG.has(id)); if (!mine.length || !i.pcSnap) continue;
+      const k0 = PCL.skey(i.pcSnap);
+      /* الرقم القديم ما زال مستخدماً في موديل آخر: يبقى الصنف له، والسجل الذي تغيّر رقمه يصير حبراً جديداً */
+      if (gBy.has(k0)) { const g = gBy.get(k0); if (g.ids.join('|') !== (i.pcInks || []).join('|')) upd(i, { pcInks: g.ids.slice() }, false); continue; }
+      const cnt = new Map(); mine.forEach((id) => { const kk = idG.get(id).kk; cnt.set(kk, (cnt.get(kk) || 0) + 1); });
+      const g = gBy.get([...cnt].sort((a, b) => b[1] - a[1])[0][0]);
+      /* الرقم الجديد له صنف في المخزن مسبقاً: لا يُدمج صنفان تلقائياً */
+      const other = all.find((x) => x.id !== i.id && ((x.pcInks || []).some((id) => g.ids.includes(id) && !mine.includes(id)) || PCL.skey(x.pcSnap) === g.kk));
+      if (!other) upd(i, PCL.renameK(i, i.pcSnap, g));
+    }
+    /* الماركة الجديدة الاسم: أصناف مجلدي الطابعات والأحبار غير المربوطة بالإعدادات تتبعها أيضاً */
+    const bOld = new Map(before.map((b) => [b.id, b])), ren = [];
+    after.forEach((b) => { const o = bOld.get(b.id); if (o && o.name !== b.name) ren.push([o.name, b.name]); });
+    if (ren.length) {
+      const ps = PCL.prnSet(), ks = PCL.inkSet();
+      for (const i of all) {
+        if (ch.has(i.id) || i.pcModel || (i.pcInks || []).length || (!ps.has(i.categoryId) && !ks.has(i.categoryId))) continue;
+        const r = ren.find(([o]) => PCL.n(o) === PCL.n(i.brand)); if (r) upd(i, { brand: r[1], ...(ps.has(i.categoryId) ? { name: PCL.word(i.name, r[0], r[1]) } : {}) });
+      }
+      for (const row of await DB.getAll('brandIcons')) { const r = ren.find(([o]) => PCL.n(o) === PCL.n(row.brand)); if (!r) continue; const id = Data.brands.key(row.categoryId, r[1]); if (!(await DB.get('brandIcons', id))) await DB.put('brandIcons', { ...row, id, brand: r[1], updatedAt: t }); await DB.del('brandIcons', row.id); }
+    }
+    const pn = new Map(); PCL.models(before).forEach(({ b, m }) => { const a = mById.get(m.id); if (!a) return; const o = `${b.name} ${m.name}`.trim(), x = `${a.b.name} ${a.m.name}`.trim(); if (o !== x) pn.set(o, x); });
+    if (pn.size || ren.length) {
+      const cur = ((await DB.get('meta', 'inkord')) || {}).value || {}, v = {}; let dirty = false;
+      Object.entries(cur).forEach(([bk, names]) => { const r = ren.find(([o]) => PCL.n(o) === bk), nk = r ? PCL.n(r[1]) : bk, nn = (names || []).map((x) => pn.get(x) || x); if (nk !== bk || nn.some((x, j) => x !== names[j])) dirty = true; v[nk] = nn; });
+      if (dirty) { await DB.put('meta', { key: 'inkord', value: v }); BRW._ord = v; }
+    }
+    for (const x of ch.values()) { if (named.has(x.id)) { x.updatedAt = t; x.search = Data.inv.searchOf(x); } await DB.put('items', x); }
+    /* الجديد في الإعدادات (موديل أُضيف، أو حبر أُضيف أو تغيّر رقمه ولم يعد له صنف) */
+    const oldM = new Set(PCL.models(before).map((x) => x.m.id)), oldK = new Map(), oldN = new Set(), mk = (b, m) => `${PCL.n(b)}|${PCL.n(m)}`;
+    PCL.groups(before).forEach((g) => g.ids.forEach((id) => oldK.set(id, g.kk)));
+    before.forEach((b) => PrintCat.models(b).forEach((m) => oldN.add(mk(b.name, m.name))));
+    const all2 = all.map(get), pl = PCL.plan(all2, after);
+    for (const [id, p] of pl.patch) { const i = all2.find((x) => x.id === id); if (i) await DB.put('items', { ...i, ...p }); }
+    const r = await PCL.create(mods.filter(({ b, m }) => !oldM.has(m.id) && !oldN.has(mk(b.name, m.name))).map(({ m }) => m.id), grps.flatMap((g) => g.ids.filter((id) => oldK.get(id) !== g.kk)), { all: all2, pl });
+    const out = { renamed: named.size, added: r.added, names: [...named].map((id) => ch.get(id).name), addedNames: r.items.map((x) => x.name) };
+    if (out.renamed) { await Data.log('update', 'inventory', PCL.pcat(), `تحديث أسماء المخزن من «الطابعات والأحبار»: ${out.names.join('، ')}`); Bus.emit('inventory', {}); }
+    return out;
+  },
+  msg(r) { return [r.renamed ? `تحدّث في المخزن (${r.renamed === 1 ? r.names[0] : `${fmtNum(r.renamed)} صنف`})` : '', r.added ? `أُضيف للمخزن ${r.added === 1 ? r.addedNames[0] : `${fmtNum(r.added)} نموذج`}` : ''].filter(Boolean).join('، و'); },
+  async index() {
+    const all = await DB.getAll('items'), pl = PCL.plan(all), m = new Map(), k = new Map();
+    pl.mItem.forEach((i, id) => m.set(id, i)); pl.grps.forEach((g) => { const i = pl.gItem.get(g.kk); if (i) g.ids.forEach((id) => k.set(id, i)); });
+    PCL._idx = { m, k, diffs: PCL.diffs(pl) }; return PCL._idx;
+  },
+  chip(i, kind, id) {
+    if (!PCL._idx) return '';
+    if (i) {
+      const q = Math.max(0, Number(i.onHand) || 0), d = (PCL._idx.diffs || []).find((x) => x.item.id === i.id);
+      return html`<a class="pc-stk${q ? '' : ' zero'}${i.archived ? ' arch' : ''}${d ? ' diff' : ''}" href="#/inventory/items/${i.id}" title="${d ? `اسمه في المخزن «${d.from}» يختلف عن الإعدادات «${d.to}». يمكن توحيده من الشريط أعلى الصفحة` : `${i.name}${i.archived ? ' (مؤرشف)' : ''} — الاسم في المخزن يتبع هذه الصفحة`}">${UI.icon('box')} في المخزن ${fmtNum(q)}${d ? html`<i class="ltr">≠ ${d.from}</i>` : ''}</a>`;
+    }
+    return PCL.can() ? html`<button type="button" class="pc-stk add" data-pcstore="${kind}" data-id="${id}" title="إنشاء نموذجه في المخزن برصيد صفر">${UI.icon('plus')} إضافة للمخزن</button>` : html`<span class="pc-stk off">ليس في المخزن</span>`;
+  },
+  chipM: (m) => PCL.chip(PCL._idx && PCL._idx.m.get(m.id), 'model', m.id),
+  chipK: (k) => PCL.chip(PCL._idx && PCL._idx.k.get(k.id), 'ink', k.id)
+};
+/* توحيد الأسماء القديمة: أصناف رُبطت بالإعدادات وأسماؤها في المخزن مختلفة (مثل CF259A للحبر HP 59A، أو M404dn للموديل M404).
+   لا تُغيَّر تلقائياً عند الربط؛ تظهر في الإعدادات، والتوحيد بقرار ومعاينة، ويُحفظ الاسم السابق في ملاحظات الصنف */
+Object.assign(PCL, {
+  diffs(pl) {
+    const out = [], seen = new Set();
+    pl.mods.forEach(({ b, m }) => { const i = pl.mItem.get(m.id); if (!i || seen.has(i.id)) return; seen.add(i.id); if (PCL.n(i.model) !== PCL.n(m.name) || (i.brand && PCL.n(i.brand) !== PCL.n(b.name))) out.push({ item: i, kind: 'model', from: i.model || i.name, to: m.name, b: b.name, m: m.name }); });
+    pl.grps.forEach((g) => { const i = pl.gItem.get(g.kk); if (!i || seen.has(i.id)) return; seen.add(i.id); const to = INKCAT.model(g); if (PCL.n(i.model) !== PCL.n(to)) out.push({ item: i, kind: 'ink', from: i.model || i.name, to, g }); });
+    return out;
+  },
+  alignBanner() {
+    const d = (PCL._idx && PCL._idx.diffs) || []; if (!d.length || !PCL.can()) return '';
+    return html`<div class="banner tone-sky pc-align">${UI.icon('swap')}<div class="grow"><b>${fmtNum(d.length)} صنف في المخزن مربوط بهذه الصفحة باسم مختلف</b><small>${d.slice(0, 4).map((x, j) => html`${j ? '، ' : ''}<bdi>${x.from}</bdi> ← <bdi>${x.to}</bdi>`)}${d.length > 4 ? '…' : ''}</small></div><button type="button" class="btn btn-sm btn-soft" data-pcalign>${UI.icon('check')} توحيد الأسماء</button></div>`;
+  },
+  async alignModal() {
+    const d = (PCL._idx && PCL._idx.diffs) || []; if (!d.length) return 0;
+    return UI.modal({
+      title: 'توحيد أسماء المخزن مع الإعدادات', icon: 'swap', size: 'md',
+      body: html`<p class="muted small" style="margin-bottom:10px;line-height:1.8">يصير اسم كل صنف تختاره في المخزن كما في «الطابعات والأحبار». الرصيد والحركات والأرقام التسلسلية لا تتغير، ويُحفظ الاسم السابق في ملاحظات الصنف.</p>
+        <div class="pc-alist">${d.map((x, j) => html`<label class="pc-arow"><input type="checkbox" name="al" value="${j}" checked><span class="grow"><b>${x.item.name}</b><small><span class="ltr">${x.from}</span> ← <b class="ltr">${x.to}</b></small></span><span class="chip">${x.kind === 'ink' ? 'حبر' : 'طابعة'}</span></label>`)}</div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'توحيد المحدد', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
+        const pick = $$('[name="al"]:checked', form).map((x) => d[Number(x.value)]); if (!pick.length) throw new AppError('اختر صنفاً واحداً على الأقل');
+        const t = now();
+        for (const x of pick) {
+          const i = await DB.get('items', x.item.id); if (!i) continue;
+          const p = x.kind === 'model' ? PCL.renameP(i, { b: i.brand || x.b, m: i.model || x.m }, x.b, x.m)
+            : { model: x.to, name: i.model ? PCL.sub(i.name, i.model, x.to) : i.name, pcInks: x.g.ids.slice(), pcSnap: { b: x.g.brand, c: x.g.code, k: x.g.color }, inkCodes: [...new Set([...(i.inkCodes || []), PCL.n(x.g.code)])], brand: i.brand || x.g.brand };
+          const was = String(i.model || '').trim(), note = was && was !== x.to && !String(i.notes || '').includes(was) ? [i.notes, `الاسم السابق: ${was}`].filter(Boolean).join(' · ') : i.notes;
+          const nx = { ...i, ...p, notes: note || '', updatedAt: t }; nx.search = Data.inv.searchOf(nx); await DB.put('items', nx);
+        }
+        await Data.log('update', 'inventory', PCL.pcat(), `توحيد أسماء ${fmtNum(pick.length)} صنف مع «الطابعات والأحبار»`); Bus.emit('inventory', {});
+        return pick.length;
+      } }]
+    });
+  }
+});
+{
+  const s0 = PrintCat.save;
+  PrintCat.save = async function (rec, msg) {
+    const before = JSON.parse(JSON.stringify(Data.list('printers'))), go = PCL.can();
+    /* الربط قبل الحفظ: بالأسماء الحالية، قبل أن يتغير أي اسم */
+    if (go) { try { await PCL.link(); } catch (e) { console.warn('pcl link', e); } }
+    const out = await s0.call(this, rec, msg);
+    if (go) {
+      try { const r = await PCL.apply(before); if (r.renamed || r.added) UI.toast(PCL.msg(r), 'info', 6500); }
+      catch (e) { console.warn('pcl apply', e); UI.toast(`حُفظ في الإعدادات، وتعذّر تحديث المخزن: ${e.message}`, 'warn', 8000); }
+    }
+    return out;
+  };
+  const y0 = INKCAT.sync;
+  INKCAT.sync = async function () { const r = await y0.call(this); try { await PCL.link(); } catch (e) { console.warn('pcl link', e); } return r; };
+  /* مجلد الطابعات في المخزن: موديلات في الإعدادات بلا نموذج */
+  const b0 = INKCAT.banner;
+  INKCAT.banner = async function (st) {
+    const a = await b0.call(this, st);
+    if (!st.cat || st.brand || !Auth.can('inventory.manage') || !PCL.prnSet().has(st.cat)) return a;
+    const pl = PCL.plan(await DB.getAll('items')), miss = pl.mods.filter(({ b, m }) => !b.hidden && !pl.mItem.has(m.id));
+    if (!miss.length) return a;
+    return html`${a}<div class="banner tone-sky ink-sync">${UI.icon('printer')}<div class="grow"><b>${fmtNum(miss.length)} موديل طابعة في «الطابعات والأحبار» بلا نموذج في المخزن</b><small class="ltr">${miss.slice(0, 6).map(({ b, m }) => `${b.name} ${m.name}`).join('، ')}${miss.length > 6 ? '…' : ''}</small></div><button type="button" class="btn btn-sm btn-primary" data-act="prnsync">${UI.icon('plus')} إضافتها نماذجَ</button></div>`;
+  };
+}
 
 boot();
 })();
