@@ -30502,5 +30502,153 @@ Object.assign(LV, {
   };
 }
 
+/* ══════════ الجولة 58: تقرير الاستبيان كما تريده قبل الطباعة ══════════
+   نافذة الطباعة صارت محرراً للتقرير: كل جزء يُختار وحده (الترويسة، وكل مؤشر، وكل جزء من التحليل، وكل سؤال)،
+   وعنوان التقرير وعبارات التوقيع تُعدَّل، وتُضاف فقرات نصية (بعد العنوان، أو بعد التحليل، أو في النهاية)،
+   والمعاينة بجانبها تتحدث مع كل تغيير. «حفظ الاختيار» يحفظه مع الاستبيان فيُفتح به في المرة القادمة ولغيرك. */
+const SVB = {
+  GROUPS: [
+    ['head', 'الترويسة', 'file', [['logo', 'الشعار واسم الجهة وتاريخ الطباعة'], ['title', 'عنوان التقرير'], ['desc', 'وصف الاستبيان'], ['meta', 'تاريخ النشر والتصفية']]],
+    ['kpi', 'المؤشرات', 'chart', [['k_part', 'المشاركات'], ['k_aud', 'المستهدفون'], ['k_rate', 'نسبة المشاركة'], ['k_dur', 'متوسط مدة الإجابة'], ['k_idx', 'مؤشر الرضا العام']]],
+    ['ana', 'التحليل', 'target', [['a_idx', 'مقياس مؤشر الرضا العام'], ['a_top', 'نقاط القوة'], ['a_low', 'فرص التحسين'], ['a_dep', 'المقارنة بين الإدارات'], ['a_time', 'المشاركات عبر الزمن'], ['a_words', 'الكلمات الأكثر تكراراً'], ['a_notes', 'التوصيات وخطة التحسين']]],
+    ['qs', 'نتائج الأسئلة', 'list', [['qs', 'نتائج الأسئلة'], ['texts', 'الإجابات النصية تحت كل سؤال']]],
+    ['end', 'الختام', 'edit', [['sign', 'التوقيعات']]]
+  ],
+  POS: [['top', 'بعد العنوان'], ['mid', 'بعد التحليل'], ['end', 'في نهاية التقرير']],
+  def(D) {
+    const o = SVX.state(D.s.id), parts = {}; SVB.GROUPS.forEach(([, , , its]) => its.forEach(([k]) => { parts[k] = 1; }));
+    if (D.s.anonymous) parts.a_dep = 0; parts.texts = o.texts ? 1 : 0;
+    const ids = new Set(D.s.questions.filter(Surveys.answerable).map((q) => q.id));
+    return { parts, qOff: (o.hide || []).filter((x) => ids.has(x)), title: '', blocks: [], signA: 'أعدّه', signB: 'اعتمده', signName: 1, orient: 'portrait', cols: clamp(Number(o.cols) || 2, 1, 3), per: 0 };
+  },
+  init(D) { const d = SVB.def(D), sv = (D.s.report || {}).print; if (!sv) return d; return { ...d, ...sv, parts: { ...d.parts, ...(sv.parts || {}) }, qOff: Array.isArray(sv.qOff) ? sv.qOff : d.qOff, blocks: Array.isArray(sv.blocks) ? sv.blocks.map((b) => ({ ...b })) : [] }; },
+  pack: (P) => ({ parts: { ...P.parts }, qOff: [...P.qOff], title: P.title, blocks: P.blocks.filter((b) => b.title || b.text).map((b) => ({ title: String(b.title || '').slice(0, 120), text: String(b.text || '').slice(0, 4000), pos: b.pos })), signA: P.signA, signB: P.signB, signName: P.signName, orient: P.orient, cols: P.cols, per: P.per }),
+  /* ما لا يمكن طباعته في هذا الاستبيان (وسببه) */
+  why(D, k) {
+    const has = D.rows.length > 0, idx = SVX.index(D.s, D.agg);
+    if (k.startsWith('a_') && !has) return 'لا مشاركات بعد';
+    if (k === 'a_dep' && D.s.anonymous) return 'غير متاحة في الاستبيان مجهول الهوية';
+    if ((k === 'a_idx' || k === 'k_idx') && idx == null) return 'لا أسئلة تقييم لحسابه';
+    if (k === 'a_notes' && !String((D.s.report || {}).notes || '').trim()) return 'اكتب التوصيات في «التحليل والتوصيات» أولاً';
+    if (k === 'desc' && !D.s.desc) return 'لا وصف للاستبيان';
+    return '';
+  },
+  report(D, P) {
+    const { s, rows, marks, aud, all, agg } = D, X = P.parts || {}, o = SVX.state(s.id), set = Data.c.settings || {}, fl = SVX.filters(D), on = (k) => !!X[k] && !SVB.why(D, k);
+    const rate = aud.length ? Math.min(100, (marks.length / aud.length) * 100) : 0, secs = rows.length ? rows.reduce((x, r) => x + (r.secs || 0), 0) / rows.length : 0, idx = SVX.index(s, agg);
+    const box = (l, v, tone) => html`<div class="svx-k tone-${tone}"><b>${v}</b><small>${l}</small></div>`;
+    const kp = [on('k_part') && box('المشاركات', fmtNum(marks.length), 'sky'), on('k_aud') && box('المستهدفون', fmtNum(aud.length), 'violet'), on('k_rate') && box('نسبة المشاركة', `${fmtNum(Math.round(rate))}%`, rate >= 60 ? 'teal' : rate >= 30 ? 'amber' : 'red'), on('k_dur') && box('متوسط مدة الإجابة', secs ? `${fmtNum(Math.max(1, Math.round(secs / 60)))} د` : '—', 'slate'), on('k_idx') && box('مؤشر الرضا العام', `${fmtNum(Math.round(idx))}%`, SVX.tone(idx))].filter(Boolean);
+    const its = SVX.items(s, agg), top = its.slice().sort((a, b) => b.sc - a.sc).slice(0, 3), low = its.slice().sort((a, b) => a.sc - b.sc).filter((x) => !top.includes(x) || its.length <= 3).slice(0, 3);
+    const li = (x) => html`<li class="tone-${SVX.tone(x.sc)}"><span class="svx-pc">${fmtNum(Math.round(x.sc))}%</span><div class="grow"><b>${x.label}</b><small>${x.sub ? `${x.sub} · ` : ''}${fmtNum(x.n)} إجابة</small></div></li>`;
+    const lbl = idx == null ? '' : idx >= 85 ? 'ممتاز' : idx >= 75 ? 'جيد جداً' : idx >= 60 ? 'جيد' : idx >= 45 ? 'مقبول' : 'يحتاج تحسيناً';
+    const A1 = [on('a_idx') && html`<section class="svx-box svx-idx"><h3>${UI.icon('target')} مؤشر الرضا العام</h3>${UI.chart.gauge(Math.round(idx), { label: lbl, tone: SVX.tone(idx) })}<p class="svx-note">متوسط درجات أسئلة التقييم بعد تحويلها إلى نسبة من 100.</p></section>`,
+      on('a_top') && html`<section class="svx-box"><h3>${UI.icon('star')} نقاط القوة</h3>${top.length ? html`<ol class="svx-rank">${top.map(li)}</ol>` : html`<p class="hint">لا بيانات كافية.</p>`}</section>`,
+      on('a_low') && html`<section class="svx-box"><h3>${UI.icon('alert')} فرص التحسين</h3>${low.length ? html`<ol class="svx-rank">${low.map(li)}</ol>` : html`<p class="hint">لا بيانات كافية.</p>`}</section>`].filter(Boolean);
+    const dep = on('a_dep') ? SVX.depTable(s, all) : '', words = on('a_words') ? SVX.words(rows, s) : [];
+    const A2 = [on('a_time') && html`<section class="svx-box"><h3>${UI.icon('calendar')} المشاركات عبر الزمن</h3>${SVX.timeline(rows) || html`<p class="hint">لا مشاركات بعد.</p>`}</section>`,
+      on('a_words') && html`<section class="svx-box"><h3>${UI.icon('message')} الكلمات الأكثر تكراراً في الإجابات النصية</h3>${words.length ? html`<div class="svx-words">${words.map((w, i) => html`<span style="--w:${(0.8 + (w.n / words[0].n) * 0.7).toFixed(2)}" class="${i < 3 ? 'hot' : ''}">${w.w} <small>${fmtNum(w.n)}</small></span>`)}</div>` : html`<p class="hint">لا توجد إجابات نصية بعد.</p>`}</section>`].filter(Boolean);
+    const notes = on('a_notes') ? String(s.report.notes).trim() : '', anyA = A1.length || dep || A2.length || notes;
+    const qN = s.questions.filter(Surveys.answerable).filter((q) => !(P.qOff || []).includes(q.id)).length, qOn = !!X.qs && qN > 0;
+    const blocks = (pos) => (P.blocks || []).filter((b) => (b.pos || 'end') === pos && (b.title || b.text)).map((b) => html`<section class="svx-box mt svb-out">${b.title ? html`<h3>${b.title}</h3>` : ''}${b.text ? html`<p class="svx-notes">${b.text}</p>` : ''}</section>`);
+    return html`<div class="svx-print${P.orient === 'landscape' ? ' land' : ''}">
+      ${on('logo') ? html`<header class="svx-ph"><img src="${ASSETS.logo}" alt=""><div class="grow"><b>${set.orgName || ''}</b><span>${set.systemName || ''}</span></div><div class="svx-pm"><b>تقرير نتائج ${s.quiz ? 'اختبار' : 'استبيان'}</b><span>${fmtDateTime(now())}</span></div></header>` : ''}
+      ${on('title') ? html`<h1 class="svx-pt">${String(P.title || '').trim() || s.title}</h1>` : ''}${on('desc') ? html`<p class="svx-pd">${s.desc}</p>` : ''}
+      ${on('meta') ? html`<p class="svx-pf">${[s.publishedAt ? `نُشر ${fmtDate(s.publishedAt)}` : '', s.endAt ? `ينتهي ${fmtDate(s.endAt)}` : '', s.anonymous ? 'مجهول الهوية' : '', ...fl].filter(Boolean).join(' · ') || 'كل المشاركات'}</p>` : ''}
+      ${blocks('top')}
+      ${kp.length ? html`<div class="svx-ks">${kp}</div>` : ''}
+      ${anyA ? html`<h2 class="svx-ps">التحليل</h2>
+        ${A1.length ? html`<div class="svx-ins" style="grid-template-columns:repeat(${A1.length},minmax(0,1fr))">${A1}</div>` : ''}
+        ${dep ? html`<section class="svx-box mt"><h3>${UI.icon('building')} المقارنة بين الإدارات <small class="faint">— درجة كل سؤال تقييم من 100</small></h3>${dep}</section>` : ''}
+        ${A2.length ? html`<div class="svx-ins two mt" style="grid-template-columns:repeat(${A2.length},minmax(0,1fr))">${A2}</div>` : ''}
+        ${notes ? html`<section class="svx-box mt"><h3>${UI.icon('edit')} التوصيات وخطة التحسين</h3><p class="svx-notes">${notes}</p></section>` : ''}` : ''}
+      ${blocks('mid')}
+      ${qOn ? html`<h2 class="svx-ps${anyA ? ' pb' : ''}">نتائج الأسئلة</h2>${SVX.grid(D, { ...o, hide: P.qOff || [], texts: X.texts ? o.texts || 1 : 0 }, { print: true, cols: P.cols, per: P.per })}` : ''}
+      ${blocks('end')}
+      ${X.sign ? html`<div class="svx-sign"><div><b>${P.signA || 'أعدّه'}</b><span>${P.signName && Auth.user ? Auth.user.name : ''}</span><i></i></div><div><b>${P.signB || 'اعتمده'}</b><span></span><i></i></div></div>` : ''}
+    </div>`;
+  },
+  side(D, P) {
+    const qs = D.s.questions.filter(Surveys.answerable);
+    const it = (k, l) => { const w = SVB.why(D, k); return html`<label class="svb-it${w ? ' dis' : ''}"><input type="checkbox" data-svbk="${k}"${P.parts[k] && !w ? raw(' checked') : ''}${w ? raw(' disabled') : ''}><span>${l}${w ? html`<small>${w}</small>` : ''}</span></label>`; };
+    const blk = (b, i) => html`<div class="svb-blk" data-bi="${i}"><input class="input" data-bt maxlength="120" placeholder="عنوان الفقرة (اختياري)" value="${b.title || ''}"><textarea class="input" data-bx rows="3" maxlength="4000" placeholder="نص الفقرة: ملخص للإدارة، أو ملاحظة، أو خطة متابعة">${b.text || ''}</textarea><div class="svb-br"><select class="input" data-bp>${SVB.POS.map(([v, l]) => html`<option value="${v}"${(b.pos || 'end') === v ? raw(' selected') : ''}>${l}</option>`)}</select><button type="button" class="btn btn-ghost btn-sm" data-svbdel="${i}">${UI.icon('trash')} حذف</button></div></div>`;
+    return html`<div class="svb-tools"><button type="button" class="btn btn-soft btn-sm" data-svball="1">${UI.icon('check')} تحديد الكل</button><button type="button" class="btn btn-ghost btn-sm" data-svball="0">${UI.icon('x')} إلغاء الكل</button><button type="button" class="btn btn-ghost btn-sm" data-svbdef title="إعادة كل الأجزاء كما كانت أول مرة">${UI.icon('refresh')} الافتراضي</button></div>
+      ${SVB.GROUPS.map(([g, name, ic, items]) => html`<details class="svb-g" open><summary><label class="svb-gck"><input type="checkbox" data-svbg="${g}"><b>${UI.icon(ic)} ${name}</b></label><small class="svb-gc" data-svbc="${g}"></small></summary><div class="svb-items">
+        ${items.map(([k, l]) => it(k, l))}
+        ${g === 'head' ? html`<div class="field svb-f"><label>نص العنوان المطبوع</label><input class="input" data-svbtitle maxlength="200" value="${P.title || ''}" placeholder="${D.s.title}"></div>` : ''}
+        ${g === 'qs' && qs.length ? html`<div class="svb-qs"><div class="svb-qh"><b>الأسئلة المطبوعة</b><button type="button" class="btn btn-xs btn-ghost" data-svbq="1">الكل</button><button type="button" class="btn btn-xs btn-ghost" data-svbq="0">لا شيء</button></div>${qs.map((q, i) => html`<label class="svb-it svb-q"><input type="checkbox" data-svbqid="${q.id}"${(P.qOff || []).includes(q.id) ? '' : raw(' checked')}><span><b>س${fmtNum(i + 1)}</b> ${q.l}</span></label>`)}</div>` : ''}
+        ${g === 'end' ? html`<div class="svb-sg"><div class="field svb-f"><label>التوقيع الأول</label><input class="input" data-svbsa maxlength="40" value="${P.signA || ''}" placeholder="أعدّه"></div><div class="field svb-f"><label>التوقيع الثاني</label><input class="input" data-svbsb maxlength="40" value="${P.signB || ''}" placeholder="اعتمده"></div></div><label class="svb-it"><input type="checkbox" data-svbsn${P.signName ? raw(' checked') : ''}><span>اسمي تحت التوقيع الأول</span></label>` : ''}
+      </div></details>`)}
+      <details class="svb-g" open><summary><b>${UI.icon('plus')} فقرات تضيفها</b><small class="svb-gc">${fmtNum(P.blocks.length)}</small></summary><div class="svb-items"><div data-svbblocks>${P.blocks.map(blk)}</div><button type="button" class="btn btn-soft btn-sm" data-svbadd>${UI.icon('plus')} إضافة فقرة</button></div></details>
+      <div class="svb-g svb-page"><div><b>${UI.icon('file')} اتجاه الورقة</b><div class="seg sm"><label><input type="radio" name="svbor" value="portrait"${P.orient !== 'landscape' ? raw(' checked') : ''}><span>عمودي</span></label><label><input type="radio" name="svbor" value="landscape"${P.orient === 'landscape' ? raw(' checked') : ''}><span>أفقي</span></label></div></div>
+        <div><b>${UI.icon('grid')} الأسئلة في الصفحة</b><div class="seg sm">${[[1, 'عمود'], [2, 'عمودان'], [3, 'ثلاثة'], [0, 'سؤال لكل صفحة']].map(([v, l]) => html`<label><input type="radio" name="svbcols" value="${v}"${(P.per ? 0 : P.cols) === v ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div></div>`;
+  },
+  async dialog(ctx) {
+    const D = ctx._svx; if (!D || !D.s) return null;
+    let P = SVB.init(D);
+    const st = { z: 0, Pg: null, busy: false, again: false, y: 0 };
+    return UI.modal({
+      title: `طباعة تقرير: ${D.s.title}`, icon: 'print', size: 'xl svb-modal',
+      body: html`<div class="svb"><aside class="svb-side" data-svbside>${SVB.side(D, P)}</aside>
+        <section class="vpv-doc svb-prev"><div class="vpv-tb"><span class="vpv-tt">${UI.icon('eye')} التقرير كما سيُطبع</span><span class="chip tone-slate" data-svbsz></span><span class="grow"></span><button type="button" class="icon-btn" data-vz="-1" aria-label="تصغير">−</button><button type="button" class="btn btn-ghost btn-xs" data-vz="fit"><span data-vzv>ملاءمة</span></button><button type="button" class="icon-btn" data-vz="1" aria-label="تكبير">+</button></div>
+          <div class="vpv-stage svx-stage"><iframe class="vpv-frame" title="معاينة التقرير" sandbox="allow-same-origin"></iframe><div class="vpv-load" data-svbload><div class="spinner"></div><b>جارٍ تجهيز المعاينة…</b></div></div></section></div>
+        <p class="hint svb-hint">${UI.icon('info')} للحفظ ملفاً: اختر «طباعة» ثم «حفظ بتنسيق PDF» في نافذة الطباعة. «حفظ الاختيار» يحفظ الأجزاء والنصوص مع الاستبيان، فتُفتح بها الطباعة في المرة القادمة لك ولغيرك.</p>`,
+      onMount: (form) => {
+        const side = form.querySelector('[data-svbside]'), fr = form.querySelector('.vpv-frame'), stage = form.querySelector('.vpv-stage'), ld = form.querySelector('[data-svbload]'), zv = form.querySelector('[data-vzv]'), sz = form.querySelector('[data-svbsz]');
+        const fit = () => (st.Pg ? clamp((stage.clientWidth - 8) / (st.Pg.w * 3.7795 + 30), 0.3, 1.2) : 1);
+        const zoom = () => { const d = fr.contentDocument; if (!d || !d.body) return; const z = st.z || fit(); d.body.style.zoom = String(z); zv.textContent = st.z ? `${Math.round(z * 100)}%` : `ملاءمة (${Math.round(z * 100)}%)`; };
+        const counts = () => SVB.GROUPS.forEach(([g, , , items]) => {
+          const bx = $$(`[data-svbk]`, side).filter((x) => items.some(([k]) => k === x.dataset.svbk) && !x.disabled), qb = g === 'qs' ? $$('[data-svbqid]', side) : [], all = [...bx, ...qb], n = all.filter((x) => x.checked).length;
+          const gc = side.querySelector(`[data-svbg="${g}"]`), c = side.querySelector(`[data-svbc="${g}"]`);
+          if (gc) { gc.checked = all.length > 0 && n === all.length; gc.indeterminate = n > 0 && n < all.length; gc.disabled = !all.length; }
+          if (c) c.textContent = `${fmtNum(n)} من ${fmtNum(all.length)}`;
+        });
+        const read = () => {
+          $$('[data-svbk]', side).forEach((x) => { if (!x.disabled) P.parts[x.dataset.svbk] = x.checked ? 1 : 0; });
+          P.qOff = $$('[data-svbqid]', side).filter((x) => !x.checked).map((x) => x.dataset.svbqid);
+          const tv = side.querySelector('[data-svbtitle]'); P.title = tv ? tv.value.trim() : '';
+          const sa = side.querySelector('[data-svbsa]'), sb = side.querySelector('[data-svbsb]'), sn = side.querySelector('[data-svbsn]'); P.signA = sa ? sa.value.trim() || 'أعدّه' : 'أعدّه'; P.signB = sb ? sb.value.trim() || 'اعتمده' : 'اعتمده'; P.signName = sn && sn.checked ? 1 : 0;
+          P.blocks = $$('.svb-blk', side).map((b) => ({ title: b.querySelector('[data-bt]').value.trim(), text: b.querySelector('[data-bx]').value.trim(), pos: b.querySelector('[data-bp]').value }));
+          P.orient = (side.querySelector('[name="svbor"]:checked') || {}).value || 'portrait';
+          const pc = Number((side.querySelector('[name="svbcols"]:checked') || {}).value); P.per = pc === 0 ? 1 : 0; P.cols = pc || 1;
+        };
+        const refresh = async () => {
+          if (st.busy) { st.again = true; return; }
+          st.busy = true; ld.hidden = false;
+          try { st.y = fr.contentWindow ? fr.contentWindow.scrollY || 0 : 0; } catch (_) { st.y = 0; }
+          const h = await VPV.capture(() => SVX.print(D, P, false)); st.busy = false;
+          if (!form.isConnected) return;
+          if (st.again) { st.again = false; refresh(); return; }
+          if (!h) { ld.innerHTML = String(html`${UI.icon('alert')}<b>تعذّرت المعاينة. يمكنك الطباعة مباشرة.</b>`); return; }
+          st.Pg = VPV.page(h); sz.textContent = st.Pg.name;
+          fr.addEventListener('load', () => { zoom(); try { fr.contentWindow.scrollTo(0, st.y); } catch (_) { /* تجاهل */ } ld.hidden = true; }, { once: true });
+          fr.srcdoc = VPV.srcdoc(h, st.Pg);
+        };
+        const later = debounce(refresh, 450);
+        const changed = () => { read(); counts(); later(); };
+        side.addEventListener('change', (e) => {
+          const g = e.target.closest('[data-svbg]');
+          if (g) { const items = (SVB.GROUPS.find((x) => x[0] === g.dataset.svbg) || [])[3] || []; $$('[data-svbk]', side).forEach((x) => { if (!x.disabled && items.some(([k]) => k === x.dataset.svbk)) x.checked = g.checked; }); if (g.dataset.svbg === 'qs') $$('[data-svbqid]', side).forEach((x) => { x.checked = g.checked; }); }
+          if (e.target.matches('[data-svbqid]') && e.target.checked) { const q = side.querySelector('[data-svbk="qs"]'); if (q && !q.checked) q.checked = true; }
+          changed();
+        });
+        side.addEventListener('input', (e) => { if (e.target.matches('input[type="text"], input:not([type]), textarea')) changed(); });
+        UI.on(side, 'click', '[data-svball]', (e, b) => { const v = b.dataset.svball === '1'; $$('[data-svbk], [data-svbqid]', side).forEach((x) => { if (!x.disabled) x.checked = v; }); changed(); });
+        UI.on(side, 'click', '[data-svbq]', (e, b) => { const v = b.dataset.svbq === '1'; $$('[data-svbqid]', side).forEach((x) => { x.checked = v; }); const q = side.querySelector('[data-svbk="qs"]'); if (q && v) q.checked = true; changed(); });
+        UI.on(side, 'click', '[data-svbdef]', () => { P = SVB.def(D); side.innerHTML = String(SVB.side(D, P)); counts(); refresh(); });
+        UI.on(side, 'click', '[data-svbadd]', () => { read(); P.blocks.push({ title: '', text: '', pos: 'end' }); side.innerHTML = String(SVB.side(D, P)); counts(); const last = $$('.svb-blk [data-bx]', side).pop(); if (last) last.focus(); });
+        UI.on(side, 'click', '[data-svbdel]', (e, b) => { read(); P.blocks.splice(Number(b.dataset.svbdel), 1); side.innerHTML = String(SVB.side(D, P)); counts(); refresh(); });
+        UI.on(form, 'click', '[data-vz]', (e, b) => { const d = b.dataset.vz; st.z = d === 'fit' ? 0 : clamp(Math.round(((st.z || fit()) + (Number(d) > 0 ? 0.1 : -0.1)) * 10) / 10, 0.3, 2.5); zoom(); });
+        counts(); refresh();
+        form._svbRead = read; form._svbP = () => P;
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null },
+        { label: 'حفظ الاختيار', kind: 'soft', icon: 'check', handler: async (form) => { form._svbRead(); const rep = { ...(D.s.report || {}), print: SVB.pack(form._svbP()) }; await Surveys.patch(D.s.id, { report: rep }, 'حفظ أجزاء تقرير الاستبيان المطبوع'); D.s.report = rep; UI.toast('حُفظ الاختيار مع الاستبيان، وتُفتح به الطباعة في المرة القادمة'); return false; } },
+        { label: 'طباعة', kind: 'primary', icon: 'print', handler: (form) => { form._svbRead(); SVX.print(D, form._svbP(), true); return true; } }]
+    });
+  }
+};
+SVX.report = (D, P) => SVB.report(D, P);
+SVX.printDialog = (ctx) => SVB.dialog(ctx);
+
 boot();
 })();
