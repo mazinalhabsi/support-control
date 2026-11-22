@@ -13691,7 +13691,7 @@ Pages.printers = async (ctx) => {
     const model = models.find((m) => m.id === st.m);
     const nModels = tree.reduce((n, x) => n + x.models.length, 0), inkSet = new Set(); tree.forEach((x) => x.models.forEach((m) => (m.inks || []).forEach((k) => inkSet.add(k.code.toLowerCase()))));
     const hits = q ? tree.flatMap(({ b, models: ms }) => ms.flatMap((m) => { const inks = (m.inks || []).filter((k) => normalizeAr(k.code).includes(q)); return normalizeAr(m.name).includes(q) || inks.length || normalizeAr(b.name).includes(q) ? [{ b, m, inks }] : []; })) : [];
-    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الطابعات والأحبار', sub: 'الماركات وموديلاتها والأحبار المتوافقة مع كل موديل — تظهر للموظف عند تقديم بلاغ طابعة أو طلب حبر', illu: 'printer', actions: can ? html`<button class="btn btn-primary" data-pcadd="brand">${UI.icon('plus')} ماركة جديدة</button>` : '' })}
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'الطابعات والأحبار', sub: 'الماركات وموديلاتها والأحبار المتوافقة مع كل موديل — تظهر للموظف عند تقديم بلاغ طابعة أو طلب حبر', illu: 'printer', actions: can ? html`<button class="btn btn-soft" data-pcsync title="ربط الموجود، وتوحيد الأسماء، وإضافة الناقص — دون تغيير أي رصيد أو عهدة">${UI.icon('refresh')} تحديث المخزن من الإعدادات</button><button class="btn btn-primary" data-pcadd="brand">${UI.icon('plus')} ماركة جديدة</button>` : '' })}
       <div class="kpis">${UI.kpi({ label: 'الماركات', icon: 'printer', tone: 'brass', value: all.length })}${UI.kpi({ label: 'الموديلات', icon: 'layers', tone: 'sky', value: nModels })}${UI.kpi({ label: 'أنواع الأحبار', icon: 'box', tone: 'violet', value: inkSet.size })}</div>
       ${PCL.alignBanner()}<section class="panel mt"><div class="toolbar"><div class="search-box grow">${UI.icon('search')}<input type="search" id="pcq" placeholder="ابحث عن موديل أو رقم حبر — مثال: 59A" value="${st.q}"></div></div>
       ${q ? html`<div class="pc-hits">${hits.length ? hits.map(({ b, m, inks }) => html`<button type="button" class="pc-hit" data-pcgo="${b.id}" data-pcm="${m.id}"><span class="pc-icon">${PrintCat.iconOf(b)}</span><div class="grow"><b>${b.name} ${m.name}</b><div class="t-sub">${(inks.length ? inks : m.inks || []).map((k) => PrintCat.inkLabel(k)).join('، ') || 'لا توجد أحبار مسجلة'}</div></div>${UI.icon('chevron-left')}</button>`) : UI.noData('لا توجد نتائج مطابقة')}</div>` : html`
@@ -13734,12 +13734,13 @@ Pages.printers = async (ctx) => {
       try { await PrintCat.remove(id); if (st.b === id) { st.b = ''; st.m = ''; } UI.toast(`حُذفت الماركة ${b.name}`); } catch (ex) { UI.error(ex); }
       draw(); return;
     }
-    if (k === 'model') { const m = modelOf(id); if (!m || !(await UI.confirm(`حذف الموديل «${m.name}» وأحباره من الكتالوج؟`, { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.filter((x) => x.id !== id), 'حذف موديل طابعة'); }
-    if (k === 'ink') { const m = modelOf(st.m); if (!(await UI.confirm('حذف هذا الحبر من الموديل؟', { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.map((x) => (x.id === m.id ? { ...x, inks: (x.inks || []).filter((y) => y.id !== id) } : x)), 'حذف حبر من موديل'); }
+    if (k === 'model') { const m = modelOf(id); if (!m || !(await UI.confirm(`حذف الموديل «${m.name}» وأحباره من الكتالوج؟${PCL.stockNote([PCL._idx && PCL._idx.m.get(id), ...((m.inks || []).map((x) => PCL._idx && PCL._idx.k.get(x.id)))])}`, { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.filter((x) => x.id !== id), 'حذف موديل طابعة'); }
+    if (k === 'ink') { const m = modelOf(st.m); if (!(await UI.confirm(`حذف هذا الحبر من الموديل؟${PCL.stockNote([PCL._idx && PCL._idx.k.get(id)])}`, { danger: true, ok: 'حذف' }))) return; await writeModels((ms) => ms.map((x) => (x.id === m.id ? { ...x, inks: (x.inks || []).filter((y) => y.id !== id) } : x)), 'حذف حبر من موديل'); }
     UI.toast('حُذف'); draw();
   });
   ctx.onCleanup(Bus.on('data:printers', debounce((e) => { if (ctx.alive() && e.detail && e.detail.remote && !document.querySelector('dialog[open]')) Data.refresh('printers').then(draw); }, 300)));
   ctx.onCleanup(Bus.on('inventory', debounce(() => { if (ctx.alive() && !document.querySelector('dialog[open]')) PCL.index().then(draw).catch(() => {}); }, 350)));
+  UI.on(ctx.view, 'click', '[data-pcsync]', async (e, el) => { try { const r = await PCL.syncAll(); if (r) { await PCL.index(); draw(); } } catch (ex) { UI.error(ex); } });
   UI.on(ctx.view, 'click', '[data-pcalign]', async (e, el) => { const r = await PCL.alignModal(); if (r) { UI.toast(`وُحّد اسم ${fmtNum(r)} صنف في المخزن مع الإعدادات`); await PCL.index(); draw(); } });
   UI.on(ctx.view, 'click', '[data-pcstore]', async (e, el) => { e.stopPropagation(); UI.busy(el, true); try { const r = await PCL.create(el.dataset.pcstore === 'model' ? [el.dataset.id] : [], el.dataset.pcstore === 'ink' ? [el.dataset.id] : []); UI.toast(r.added ? 'أُضيف نموذجه في المخزن' : 'له نموذج في المخزن مسبقاً'); await PCL.index(); draw(); } catch (ex) { UI.error(ex); UI.busy(el, false); } });
   draw();
@@ -30273,7 +30274,7 @@ Object.assign(PCL, {
   diffs(pl) {
     const out = [], seen = new Set();
     pl.mods.forEach(({ b, m }) => { const i = pl.mItem.get(m.id); if (!i || seen.has(i.id)) return; seen.add(i.id); if (PCL.n(i.model) !== PCL.n(m.name) || (i.brand && PCL.n(i.brand) !== PCL.n(b.name))) out.push({ item: i, kind: 'model', from: i.model || i.name, to: m.name, b: b.name, m: m.name }); });
-    pl.grps.forEach((g) => { const i = pl.gItem.get(g.kk); if (!i || seen.has(i.id)) return; seen.add(i.id); const to = INKCAT.model(g); if (PCL.n(i.model) !== PCL.n(to)) out.push({ item: i, kind: 'ink', from: i.model || i.name, to, g }); });
+    pl.grps.forEach((g) => { const i = pl.gItem.get(g.kk); if (!i || seen.has(i.id)) return; seen.add(i.id); const to = INKCAT.model(g); if (PCL.n(i.model) !== PCL.n(to) || (i.brand && PCL.n(i.brand) !== PCL.n(g.brand))) out.push({ item: i, kind: 'ink', from: i.model || i.name, to, g }); });
     return out;
   },
   alignBanner() {
@@ -30288,16 +30289,7 @@ Object.assign(PCL, {
         <div class="pc-alist">${d.map((x, j) => html`<label class="pc-arow"><input type="checkbox" name="al" value="${j}" checked><span class="grow"><b>${x.item.name}</b><small><span class="ltr">${x.from}</span> ← <b class="ltr">${x.to}</b></small></span><span class="chip">${x.kind === 'ink' ? 'حبر' : 'طابعة'}</span></label>`)}</div>`,
       actions: [{ label: 'إلغاء', kind: 'ghost' }, { label: 'توحيد المحدد', kind: 'primary', icon: 'check', submit: true, handler: async (form) => {
         const pick = $$('[name="al"]:checked', form).map((x) => d[Number(x.value)]); if (!pick.length) throw new AppError('اختر صنفاً واحداً على الأقل');
-        const t = now();
-        for (const x of pick) {
-          const i = await DB.get('items', x.item.id); if (!i) continue;
-          const p = x.kind === 'model' ? PCL.renameP(i, { b: i.brand || x.b, m: i.model || x.m }, x.b, x.m)
-            : { model: x.to, name: i.model ? PCL.sub(i.name, i.model, x.to) : i.name, pcInks: x.g.ids.slice(), pcSnap: { b: x.g.brand, c: x.g.code, k: x.g.color }, inkCodes: [...new Set([...(i.inkCodes || []), PCL.n(x.g.code)])], brand: i.brand || x.g.brand };
-          const was = String(i.model || '').trim(), note = was && was !== x.to && !String(i.notes || '').includes(was) ? [i.notes, `الاسم السابق: ${was}`].filter(Boolean).join(' · ') : i.notes;
-          const nx = { ...i, ...p, notes: note || '', updatedAt: t }; nx.search = Data.inv.searchOf(nx); await DB.put('items', nx);
-        }
-        await Data.log('update', 'inventory', PCL.pcat(), `توحيد أسماء ${fmtNum(pick.length)} صنف مع «الطابعات والأحبار»`); Bus.emit('inventory', {});
-        return pick.length;
+        return PCL.alignApply(pick);
       } }]
     });
   }
@@ -30829,6 +30821,87 @@ LV.owner = (D, p) => {
   const me = LV.me(), u = Data.c.users.get(p.createdBy), last = (p.hist || []).slice(-1)[0], ed = last && last.at && (last.at - (p.createdAt || 0)) > 60000 ? last : null;
   return html`<div class="lp-owner">${UI.icon('flag')}<span class="lp-ol">واضع الخطة</span>${LV.who(u || { name: Data.userName(p.createdBy) }, D.styOf(p.createdBy), 'sm')}${p.createdBy === me ? html`<span class="chip tone-sky">أنت</span>` : ''}<small>${p.createdAt ? `أنشأها ${fmtDate(p.createdAt)}` : ''}${ed ? ` · آخر تعديل ${timeAgo(ed.at)}${ed.by && ed.by !== p.createdBy ? ` بواسطة ${ed.by === me ? 'أنت' : Data.userName(ed.by)}` : ''}` : ''}</small></div>`;
 };
+
+/* ══════════ الجولة 62: تحديث المخزن من «الطابعات والأحبار» دفعة واحدة ══════════
+   زر واحد يراجع كل الإعدادات مقابل المخزن ويعرض قبل التنفيذ ما سيتغير:
+   - ربط الأصناف الموجودة بموديلها أو رقمها (دون تغيير أسمائها)،
+   - إضافة الموديلات والأحبار الناقصة نماذجَ برصيد صفر (الماركات المخفية اختيارية)،
+   - توحيد الأسماء والماركات المختلفة مع الإعدادات (يُحفظ الاسم السابق في الملاحظات)،
+   - وبيان الأصناف المربوطة التي حُذفت من الإعدادات (تبقى كما هي).
+   لا يُمَس أي رصيد ولا عهدة ولا رقم تسلسلي: الكتابة على الاسم والماركة والموديل والربط فقط، والنماذج الجديدة برصيد صفر. */
+Object.assign(PCL, {
+  async alignApply(pick) {
+    const t = now();
+        for (const x of pick) {
+          const i = await DB.get('items', x.item.id); if (!i) continue;
+          const p = x.kind === 'model' ? PCL.renameP(i, { b: i.brand || x.b, m: i.model || x.m }, x.b, x.m)
+            : { model: x.to, name: i.model ? PCL.sub(i.name, i.model, x.to) : i.name, pcInks: x.g.ids.slice(), pcSnap: { b: x.g.brand, c: x.g.code, k: x.g.color }, inkCodes: [...new Set([...(i.inkCodes || []), PCL.n(x.g.code)])], brand: x.g.brand || i.brand };
+          const was = String(i.model || '').trim(), note = was && was !== x.to && !String(i.notes || '').includes(was) ? [i.notes, `الاسم السابق: ${was}`].filter(Boolean).join(' · ') : i.notes;
+          const nx = { ...i, ...p, notes: note || '', updatedAt: t }; nx.search = Data.inv.searchOf(nx); await DB.put('items', nx);
+        }
+        await Data.log('update', 'inventory', PCL.pcat(), `توحيد أسماء ${fmtNum(pick.length)} صنف مع «الطابعات والأحبار»`); Bus.emit('inventory', {});
+    return pick.length;
+  },
+  stockNote(items) {
+    const its = [...new Map(items.filter(Boolean).map((i) => [i.id, i])).values()], q = its.reduce((a, i) => a + Math.max(0, Number(i.onHand) || 0), 0);
+    return its.length ? ` — في المخزن ${its.length === 1 ? `«${its[0].name}»` : `${fmtNum(its.length)} أصناف مربوطة به`}${q ? ` برصيد ${fmtNum(q)}` : ''}: ${q ? 'يبقى رصيده وعهده كما هي' : 'يبقى الصنف'} ولا يُحذف من المخزن.` : '';
+  },
+  async scan() {
+    const all = await DB.getAll('items'), pl = PCL.plan(all), list = Data.list('printers'), hid = new Set(list.filter((b) => b.hidden).map((b) => PCL.n(b.name)));
+    const missM = pl.mods.filter(({ m }) => !pl.mItem.has(m.id)).map(({ b, m }) => ({ id: m.id, label: `${b.name} ${m.name}`, hidden: !!b.hidden }));
+    const missK = pl.grps.filter((g) => !pl.gItem.has(g.kk)).map((g) => ({ id: g.kk, ids: g.ids, label: INKCAT.model(g), sub: g.printers.slice(0, 3).join('، '), hidden: hid.has(PCL.n(g.brand)) }));
+    const mIds = new Set(pl.mods.map((x) => x.m.id)), kIds = new Set(pl.grps.flatMap((g) => g.ids));
+    const orphans = all.filter((i) => !i.archived && ((i.pcModel && !mIds.has(i.pcModel)) || ((i.pcInks || []).length && !(i.pcInks || []).some((x) => kIds.has(x)))));
+    return { all, pl, missM, missK, diffs: PCL.diffs(pl), links: pl.patch.size, orphans };
+  },
+  async syncAll() {
+    if (!PCL.can()) throw new AppError('تحديث المخزن لمن يملك إدارة المخزن');
+    const S = await PCL.scan(), nAdd = S.missM.length + S.missK.length;
+    if (!nAdd && !S.diffs.length && !S.links && !S.orphans.length) { UI.toast('المخزن متوافق مع «الطابعات والأحبار»: لا شيء يحتاج تحديثاً'); return null; }
+    const tile = (n, l, ic, tone) => html`<div class="pcs-t tone-${tone}">${UI.icon(ic)}<b>${fmtNum(n)}</b><small>${l}</small></div>`;
+    const sec = (key, title, ic, rows, note) => (rows.length ? html`<details class="pcs-sec" open><summary><label class="pcs-gck"><input type="checkbox" data-pcsg="${key}" checked><b>${UI.icon(ic)} ${title}</b></label><small class="pcs-c" data-pcsc="${key}"></small></summary>${note ? html`<p class="hint">${note}</p>` : ''}<div class="pcs-rows">${rows}</div></details>` : '');
+    const res = await UI.modal({
+      title: 'تحديث المخزن من «الطابعات والأحبار»', icon: 'refresh', size: 'lg',
+      body: html`<div class="pcs-tiles">${tile(S.links, 'صنف يُربط', 'tag', 'sky')}${tile(nAdd, 'نموذج يُضاف', 'plus', 'teal')}${tile(S.diffs.length, 'اسم يتوحد', 'swap', 'amber')}${tile(S.orphans.length, 'خارج الإعدادات', 'info', 'slate')}</div>
+        <div class="banner tone-teal pcs-safe">${UI.icon('shield')}<div><b>الأرصدة والعهد لا تتغير</b><small>التحديث يكتب الاسم والماركة والموديل والربط فقط، والنماذج الجديدة تُضاف برصيد صفر. الحركات والأرقام التسلسلية وعهد الإدارات كما هي.</small></div></div>
+        ${S.links ? html`<p class="pcs-line">${UI.icon('tag')} يُربط ${fmtNum(S.links)} صنف موجود بموديله أو رقم حبره في الإعدادات دون تغيير اسمه، فتتبع أسماؤه الإعدادات من الآن.</p>` : ''}
+        ${sec('add', 'إضافة الناقص إلى المخزن', 'plus', [...S.missM.map((x) => html`<label class="pcs-r"><input type="checkbox" data-pcsa="m|${x.id}" data-g="add"${x.hidden ? '' : raw(' checked')}><span><b class="ltr">${x.label}</b><small>طابعة${x.hidden ? ' · ماركة مخفية من نموذج البلاغ' : ''}</small></span></label>`), ...S.missK.map((x) => html`<label class="pcs-r"><input type="checkbox" data-pcsa="k|${x.id}" data-g="add"${x.hidden ? '' : raw(' checked')}><span><b class="ltr">حبر ${x.label}</b><small>${x.sub}${x.hidden ? ' · ماركة مخفية' : ''}</small></span></label>`)], 'تُضاف برصيد صفر في مجلد الطابعات أو «أحبار ومستهلكات» تحت ماركتها.')}
+        ${sec('align', 'توحيد الأسماء مع الإعدادات', 'swap', S.diffs.map((x, j) => html`<label class="pcs-r"><input type="checkbox" data-pcsd="${j}" data-g="align" checked><span><b>${x.item.name}</b><small><bdi>${x.from}</bdi>${x.item.brand && x.kind === 'ink' && x.g && PCL.n(x.item.brand) !== PCL.n(x.g.brand) ? html` (${x.item.brand})` : ''} ← <bdi>${x.to}</bdi>${x.kind === 'ink' && x.g && x.item.brand && PCL.n(x.item.brand) !== PCL.n(x.g.brand) ? html` (${x.g.brand})` : ''}</small></span><span class="chip">${x.kind === 'ink' ? 'حبر' : 'طابعة'} · ${fmtNum(Math.max(0, Number(x.item.onHand) || 0))} في المخزن</span></label>`), 'يُحفظ الاسم السابق في ملاحظات الصنف. ألغِ ما تريد إبقاءه باسمه في المخزن (مثل رقم القطعة).')}
+        ${S.orphans.length ? html`<details class="pcs-sec"><summary><b>${UI.icon('info')} مربوطة وحُذفت من الإعدادات</b><small class="pcs-c">${fmtNum(S.orphans.length)}</small></summary><p class="hint">تبقى في المخزن كما هي برصيدها. أعد إضافتها في الإعدادات إن حُذفت بالخطأ، أو أرشفها من المخزن إن لم تعد تُستعمل.</p><div class="pcs-rows">${S.orphans.map((i) => html`<div class="pcs-r ro"><span><b>${i.name}</b><small>${fmtNum(Math.max(0, Number(i.onHand) || 0))} في المخزن</small></span></div>`)}</div></details>` : ''}`,
+      onMount: (f) => {
+        const count = () => ['add', 'align'].forEach((g) => { const bx = $$(`[data-g="${g}"]`, f), n = bx.filter((x) => x.checked).length, gc = f.querySelector(`[data-pcsg="${g}"]`), c = f.querySelector(`[data-pcsc="${g}"]`); if (gc) { gc.checked = n === bx.length && n > 0; gc.indeterminate = n > 0 && n < bx.length; } if (c) c.textContent = `${fmtNum(n)} من ${fmtNum(bx.length)}`; });
+        f.addEventListener('change', (e) => { const g = e.target.closest('[data-pcsg]'); if (g) $$(`[data-g="${g.dataset.pcsg}"]`, f).forEach((x) => { x.checked = g.checked; }); count(); });
+        count();
+      },
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'تحديث المحدد', kind: 'primary', icon: 'check', submit: true, handler: (f) => ({
+        mods: $$('[data-pcsa^="m|"]:checked', f).map((x) => x.dataset.pcsa.slice(2)),
+        inks: $$('[data-pcsa^="k|"]:checked', f).flatMap((x) => (S.missK.find((k) => k.id === x.dataset.pcsa.slice(2)) || { ids: [] }).ids),
+        align: $$('[data-pcsd]:checked', f).map((x) => S.diffs[Number(x.dataset.pcsd)])
+      }) }]
+    });
+    if (!res) return null;
+    const before = new Map(S.all.map((i) => [i.id, Number(i.onHand) || 0]));
+    const linked = await PCL.link();
+    const add = res.mods.length || res.inks.length ? await PCL.create(res.mods, res.inks) : { added: 0, items: [] };
+    const aligned = res.align.length ? await PCL.alignApply(res.align) : 0;
+    /* تحقق: لا رصيد تغيّر بسبب التحديث */
+    const after = await DB.getAll('items'), moved = after.filter((i) => before.has(i.id) && (Number(i.onHand) || 0) !== before.get(i.id));
+    if (moved.length) console.warn('pcl sync: onHand changed during sync (from other activity)', moved.map((i) => i.id));
+    await Data.log('update', 'inventory', PCL.pcat(), `تحديث المخزن من «الطابعات والأحبار»: ربط ${fmtNum(linked)}، وإضافة ${fmtNum(add.added)}، وتوحيد ${fmtNum(aligned)}`);
+    Bus.emit('inventory', {});
+    UI.toast([linked ? `رُبط ${fmtNum(linked)} من الأصناف الموجودة` : '', add.added ? `أُضيف ${fmtNum(add.added)} من النماذج برصيد صفر` : '', aligned ? `وُحّدت أسماء ${fmtNum(aligned)} من الأصناف` : ''].filter(Boolean).join('، ') || 'لم يتغير شيء', 'ok', 7000);
+    return { linked, added: add.added, aligned };
+  },
+  /* شريط الحالة في الإعدادات: الناقص والمختلف معاً، وزر المراجعة والتحديث */
+  alignBanner() {
+    const I = PCL._idx || {}, d = I.diffs || [], miss = I.miss || 0; if ((!d.length && !miss) || !PCL.can()) return '';
+    return html`<div class="banner tone-sky pc-align">${UI.icon('refresh')}<div class="grow"><b>${[miss ? `${fmtNum(miss)} في الإعدادات بلا نموذج في المخزن` : '', d.length ? `${fmtNum(d.length)} من الأصناف بأسماء مختلفة عن الإعدادات` : ''].filter(Boolean).join('، و')}</b><small>${d.slice(0, 3).map((x, j) => html`${j ? '، ' : ''}<bdi>${x.from}</bdi> ← <bdi>${x.to}</bdi>`)}${d.length > 3 ? '…' : ''}${!d.length ? 'تُضاف نماذج برصيد صفر بعد مراجعتها' : ''}</small></div><button type="button" class="btn btn-sm btn-primary" data-pcsync>${UI.icon('refresh')} مراجعة وتحديث</button></div>`;
+  }
+});
+{
+  const ix0 = PCL.index;
+  PCL.index = async function () { const r = await ix0.call(this); try { const all = await DB.getAll('items'), pl = PCL.plan(all); r.miss = pl.mods.filter(({ b, m }) => !b.hidden && !pl.mItem.has(m.id)).length + pl.grps.filter((g) => !pl.gItem.has(g.kk)).length; } catch (_) { r.miss = 0; } return r; };
+}
 
 boot();
 })();
