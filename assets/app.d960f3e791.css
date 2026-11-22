@@ -7788,3 +7788,9 @@ td .qe-pen{margin-inline-start:6px;vertical-align:middle}
 .qs{direction:ltr}
 td:has(> .qs){white-space:nowrap}
 .qs.pend::after{inset-inline-start:auto;left:50%;right:auto;transform:translateX(-50%)}
+
+/* ══ الجولة 55: الرد بعد الاستلام ══ */
+.trp-lock{margin-bottom:10px;align-items:center}
+.trp-lock .grow{display:flex;flex-direction:column;gap:2px}
+.trp-lock small{font-size:12px;opacity:.85;line-height:1.6}
+.composer-lock textarea{background:rgba(var(--amber,217,119,6),.05)}

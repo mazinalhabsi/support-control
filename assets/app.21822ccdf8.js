@@ -2466,7 +2466,7 @@ Pages.ticket = async (ctx) => {
     const nHead = nk === 'requester' ? (t.noteReply == null || nReply ? `ردّ ${nName} على الملاحظة` : `ملاحظة جديدة من ${nName}`) : nReply ? `ردّ ${nName} على ملاحظتك` : `ملاحظة من ${nName}`;
     const noteEv = nk ? events.filter((e) => e.type === 'comment' && !e.internal && e.userId === t.noteBy && Math.abs((e.at || 0) - t.noteAt) < 120000).pop() : null;
     urls.splice(0).forEach((x) => URL.revokeObjectURL(x));
-    const c = Data.c.categories.get(t.categoryId) || { name: 'أخرى', illustration: 'box' }, req = Data.c.users.get(t.requesterId), mine = t.requesterId === me.id, can = staff && (t.assigneeId === me.id || mgr);
+    const c = Data.c.categories.get(t.categoryId) || { name: 'أخرى', illustration: 'box' }, req = Data.c.users.get(t.requesterId), mine = t.requesterId === me.id, can = staff && (t.assigneeId === me.id || mgr), rlock = staff && !TRPLY.can(t);
     const acts = [];
     if (staff && OPEN.includes(t.status) && !t.assigneeId) acts.push(html`<button class="btn btn-primary" data-act="claim">${UI.icon('user-plus')} استلام البلاغ</button>`);
     if (staff && OPEN.includes(t.status) && t.assigneeId && t.assigneeId !== me.id) acts.push(html`<button class="btn btn-soft" data-act="takeover" title="البلاغ مع ${Data.userName(t.assigneeId)} ولم يُنجز بعد">${UI.icon('swap')} استكمال البلاغ</button>`);
@@ -2488,7 +2488,7 @@ Pages.ticket = async (ctx) => {
         <div class="stack">
           ${UI.panel({ title: 'مسار البلاغ', icon: 'layers', body: Pages.stepper(t) })}
           ${UI.panel({ title: 'وصف المشكلة', icon: 'file', tools: staff || mine ? html`<button class="btn btn-ghost btn-sm" data-act="attach">${UI.icon('clip')} إضافة مرفق</button>` : '', body: html`<p class="article" style="font-size:14.5px;line-height:1.9">${t.description || 'لم يُكتب وصف.'}</p>${Forms.summary(t)}${atts.length ? html`<div class="files mt">${gallery}</div>` : ''}` })}
-          ${UI.panel({ title: 'المحادثة والسجل', icon: 'pulse', body: html`<div class="timeline">${tl}</div>${!['closed', 'cancelled'].includes(t.status) || staff ? html`<div class="mt" id="composer"><div class="field">${staff ? UI.replyTools('ticket', 'cmt') : ''}<textarea id="cmt" rows="3" aria-label="نص الرد" placeholder="${staff ? 'اكتب رداً للمستفيد أو ملاحظة داخلية...' : 'أضف معلومة أو استفساراً للفني...'}"></textarea></div><div class="row" style="margin-top:10px">${staff && templates.length ? html`<select id="tpl" class="input" style="width:auto;height:36px" aria-label="رد جاهز"><option value="">ردود جاهزة</option>${templates.map((x) => html`<option value="${x.id}">${x.name}</option>`)}</select>` : ''}${staff ? html`<label class="switch"><input type="checkbox" id="internal"><i></i><span class="small">ملاحظة داخلية</span></label>` : ''}<button class="btn btn-primary" data-act="send" style="margin-inline-start:auto">${UI.icon('send')} إرسال</button></div></div>` : ''}` })}
+          ${UI.panel({ title: 'المحادثة والسجل', icon: 'pulse', body: html`<div class="timeline">${tl}</div>${!['closed', 'cancelled'].includes(t.status) || staff ? html`<div class="mt${rlock ? ' composer-lock' : ''}" id="composer">${rlock ? TRPLY.banner(t, me) : ''}<div class="field">${staff && !rlock ? UI.replyTools('ticket', 'cmt') : ''}<textarea id="cmt" rows="3" aria-label="${rlock ? 'ملاحظة داخلية' : 'نص الرد'}" placeholder="${rlock ? 'ملاحظة داخلية للفنيين فقط — الرد على المستفيد بعد استلام البلاغ' : staff ? 'اكتب رداً للمستفيد أو ملاحظة داخلية...' : 'أضف معلومة أو استفساراً للفني...'}"></textarea></div><div class="row" style="margin-top:10px">${staff && !rlock && templates.length ? html`<select id="tpl" class="input" style="width:auto;height:36px" aria-label="رد جاهز"><option value="">ردود جاهزة</option>${templates.map((x) => html`<option value="${x.id}">${x.name}</option>`)}</select>` : ''}${staff ? html`<label class="switch"${rlock ? raw(' title="قبل الاستلام تُكتب ملاحظات داخلية فقط"') : ''}><input type="checkbox" id="internal"${rlock ? raw(' checked disabled') : ''}><i></i><span class="small">ملاحظة داخلية</span></label>` : ''}<button class="btn btn-primary" data-act="send" style="margin-inline-start:auto">${UI.icon('send')} إرسال</button></div></div>` : ''}` })}
         </div>
         <div class="stack">
           ${UI.panel({ title: 'اتفاقية الخدمة', icon: 'clock', body: html`<div id="dial">${slaDial(t)}</div><dl class="kv mt"><dt>الموعد النهائي</dt><dd>${fmtDateTime(t.dueAt)}</dd><dt>أول استجابة</dt><dd>${t.firstResponseAt ? fmtDuration(t.firstResponseAt - t.createdAt) : 'لم تتم بعد'}</dd>${t.resolvedAt ? html`<dt>تاريخ الحل</dt><dd>${fmtDateTime(t.resolvedAt)}</dd>` : ''}</dl>` })}
@@ -5157,7 +5157,7 @@ const Sync = {
     const big = [], lost = []; let denied = 0;
     for (const c of conflicts) {
       if (c.reason === 'too_large') { big.push(c); continue; }
-      if (c.reason === 'no_permission') { denied += 1; if (!c.data) continue; }
+      if (c.reason === 'no_permission') { denied += 1; if (!c.data) { if (!c.rev && ['ticketEvents', 'attachments'].includes(c.store)) { try { await this.raw.del(c.store, this.localKey(c.store, c.id)); } catch (_) { /* غير موجود */ } } continue; } }
       /* استلام متزامن: فني آخر سبقك إلى البلاغ نفسه */
       if (c.store === 'tickets' && c.data && Auth.user && c.data.assigneeId && c.data.assigneeId !== Auth.user.id) { const mine = await DB.get('tickets', c.id).catch(() => null); if (mine && mine.assigneeId === Auth.user.id) lost.push(c.data); }
       if (c.deleted) { try { await this.raw.del(c.store, this.localKey(c.store, c.id)); } catch (_) { /* غير موجود */ } } else if (c.data) { c.data._rev = c.rev; await this.raw.put(c.store, c.data); }
@@ -23593,6 +23593,27 @@ document.addEventListener('click', (e) => {
   (s0 ? QEDIT.store(s0.dataset.qedit) : QEDIT.dept(d0.dataset.qdep, d0.dataset.qdept, d0.dataset.qunit || '')).catch(UI.error);
 }, true);
 
+
+/* ══════════ الجولة 55: الرد على المستفيد بعد استلام البلاغ ══════════
+   الفني لا يرد على مقدم البلاغ إلا بعد أن يستلمه (أو يستكمله)، ثم يبدأ العمل ويحله. قبل الاستلام تبقى الملاحظات الداخلية
+   بين الفنيين متاحة، ويظهر مكان الرد زر «استلام البلاغ». المشرف ومسؤول البلاغات يردّان في أي وقت، ومقدم البلاغ على بلاغه دائماً.
+   والخادم يرفض الرد الظاهر ممن لم يستلم البلاغ. */
+const TRPLY = {
+  free: (u) => !!u && (u.role === 'supervisor' || canUser(u, 'tickets.manage')),
+  can: (t, u = Auth.user) => !!t && !!u && (t.requesterId === u.id || (!!t.assigneeId && t.assigneeId === u.id) || TRPLY.free(u)),
+  why: (t) => (t.assigneeId ? `البلاغ مستلم من ${Data.userName(t.assigneeId)}: الرد على المستفيد له. استكمل البلاغ أولاً إن كنت ستعمل عليه` : 'استلم البلاغ أولاً، ثم يمكنك الرد على المستفيد والبدء في حله'),
+  banner(t, me) {
+    const open = OPEN.includes(t.status);
+    return html`<div class="banner tone-amber trp-lock">${UI.icon('lock')}<div class="grow"><b>${t.assigneeId ? `البلاغ مع ${Data.userName(t.assigneeId)}` : 'الرد على المستفيد بعد استلام البلاغ'}</b><small>${t.assigneeId ? 'الرد على المستفيد للفني المستلم. يمكنك كتابة ملاحظة داخلية للفنيين، أو استكمال البلاغ لتعمل عليه.' : 'استلم البلاغ ليُنسب إليك، ثم ردّ على المستفيد وابدأ الحل. حتى ذلك الحين تُكتب ملاحظات داخلية فقط.'}</small></div>${open ? (t.assigneeId ? (t.assigneeId !== me.id ? html`<button type="button" class="btn btn-soft btn-sm" data-act="takeover">${UI.icon('swap')} استكمال البلاغ</button>` : '') : html`<button type="button" class="btn btn-primary btn-sm" data-act="claim">${UI.icon('user-plus')} استلام البلاغ</button>`) : ''}</div>`;
+  }
+};
+{
+  const c0 = Data.tickets.comment;
+  Data.tickets.comment = async function (id, text, internal = false) {
+    if (!internal) { const t = await DB.get('tickets', id); if (t && !TRPLY.can(t)) throw new AppError(TRPLY.why(t)); }
+    return c0.call(this, id, text, internal);
+  };
+}
 /* ══════════ الجولة 54: زيادة العدد وإنقاصه من العدد نفسه ══════════
    حول العدد زرّا − و+، والضغط على العدد يفتح خانة لكتابته. يُحفظ تلقائياً بعد توقف قصير، ويظهر إشعار فيه «تراجع».
    الصنف في مخزن واحد (أو بلا رصيد) يُعدَّل مباشرة. وإن كان في أكثر من مخزن، أو نزل العدد عن أجهزته المسلسلة،

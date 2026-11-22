@@ -1396,6 +1396,12 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       return $merged;
     }
     case 'ticketEvents': case 'attachments': {
+      /* الرد الظاهر على المستفيد بعد استلام البلاغ: لمن استلمه، أو مقدمه، أو المشرف ومسؤول البلاغات. الملاحظة الداخلية متاحة للفنيين */
+      if ($store === 'ticketEvents' && !$deleted && (!$old || !empty($old['internal'])) && ($data['type'] ?? '') === 'comment' && empty($data['internal']) && can_any($user, TICKET_STAFF)
+        && !can_any($user, ['tickets.manage', 'settings']) && ($user['role'] ?? '') !== 'supervisor') {
+        $tk = doc_next('tickets', (string) ($data['ticketId'] ?? ''));
+        if ($tk && (string) ($tk['requesterId'] ?? '') !== $me && (string) ($tk['assigneeId'] ?? '') !== $me) return null;
+      }
       if (can_any($user, TICKET_STAFF)) return $new;
       $rec = $old ?: $data; $t = doc_data('tickets', (string) ($rec['ticketId'] ?? ''));
       if (!$t || (string) ($t['requesterId'] ?? '') !== $me) return null;
