@@ -8071,3 +8071,11 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .nt-cat{position:absolute;bottom:-5px;inset-inline-end:-6px;width:22px;height:22px;border-radius:8px;background:var(--surface-solid,#fff);box-shadow:0 0 0 1.5px rgba(var(--t),.4),0 2px 6px rgba(0,0,0,.18);display:grid;place-items:center;overflow:hidden}
 .nt-cat > *{width:18px!important;height:18px!important}
 [data-theme="dark"] .n-ic.nt{background:rgba(var(--t),.2)}
+
+/* ══ الجولة 66: التدفق في محرر الاستمارات ══ */
+.vl-grp-n{display:grid;grid-template-columns:100%;direction:ltr}
+.vl-grp-n>.vl-el{direction:rtl}
+.vl-el.vl-grow{display:flex;flex-direction:column}
+.vl-el.vl-grow>.vl-tx{flex:1 0 auto;height:auto}
+.vle-zoom .vl-el[data-follow]::before,.vle-zoom .vl-el[data-grow]::before{content:'↓ ينزل مع الجدول';position:absolute;bottom:100%;right:0;margin-bottom:.5mm;padding:0 1.4mm;border-radius:1mm;background:#16a34a;color:#fff;font:700 2.4mm/1.55 'IBM Plex Sans Arabic',Tahoma,sans-serif;white-space:nowrap;pointer-events:none;z-index:4;opacity:.88}
+.vle-zoom .vl-el[data-grow]::before{content:'↕ يطول مع النص';background:#0f766e}

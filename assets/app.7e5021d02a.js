@@ -15857,7 +15857,7 @@ Pages.voucherDesigner = async (ctx) => {
     const sb = st.sel ? st.sel.b : '', se = st.sel ? st.sel.e : '';
     z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell });
     try { VL.fit(z); } catch (_) { /* تجاهل */ }
-    if (!st.data) { let ch = false; $$('.vl-el.vl-e-table', z).forEach((n) => { const bn = n.closest('[data-band]'), b = bn && band(bn.dataset.band), e = b && (b.els || []).find((x) => x.id === n.dataset.el); if (!e) return; const mm = Math.round((n.offsetHeight / MMPX) * 2) / 2; if (mm > 0 && Math.abs(mm - e.h) > 0.6) { e.h = mm; ch = true; if (e.y + e.h > b.h) b.h = Math.ceil(e.y + e.h + 1); } }); if (ch && !st._dynFix) { st._dynFix = 1; z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell }); st._dynFix = 0; } }
+    if (!st.data) { let ch = false; $$('.vl-el.vl-e-table', z).forEach((n) => { const bn = n.closest('[data-band]'), b = bn && band(bn.dataset.band), e = b && (b.els || []).find((x) => x.id === n.dataset.el); if (!e) return; const mm = Math.round((n.offsetHeight / MMPX) * 2) / 2; if (mm > 0 && Math.abs(mm - e.h) > 0.6) { if (VL.pushBelow(b, e, mm)) dirty(true); e.h = mm; ch = true; if (e.y + e.h > b.h) b.h = Math.ceil(e.y + e.h + 1); } }); if (ch && !st._dynFix) { st._dynFix = 1; z.innerHTML = VL.doc(L(), sample(), { edit: true, data: st.data, sel: se, selBand: sb && !se ? sb : '', cell: st.cell }); st._dynFix = 0; } }
     if (se) { const b = z.querySelector(`[data-band="${sb}"]`); if (b) b.classList.add('has-sel'); }
     if (st.multi && st.multi.length) { st.multi = st.multi.filter((id) => findEl(id)); if (st.multi.length < 2) st.multi = []; st.multi.forEach((id) => { const n = z.querySelector(`[data-el="${id}"]`); if (n) n.classList.add('vl-msel'); }); }
     z.classList.toggle('grid', st.grid);
@@ -31112,6 +31112,103 @@ const NT = {
   }
 };
 NotifCat.ic = (n, cats) => NT.render(n, cats && cats.get ? cats.get(n.id) : '');
+
+/* ══════════ الجولة 66: ما تحت الجدول المتمدد لا يُغطّى أبداً ══════════
+   كان العنصر الذي يلامس حافة الجدول السفلى (بالسحب أو الالتصاق بالشبكة، أو لأن خط الجدول كُبّر بعد وضعه) يُعامل كأنه بجانب الجدول
+   فيبقى ثابتاً، ثم يطول الجدول مع الأصناف فيغطيه كاملاً. الآن:
+   - ما يقع تحت الجدول أو على نصفه السفلي ينزل معه دائماً، وإن لامس حافته يُزاح القسم بمقدار التداخل فلا يُغطّى.
+   - الجداول المتجاورة في القسم نفسه: يتمدد القسم بأطولها (كان يتبع أولها فقط فيغطي الآخرُ ما تحته).
+   - مربع النص ذو المحتوى المتغير (الملاحظات، نص التعهد، أو ما تختار له «يطول ويدفع ما تحته») يطول مع نصه ويدفع ما تحته.
+   - في المحرر: شارة «ينزل مع الجدول» على ما سيتحرك، وإذا طال الجدول أثناء التصميم ينزل ما تحته بدل أن يتداخل معه. */
+VLFIT[0] = ['', 'يتجاوز المربع', 'يلتف ويتجاوز حدود المربع إن طال (الملاحظات ونص التعهد تطول تلقائياً وتدفع ما تحتها)'];
+VLFIT.splice(1, 0, ['grow', 'يطول ويدفع ما تحته', 'يطول المربع مع النص فينزل ما تحته ولا يُغطّى (مناسب للملاحظات ونص التعهد)']);
+VL.growText = (e) => !!(e && e.t === 'text' && (e.fit === 'grow' || (!e.fit && /\[(الملاحظات|نص التعهد)\]/.test(e.text || ''))));
+VL.isGrow = (e) => !!(e && ((e.t === 'table' && e.tbl) || VL.growText(e)));
+VL.hov = (a, z) => Math.min(a.x + a.w, z.x + z.w) - Math.max(a.x, z.x) > 0.5;
+/* خطة التدفق: العناصر صفوف حسب تداخلها الرأسي، ولكل عنصر في صف فيه عنصر متمدد: ثابت (abs) أو ينزل مع القاع (bot) أو يمتد معه (str) */
+VL.flowPlan = (b, els) => {
+  const T = 0.01, B = (e) => e.y + e.h, G = els.filter(VL.isGrow);
+  const wrap = els.filter((e) => !VL.isGrow(e) && G.some((t) => e.y <= t.y + T && B(e) >= B(t) - T));
+  const rest = els.filter((e) => !wrap.includes(e)).sort((a, z) => a.y - z.y || a.x - z.x);
+  const groups = [];
+  rest.forEach((e) => { const g = groups[groups.length - 1]; if (g && e.y < g.bottom - T) { g.els.push(e); g.bottom = Math.max(g.bottom, B(e)); } else groups.push({ top: e.y, bottom: B(e), els: [e] }); });
+  groups.forEach((g) => {
+    g.ts = g.els.filter(VL.isGrow); g.modes = {}; g.ov = 0;
+    if (!g.ts.length) return;
+    const tTop = Math.min(...g.ts.map((t) => t.y)), tBot = Math.max(...g.ts.map(B));
+    g.els.forEach((e) => {
+      if (g.ts.includes(e)) return;
+      if (e.y <= tTop + T && B(e) >= tBot - T) { g.modes[e.id] = 'str'; return; }
+      const under = g.ts.filter((t) => e.y >= B(t) - T || (VL.hov(e, t) && e.y > t.y + T && e.y + e.h / 2 >= t.y + t.h / 2));
+      if (!under.length) { g.modes[e.id] = 'abs'; return; }
+      g.modes[e.id] = 'bot';
+      /* يلامس حافة الجدول السفلى (تداخل جزئي): يُزاح بمقدار التداخل. أما الموضوع فوق الجدول عمداً (كختم كبير) فيبقى تداخله كما صُمم */
+      under.forEach((t) => { const o = B(t) - e.y; if (o > T && VL.hov(e, t) && o <= e.h * 0.6) g.ov = Math.max(g.ov, o); });
+    });
+  });
+  return { wrap, groups };
+};
+VL.flowBand = (b, d, F, opt, els) => {
+  const P = VL.flowPlan(b, els), B = (e) => e.y + e.h;
+  let out = '', prev = 0;
+  P.groups.forEach((g) => {
+    const gh = Math.max(0, g.bottom - g.top);
+    let inner = '';
+    if (g.ts.length) {
+      g.els.forEach((e) => {
+        const m = g.modes[e.id]; if (!m) return;
+        inner += VL.el(e, d, F, opt, m === 'str' ? { mode: 'str', top: e.y - g.top, bottom: Math.max(0, g.bottom - B(e)) } : m === 'bot' ? { mode: 'bot', bottom: Math.max(0, g.bottom - B(e)) } : { mode: 'abs', top: e.y - g.top });
+      });
+      const multi = g.ts.length > 1;
+      const flow = g.ts.map((t) => VL.el(t, d, F, opt, { mode: multi ? 'cell' : 'flow', mt: Math.max(0, t.y - g.top), mb: Math.max(0, g.bottom - B(t)) + g.ov })).join('');
+      out += `<div class="vl-grp${multi ? ' vl-grp-n' : ''}" style="margin-top:${Math.max(0, g.top - prev)}mm;min-height:${gh + g.ov}mm">${flow}${inner}</div>`;
+    } else {
+      g.els.forEach((e) => { inner += VL.el(e, d, F, opt, { mode: 'abs', top: e.y - g.top }); });
+      out += `<div class="vl-grp" style="margin-top:${Math.max(0, g.top - prev)}mm;height:${gh}mm">${inner}</div>`;
+    }
+    prev = Math.max(prev, g.bottom);
+  });
+  const tail = Math.max(0, b.h - prev);
+  if (tail) out += `<div style="height:${tail}mm"></div>`;
+  P.wrap.forEach((e) => { out += VL.el(e, d, F, opt, { mode: 'str', top: e.y, bottom: Math.max(0, b.h - B(e)) }); });
+  return out;
+};
+/* الجداول المتجاورة تُرصّ في خلية شبكة واحدة فيأخذ الصف ارتفاع أطولها، ومربع النص المتمدد له حد أدنى بارتفاعه المصمم */
+{
+  const pc0 = VL.posCss;
+  VL.posCss = (e, p) => {
+    const z = (e.z || 1) + 1, mh = e.t === 'text' ? `;min-height:${e.h}mm` : '';
+    if (p.mode === 'cell') return `position:relative;left:auto;top:auto;grid-area:1/1;justify-self:start;align-self:start;margin:${p.mt}mm 0 ${p.mb}mm ${e.x}mm;width:${e.w}mm;direction:rtl;z-index:${z}${mh}`;
+    return pc0(e, p) + (p.mode === 'flow' ? mh : '');
+  };
+  const el1 = VL.el;
+  VL.el = (e, d, F, opt, place) => {
+    const h = el1(e, d, F, opt, place);
+    return place && (place.mode === 'flow' || place.mode === 'cell') && VL.growText(e) ? h.replace('class="vl-el ', 'class="vl-el vl-grow ') : h;
+  };
+  /* في التصميم: شارة على ما سينزل مع الجدول، وعلى مربع النص الذي يطول */
+  const band1 = VL.band;
+  VL.band = (b, d, F, opt) => {
+    let h = band1(b, d, F, opt);
+    if (!opt.edit || opt.data || b.type !== 'free' || !h) return h;
+    const els = (b.els || []).filter((e) => VL.vis(e, d.kindKey));
+    if (!els.some(VL.isGrow)) return h;
+    VL.flowPlan(b, els).groups.forEach((g) => Object.keys(g.modes).forEach((id) => { if (g.modes[id] === 'bot') h = h.replace(`data-el="${id}"`, `data-el="${id}" data-follow="1"`); }));
+    els.filter(VL.growText).forEach((e) => { h = h.replace(`data-el="${e.id}"`, `data-el="${e.id}" data-grow="1"`); });
+    return h;
+  };
+}
+/* حين يطول الجدول أثناء التصميم: ما كان تحته ويصير متداخلاً معه ينزل بمقدار الزيادة (مع كل ما تحته) */
+VL.pushBelow = (b, t, nh) => {
+  const oB = t.y + t.h, nB = t.y + nh, dd = nB - oB;
+  if (!(dd > 0.6) || !b || !Array.isArray(b.els)) return false;
+  /* ما تحت الجدول، وما يلامس نصفه السفلي (كتوقيع وُضع ملاصقاً لحافته) */
+  const below = b.els.filter((x) => x !== t && (x.y >= oB - 0.6 || (VL.hov(x, t) && x.y > t.y + 0.01 && x.y + x.h / 2 >= t.y + t.h / 2)));
+  if (!below.some((x) => x.y < nB && VL.hov(x, t))) return false;
+  below.forEach((x) => { x.y = Math.round((x.y + dd) * 2) / 2; });
+  b.h = Math.ceil(Math.max(Number(b.h) || 0, ...b.els.map((x) => (x === t ? nB : x.y + x.h))) + 1);
+  return true;
+};
 
 boot();
 })();
