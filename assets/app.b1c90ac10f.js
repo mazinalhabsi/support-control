@@ -3108,7 +3108,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get NT() { return NT; }, get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get VL() { return VL; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get CIMP() { return CIMP; }, get WSP() { return WSP; }, get NT() { return NT; }, get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get VL() { return VL; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -27227,9 +27227,9 @@ const WSP = {
       actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'ربط', kind: 'primary', icon: 'check', submit: true, handler: (f) => UI.formValues(f) }] });
     if (!r) return;
     const cur = await DB.get('workstations', wsId); if (!cur) return;
-    const pairs = WSP.live(cur, items), qty = (id) => Number(((cur.lines || []).find((l) => l.itemId === id) || {}).qty) || 0, used = (id) => pairs.filter((p) => p.pc === id || p.scr === id).length;
-    if (used(r.pc) >= qty(r.pc)) { UI.toast('كل وحدات هذا الجهاز مربوطة بشاشات', 'warn'); return; }
-    if (used(r.scr) >= qty(r.scr)) { UI.toast('كل وحدات هذه الشاشة مربوطة بأجهزة', 'warn'); return; }
+    const pairs = WSP.live(cur, items), qty = (id) => Number(((cur.lines || []).find((l) => l.itemId === id) || {}).qty) || 0, used = (id, sn) => { const u = WSP.units(pairs, id); return String(sn || '').trim() && u.has(WSP.unitKey(sn, {}, '')) ? -1 : u.size; };
+    if (used(r.pc, r.pcSn) >= qty(r.pc)) { UI.toast('كل وحدات هذا الجهاز مربوطة بشاشات', 'warn'); return; }
+    if (used(r.scr, r.scrSn) >= qty(r.scr)) { UI.toast('كل وحدات هذه الشاشة مربوطة بأجهزة', 'warn'); return; }
     cur.pairs = [...pairs, { id: uid('wp'), pc: r.pc, scr: r.scr, pcSn: String(r.pcSn || '').trim(), scrSn: String(r.scrSn || '').trim(), note: String(r.note || '').trim().slice(0, 80), at: now(), by: Auth.user.id }];
     cur.updatedAt = now(); await DB.put('workstations', cur);
     await Data.log('update', 'inventory', cur.id, `ربط جهاز بشاشة في محطة «${WS.label(cur)}»`);
@@ -31208,6 +31208,508 @@ VL.pushBelow = (b, t, nh) => {
   below.forEach((x) => { x.y = Math.round((x.y + dd) * 2) / 2; });
   b.h = Math.ceil(Math.max(Number(b.h) || 0, ...b.els.map((x) => (x === t ? nB : x.y + x.h))) + 1);
   return true;
+};
+
+/* ══════════ الجولة 67: استيراد عهدة إدارة من Excel ══════════
+   إدارة واحدة في كل مرة: تختارها وترفع ملفها، فتُسجَّل أجهزتها في عهدتها مباشرة (رصيد افتتاحي لا يُخصم من المخزن)
+   وتتوزع على أقسامها وشعبها ووحداتها (كالمختبرات) ومكاتبها حسب خانة الموقع. ما لا يُعرف مكانه يذهب إلى عام الإدارة «قيد الفرز».
+   الموديل يُطابق مع النماذج المعتمدة (الأصناف)، والرقم التسلسلي ورقم التاج واسم الجهاز في المجال تُحفظ مع كل جهاز،
+   والأجهزة المرتبطة (جهاز مع شاشته، أو شاشة مع أكثر من جهاز) تصبح محطة عمل في مكانها مع ربط كل جهاز بشاشته.
+   التصحيحات التي تجريها في المراجعة (موقع أو موديل) تُحفظ، فيُتعرَّف عليها تلقائياً في الملف القادم. */
+const CIMP = {
+  ROLES: [
+    ['', '— لا يُستخدم —'],
+    ['loc', 'الموقع (قسم، شعبة، وحدة، مكتب)'],
+    ['type', 'نوع الجهاز'],
+    ['brand', 'الماركة'],
+    ['model', 'الموديل'],
+    ['serial', 'الرقم التسلسلي'],
+    ['tag', 'رقم التاج'],
+    ['host', 'اسم الجهاز في المجال'],
+    ['link', 'مرتبط مع (رقم تسلسلي أو اسم جهاز)'],
+    ['lmodel', 'موديل الجهاز المرتبط (كالشاشة)'],
+    ['lserial', 'الرقم التسلسلي للجهاز المرتبط'],
+    ['holder', 'المستخدم (الاسم أو الرقم العسكري)'],
+    ['qty', 'الكمية (للأصناف بلا أرقام)'],
+    ['note', 'ملاحظات']
+  ],
+  can: () => !!Auth.user && canUser(Auth.user, 'custody.direct'),
+  n: (v) => normalizeAr(String(v == null ? '' : v)).replace(/[^\p{L}\p{N}]+/gu, ' ').trim(),
+  c: (v) => CIMP.n(v).replace(/\s+/g, ''),
+  split: (v) => String(v == null ? '' : v).split(/[\n\r،,;|]+/).map((s) => s.trim()).filter(Boolean),
+  /* دور العمود من عنوانه */
+  guess(h) {
+    const t = normalizeAr(String(h || '')).trim(); if (!t) return '';
+    const has = (...w) => w.some((x) => (x instanceof RegExp ? x.test(t) : t.includes(x)));
+    const SN = ['تسلسل', 'serial', /\bs\s*\/?\s*n\b/];
+    if (has('مرتبط', 'مربوط', 'linked', 'connected', 'paired')) return has('موديل', 'model', 'طراز') ? 'lmodel' : has(...SN) ? 'lserial' : 'link';
+    if (has('شاشه', 'monitor')) { if (has(...SN)) return 'lserial'; if (has('موديل', 'model', 'طراز') || /^(ال)?شاشه$/.test(t)) return 'lmodel'; }
+    if (has('مجال', 'domain', 'hostname', 'host', 'computer name', 'pc name', 'اسم الجهاز')) return 'host';
+    if (has(...SN)) return 'serial';
+    if (has('تاج', /\btag\b/, 'رقم الاصل', 'asset')) return 'tag';
+    if (has('موديل', 'model', 'طراز')) return 'model';
+    if (has('ماركه', 'brand', 'الشركه المصنعه', 'المصنع', 'manufacturer')) return 'brand';
+    if (has('كميه', 'العدد', 'qty', 'quantity', 'count')) return 'qty';
+    if (has('مستخدم', 'الموظف', 'المستلم', 'صاحب العهده', 'العسكري', /\buser\b/, 'employee')) return 'holder';
+    if (has('ملاحظ', 'note', 'remark')) return 'note';
+    if (has('قسم', 'شعبه', 'وحده', 'مكتب', 'مختبر', 'معمل', 'موقع', 'الموقع', 'مكان', 'غرفه', 'قاعه', 'اداره', 'office', 'section', 'unit', 'lab', 'location', 'room', 'dept')) return 'loc';
+    if (has('نوع', 'type', 'الصنف', 'الجهاز', 'device', 'category', 'فئه')) return 'type';
+    return '';
+  },
+  headerRow(rows) { let best = 0, bn = 0; (rows || []).slice(0, 15).forEach((r, i) => { const n = (r || []).filter((x) => CIMP.guess(x)).length; if (n > bn) { bn = n; best = i; } }); return best; },
+  pickSheet(sheets) { let best = 0, bn = -1; sheets.forEach((s, i) => { const n = ((s.rows || [])[CIMP.headerRow(s.rows)] || []).filter((x) => CIMP.guess(x)).length; if (n > bn) { bn = n; best = i; } }); return best; },
+  rolesFor(header) { const used = new Set(); return (header || []).map((h) => { const g = CIMP.guess(h); if (!g || (g !== 'loc' && used.has(g))) return ''; used.add(g); return g; }); },
+  async readFile(file) {
+    if (/\.csv$/i.test(file.name) || file.type === 'text/csv') {
+      const t = (await file.text()).replace(/^﻿/, ''), first = t.split(/\r?\n/, 1)[0] || '';
+      const sep = [';', '\t', ','].map((s) => [s, first.split(s).length]).sort((a, b) => b[1] - a[1])[0][0];
+      const rows = []; let row = [], cur = '', q = false;
+      for (let i = 0; i < t.length; i++) {
+        const ch = t[i];
+        if (q) { if (ch === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; continue; }
+        if (ch === '"') q = true;
+        else if (ch === sep) { row.push(cur.trim()); cur = ''; }
+        else if (ch === '\n' || ch === '\r') { if (ch === '\r' && t[i + 1] === '\n') i++; row.push(cur.trim()); rows.push(row); row = []; cur = ''; }
+        else cur += ch;
+      }
+      if (cur || row.length) { row.push(cur.trim()); rows.push(row); }
+      return [{ name: 'CSV', rows }];
+    }
+    if (!/\.xlsx$/i.test(file.name)) throw new AppError('ارفع ملف Excel بصيغة xlsx (أو csv). الملفات القديمة xls تُحفظ أولاً بصيغة xlsx من Excel');
+    return XL.read(file);
+  },
+  /* الأجهزة من صفوف الملف: لكل رقم تسلسلي جهاز، والجهاز المرتبط في الصف نفسه جهاز مستقل مربوط به، و«مرتبط مع» يربط بجهاز في صف آخر */
+  build(rows, roles, line0 = 2, lmHint = '') {
+    const C = {}; CIMP.ROLES.forEach(([k]) => { if (k) C[k] = []; }); roles.forEach((r, i) => { if (r && C[r]) C[r].push(i); });
+    const cell = (row, i) => String(row[i] == null ? '' : row[i]).trim(), one = (row, k) => (C[k].length ? cell(row, C[k][0]) : '');
+    const N = Data.assets.norm, devs = [], warn = [], bySn = new Map(), recs = [];
+    rows.forEach((row, ri) => {
+      if (!row || !row.some((x) => String(x == null ? '' : x).trim())) return;
+      const r = { line: line0 + ri, loc: C.loc.map((i) => cell(row, i)).flatMap((v) => v.split(/\s*[/\\>»]\s*/)).map((v) => v.trim()).filter(Boolean) };
+      ['type', 'brand', 'model', 'serial', 'tag', 'host', 'link', 'lmodel', 'lserial', 'holder', 'qty', 'note'].forEach((k) => { r[k] = one(row, k); });
+      if (!r.type && !r.model && !r.serial && !r.tag && !r.host && !r.lmodel && !r.lserial) return;
+      /* سطر الإجمالي أو المجموع في آخر الجدول ليس جهازاً */
+      if (!r.serial && !r.tag && !r.host && /^(ال)?(اجمالي|مجموع)|^(total|sum)\b/i.test(normalizeAr(r.type || r.model).trim())) return;
+      recs.push(r);
+    });
+    const mk = (r, o) => { const d = { id: devs.length, line: r.line, loc: r.loc, type: o.type != null ? o.type : r.type, brand: o.brand != null ? o.brand : r.brand, model: o.model != null ? o.model : r.model, serial: o.serial || '', tag: o.tag || '', host: o.host || '', holder: r.holder, note: r.note, qty: o.qty || 1, virt: !!o.virt, links: new Set() }; devs.push(d); if (d.serial) bySn.set(N(d.serial), d); return d; };
+    recs.forEach((r) => {
+      r.devs = [];
+      const sns = CIMP.split(r.serial), q = Math.max(1, Math.floor(Number(String(r.qty).replace(/[^\d.]/g, '')) || 1));
+      if (!r.type && !r.model && !r.serial && !r.tag && !r.host) return;
+      const dup = (s) => { const o = bySn.get(N(s)); if (!o) return false; warn.push({ kind: 'dup', line: r.line, msg: `الرقم التسلسلي «${s}» مكرر في الملف (ورد أولاً في السطر ${fmtNum(o.line)})؛ يُستورد مرة واحدة` }); return true; };
+      if (sns.length > 1) sns.forEach((s) => { if (!dup(s)) r.devs.push(mk(r, { serial: s })); });
+      else if (sns.length === 1 || r.tag || r.host) { if (!(sns[0] && dup(sns[0]))) r.devs.push(mk(r, { serial: sns[0] || '', tag: r.tag, host: r.host })); }
+      else r.devs.push(mk(r, { qty: q }));
+    });
+    /* الجهاز المرتبط في الصف نفسه: إن كان له صف خاص (برقمه التسلسلي) يُربط به، وإلا يُنشأ. الشاشة الواحدة في عدة صفوف = شاشة مشتركة */
+    recs.forEach((r) => {
+      if (!r.lmodel && !r.lserial) return;
+      const ls = CIMP.split(r.lserial);
+      const ts = ls.length ? ls.map((s) => bySn.get(N(s)) || mk(r, { serial: s, type: lmHint, brand: '', model: r.lmodel, virt: true })) : [mk(r, { type: lmHint, brand: '', model: r.lmodel, virt: true })];
+      r.devs.forEach((a) => ts.forEach((b) => { if (a !== b) { a.links.add(b.id); b.links.add(a.id); } }));
+    });
+    const idx = new Map(); devs.forEach((d) => [d.serial, d.tag, d.host].forEach((v) => { const k = N(v); if (k && !idx.has(k)) idx.set(k, d); }));
+    recs.forEach((r) => CIMP.split(r.link).forEach((t) => {
+      const b = idx.get(N(t));
+      if (!b) { warn.push({ kind: 'link', line: r.line, msg: `«${t}» في خانة «مرتبط مع» لا يوجد في الملف` }); return; }
+      r.devs.forEach((a) => { if (a !== b) { a.links.add(b.id); b.links.add(a.id); } });
+    }));
+    return { devs, warn, rows: recs.length };
+  },
+  /* ── الموقع داخل الإدارة ── */
+  async locIndex(depId) {
+    const units = await DB.getAll('deptUnits'), dep = Data.c.departments.get(depId);
+    const T = orgUnitsFlat(units, depId).map(({ u, path, depth }) => ({ unitId: u.id, label: path, depth, names: [u.name, ...(u.aliases || [])], code: String(u.code || '').toLowerCase(), parentId: u.parentId || '', type: u.type || '' }));
+    const byId = new Map(T.map((t) => [t.unitId, t]));
+    const chain = (id) => { const out = []; let t = byId.get(id), g = 0; while (t && g++ < 40) { out.push(t.unitId); t = byId.get(t.parentId); } return out; };
+    return { dep, T, byId, chain, depNames: [dep.name, ...(dep.aliases || [])], depCode: String(dep.code || '').toLowerCase() };
+  },
+  /* أجزاء الموقع بأي ترتيب (القسم ثم المكتب أو العكس): يُختار الفرع الذي يفسّر هو وأصوله أكثر الأجزاء، والأعمق عند التساوي */
+  matchLoc(parts, X) {
+    const K = OrgMatch.key, isDep = (p) => (K(p) && X.depNames.some((n) => K(n) === K(p))) || (X.depCode && String(p).trim().toLowerCase() === X.depCode);
+    const ps = parts.filter((p) => !isDep(p));
+    if (!ps.length) return { status: 'empty', unitId: '', cands: [] };
+    const per = ps.map((p) => { const k = K(p), raw = String(p).trim().toLowerCase(), m = new Map(); X.T.forEach((t) => { const s = (raw && t.code && t.code === raw) || t.names.some((n) => k && K(n) === k) ? 1 : Math.max(...t.names.map((n) => OrgMatch.score(p, n))); if (s >= OrgMatch.CLOSE) m.set(t.unitId, s); }); return m; });
+    const cand = new Set(); per.forEach((m) => m.forEach((_, id) => cand.add(id)));
+    const ranked = [...cand].map((id) => { const ch = X.chain(id), sc = per.map((m) => Math.max(0, ...ch.map((c) => m.get(c) || 0))); return { id, cov: sc.filter((s) => s >= OrgMatch.CLOSE).length, tot: sc.reduce((a, b) => a + b, 0), ex: sc.every((s) => s === 1), dep: X.byId.get(id).depth, own: Math.max(...per.map((m) => m.get(id) || 0)) }; })
+      .filter((r) => r.own > 0).sort((a, b) => b.cov - a.cov || b.tot - a.tot || b.dep - a.dep);
+    const cands = ranked.slice(0, 5).map((r) => r.id), [a, b] = ranked;
+    if (!a) return { status: 'none', unitId: '', cands };
+    if (b && b.cov === a.cov && a.tot - b.tot < 0.05 && b.dep === a.dep && !X.chain(a.id).includes(b.id) && !X.chain(b.id).includes(a.id)) return { status: 'ambiguous', unitId: '', cands };
+    if (a.cov < ps.length) return { status: 'partial', unitId: '', cands, sug: a.id };
+    return { status: a.ex ? 'exact' : 'close', unitId: a.id, score: a.tot / ps.length, cands };
+  },
+  /* ── الموديل مع النماذج المعتمدة (الأصناف) ── */
+  itemText: (d) => [d.brand, d.model].filter(Boolean).join(' ') || d.type || '',
+  modKey: (d) => `${CIMP.n(CIMP.itemText(d))}¦${CIMP.n(d.type)}`,
+  kindOf(t) { const ty = CIMP.n(t); return /شاش|monitor|display/.test(ty) ? 'monitor' : /حاسب|كمبيوتر|جهاز مكتبي|محمول|laptop|desktop|\bpc\b|computer|workstation/.test(ty) ? 'pc' : /طابع|printer/.test(ty) ? 'printer' : ''; },
+  itemScore(text, d, it) {
+    const q = CIMP.c(text); if (!q) return 0;
+    let s = 0;
+    [it.model, [it.brand, it.model].filter(Boolean).join(' '), it.name, it.sku].filter(Boolean).forEach((c) => {
+      const k = CIMP.c(c); if (!k) return;
+      const solid = (x) => x.length >= 5 || (x.length >= 3 && /\d/.test(x) && /\p{L}/u.test(x));
+      if (k === q) s = Math.max(s, 1);
+      else if (solid(k) && q.includes(k)) s = Math.max(s, 0.86 + 0.1 * (k.length / q.length));
+      else if (solid(q) && k.includes(q)) s = Math.max(s, 0.8 + 0.1 * (q.length / k.length));
+      else {
+        const A = new Set(CIMP.n(text).split(' ')), B = new Set(CIMP.n(c).split(' ')), inter = [...A].filter((x) => B.has(x)).length;
+        if (inter) { const j = inter / (A.size + B.size - inter), nA = [...A].filter((x) => /\d/.test(x)), nB = [...B].filter((x) => /\d/.test(x)); s = Math.max(s, (!nA.length || !nB.length || nA.some((x) => B.has(x)) ? 0.85 : 0.4) * j); }
+      }
+    });
+    if (s && d.brand && it.brand) s = CIMP.c(d.brand) === CIMP.c(it.brand) ? Math.min(1, s + 0.04) : s - 0.3;
+    if (s && d.type) { const tk = CIMP.kindOf(d.type), ik = CMV.kind(it); if (tk && ik && tk !== ik) s -= 0.35; }
+    return s;
+  },
+  matchItem(d, items) {
+    const text = CIMP.itemText(d), ranked = items.map((it) => ({ it, s: CIMP.itemScore(text, d, it) })).filter((x) => x.s > 0.3).sort((a, b) => b.s - a.s);
+    const [a, b] = ranked, cands = ranked.slice(0, 6).map((x) => x.it.id);
+    if (!a || a.s < 0.72) return { status: 'none', cands };
+    if (b && a.s - b.s < 0.04 && a.s < 0.97) return { status: 'ambiguous', cands };
+    return { status: a.s >= 0.97 ? 'exact' : 'close', itemId: a.it.id, score: a.s, cands };
+  },
+  /* ── ذاكرة التصحيحات ── */
+  async mem(dep) { const g = async (k) => { try { const r = await DB.get('meta', k); return { ...((r && r.value && r.value.map) || {}) }; } catch (_) { return {}; } }; return { loc: await g(`cimp:loc:${dep}`), mod: await g('cimp:mod') }; },
+  async remember(A, newIds) {
+    const m = await CIMP.mem(A.dep); let cl = 0, cm = 0;
+    A.LOC.forEach((L) => { if (!L.parts.length || L.auto.status === 'empty') return; if (L.pick !== L.def || L.auto.status === 'close') { m.loc[OrgMatch.key(L.key)] = L.pick || '@gen'; cl++; } });
+    A.MOD.forEach((M) => { const id = M.pick === 'new' ? newIds.get(M.key) : M.pick; if (!id || id === 'skip' || !M.text) return; if (M.pick !== M.def || M.auto.status === 'close' || M.pick === 'new') { m.mod[M.key] = id; cm++; } });
+    if (cl) await DB.put('meta', { key: `cimp:loc:${A.dep}`, value: { map: m.loc, at: now() } });
+    if (cm) await DB.put('meta', { key: 'cimp:mod', value: { map: m.mod, at: now() } });
+  },
+  /* ── التحليل الكامل لملف إدارة ── */
+  async analyze(st) {
+    const sh = st.sheets[st.si], hdr = sh.rows[st.hr] || [];
+    const lmi = st.roles.indexOf('lmodel') >= 0 ? st.roles.indexOf('lmodel') : st.roles.indexOf('lserial'), lmHint = lmi >= 0 && /شاش|monitor/i.test(normalizeAr(hdr[lmi] || '')) ? 'شاشة' : '';
+    const B = CIMP.build(sh.rows.slice(st.hr + 1), st.roles, st.hr + 2, lmHint);
+    const [X, items, mem, idx] = await Promise.all([CIMP.locIndex(st.dep), MDL.all(), CIMP.mem(st.dep), Data.assets.index()]);
+    const N = Data.assets.norm, byIt = new Map(items.map((i) => [i.id, i])), LOC = new Map(), MOD = new Map(), warn = [...B.warn];
+    const prev = (await DB.getAll('meta')).filter((r) => String(r.key || '').startsWith('cimp:b:') && r.value && r.value.departmentId === st.dep).map((r) => r.value).sort((a, b) => b.at - a.at);
+    const prevQ = new Set(prev.flatMap((b) => (b.qlines || []).map((q) => `${q.unitId}|${q.itemId}`)));
+    B.devs.forEach((d) => {
+      const lk = d.loc.join(' / ');
+      let L = LOC.get(lk);
+      if (!L) {
+        const mk = OrgMatch.key(lk), mv = mk ? mem.loc[mk] : undefined;
+        let m = mv != null && (mv === '@gen' || X.byId.has(mv)) ? { status: 'memory', unitId: mv === '@gen' ? '' : mv, cands: [] } : null;
+        if (!m) m = d.loc.length ? CIMP.matchLoc(d.loc, X) : { status: 'empty', unitId: '', cands: [] };
+        L = { key: lk, parts: d.loc, n: 0, auto: m, def: ['exact', 'close', 'memory'].includes(m.status) ? m.unitId : '' }; L.pick = L.def; LOC.set(lk, L);
+      }
+      L.n += d.qty; d.lk = lk;
+      const key = CIMP.modKey(d), text = CIMP.itemText(d);
+      let M = MOD.get(key);
+      if (!M) {
+        const mm = mem.mod[key], m = !text ? { status: 'empty', cands: [] } : mm && byIt.has(mm) ? { status: 'memory', itemId: mm, cands: [] } : CIMP.matchItem(d, items);
+        M = { key, text, type: d.type, brand: d.brand, n: 0, auto: m, def: ['exact', 'close', 'memory'].includes(m.status) ? m.itemId : m.status === 'none' && text && MDL.canEdit() ? 'new' : 'skip' }; M.pick = M.def; MOD.set(key, M);
+      }
+      M.n += d.qty; d.mk = key;
+    });
+    /* مسجّل في المنصة مسبقاً: لا يتكرر. واسم الجهاز المكرر يُترك ويُستورد الجهاز دونه */
+    const seenH = new Set(), seenT = new Set();
+    B.devs.forEach((d) => {
+      d.exists = [d.serial, d.tag].map(N).filter(Boolean).some((k) => idx.ids.has(k));
+      if (d.exists) return;
+      const t = N(d.tag); if (t && d.serial) { if (seenT.has(t) || idx.ids.has(t)) { warn.push({ kind: 'host', line: d.line, msg: `رقم التاج «${d.tag}» مستخدم لجهاز آخر؛ يُستورد الجهاز دونه` }); d.tag = ''; } else seenT.add(t); }
+      const h = N(d.host); if (!h) return;
+      if (idx.hosts.has(h)) { warn.push({ kind: 'host', line: d.line, msg: `اسم الجهاز «${d.host}» مسجّل لجهاز آخر في المنصة؛ يُستورد الجهاز دونه` }); d.host = ''; }
+      else if (seenH.has(h)) { warn.push({ kind: 'host', line: d.line, msg: `اسم الجهاز «${d.host}» مكرر في الملف؛ يُحفظ لأول جهاز فقط` }); d.host = ''; }
+      else seenH.add(h);
+    });
+    /* المستخدم: بالرقم العسكري أو اسم الدخول أو الاسم كما هو */
+    const H = new Map(); Data.list('users').forEach((u) => [u.militaryNo, u.username, u.name].forEach((v) => { const k = CIMP.c(v); if (k && !H.has(k)) H.set(k, u.id); }));
+    const noUser = new Map();
+    B.devs.forEach((d) => { if (!d.holder) { d.holderId = ''; return; } d.holderId = H.get(CIMP.c(d.holder)) || ''; if (!d.holderId) noUser.set(d.holder, (noUser.get(d.holder) || 0) + 1); });
+    noUser.forEach((n, name) => warn.push({ kind: 'user', line: 0, msg: `المستخدم «${name}» غير موجود في المنصة (${arCount(n, AR_DEVICE)})؛ تُسجّل بلا مستخدم` }));
+    return { dep: st.dep, file: st.file ? st.file.name : '', X, items, byIt, B, LOC, MOD, warn, prev, prevQ, addAgain: false };
+  },
+  /* ما سيُستورد فعلاً بحسب الاختيارات الحالية */
+  plan(A) {
+    const unitOf = (d) => A.LOC.get(d.lk).pick || '', again = (d) => !d.serial && !d.tag && A.prevQ && A.prevQ.has(`${unitOf(d)}|${A.MOD.get(d.mk).pick}`);
+    const inc = (d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && (A.addAgain || !again(d));
+    const ds = A.B.devs.filter(inc), seen = new Set(), comps = [];
+    ds.forEach((d) => {
+      if (seen.has(d.id) || !d.links.size) return;
+      const comp = [], stack = [d]; seen.add(d.id);
+      while (stack.length) { const x = stack.pop(); comp.push(x); x.links.forEach((j) => { const y = A.B.devs[j]; if (!seen.has(y.id) && inc(y)) { seen.add(y.id); stack.push(y); } }); }
+      if (comp.length > 1) comps.push(comp);
+    });
+    const ws = comps.filter((c) => { const u = unitOf(c[0]); return u && c.every((x) => unitOf(x) === u); });
+    const sum = (list) => list.reduce((s, d) => s + d.qty, 0);
+    const gen = ds.filter((d) => !unitOf(d)), placed = ds.filter((d) => unitOf(d));
+    return { ds, comps, ws, gen, placed, total: sum(ds), genQ: sum(gen), placedQ: sum(placed), exists: A.B.devs.filter((d) => d.exists), skip: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick === 'skip'), again: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && again(d)), shared: ds.filter((d) => d.links.size > 1 && CIMP.kindOf(d.type) !== 'pc' && ds.filter((x) => d.links.has(x.id)).length > 1).length, units: new Set(placed.map(unitOf)).size };
+  },
+  cat(type, text) {
+    let best = null, bs = 0;
+    Data.list('itemCategories').forEach((c) => { const s = Math.max(OrgMatch.score(type || '', c.name), OrgMatch.score(text || '', c.name) * 0.8); if (s > bs) { bs = s; best = c; } });
+    if (best && bs >= 0.6) return best.id;
+    const k = CIMP.kindOf(`${type} ${text}`), map = { monitor: 'ic_monitor', pc: 'ic_laptop', printer: 'ic_printer' };
+    return k && Data.c.itemCategories.has(map[k]) ? map[k] : 'ic_other';
+  },
+  /* ── التسجيل ── */
+  async commit(A, step = () => {}) {
+    if (!(await Custody.allowed())) throw new AppError('الإضافة المباشرة لعهدة الإدارات مغلقة. يفتحها المشرف من صفحة عهدة الإدارة');
+    const P = CIMP.plan(A), bid = uid('cimp'), at = now(), fails = [], newIds = new Map();
+    for (const M of A.MOD.values()) {
+      if (M.pick !== 'new' || !P.ds.some((d) => d.mk === M.key)) continue;
+      step(`إنشاء الصنف «${M.text}»`);
+      const model = M.brand && CIMP.n(M.text).startsWith(CIMP.n(M.brand)) ? M.text.slice(M.brand.length).trim() : M.brand ? M.text : '';
+      try { const it = await Data.inv.saveItem({ name: M.text, brand: M.brand || '', model, categoryId: CIMP.cat(M.type, M.text), unit: 'جهاز' }); newIds.set(M.key, it.id); } catch (e) { fails.push(`تعذر إنشاء الصنف «${M.text}»: ${e.message || e}`); }
+    }
+    const itemOf = (d) => { const M = A.MOD.get(d.mk); return M.pick === 'new' ? newIds.get(M.key) || '' : M.pick; };
+    const G = new Map();
+    P.ds.forEach((d) => {
+      const it = itemOf(d); if (!it) return;
+      const u = A.LOC.get(d.lk).pick || '', k = `${u}|${it}|${d.holderId || ''}`;
+      let g = G.get(k); if (!g) G.set(k, (g = { unitId: u, itemId: it, holderId: d.holderId || '', qty: 0, pairs: [], devs: [] }));
+      g.qty += d.qty; g.devs.push(d); if (d.serial || d.tag) g.pairs.push({ serial: d.serial, tag: d.tag, host: d.host });
+    });
+    let i = 0;
+    const done = new Set();
+    for (const g of G.values()) {
+      step(`تسجيل العهدة ${fmtNum(++i)} من ${fmtNum(G.size)}`);
+      try { await Data.dept.addDirect({ departmentId: A.dep, itemId: g.itemId, qty: g.qty, unitId: g.unitId, serials: g.pairs, holderId: g.holderId, note: `استيراد من Excel: ${A.file}` }); g.devs.forEach((d) => done.add(d.id)); }
+      catch (e) { fails.push(`${(A.byIt.get(g.itemId) || {}).name || 'صنف'} (${fmtNum(g.qty)}): ${e.message || e}`); }
+    }
+    /* وسم الأجهزة بالدفعة وبما ترتبط به */
+    step('ربط الأجهزة');
+    const snOf = (j) => { const y = A.B.devs[j]; return y.serial || y.tag || ''; }, tagged = [];
+    for (const d of P.ds) {
+      if (!done.has(d.id) || !(d.serial || d.tag)) continue;
+      const a = await Data.assets.bySerial(d.serial || d.tag); if (!a) continue;
+      d.assetId = a.id; a.batch = bid; a.note = 'استيراد من Excel';
+      const ls = [...d.links].map(snOf).filter(Boolean); if (ls.length) a.links = ls;
+      a.updatedAt = now(); tagged.push(a);
+    }
+    if (tagged.length) await DB.bulkPut('assets', tagged);
+    /* الأجهزة المرتبطة في الفرع نفسه: محطة عمل، وكل جهاز مع شاشته (والشاشة المشتركة مع كل أجهزتها) */
+    const itemsM = new Map((await DB.getAll('items')).map((x) => [x.id, x])), kd = (d) => CMV.kind(itemsM.get(itemOf(d)) || null);
+    let wsN = 0;
+    for (const comp of P.ws) {
+      if (!comp.every((d) => done.has(d.id))) continue;
+      step(`محطات العمل ${fmtNum(wsN + 1)} من ${fmtNum(P.ws.length)}`);
+      const u = A.LOC.get(comp[0].lk).pick, lines = new Map();
+      comp.forEach((d) => { const it = itemOf(d); if (it) lines.set(it, (lines.get(it) || 0) + d.qty); });
+      const pcs = comp.filter((d) => kd(d) === 'pc'), name = ((pcs.find((d) => d.host) || comp.find((d) => d.host)) || {}).host || '', hs = [...new Set(comp.map((d) => d.holderId).filter(Boolean))];
+      try {
+        const pairs = [];
+        comp.forEach((a) => { if (kd(a) !== 'pc') return; a.links.forEach((j) => { const b = A.B.devs[j]; if (comp.includes(b) && kd(b) === 'monitor') pairs.push({ id: uid('wp'), pc: itemOf(a), scr: itemOf(b), pcSn: a.serial || a.tag || '', scrSn: b.serial || b.tag || '', note: '', at: now(), by: Auth.user.id }); }); });
+        await CIMP.wsPut({ unitId: u, name, holderId: hs.length === 1 ? hs[0] : '', lines: [...lines].map(([itemId, qty]) => ({ itemId, qty })), pairs, note: 'من استيراد Excel' });
+        wsN++;
+      } catch (e) { fails.push(`محطة ${name || 'عمل'}: ${e.message || e}`); }
+    }
+    const gen = new Map(); P.gen.forEach((d) => { if (!done.has(d.id)) return; const it = itemOf(d); if (it) gen.set(it, (gen.get(it) || 0) + d.qty); });
+    const okQ = P.ds.filter((d) => done.has(d.id)).reduce((s, d) => s + d.qty, 0), genQ = [...gen.values()].reduce((s, q) => s + q, 0);
+    const qlines = P.ds.filter((d) => done.has(d.id) && !d.serial && !d.tag).map((d) => ({ unitId: A.LOC.get(d.lk).pick || '', itemId: itemOf(d), qty: d.qty })).filter((q) => q.itemId);
+    const value = { id: bid, departmentId: A.dep, file: A.file, at, by: Auth.user.id, qlines, n: okQ, placed: okQ - genQ, genQ, gen: [...gen].map(([itemId, qty]) => ({ itemId, qty })), ws: wsN, units: P.units, exists: P.exists.length, skipped: P.skip.length, newItems: newIds.size, fails: fails.length };
+    await DB.put('meta', { key: `cimp:b:${bid}`, value });
+    try { await CIMP.remember(A, newIds); } catch (e) { console.warn(e); }
+    await Data.log('create', 'inventory', bid, `استيراد عهدة ${Data.nameOf('departments', A.dep)} من Excel: ${fmtNum(okQ)} جهاز في ${fmtNum(P.units)} موقع${genQ ? `، و${fmtNum(genQ)} في العام قيد الفرز` : ''}${wsN ? `، و${fmtNum(wsN)} محطة عمل` : ''}`);
+    Bus.emit('inventory', {});
+    return { ...value, failList: fails };
+  },
+  async wsPut({ unitId, name, holderId, lines, pairs, note }) {
+    if (!WS.canEdit()) throw new AppError('محطات العمل لمن يملك صرف العهدة أو إضافتها');
+    const unit = await DB.get('deptUnits', unitId); if (!unit) throw new AppError('الموقع غير موجود في الهيكل');
+    const t = now(), out = { id: uid('ws'), departmentId: unit.departmentId, unitId: unit.id, name: String(name || '').trim().slice(0, 60), ...WS.of([holderId || '']), icon: 'o3d:office', tone: 'sky', lines, pairs: pairs || [], note, order: 0, createdAt: t, createdBy: Auth.user.id, updatedAt: t };
+    await DB.put('workstations', out); return out;
+  },
+  /* ما بقي في عام الإدارة من الاستيراد: يقل تلقائياً كلما وزّعت منه */
+  async pending(dep) {
+    const bs = (await DB.getAll('meta')).filter((r) => String(r.key || '').startsWith('cimp:b:') && r.value && r.value.departmentId === dep && !r.value.done && (r.value.gen || []).length);
+    if (!bs.length) return null;
+    const want = new Map(); bs.forEach((b) => b.value.gen.forEach((g) => want.set(g.itemId, (want.get(g.itemId) || 0) + g.qty)));
+    const pool = await DL.pool(dep), rows = []; let n = 0;
+    want.forEach((q, it) => { const m = Math.min(q, Math.max(0, pool.get(it) || 0)); if (m > 0) { rows.push({ itemId: it, qty: m }); n += m; } });
+    return { n, rows, keys: bs.map((b) => b.key) };
+  },
+  async done(dep) {
+    const bs = (await DB.getAll('meta')).filter((r) => String(r.key || '').startsWith('cimp:b:') && r.value && r.value.departmentId === dep && !r.value.done);
+    for (const b of bs) await DB.put('meta', { key: b.key, value: { ...b.value, done: 1, doneAt: now(), doneBy: Auth.user.id } });
+  },
+  /* قالب Excel للإدارة: قائمة منسدلة بمواقعها وبالنماذج المعتمدة فلا يختلف الاسم عن المنصة */
+  async template(dep) {
+    const flat = orgUnitsFlat(await DB.getAll('deptUnits'), dep), items = await MDL.all();
+    const locs = flat.map((x) => x.path), mods = [...new Set(items.map((i) => MDL.sub(i) || i.name).filter(Boolean))].sort((a, b) => AR_COLL.compare(a, b));
+    const lab = flat.find((x) => x.u.type === 'unit') || flat[0], loc = lab ? lab.path : '';
+    const pc = items.find((i) => CMV.kind(i) === 'pc'), mon = items.find((i) => CMV.kind(i) === 'monitor'), mn = (i, d) => (i ? MDL.sub(i) || i.name : d);
+    const H = ['الموقع', 'نوع الجهاز', 'الموديل', 'الرقم التسلسلي', 'رقم التاج', 'اسم الجهاز في المجال', 'مرتبط مع', 'المستخدم', 'ملاحظات'];
+    const ex = [[loc, 'حاسب مكتبي', mn(pc, 'HP ProDesk 400 G7'), 'SN-PC-0001', '', 'LAB-PC-01', 'SN-MON-0001', '', 'مثال: حاسب مع شاشته'], [loc, 'شاشة', mn(mon, 'HP E27 G5'), 'SN-MON-0001', '', '', '', '', 'الشاشة تُكتب في سطرها'], [loc, 'حاسب مكتبي', mn(pc, 'HP ProDesk 400 G7'), 'SN-PC-0002', '', 'LAB-PC-02', 'SN-MON-0001', '', 'شاشة مشتركة مع جهازين'], ['', 'لوحة مفاتيح', 'HP 125', '', '', '', '', '', 'بلا رقم تسلسلي: عمود الكمية']];
+    const n1 = Math.max(locs.length, 1), n2 = Math.max(mods.length, 1);
+    const blob = XL.write([
+      { name: 'العهدة', widths: [40, 16, 30, 22, 14, 22, 24, 24, 26], rows: [H], validations: [{ sqref: 'A2:A5000', formula: `'القوائم'!$A$2:$A$${n1 + 1}` }, { sqref: 'C2:C5000', formula: `'القوائم'!$B$2:$B$${n2 + 1}` }] },
+      { name: 'مثال', widths: [40, 16, 30, 22, 14, 22, 24, 24, 26], rows: [H, ...ex] },
+      { name: 'القوائم', widths: [56, 40], rows: [['مواقع الإدارة في الهيكل', 'النماذج المعتمدة'], ...Array.from({ length: Math.max(n1, n2) }, (_, i) => [locs[i] || '', mods[i] || ''])] }
+    ]);
+    downloadBlob(blob, `قالب-عهدة-${Data.nameOf('departments', dep) || 'إدارة'}.xlsx`);
+  }
+};
+
+/* ── صفحة الاستيراد: الملف ← الأعمدة ← المراجعة ← تم ── */
+CIMP.ST = { exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], partial: ['red', 'جزء منه غير معروف'], ambiguous: ['red', 'يتشابه مع أكثر من مكان'], none: ['red', 'غير معروف'], empty: ['slate', 'بلا موقع'] };
+CIMP.MST = { exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], ambiguous: ['red', 'يتشابه مع أكثر من نموذج'], none: ['red', 'غير معروف'], empty: ['red', 'بلا موديل'] };
+Pages.custodyImport = async (ctx) => {
+  const deps = Data.list('departments').filter((d) => d.active !== false).sort((a, b) => AR_COLL.compare(a.name, b.name));
+  const qd = String((ctx.query || {}).dep || '');
+  const st = { dep: deps.some((d) => d.id === qd) ? qd : '', step: 1, file: null, sheets: null, si: 0, hr: 0, roles: [], A: null, res: null, open: false, showW: false };
+  const steps = () => html`<div class="wiz-steps cimp-steps">${['الإدارة والملف', 'الأعمدة', 'المراجعة', 'تم'].map((l, i) => html`<div class="wiz-step ${st.step === i + 1 ? 'on' : st.step > i + 1 ? 'done' : ''}"><i>${st.step > i + 1 ? UI.icon('check') : i + 1}</i>${l}</div>`)}</div>`;
+  const depName = () => Data.nameOf('departments', st.dep, '');
+  const closed = () => (st.open ? '' : html`<div class="live-bar tone-amber">${UI.icon('lock')}<div class="grow"><b>الإضافة المباشرة لعهدة الإدارات مغلقة</b><span>يمكنك تجهيز الملف ومراجعته، أما التسجيل فيحتاج أن يفتحها المشرف من صفحة عهدة الإدارة.</span></div></div>`);
+  const view1 = () => html`
+    <div class="grid g-main">${UI.panel({ title: 'الإدارة والملف', icon: 'upload', body: html`
+      <div class="field"><label>الإدارة</label><select class="input" data-cimp-dep><option value="">اختر الإدارة…</option>${deps.map((d) => html`<option value="${d.id}"${d.id === st.dep ? raw(' selected') : ''}>${d.name}</option>`)}</select></div>
+      <button type="button" class="cimp-drop mt" data-cimp-pick${st.dep ? '' : raw(' disabled')}>${UI.icon('upload')}<b>${st.dep ? `اختر ملف عهدة «${depName()}»` : 'اختر الإدارة أولاً'}</b><small>أو اسحب الملف إلى هنا — Excel ‏(xlsx) أو CSV</small></button>
+      <p class="faint small mt">ملف لإدارة واحدة: كل سطر جهاز. يمكن أن يكون الموقع عموداً واحداً («قسم الشبكات / مكتب رئيس القسم») أو عدة أعمدة (القسم، الوحدة، المكتب) بأي ترتيب.</p>` })}
+      ${UI.panel({ title: 'كيف يُقرأ الملف', icon: 'info', body: html`<ul class="cimp-how">
+        <li><b>الموقع</b> يُطابق مع هيكل الإدارة (الأقسام والشعب والوحدات كالمختبرات والمكاتب)، وما لا يُعرف يذهب إلى <b>العام «قيد الفرز»</b>.</li>
+        <li><b>الموديل</b> يُطابق مع النماذج المعتمدة، ويمكنك تصحيح أي اسم مرة واحدة فيُطبَّق على كل أسطره ويُحفظ للملفات القادمة.</li>
+        <li><b>الرقم التسلسلي ورقم التاج واسم الجهاز في المجال</b> تُحفظ مع كل جهاز، والمسجّل منها مسبقاً لا يتكرر.</li>
+        <li><b>مرتبط مع</b>: الجهاز وشاشته يصبحان محطة عمل في مكانهما مع ربطهما، والشاشة المرتبطة بأكثر من جهاز تُربط بها كلها.</li>
+        <li>لا يُخصم شيء من المخزن: هو رصيد افتتاحي لعهدة الإدارة.</li></ul>
+        <button type="button" class="btn btn-soft btn-sm mt" data-cimp-tpl${st.dep ? '' : raw(' disabled')}>${UI.icon('download')} قالب Excel ${st.dep ? `لـ«${depName()}»` : ''} بقوائم مواقعها والنماذج</button>` })}</div>`;
+  const roleSel = (i) => html`<select class="input input-sm cimp-role${st.roles[i] ? ' on' : ''}" data-cimp-role="${i}">${CIMP.ROLES.map(([k, l]) => html`<option value="${k}"${(st.roles[i] || '') === k ? raw(' selected') : ''}>${l}</option>`)}</select>`;
+  const view2 = () => {
+    const sh = st.sheets[st.si], rows = sh.rows, hdr = rows[st.hr] || [], cols = Math.max(hdr.length, ...rows.slice(st.hr + 1, st.hr + 9).map((r) => (r || []).length), 1);
+    const data = rows.slice(st.hr + 1).filter((r) => r && r.some((x) => String(x || '').trim()));
+    return html`${UI.panel({ title: `أعمدة الملف — ${st.file.name}`, icon: 'list', sub: `${fmtNum(data.length)} سطر بيانات. تعرّفنا على الأعمدة من عناوينها؛ غيّر ما يلزم.`, tools: html`${st.sheets.length > 1 ? html`<select class="input input-sm" data-cimp-sheet>${st.sheets.map((s, i) => html`<option value="${i}"${i === st.si ? raw(' selected') : ''}>${s.name}</option>`)}</select>` : ''}<select class="input input-sm" data-cimp-hr title="سطر العناوين">${rows.slice(0, 15).map((r, i) => html`<option value="${i}"${i === st.hr ? raw(' selected') : ''}>العناوين في السطر ${fmtNum(i + 1)}</option>`)}</select>`, flush: true, body: html`
+      <div class="table-wrap cimp-map"><table class="table"><thead><tr>${Array.from({ length: cols }, (_, i) => html`<th>${roleSel(i)}<div class="cimp-h">${hdr[i] || `عمود ${fmtNum(i + 1)}`}</div></th>`)}</tr></thead>
+      <tbody>${data.slice(0, 7).map((r) => html`<tr>${Array.from({ length: cols }, (_, i) => html`<td class="${st.roles[i] ? '' : 'faint'}" dir="auto">${String(r[i] == null ? '' : r[i])}</td>`)}</tr>`)}</tbody></table></div>` })}
+      <div class="row cimp-acts"><button type="button" class="btn btn-ghost" data-cimp-go="1">رجوع</button><span class="grow"></span><button type="button" class="btn btn-primary" data-cimp-go="3">التالي: المراجعة</button></div>`;
+  };
+  const locOpts = (L) => {
+    const X = st.A.X, sug = [...new Set([L.auto.unitId, L.auto.sug, ...(L.auto.cands || [])].filter(Boolean))];
+    const o = (id, label) => html`<option value="${id}"${(L.pick || '') === id ? raw(' selected') : ''}>${label}</option>`;
+    return html`<select class="input input-sm" data-cimp-loc="${L.i}">${o('', 'العام — قيد الفرز')}${sug.length ? html`<optgroup label="الأقرب">${sug.map((id) => o(id, X.byId.get(id).label))}</optgroup>` : ''}<optgroup label="كل مواقع الإدارة">${X.T.map((t) => o(t.unitId, t.label))}</optgroup></select>`;
+  };
+  const modOpts = (M) => {
+    const A = st.A, sug = [...new Set([M.auto.itemId, ...(M.auto.cands || [])].filter(Boolean))], nm = (i) => `${i.name}${MDL.sub(i) && !normalizeAr(i.name).includes(normalizeAr(MDL.sub(i))) ? ` — ${MDL.sub(i)}` : ''}`;
+    const o = (id, label) => html`<option value="${id}"${M.pick === id ? raw(' selected') : ''}>${label}</option>`;
+    return html`<select class="input input-sm" data-cimp-mod="${M.i}">${o('skip', 'لا تستورد هذه الأجهزة')}${MDL.canEdit() && M.text ? o('new', `صنف جديد باسم «${M.text}»`) : ''}${sug.length ? html`<optgroup label="الأقرب">${sug.map((id) => o(id, nm(A.byIt.get(id))))}</optgroup>` : ''}<optgroup label="كل النماذج">${A.items.map((i) => o(i.id, nm(i)))}</optgroup></select>`;
+  };
+  const rank = { none: 0, ambiguous: 0, partial: 0, empty: 1, close: 2, memory: 3, exact: 4 };
+  const view3 = () => {
+    const A = st.A, P = CIMP.plan(A), Ls = [...A.LOC.values()], Ms = [...A.MOD.values()];
+    Ls.forEach((L, i) => { L.i = i; }); Ms.forEach((M, i) => { M.i = i; });
+    const chip = (T, s) => { const [tn, tx] = T[s] || ['slate', s]; return html`<span class="chip tone-${tn}">${tx}</span>`; };
+    const card = (n, l, tone, ic, sub = '') => html`<div class="cimp-card tone-${tone}">${UI.icon(ic)}<b>${fmtNum(n)}</b><span>${l}</span>${sub ? html`<small>${sub}</small>` : ''}</div>`;
+    const W = A.warn, ex = P.exists, pv = A.prev && A.prev[0], agQ = P.again.reduce((s, d) => s + d.qty, 0);
+    return html`<div class="cimp-sum">
+        ${card(P.total, 'جهاز سيُسجَّل', 'violet', 'box', `من ${fmtNum(A.B.rows)} سطر`)}
+        ${card(P.placedQ, 'في أماكنها', 'green', 'pin', `${fmtNum(P.units)} موقع`)}
+        ${card(P.genQ, 'إلى العام «قيد الفرز»', P.genQ ? 'amber' : 'slate', 'inbox')}
+        ${card(P.ws.length, 'محطة عمل من الروابط', 'sky', 'monitor', P.shared ? `${fmtNum(P.shared)} شاشة مشتركة` : '')}
+        ${card(ex.length + P.skip.length + (A.addAgain ? 0 : P.again.length), 'لن يُستورد', ex.length + P.skip.length + (A.addAgain ? 0 : P.again.length) ? 'red' : 'slate', 'x', ex.length ? `${fmtNum(ex.length)} مسجّل مسبقاً` : '')}
+      </div>
+      ${pv ? html`<div class="live-bar tone-sky cimp-prev">${UI.icon('info')}<div class="grow"><b>سبق استيراد عهدة لهذه الإدارة: «${pv.file || 'ملف'}» في ${fmtDate(pv.at)}${A.prev.length > 1 ? ` (و${fmtNum(A.prev.length - 1)} قبله)` : ''}</b><span>الأجهزة ذات الأرقام التسلسلية لا تتكرر. ${agQ ? `أما الأصناف بلا أرقام (${fmtNum(agQ)}) التي سبق تسجيلها في المكان نفسه فلا تُضاف ثانية إلا إن اخترت.` : ''}</span></div>${agQ ? html`<label class="row" style="gap:6px"><input type="checkbox" data-cimp-again-q${A.addAgain ? raw(' checked') : ''}> أضفها مرة أخرى</label>` : ''}</div>` : ''}
+      ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'صحّح الموقع مرة واحدة فيسري على كل أسطره، ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th></tr></thead><tbody>
+        ${Ls.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((L) => html`<tr class="${L.pick ? '' : 'cimp-gen'}"><td><b dir="auto">${L.key || '—'}</b></td><td>${fmtNum(L.n)}</td><td>${chip(CIMP.ST, L.auto.status)}</td><td>${locOpts(L)}</td></tr>`)}</tbody></table></div>` })}
+      ${UI.panel({ title: `الموديلات (${fmtNum(Ms.length)})`, icon: 'layers', sub: 'تُطابق مع النماذج المعتمدة. اختر النموذج الصحيح لما لم يُعرف.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>النموذج في المنصة</th></tr></thead><tbody>
+        ${Ms.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((M) => html`<tr class="${M.pick === 'skip' ? 'cimp-skip' : ''}"><td><b dir="auto">${M.text || '—'}</b>${M.type && M.type !== M.text ? html`<small class="faint"> ${M.type}</small>` : ''}</td><td>${fmtNum(M.n)}</td><td>${chip(CIMP.MST, M.auto.status)}</td><td>${modOpts(M)}</td></tr>`)}</tbody></table></div>` })}
+      ${W.length || ex.length ? UI.panel({ title: `ملاحظات على الملف (${fmtNum(W.length + (ex.length ? 1 : 0))})`, icon: 'alert', tools: html`<button type="button" class="btn btn-ghost btn-sm" data-cimp-w>${st.showW ? 'إخفاء' : 'عرض الكل'}</button>`, body: html`<ul class="cimp-warn">
+        ${ex.length ? html`<li class="tone-sky">${UI.icon('info')} ${arCount(ex.length, AR_DEVICE)} مسجّل في المنصة مسبقاً برقمه، فلن يتكرر: <code dir="ltr">${ex.slice(0, 6).map((d) => d.serial || d.tag).join('، ')}${ex.length > 6 ? '…' : ''}</code></li>` : ''}
+        ${(st.showW ? W : W.slice(0, 6)).map((w) => html`<li>${w.line ? html`<em>سطر ${fmtNum(w.line)}</em> ` : ''}${w.msg}</li>`)}${!st.showW && W.length > 6 ? html`<li class="faint">و${fmtNum(W.length - 6)} غيرها…</li>` : ''}</ul>` }) : ''}
+      <div class="row cimp-acts"><button type="button" class="btn btn-ghost" data-cimp-go="2">رجوع</button><span class="grow"></span><span class="faint small">إلى عهدة «${depName()}» — لا يُخصم من المخزن</span><button type="button" class="btn btn-primary" data-cimp-run${!st.open || !P.total ? raw(' disabled') : ''}>${UI.icon('check')} تسجيل ${arCount(P.total, AR_DEVICE)}</button></div>`;
+  };
+  const view4 = () => {
+    const r = st.res;
+    return html`${UI.panel({ title: 'تم تسجيل العهدة', icon: 'check', body: html`<div class="cimp-sum">
+        <div class="cimp-card tone-green">${UI.icon('box')}<b>${fmtNum(r.n)}</b><span>جهاز في عهدة «${depName()}»</span></div>
+        <div class="cimp-card tone-violet">${UI.icon('pin')}<b>${fmtNum(r.placed)}</b><span>في أماكنها</span></div>
+        <div class="cimp-card tone-${r.genQ ? 'amber' : 'slate'}">${UI.icon('inbox')}<b>${fmtNum(r.genQ)}</b><span>في العام «قيد الفرز»</span></div>
+        <div class="cimp-card tone-sky">${UI.icon('monitor')}<b>${fmtNum(r.ws)}</b><span>محطة عمل</span></div></div>
+      ${r.failList.length ? html`<ul class="cimp-warn mt">${r.failList.map((f) => html`<li class="tone-red">${UI.icon('alert')} ${f}</li>`)}</ul>` : ''}
+      <div class="row mt" style="gap:8px;flex-wrap:wrap">${r.genQ ? html`<a class="btn btn-primary" href="#/inventory/distribute?dep=${st.dep}">${UI.icon('swap')} وزّع ما في العام الآن</a>` : ''}<a class="btn btn-soft" href="#/inventory/departments/${st.dep}">${UI.icon('building')} عهدة الإدارة</a><button type="button" class="btn btn-ghost" data-cimp-again>${UI.icon('upload')} استيراد ملف آخر</button></div>` })}`;
+  };
+  const draw = () => {
+    if (!ctx.alive()) return;
+    const y = window.scrollY;
+    ctx.view.innerHTML = String(html`${UI.pageHead({ title: 'استيراد عهدة إدارة من Excel', sub: 'تُسجَّل أجهزة الإدارة في عهدتها مباشرة دون الخصم من المخزن، وتتوزع على أقسامها ووحداتها ومكاتبها حسب الملف، وما لا يُعرف مكانه يذهب إلى العام «قيد الفرز» لتنقله بعدها بالسحب.', illu: 'clipboard' })}${steps()}${closed()}${st.step === 1 ? view1() : st.step === 2 ? view2() : st.step === 3 ? view3() : view4()}`);
+    if (st.step === 3) window.scrollTo(0, y);
+  };
+  const load = async (file) => {
+    if (!file) return;
+    if (!st.dep) { UI.toast('اختر الإدارة أولاً', 'warn'); return; }
+    try {
+      const sheets = await CIMP.readFile(file);
+      if (!sheets.length || !sheets.some((s) => (s.rows || []).length > 1)) throw new AppError('الملف فارغ');
+      st.file = file; st.sheets = sheets; st.si = CIMP.pickSheet(sheets); st.hr = CIMP.headerRow(sheets[st.si].rows); st.roles = CIMP.rolesFor(sheets[st.si].rows[st.hr]); st.step = 2; draw();
+    } catch (e) { UI.error(e instanceof AppError ? e : new AppError('تعذر قراءة الملف. تأكد أنه ملف Excel سليم بصيغة xlsx')); }
+  };
+  const v = ctx.view;
+  UI.on(v, 'change', '[data-cimp-dep]', (e, s) => { st.dep = s.value; draw(); });
+  UI.on(v, 'click', '[data-cimp-pick]', async () => { const [f] = await UI.pickFiles({ accept: '.xlsx,.csv', multiple: false }); await load(f); });
+  v.addEventListener('dragover', (e) => { if (st.step === 1 && e.target.closest('.cimp-drop')) { e.preventDefault(); e.target.closest('.cimp-drop').classList.add('over'); } });
+  v.addEventListener('dragleave', (e) => { const d = e.target.closest('.cimp-drop'); if (d) d.classList.remove('over'); });
+  v.addEventListener('drop', (e) => { if (st.step !== 1 || !e.target.closest('.cimp-drop')) return; e.preventDefault(); load((e.dataTransfer.files || [])[0]); });
+  UI.on(v, 'click', '[data-cimp-tpl]', async (e, b) => { UI.busy(b, true); try { await CIMP.template(st.dep); } catch (er) { UI.error(er); } finally { UI.busy(b, false); } });
+  UI.on(v, 'change', '[data-cimp-role]', (e, s) => { const i = Number(s.dataset.cimpRole); if (s.value && s.value !== 'loc') st.roles = st.roles.map((r) => (r === s.value ? '' : r)); st.roles[i] = s.value; draw(); });
+  UI.on(v, 'change', '[data-cimp-sheet]', (e, s) => { st.si = Number(s.value); st.hr = CIMP.headerRow(st.sheets[st.si].rows); st.roles = CIMP.rolesFor(st.sheets[st.si].rows[st.hr]); draw(); });
+  UI.on(v, 'change', '[data-cimp-hr]', (e, s) => { st.hr = Number(s.value); st.roles = CIMP.rolesFor(st.sheets[st.si].rows[st.hr]); draw(); });
+  UI.on(v, 'click', '[data-cimp-go]', async (e, b) => {
+    const to = Number(b.dataset.cimpGo);
+    if (to === 3) {
+      if (!st.roles.some((r) => r === 'model' || r === 'type')) { UI.toast('حدّد عمود الموديل أو نوع الجهاز', 'warn'); return; }
+      if (!st.roles.includes('loc')) { const ok = await UI.confirm('لم يُحدَّد عمود للموقع، فستذهب كل الأجهزة إلى العام «قيد الفرز». متابعة؟', { title: 'بلا عمود للموقع', ok: 'متابعة' }); if (!ok) return; }
+      UI.busy(b, true);
+      try { st.A = await CIMP.analyze(st); } catch (er) { UI.error(er); UI.busy(b, false); return; }
+      if (!st.A.B.devs.length) { UI.busy(b, false); UI.toast('لم نجد أجهزة في الملف بهذه الأعمدة', 'warn'); return; }
+    }
+    st.step = to; window.scrollTo(0, 0); draw();
+  });
+  UI.on(v, 'change', '[data-cimp-loc]', (e, s) => { const L = [...st.A.LOC.values()].find((x) => String(x.i) === s.dataset.cimpLoc); if (L) { L.pick = s.value; draw(); } });
+  UI.on(v, 'change', '[data-cimp-mod]', (e, s) => { const M = [...st.A.MOD.values()].find((x) => String(x.i) === s.dataset.cimpMod); if (M) { M.pick = s.value; draw(); } });
+  UI.on(v, 'click', '[data-cimp-w]', () => { st.showW = !st.showW; draw(); });
+  UI.on(v, 'change', '[data-cimp-again-q]', (e, c) => { st.A.addAgain = c.checked; draw(); });
+  UI.on(v, 'click', '[data-cimp-again]', () => { Object.assign(st, { step: 1, file: null, sheets: null, A: null, res: null }); draw(); });
+  UI.on(v, 'click', '[data-cimp-run]', async (e, b) => {
+    const P = CIMP.plan(st.A);
+    const ok = await UI.confirm(`تسجيل ${arCount(P.total, AR_DEVICE)} في عهدة «${depName()}»: ${fmtNum(P.placedQ)} في ${fmtNum(P.units)} موقع${P.genQ ? `، و${fmtNum(P.genQ)} في العام «قيد الفرز»` : ''}${P.ws.length ? `، و${fmtNum(P.ws.length)} محطة عمل` : ''}. لا يُخصم شيء من المخزن.`, { title: 'تأكيد الاستيراد', ok: 'تسجيل', icon: 'upload' });
+    if (!ok) return;
+    UI.busy(b, true); const t0 = b.innerHTML;
+    try { st.res = await CIMP.commit(st.A, (m) => { b.textContent = m; }); st.step = 4; window.scrollTo(0, 0); draw(); UI.toast(`سُجّل ${arCount(st.res.n, AR_DEVICE)} في عهدة ${depName()}`); }
+    catch (er) { UI.error(er); b.innerHTML = t0; UI.busy(b, false); }
+  });
+  st.open = await Custody.allowed();
+  draw();
+};
+Router.add('/custody-import', 'custody.direct', Pages.custodyImport, 'استيراد عهدة من Excel');
+
+/* زر الاستيراد في شريط الإضافة المباشرة، وما بقي من الاستيراد في العام «قيد الفرز» في صفحة الإدارة */
+{
+  const cb0 = Pages.custodyBar;
+  Pages.custodyBar = async (dep = '', o = {}) => {
+    const h = await cb0(dep, o);
+    if ((o && o.noCta) || !CIMP.can()) return h;
+    let extra = '';
+    try {
+      const s = await Custody.state(), P = dep ? await CIMP.pending(dep) : null;
+      const imp = s.open ? html`<a class="btn btn-sm btn-soft" href="#/custody-import${dep ? `?dep=${dep}` : ''}">${UI.icon('upload')} استيراد العهدة من Excel</a>` : '';
+      if (P && P.n) {
+        const its = new Map((await Promise.all(P.rows.map((r) => DB.get('items', r.itemId)))).filter(Boolean).map((i) => [i.id, i]));
+        extra = html`<div class="live-bar tone-amber cimp-pend">${UI.icon('inbox')}<div class="grow"><b>قيد الفرز: ${arCount(P.n, AR_DEVICE)} من الاستيراد في عام الإدارة</b><span>${P.rows.slice(0, 5).map((r) => `${(its.get(r.itemId) || {}).name || 'صنف'} (${fmtNum(r.qty)})`).join('، ')}${P.rows.length > 5 ? '…' : ''}</span></div><a class="btn btn-sm btn-primary" href="#/inventory/distribute?dep=${dep}">${UI.icon('swap')} وزّعها</a>${imp}<button type="button" class="btn btn-sm btn-ghost" data-cimp-done="${dep}" title="إخفاء التنبيه وإبقاء الأجهزة في العام">انتهى الفرز</button></div>`;
+      } else if (imp && dep) extra = html`<div class="cimp-cta">${imp}<span class="faint small">سجّل عهدة الإدارة كاملة من ملف Excel: تتوزع على أقسامها ومكاتبها تلقائياً</span></div>`;
+    } catch (e) { console.warn(e); }
+    return html`${h}${extra}`;
+  };
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-cimp-done]'); if (!b) return;
+    e.preventDefault();
+    if (!(await UI.confirm('إخفاء تنبيه «قيد الفرز»؟ تبقى الأجهزة في عام الإدارة كما هي.', { title: 'انتهى الفرز', ok: 'إخفاء' }))) return;
+    try { await CIMP.done(b.dataset.cimpDone); Bus.emit('inventory', {}); UI.toast('أُخفي التنبيه'); } catch (er) { UI.error(er); }
+  });
+}
+
+/* الشاشة المشتركة: وحدات الجهاز والشاشة تُعد بأرقامها التسلسلية، فالشاشة الواحدة تُربط بأكثر من جهاز، والجهاز بأكثر من شاشة */
+WSP.unitKey = (sn, p, side) => (String(sn || '').trim() ? `sn:${Data.assets.norm(sn)}` : `p:${p.id || ''}:${side}`);
+WSP.units = (pairs, itemId) => { const s = new Set(); (pairs || []).forEach((p) => { if (p.pc === itemId) s.add(WSP.unitKey(p.pcSn, p, 'a')); if (p.scr === itemId) s.add(WSP.unitKey(p.scrSn, p, 'b')); }); return s; };
+WSP.live = (w, items) => {
+  const q = new Map((w.lines || []).map((l) => [l.itemId, Number(l.qty) || 0])), keys = new Map();
+  return (w.pairs || []).filter((p) => {
+    if (!items.get(p.pc) || !items.get(p.scr)) return false;
+    const a = keys.get(p.pc) || new Set(), b = keys.get(p.scr) || new Set(), ka = WSP.unitKey(p.pcSn, p, 'a'), kb = WSP.unitKey(p.scrSn, p, 'b');
+    if ((a.has(ka) ? a.size : a.size + 1) > (q.get(p.pc) || 0) || (b.has(kb) ? b.size : b.size + 1) > (q.get(p.scr) || 0)) return false;
+    a.add(ka); b.add(kb); keys.set(p.pc, a); keys.set(p.scr, b); return true;
+  });
 };
 
 boot();

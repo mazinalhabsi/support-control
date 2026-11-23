@@ -1387,6 +1387,8 @@ function authorize(array $user, string $store, ?array $old, $new, bool $deleted)
       if ($key === 'ann:templates') return can_any($user, ['announce.manage', 'users.manage', 'settings']) ? $new : null;
       if ($key === 'seed:printcat') return can_any($user, ['inventory.manage', 'settings']) ? $new : null;
       if ($key === 'works:seed2') return can_any($user, ['works', 'worklog.all', 'settings']) ? $new : null;
+      /* استيراد عهدة الإدارات من Excel: سجل الدفعات وذاكرة تصحيح المواقع والموديلات */
+      if (strpos($key, 'cimp:') === 0) return can_any($user, ['custody.direct', 'settings']) ? $new : null;
       /* أقفال المهام الدورية المحلية (عند تعذر الحجز على الخادم): للفنيين ومن فوقهم */
       if (preg_match('/^(escalate|autoclose|loanalert|chatclose|chatpurge|backup|svcup|job)[:]/', $key)) return $role !== 'department' ? $new : null;
       return can($user, 'settings') ? $new : null;
