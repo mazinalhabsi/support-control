@@ -12622,7 +12622,7 @@ const RATING_DEFAULTS = {
   good: ['سرعة الاستجابة', 'حل المشكلة من أول مرة', 'تعامل راقٍ واحترافي', 'شرح واضح للحل', 'الالتزام بالموعد'],
   bad: ['تأخر الحل', 'المشكلة لم تُحل بالكامل', 'صعوبة التواصل', 'لم يُشرح الحل', 'تكرار الزيارة']
 };
-const RATE_FACES = [null, ['غير راضٍ', 'red', 'frown'], ['دون المتوقع', 'amber', 'frown'], ['مقبول', 'sky', 'smile'], ['جيد جداً', 'teal', 'smile'], ['ممتاز', 'brass', 'sparkle']];
+const RATE_FACES = [null, ['غير راضٍ', 'red', 'frown'], ['دون المتوقع', 'amber', 'frown'], ['مقبول', 'sky', 'smile'], ['جيد جداً', 'teal', 'smile'], ['ممتاز', 'green', 'sparkle']];
 const Ratings = {
   cfg() { const c = { ...RATING_DEFAULTS, ...(Data.c.ratingCfg || {}) }; ['good', 'bad'].forEach((k) => { if (!Array.isArray(c[k])) c[k] = RATING_DEFAULTS[k]; }); return c; },
   can: () => !!Auth.user && canUser(Auth.user, 'ratings.manage'),
@@ -25460,7 +25460,7 @@ const SVX = {
     return html`<div class="svx-bar" data-svxbar>
       <div class="svx-row"><span class="svx-l">${UI.icon('chart')} شكل العرض</span>${seg('chart', SVX.MODES)}</div>
       <div class="svx-row"><span class="svx-l">${UI.icon('grid')} الأعمدة</span>${seg('cols', [[1, 'عمود'], [2, 'عمودان'], [3, 'ثلاثة']])}<span class="svx-l">${UI.icon('filter')} الترتيب</span>${seg('sort', [['order', 'ترتيب الاستبيان'], ['low', 'الأضعف أولاً'], ['high', 'الأقوى أولاً']])}<span class="grow"></span>${tg('pct', 'النسب')}${tg('cnt', 'الأعداد')}${tg('texts', 'الإجابات النصية')}${Object.keys(o.per).length || hidden ? html`<button type="button" class="btn btn-ghost btn-xs" data-svxreset>${UI.icon('undo')} ${hidden ? `إظهار ${fmtNum(hidden)} مخفي و` : ''}إعادة الضبط</button>` : ''}</div>
-      <p class="svx-hint">${UI.icon('info')} يمكنك تغيير شكل أي سؤال من أزراره أعلى بطاقته أو إخفاؤه، و«طباعة» تطبع النتائج بالشكل الذي تراه.</p></div>`;
+      ${SVP.row(D)}<p class="svx-hint">${UI.icon('info')} يمكنك تغيير شكل أي سؤال من أزراره أعلى بطاقته أو إخفاؤه، و«طباعة» تطبع النتائج بالشكل الذي تراه.</p></div>`;
   },
   summary(D) { const o = SVX.state(D.s.id); return html`<div data-svx>${SVX.bar(o, D)}${D.rows.length ? SVX.grid(D, o) : UI.empty({ illu: 'report', title: 'لا توجد مشاركات بعد', text: 'تظهر النتائج هنا فور وصول أول مشاركة.' })}</div>`; },
 
@@ -30532,7 +30532,7 @@ const SVB = {
     return { parts, qOff: (o.hide || []).filter((x) => ids.has(x)), ansOff: [], tmax: 0, title: '', blocks: [], signA: 'أعدّه', signB: 'اعتمده', signName: 1, orient: 'portrait', cols: clamp(Number(o.cols) || 2, 1, 3), per: 0 };
   },
   init(D) { const d = SVB.def(D), sv = (D.s.report || {}).print; if (!sv) return d; return { ...d, ...sv, parts: { ...d.parts, ...(sv.parts || {}) }, qOff: Array.isArray(sv.qOff) ? sv.qOff : d.qOff, ansOff: Array.isArray(sv.ansOff) ? sv.ansOff : [], blocks: Array.isArray(sv.blocks) ? sv.blocks.map((b) => ({ ...b })) : [] }; },
-  pack: (P) => ({ parts: { ...P.parts }, qOff: [...P.qOff], ansOff: [...(P.ansOff || [])], tmax: Number(P.tmax) || 0, title: P.title, blocks: P.blocks.filter((b) => b.title || b.text).map((b) => ({ title: String(b.title || '').slice(0, 120), text: String(b.text || '').slice(0, 4000), pos: b.pos })), signA: P.signA, signB: P.signB, signName: P.signName, orient: P.orient, cols: P.cols, per: P.per }),
+  pack: (P) => ({ pal: P.pal || null, parts: { ...P.parts }, qOff: [...P.qOff], ansOff: [...(P.ansOff || [])], tmax: Number(P.tmax) || 0, title: P.title, blocks: P.blocks.filter((b) => b.title || b.text).map((b) => ({ title: String(b.title || '').slice(0, 120), text: String(b.text || '').slice(0, 4000), pos: b.pos })), signA: P.signA, signB: P.signB, signName: P.signName, orient: P.orient, cols: P.cols, per: P.per }),
   /* ما لا يمكن طباعته في هذا الاستبيان (وسببه) */
   why(D, k) {
     const has = D.rows.length > 0, idx = SVX.index(D.s, D.agg);
@@ -30594,7 +30594,7 @@ const SVB = {
         ${g === 'end' ? html`<div class="svb-sg"><div class="field svb-f"><label>التوقيع الأول</label><input class="input" data-svbsa maxlength="40" value="${P.signA || ''}" placeholder="أعدّه"></div><div class="field svb-f"><label>التوقيع الثاني</label><input class="input" data-svbsb maxlength="40" value="${P.signB || ''}" placeholder="اعتمده"></div></div><label class="svb-it"><input type="checkbox" data-svbsn${P.signName ? raw(' checked') : ''}><span>اسمي تحت التوقيع الأول</span></label>` : ''}
       </div></details>`)}
       <details class="svb-g" open><summary><b>${UI.icon('plus')} فقرات تضيفها</b><small class="svb-gc">${fmtNum(P.blocks.length)}</small></summary><div class="svb-items"><div data-svbblocks>${P.blocks.map(blk)}</div><button type="button" class="btn btn-soft btn-sm" data-svbadd>${UI.icon('plus')} إضافة فقرة</button></div></details>
-      <div class="svb-g svb-page"><div><b>${UI.icon('file')} اتجاه الورقة</b><div class="seg sm"><label><input type="radio" name="svbor" value="portrait"${P.orient !== 'landscape' ? raw(' checked') : ''}><span>عمودي</span></label><label><input type="radio" name="svbor" value="landscape"${P.orient === 'landscape' ? raw(' checked') : ''}><span>أفقي</span></label></div></div>
+      ${SVP.printGroup(D, P)}<div class="svb-g svb-page"><div><b>${UI.icon('file')} اتجاه الورقة</b><div class="seg sm"><label><input type="radio" name="svbor" value="portrait"${P.orient !== 'landscape' ? raw(' checked') : ''}><span>عمودي</span></label><label><input type="radio" name="svbor" value="landscape"${P.orient === 'landscape' ? raw(' checked') : ''}><span>أفقي</span></label></div></div>
         <div><b>${UI.icon('grid')} الأسئلة في الصفحة</b><div class="seg sm">${[[1, 'عمود'], [2, 'عمودان'], [3, 'ثلاثة'], [0, 'سؤال لكل صفحة']].map(([v, l]) => html`<label><input type="radio" name="svbcols" value="${v}"${(P.per ? 0 : P.cols) === v ? raw(' checked') : ''}><span>${l}</span></label>`)}</div></div></div>`;
   },
   async dialog(ctx) {
@@ -30626,6 +30626,7 @@ const SVB = {
           const sa = side.querySelector('[data-svbsa]'), sb = side.querySelector('[data-svbsb]'), sn = side.querySelector('[data-svbsn]'); P.signA = sa ? sa.value.trim() || 'أعدّه' : 'أعدّه'; P.signB = sb ? sb.value.trim() || 'اعتمده' : 'اعتمده'; P.signName = sn && sn.checked ? 1 : 0;
           P.blocks = $$('.svb-blk', side).map((b) => ({ title: b.querySelector('[data-bt]').value.trim(), text: b.querySelector('[data-bx]').value.trim(), pos: b.querySelector('[data-bp]').value }));
           P.orient = (side.querySelector('[name="svbor"]:checked') || {}).value || 'portrait';
+          { const pp = side.querySelector('[name="svbpal"]:checked'); if (pp) P.pal = pp.value === 'same' ? null : { ...(SVP.get(D.s)), p: pp.value }; }
           const pc = Number((side.querySelector('[name="svbcols"]:checked') || {}).value); P.per = pc === 0 ? 1 : 0; P.cols = pc || 1;
         };
         const refresh = async () => {
@@ -30935,6 +30936,91 @@ Object.assign(PCL, {
   };
 }
 document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-snopen]'); if (!b) return; e.preventDefault(); Pages.assetDetail(b.dataset.snopen); });
+
+/* ══════════ الجولة 64: ألوان نتائج الاستبيان ══════════
+   لكل استبيان مجموعة ألوان لنتائجه (على الشاشة وفي الطباعة)، تُلوَّن بها عناصر كل رسم بترتيبها:
+   الافتراضي حسب المعنى (أحمر للأضعف وأخضر للأقوى)، أو زاهية متباينة، أو هادئة، أو ألوان الجهة، أو درجات لون واحد تختاره،
+   أو «أبيض وأسود للطباعة» (رماديات متباعدة الدرجة مع تخطيط لتتميز على الطابعة الأحادية)، أو ألوان تختارها بنفسك.
+   تُحفظ مع الاستبيان فتظهر لكل من يدير الاستبيانات، ويمكن اختيار ألوان مختلفة للطباعة وحدها من محرر الطباعة. */
+const SVP = {
+  SETS: [
+    ['def', 'الافتراضي حسب المعنى', null],
+    ['vivid', 'زاهية متباينة', ['#2563eb', '#dc2626', '#16a34a', '#f59e0b', '#9333ea', '#0891b2', '#db2777', '#65a30d']],
+    ['calm', 'هادئة', ['#5b8def', '#e07a7a', '#5fb38a', '#e8b35a', '#9b7fd1', '#4fb0c6', '#d685b0', '#8a97ab']],
+    ['brand', 'ألوان الجهة', null],
+    ['mono', 'درجات لون واحد', null],
+    ['gray', 'أبيض وأسود للطباعة', ['#111827', '#9ca3af', '#4b5563', '#d1d5db', '#1f2937', '#6b7280', '#374151', '#e5e7eb']],
+    ['custom', 'ألوان أختارها', null]
+  ],
+  get: (s) => ({ p: 'def', c: [], base: '#2563eb', ...(((s || {}).report || {}).palette || {}) }),
+  hex2rgb(h) { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; },
+  shades(base, n = 8) {
+    const c = SVP.hex2rgb(base) || [37, 99, 235], mix = (t) => c.map((v) => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t));
+    const steps = [-0.45, 0, 0.35, -0.25, 0.55, 0.15, -0.6, 0.7];
+    return steps.slice(0, n).map((t) => `#${mix(t).map((v) => v.toString(16).padStart(2, '0')).join('')}`);
+  },
+  accent() { try { const t = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); const m = /(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(t); if (m) return `#${[m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('')}`; } catch (_) { /* تجاهل */ } return '#b88a2c'; },
+  colors(pal) {
+    const p = (pal && pal.p) || 'def'; if (p === 'def') return null;
+    if (p === 'brand') return SVP.shades(SVP.accent());
+    if (p === 'mono') return SVP.shades(pal.base || '#2563eb');
+    if (p === 'custom') { const c = (pal.c || []).filter((x) => SVP.hex2rgb(x)); return c.length ? c : null; }
+    return (SVP.SETS.find((x) => x[0] === p) || [])[2] || null;
+  },
+  /* تلوين عناصر كل رسم بترتيبها (الدائري والأعمدة والجداول والمصفوفة وصافي التوصية) */
+  paint(h, pal) {
+    const cs = SVP.colors(pal); if (!cs) return h;
+    const t = document.createElement('template'); t.innerHTML = String(h);
+    const set = (el, i) => { const rgb = SVP.hex2rgb(cs[i % cs.length]); if (!rgb) return; el.style.setProperty('--t', rgb.join(',')); if (pal.p === 'gray' && i % 2 === 1) el.classList.add('svp-hatch'); };
+    t.content.querySelectorAll('.svr-q, .svx-c').forEach((card) => {
+      card.querySelectorAll('.donut').forEach((d) => { d.querySelectorAll('[data-k]').forEach((el) => set(el, Number(el.dataset.k) || 0)); });
+      card.querySelectorAll('.svr-bars, .svx-hb').forEach((ul) => [...ul.children].forEach(set));
+      card.querySelectorAll('.vbars').forEach((v) => v.querySelectorAll('.vbar').forEach(set));
+      card.querySelectorAll('.svx-tbl tbody').forEach((tb) => [...tb.children].forEach(set));
+      card.querySelectorAll('.svr-matrix').forEach((m) => m.querySelectorAll('.svr-mrow').forEach(set));
+      card.querySelectorAll('.svr-stack').forEach((st) => [...st.children].forEach(set));
+      card.querySelectorAll('.svr-legend').forEach((lg) => [...lg.children].forEach(set));
+    });
+    t.content.querySelectorAll('[data-svx], .svx-print').forEach((x) => x.classList.add(`svp-${pal.p}`));
+    return t.innerHTML;
+  },
+  sw(key, pal) { const cs = key === 'def' ? ['#ef4444', '#f59e0b', '#0ea5e9', '#14b8a6', '#22c55e'] : SVP.colors({ ...pal, p: key }) || ['#cbd5e1']; return html`<span class="svp-sw">${cs.slice(0, 5).map((c) => html`<i style="background:${c}"></i>`)}</span>`; },
+  row(D) {
+    const pal = SVP.get(D.s), can = Auth.can('surveys.manage');
+    return html`<div class="svx-row svp-row"><span class="svx-l">${UI.icon('palette')} الألوان</span><span class="svp-opts">${SVP.SETS.map(([k, l]) => html`<button type="button" class="svp-b${pal.p === k ? ' on' : ''}" data-svpset="${k}" title="${l}"${can ? '' : raw(' disabled')}>${SVP.sw(k, pal)}<span>${l}</span></button>`)}</span>${['mono', 'custom'].includes(pal.p) && can ? html`<button type="button" class="btn btn-ghost btn-xs" data-svpedit>${UI.icon('edit')} ${pal.p === 'mono' ? 'اللون الأساسي' : 'تعديل الألوان'}</button>` : ''}</div>`;
+  },
+  printGroup(D, P) {
+    const cur = SVP.get(D.s), sel = P.pal && P.pal.p ? P.pal.p : 'same', name = (k) => (SVP.SETS.find((x) => x[0] === k) || [, k])[1];
+    return html`<details class="svb-g"${sel !== 'same' ? raw(' open') : ''}><summary><b>${UI.icon('palette')} ألوان التقرير المطبوع</b><small class="svb-gc">${sel === 'same' ? name(cur.p) : name(sel)}</small></summary><div class="svb-items">
+      <label class="svb-it"><input type="radio" name="svbpal" value="same"${sel === 'same' ? raw(' checked') : ''}><span>كما على الشاشة <small>${name(cur.p)}</small></span></label>
+      ${SVP.SETS.filter(([k]) => k !== 'custom' || cur.c.length).map(([k, l]) => html`<label class="svb-it"><input type="radio" name="svbpal" value="${k}"${sel === k ? raw(' checked') : ''}><span>${SVP.sw(k, cur)} ${l}${k === 'gray' ? html`<small>للطابعات غير الملونة: درجات رمادية متباعدة مع تخطيط</small>` : ''}</span></label>`)}</div></details>`;
+  },
+  async save(D, pal) { const rep0 = { ...(D.s.report || {}), palette: pal }; await Surveys.patch(D.s.id, { report: rep0 }, 'تغيير ألوان نتائج الاستبيان'); D.s.report = rep0; },
+  async editModal(D, mode) {
+    const pal = SVP.get(D.s), mono = (mode || pal.p) === 'mono', cur = SVP.colors(pal) || SVP.SETS[1][2];
+    const res = await UI.modal({
+      title: mono ? 'اللون الأساسي لدرجات النتائج' : 'ألوان النتائج', icon: 'palette', size: 'sm',
+      body: mono ? html`<p class="hint" style="margin-top:0">تُشتق منه ثماني درجات من الداكن إلى الفاتح.</p><div class="svp-ed"><label>اللون<input type="color" name="base" value="${pal.base || '#2563eb'}"></label></div>`
+        : html`<p class="hint" style="margin-top:0">لون لكل عنصر في الرسم بترتيبه: الأول للخيار الأول (أو الأعلى تقييماً)، ثم الذي يليه.</p><div class="svp-ed">${Array.from({ length: 8 }, (_, i) => html`<label>${fmtNum(i + 1)}<input type="color" name="c${i}" value="${cur[i % cur.length]}"></label>`)}</div>`,
+      actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => (mono ? { ...pal, p: 'mono', base: f.querySelector('[name="base"]').value } : { ...pal, p: 'custom', c: Array.from({ length: 8 }, (_, i) => f.querySelector(`[name="c${i}"]`).value) }) }]
+    });
+    if (res) { await SVP.save(D, res); return true; }
+    return false;
+  }
+};
+{
+  const sm0 = SVX.summary; SVX.summary = (D) => raw(SVP.paint(String(sm0(D)), SVP.get(D.s)));
+  const rp0 = SVB.report; SVB.report = function (D, P) { return raw(SVP.paint(String(rp0.call(this, D, P)), P.pal && P.pal.p ? P.pal : SVP.get(D.s))); };
+  const bd0 = SVX.bind;
+  SVX.bind = function (ctx) {
+    bd0.call(this, ctx);
+    const redraw = () => { const D = ctx._svx, box = ctx.view.querySelector('[data-svx]'); if (!D || !box) return; box.outerHTML = String(SVX.summary(D)); UI.hydrate(ctx.view.querySelector('[data-svx]')); };
+    UI.on(ctx.view, 'click', '[data-svpset]', async (e, b) => { const D = ctx._svx; if (!D) return; const k = b.dataset.svpset, cur = SVP.get(D.s);
+      try { if (k === 'custom') { if (!(await SVP.editModal(D, 'custom'))) return; } else await SVP.save(D, { ...cur, p: k });
+        redraw(); UI.toast(`ألوان النتائج: ${(SVP.SETS.find((x) => x[0] === k) || [, ''])[1]}`); } catch (ex) { UI.error(ex); } });
+    UI.on(ctx.view, 'click', '[data-svpedit]', async () => { const D = ctx._svx; if (!D) return; try { if (await SVP.editModal(D)) redraw(); } catch (ex) { UI.error(ex); } });
+  };
+}
 
 boot();
 })();

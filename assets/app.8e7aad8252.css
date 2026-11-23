@@ -8044,3 +8044,21 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .srch-snr:hover{border-color:rgb(var(--accent))}
 .srch-snr code{font-weight:700}
 .srch-snr small{color:var(--ink-3)}
+
+/* ══ الجولة 64: ألوان نتائج الاستبيان ══ */
+.svp-row{flex-wrap:wrap}
+.svp-opts{display:flex;flex-wrap:wrap;gap:6px}
+.svp-b{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:12px}
+.svp-b:hover{border-color:rgb(var(--accent))}
+.svp-b.on{border-color:rgb(var(--accent));box-shadow:0 0 0 2px rgba(var(--accent),.25);font-weight:700}
+.svp-b[disabled]{opacity:.6;cursor:default}
+.svp-sw{display:inline-flex;border-radius:5px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.svp-sw i{width:9px;height:14px}
+.svp-ed{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.svp-ed label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--ink-3)}
+.svp-ed input[type=color]{width:52px;height:36px;border:1px solid var(--line);border-radius:10px;padding:2px;background:var(--surface);cursor:pointer}
+/* أبيض وأسود: تخطيط على العناصر الزوجية ليتميز ما تقاربت درجته */
+.svp-hatch .svr-t i,.svp-hatch .vt i,.svp-hatch.svr-mrow .svr-t i,.svp-hatch .svr-t i{background:repeating-linear-gradient(45deg,rgba(255,255,255,.6) 0 3px,transparent 3px 7px),rgb(var(--t))!important}
+.svp-hatch > i,.svp-hatch.vbar .vt i{background:repeating-linear-gradient(45deg,rgba(255,255,255,.6) 0 3px,transparent 3px 7px),rgb(var(--t))!important}
+.svp-gray .donut .seg{stroke-width:20}
+.svp-gray .donut .legend li i,.svp-gray .svx-dot{box-shadow:0 0 0 1px #000}
