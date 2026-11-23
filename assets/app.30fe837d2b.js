@@ -3108,7 +3108,7 @@ async function boot() {
     if (Auth.user && !(await Auth.restore())) { UI.toast('انتهت الجلسة، يرجى تسجيل الدخول مجدداً', 'warn'); Shell.unmount(); Router.resolve(); }
   }, 60000);
   window.addEventListener('unhandledrejection', (e) => { if (e.reason instanceof AppError) { UI.toast(e.reason.message, 'error'); e.preventDefault(); } });
-  window.App = { get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get VL() { return VL; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
+  window.App = { get NT() { return NT; }, get MDB() { return MDB; }, get MDL() { return MDL; }, get VPV() { return VPV; }, get VFU() { return VFU; }, get SVX() { return SVX; }, get INVT() { return INVT; }, get INVR() { return INVR; }, get OPC() { return OPC; }, get VED() { return VED; }, get VL() { return VL; }, get html() { return html; }, get raw() { return raw; }, InvLock, DB, Data, Auth, Router, UI, Crypto, Pages, Fav, copyText, Snd, TvSound, Stats, Medals, XL, Forms, Spec, Escalate, AutoClose, Cart, Sync, ChatAutoClose, Presence, Custody, Handover, AnnTpl, Nav, NoteSweep, Surveys, Ratings, Engage, PrintCat, PP, VD, VTPL, XM, VAULT, FF, FEAT, XCFG, VL, VLS, OrgScope, OrgLog, PERM_KEYS };
   const b = $('#boot'); if (b) b.remove();
   window.__sqBooted = true; clearTimeout(window.__sqWatch); const slow = $('#bootSlow'); if (slow) slow.remove();
   await Router.resolve();
@@ -31021,6 +31021,97 @@ const SVP = {
     UI.on(ctx.view, 'click', '[data-svpedit]', async () => { const D = ctx._svx; if (!D) return; try { if (await SVP.editModal(D)) redraw(); } catch (ex) { UI.error(ex); } });
   };
 }
+
+/* ══════════ الجولة 65: أيقونة لكل نوع من الإشعارات ══════════
+   كانت أيقونة الإشعار هي رسمة فئة البلاغ (طابعة، حبر…) فتتشابه إشعارات مختلفة: «بلاغ جديد» و«مغلق» و«تأخر» بالصورة نفسها.
+   الآن الأيقونة تدل على نوع الإشعار ولونه (تأخر بمنبّه أحمر، وبلاغ جديد بصندوق وارد أزرق، وتم الحل بعلامة صح خضراء، ومغلق بقفل،
+   وعهدة متأخرة بلوح وساعة…)، وفئة البلاغ رسمة صغيرة في زاويتها، والعاجل بحلقة حمراء. */
+document.body.insertAdjacentHTML('beforeend', `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">${Object.entries({
+  'n-alarm': '<circle cx="12" cy="13.2" r="7"/><path d="M12 9.6v3.8l2.5 1.6"/><path d="M4.4 5.8l2.8-2.3M19.6 5.8l-2.8-2.3"/><path d="M7.5 19.2l-1.5 1.9M16.5 19.2l1.5 1.9"/>',
+  'n-loanlate': '<path d="M9 3.8h6v2.6H9z"/><path d="M15 5h2.2c.7 0 1.3.6 1.3 1.3v4"/><path d="M9 5H6.8c-.7 0-1.3.6-1.3 1.3v12.6c0 .7.6 1.3 1.3 1.3h4.4"/><circle cx="16.8" cy="16.8" r="4.3"/><path d="M16.8 14.6v2.3l1.5 1"/>',
+  'n-pause': '<rect x="6.4" y="5" width="3.8" height="14" rx="1.3"/><rect x="13.8" y="5" width="3.8" height="14" rx="1.3"/>',
+  'n-checkc': '<circle cx="12" cy="12" r="8.6"/><path d="M8.1 12.3l2.7 2.7 5.1-5.5"/>',
+  'n-megaphone': '<path d="M4 10.2v3.6c0 .7.5 1.2 1.2 1.2H7l8.6 4.2V4.8L7 9H5.2C4.5 9 4 9.5 4 10.2z"/><path d="M7.4 15.2l1.2 4.6h2.6l-1-4"/><path d="M18.6 9.4a3.6 3.6 0 0 1 0 5.2"/>',
+  'n-ring': '<path d="M6.4 16.4v-5a5.6 5.6 0 0 1 11.2 0v5l1.6 1.9H4.8z"/><path d="M10 20.4a2.1 2.1 0 0 0 4 0"/><path d="M2.9 9.2a9 9 0 0 1 2.6-4.9M21.1 9.2a9 9 0 0 0-2.6-4.9"/>',
+  'n-due': '<rect x="4" y="5" width="16" height="15" rx="2.4"/><path d="M4 9.6h16M8.5 3.2v3.6M15.5 3.2v3.6"/><path d="M12 12.6v2.8l1.8 1.1"/>'
+}).map(([k, v]) => `<symbol id="i-${k}" viewBox="0 0 24 24" data-ic="1">${v}</symbol>`).join('')}</svg>`);
+const NT = {
+  /* النوع: [المفتاح، نمط العنوان (بعد حذف التشكيل)، الأيقونة، اللون، الاسم]، أول ما ينطبق. الأنماط مأخوذة من عناوين الإشعارات الفعلية في المنصة */
+  RULES: [
+    ['anncrit', /^عاجل: /, 'alert', 'red', 'إعلان عاجل'],
+    ['annwarn', /^تنبيه: /, 'alert', 'amber', 'تنبيه عام'],
+    ['announce', /^إعلان: |تعميم/, 'n-megaphone', 'pink', 'إعلان'],
+    ['svcdown', /: متوقفة$/, 'network', 'red', 'خدمة متوقفة'],
+    ['svcdeg', /: أداء متأثر$/, 'network', 'amber', 'أداء متأثر'],
+    ['svcmaint', /: صيانة مجدولة$/, 'network', 'sky', 'صيانة مجدولة'],
+    ['svcup', /: تعمل بشكل طبيعي$/, 'network', 'green', 'عادت الخدمة'],
+    ['late', /تنبيه تأخر|تجاوزت? موعد|تأخر الرد/, 'n-alarm', 'red', 'تأخر عن الموعد'],
+    ['maintlate', /متأخرة (عن موعدها|لدى)/, 'n-alarm', 'red', 'صيانة متأخرة'],
+    ['loanlate', /تأخر إرجاع|عهدة متأخرة|انتهت مدة ما أعرته|انقضت مدة|إعارة متأخرة/, 'n-loanlate', 'red', 'عهدة متأخرة'],
+    ['loandue', /موعد (تسليم|الإرجاع|إرجاع)|تذكير بإرجاع/, 'n-due', 'amber', 'موعد إرجاع'],
+    ['password', /كلمة مرور|كلمة المرور/, 'key', 'slate', 'كلمة المرور'],
+    ['perm', /الإضافة المباشرة|حذف الأجهزة/, 'lock', 'slate', 'صلاحية'],
+    ['photo', /صورتك الشخصية|صورة شخصية/, 'photo', 'violet', 'الصورة الشخصية'],
+    ['rejected', /^رفضت/, 'x', 'red', 'رفض'],
+    ['approved', /^اعتمدت|^اعتمد |اتفق على|ثبتت خطة|طبقت/, 'n-checkc', 'green', 'اعتماد وتثبيت'],
+    ['approval', /اعتمادك|طلب اعتماد|بانتظار الاعتماد|طلبات إجازة من خطة/, 'shield', 'teal', 'بانتظار اعتمادك'],
+    ['confirm', /بانتظار تأكيد/, 'thumb', 'amber', 'بانتظار تأكيدك'],
+    ['newticket', /بلاغ جديد|الحالة: ?جديد/, 'inbox', 'sky', 'بلاغ جديد'],
+    ['resolved', /الحالة: ?(تم الحل|محلول)|تم حل/, 'n-checkc', 'green', 'تم الحل'],
+    ['closed', /الحالة: ?مغلق|أغلق/, 'lock', 'slate', 'مغلق'],
+    ['cancelled', /الحالة: ?ملغ|ألغي/, 'x', 'slate', 'ملغى'],
+    ['waiting', /الحالة: ?(بانتظار|معلق)/, 'n-pause', 'amber', 'معلّق'],
+    ['progress', /الحالة: ?(قيد العمل|قيد المعالجة)|بدأ العمل/, 'tools', 'teal', 'قيد العمل'],
+    ['reopen', /لم تحل|أعيد فتح|إعادة فتح|أعاد .*فتح/, 'refresh', 'red', 'إعادة فتح'],
+    ['takeover', /استكمل البلاغ|أعيد إسناد|نقل البلاغ/, 'swap', 'violet', 'نقل واستكمال'],
+    ['assigned', /أسند|إسناد|استلم فني|الحالة: ?مسند/, 'user-plus', 'violet', 'إسناد واستلام'],
+    ['lowrate', /تقييم منخفض/, 'star', 'red', 'تقييم منخفض'],
+    ['rating', /تقييم/, 'star', 'brass', 'تقييم'],
+    ['chat', /استفسار/, 'message', 'teal', 'استفسار'],
+    ['inote', /ملاحظة داخلية/, 'sticky', 'slate', 'ملاحظة داخلية'],
+    ['reply', /رد جديد|رد الموظف|رد المستفيد|رد على|الرد على/, 'message', 'sky', 'رد'],
+    ['undo', /تراجع .*عن/, 'undo', 'slate', 'تراجع'],
+    ['removed', /أزلت|حذف .*(رغبتك|إجازتك)|حذفت/, 'trash', 'red', 'إزالة وحذف'],
+    ['outside', /خارج فترة/, 'alert', 'amber', 'خارج فترة الخطة'],
+    ['grant', /^منحت|رصيد/, 'lv-gift', 'green', 'منح رصيد'],
+    ['backup', /النسخة? الاحتياطي/, 'database', 'teal', 'النسخ الاحتياطي'],
+    ['qtyedit', /^عدل عدد/, 'box', 'amber', 'تعديل كمية'],
+    ['reminder', /^تذكير/, 'n-ring', 'teal', 'تذكير'],
+    ['planedit', /تغيرت .*(خطة|مشارك)|^عدل .*(رغبتك|إجازتك|مدة)/, 'edit', 'violet', 'تعديل'],
+    ['plan', /خطة|رغبت|رغبة لك|دعاك|بدأ تنسيق/, 'lv-team', 'violet', 'خطة إجازات'],
+    ['leave', /إجاز/, 'lv-palm', 'teal', 'إجازة'],
+    ['survey', /استبيان|اختبار/, 'clipboard', 'pink', 'استبيان'],
+    ['vissue', /^سند صرف/, 'upload', 'violet', 'سند صرف عهدة'],
+    ['vloan', /^سند إعارة/, 'lv-hourg', 'amber', 'سند إعارة مؤقتة'],
+    ['vtransfer', /^سند نقل/, 'swap', 'sky', 'سند نقل عهدة'],
+    ['vreplace', /^سند استبدال/, 'refresh', 'teal', 'سند استبدال'],
+    ['received', /استلمت|سلم إليك|بعهدتك|كإعارة|أكد .*استلام|للاستخدام المؤقت/, 'download', 'violet', 'استلام عهدة'],
+    ['ready', /جاهز/, 'n-checkc', 'green', 'جهاز جاهز'],
+    ['maintfail', /تعذر إصلاح/, 'x', 'red', 'تعذر الإصلاح'],
+    ['maintback', /عاد جهازك/, 'undo', 'green', 'عاد من الصيانة'],
+    ['maintout', /أرسل إلى|أجهزة إلى/, 'send', 'amber', 'إرسال للصيانة'],
+    ['maint', /صيانة|جهازك|جهاز في/, 'tools', 'amber', 'صيانة'],
+    ['stock', /نفد|نقص|تحت الحد|المخزون/, 'box', 'amber', 'مخزون'],
+    ['note', /ملاحظة/, 'sticky', 'amber', 'ملاحظة']
+  ],
+  URG: ['late', 'maintlate', 'loanlate', 'reopen', 'anncrit', 'svcdown'],
+  /* المسار احتياط حين لا يدل العنوان على النوع */
+  LINKS: [[/^\/(maint|xmaint|repair)/, 'maint'], [/^\/leaves/, 'leave'], [/^\/surveys/, 'survey'], [/vouchers/, 'received'], [/^\/notes/, 'note'], [/^\/chat/, 'chat']],
+  strip: (x) => String(x || '').replace(/[ً-ْٰـ]/g, ''),
+  pack: (r) => ({ key: r[0], icon: r[2], tone: r[3], label: r[4] }),
+  of(n) {
+    const t = NT.strip(n.title), b = NT.strip(n.body), find = (k) => NT.RULES.find((x) => x[0] === k);
+    let r = NT.RULES.find((x) => x[1].test(t)) || NT.RULES.find((x) => ['note', 'stock', 'survey', 'leave'].includes(x[0]) && x[1].test(b));
+    if (!r) { const L = NT.LINKS.find((x) => x[0].test(String(n.link || ''))); if (L) r = find(L[1]); }
+    if (r) return NT.pack(r);
+    return n.kind === 'inventory' ? { key: 'inv', icon: 'box', tone: 'amber', label: 'المخزن' } : n.kind === 'ticket' ? { key: 'ticket', icon: 'ticket', tone: 'sky', label: 'بلاغ' } : n.kind === 'user' ? { key: 'user', icon: 'user', tone: 'violet', label: 'الحساب' } : { key: 'info', icon: 'bell', tone: 'teal', label: 'تنبيه' };
+  },
+  render(n, cat) {
+    const T = NT.of(n), urg = n.tone === 'urgent' || NT.URG.includes(T.key);
+    return html`<span class="n-ic nt nt-${T.key} tone-${T.tone}${urg ? ' urg' : ''}" title="${T.label}${cat ? ` — ${Data.nameOf('categories', cat, 'أخرى')}` : ''}">${UI.icon(T.icon)}${cat ? html`<i class="nt-cat">${UI.illu(catIllu(cat))}</i>` : ''}</span>`;
+  }
+};
+NotifCat.ic = (n, cats) => NT.render(n, cats && cats.get ? cats.get(n.id) : '');
 
 boot();
 })();
