@@ -8110,3 +8110,4 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .cimp-warn em{font-style:normal;font-weight:700;color:var(--ink-3);margin-inline-end:4px}
 .cimp-cta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
 @media (max-width:640px){.cimp-tbl select{min-width:160px}.cimp-map th{min-width:130px}}
+[data-cimp-block]{min-width:240px;max-width:100%}
