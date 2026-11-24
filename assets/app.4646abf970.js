@@ -2227,7 +2227,7 @@ Pages.tickets = async (ctx) => {
   const sel = (id, label, opts, val) => html`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${opts.map((o) => html`<option value="${o.value}"${String(o.value) === String(val) ? raw(' selected') : ''}>${o.label}</option>`)}</select>`;
   ctx.view.innerHTML = String(html`
     ${UI.pageHead({ title: staff ? 'البلاغات' : 'بلاغاتي', sub: staff ? 'تابع البلاغات ووزّعها وأنجزها ضمن مواعيدها' : 'كل البلاغات التي قدّمتها وحالتها لحظة بلحظة', illu: 'bell', actions: html`${Auth.can('tickets.create') ? html`<a class="btn btn-primary" href="#/tickets/new">${UI.icon('plus')} بلاغ جديد</a>` : ''}<button class="btn" data-act="csv">${UI.icon('download')} تصدير Excel</button>` })}
-    <div class="row" style="justify-content:space-between;align-items:flex-start"><div class="tabs" id="scopes"></div><div class="seg" role="radiogroup" aria-label="طريقة العرض" style="margin-bottom:16px">${[['table', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid'], ...(staff ? [['board', 'لوحة', 'layers']] : [])].map(([k, l, ic]) => html`<label><input type="radio" name="tview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
+    <div id="tkalerts" class="tk-alerts"></div><div class="row" style="justify-content:space-between;align-items:flex-start"><div class="tabs" id="scopes"></div><div class="seg" role="radiogroup" aria-label="طريقة العرض" style="margin-bottom:16px">${[['table', 'قائمة', 'menu'], ['grid', 'شبكة', 'grid'], ...(staff ? [['board', 'لوحة', 'layers']] : [])].map(([k, l, ic]) => html`<label><input type="radio" name="tview" value="${k}"${st.view === k ? raw(' checked') : ''}><span>${UI.icon(ic)} ${l}</span></label>`)}</div></div>
     <section class="panel" id="tPanel"><div class="toolbar">
       <div class="search-box">${UI.icon('search')}<input id="tq" type="search" placeholder="ابحث برقم البلاغ أو العنوان أو اسم مقدم البلاغ" value="${st.q}"></div>
       ${sel('tstatus', 'كل الحالات', Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label })), st.status)}
@@ -2277,7 +2277,9 @@ Pages.tickets = async (ctx) => {
     else { const mineAll = await DB.getAll('tickets', 'requester_createdAt', KR([me, 0], [me, Infinity])); counts = { all: mineAll.length, open: mineAll.filter((t) => OPEN.includes(t.status)).length, closed: mineAll.filter((t) => !OPEN.includes(t.status)).length }; }
     counts.notes = notes.length;
     if (!ctx.alive()) return;
-    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab ${st.scope === k ? 'active' : ''}${k === 'notes' && notes.length ? ' tab-note' : ''}${k === 'notes' && fresh ? ' has-new' : ''}" data-scope="${k}"${k === 'notes' && fresh ? raw(` title="${fresh} لم تفتحها بعد"`) : ''}>${UI.icon(ic)}${l}${counts[k] != null ? html`<span class="count">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
+    $('#scopes', view).innerHTML = String(html`${scopes.map(([k, l, ic]) => html`<button class="tab tt tone-${TKTAB(staff, k)[0]}${TKTAB(staff, k)[2] === 2 && counts[k] > 0 ? ' alarm' : ''} ${st.scope === k ? 'active' : ''}${k === 'notes' && notes.length ? ' tab-note' : ''}${k === 'notes' && fresh ? ' has-new' : ''}" data-scope="${k}"${k === 'notes' && fresh ? raw(` title="${fresh} لم تفتحها بعد"`) : ''}><span class="tt-ic">${UI.icon(TKTAB(staff, k)[1] || ic)}</span>${l}${counts[k] != null ? html`<span class="count${counts[k] > 0 && TKTAB(staff, k)[2] ? ' on' : ''}">${fmtNum(counts[k])}</span>` : ''}</button>`)}`);
+    const al = $('#tkalerts', view);
+    if (al) al.innerHTML = String(staff ? html`${counts.overdue > 0 ? html`<button type="button" class="tk-al tone-red" data-tkgo="overdue">${UI.icon('n-alarm')}<b>${arCount(counts.overdue, AR.ticket)} متأخرة عن موعدها</b><span>اعرضها</span></button>` : ''}${counts.unassigned > 0 ? html`<button type="button" class="tk-al tone-amber" data-tkgo="unassigned">${UI.icon('inbox')}<b>${arCount(counts.unassigned, AR.ticket)} بانتظار الاستلام</b><span>استلمها</span></button>` : ''}${counts.mine > 0 ? html`<button type="button" class="tk-al tone-sky" data-tkgo="mine">${UI.icon('user')}<b>${arCount(counts.mine, AR.ticket)} مسندة إليك</b><span>اعرضها</span></button>` : ''}` : '');
   };
   const load = async () => {
     sync();
@@ -31993,6 +31995,17 @@ const TPI = {
       : html`<p class="faint small">لم أجد صنفاً مطابقاً في المخزن.</p>${TPI.foot(canMove, false)}` });
   };
 }
+
+/* ══════════ الجولة 74: تبويبات البلاغات بأيقونات ملونة وشارات إشعار ══════════
+   لكل تبويب لون وأيقونة تدل عليه، والعدد شارة ملونة إذا كان فيه شيء (رمادية إن كان صفراً)،
+   و«المتأخرة» و«بانتظار الاستلام» تنبضان ما دام فيهما بلاغات، مع شريط تنبيه أعلى الصفحة ينقل إليها. */
+const TKTAB_S = { unassigned: ['amber', 'inbox', 2], spec: ['violet', 'tag', 1], mine: ['sky', 'user', 1], notes: ['teal', 'message', 1], open: ['brass', 'ticket', 1], overdue: ['red', 'n-alarm', 2], all: ['slate', 'database', 0] };
+const TKTAB_E = { all: ['slate', 'ticket', 0], open: ['sky', 'clock', 1], notes: ['teal', 'message', 1], closed: ['green', 'check', 0] };
+const TKTAB = (staff, k) => (staff ? TKTAB_S : TKTAB_E)[k] || ['slate', '', 0];
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-tkgo]'); if (!b) return;
+  const t = document.querySelector(`#scopes [data-scope="${b.dataset.tkgo}"]`); if (t) { t.click(); t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+});
 
 boot();
 })();

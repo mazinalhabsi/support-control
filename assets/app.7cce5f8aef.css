@@ -8134,3 +8134,25 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 
 /* الجولة 73 */
 .tpi-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;word-break:break-word}
+
+/* ══ الجولة 74: تبويبات البلاغات ══ */
+.tab.tt{gap:8px;padding:6px 12px 6px 10px}
+.tab.tt .tt-ic{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:9px;background:rgba(var(--t),.14);color:rgb(var(--t));border:1px solid rgba(var(--t),.25)}
+.tab.tt .tt-ic svg{width:15px;height:15px}
+.tab.tt .count.on{background:rgb(var(--t));color:#fff;box-shadow:0 2px 6px rgba(var(--t),.35)}
+.tab.tt.active{background:rgba(var(--t),.12);color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(var(--t),.45)}
+.tab.tt.active .tt-ic{background:rgb(var(--t));color:#fff}
+.tab.tt.alarm .tt-ic svg{animation:tt-ring 1.8s ease-in-out infinite;transform-origin:50% 20%}
+.tab.tt.alarm .count.on{animation:tt-pulse 1.8s infinite}
+.tab-note.tt .count.on{background:rgb(var(--teal))}
+@keyframes tt-pulse{0%{box-shadow:0 0 0 0 rgba(var(--t),.55)}70%{box-shadow:0 0 0 8px rgba(var(--t),0)}100%{box-shadow:0 0 0 0 rgba(var(--t),0)}}
+@keyframes tt-ring{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(-14deg)}20%,40%{transform:rotate(14deg)}}
+.tk-alerts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.tk-alerts:empty{display:none}
+.tk-al{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:12px;border:1px solid rgba(var(--t),.4);background:rgba(var(--t),.1);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;transition:background .15s}
+.tk-al:hover{background:rgba(var(--t),.18)}
+.tk-al svg{width:16px;height:16px;color:rgb(var(--t))}
+.tk-al b{font-weight:700}
+.tk-al span{color:rgb(var(--t));font-weight:700;font-size:12px}
+.tk-al.tone-red svg{animation:tt-ring 1.8s ease-in-out infinite;transform-origin:50% 20%}
+@media (prefers-reduced-motion:reduce){.tab.tt.alarm .tt-ic svg,.tab.tt.alarm .count.on,.tk-al.tone-red svg{animation:none}}
