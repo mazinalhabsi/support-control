@@ -31237,6 +31237,10 @@ const CIMP = {
     ['note', 'ملاحظات (يمكن أكثر من عمود)']
   ],
   can: () => !!Auth.user && canUser(Auth.user, 'custody.direct'),
+  NEAR_LOC: 0.34,
+  /* الأعداد الترتيبية أرقاماً: «مكتب المدير الثاني» = «مكتب المدير 2» */
+  ORD: [['الاول|الاولي|اول|اولي', '1'], ['الثاني|الثانيه|ثاني|ثانيه', '2'], ['الثالث|الثالثه|ثالث', '3'], ['الرابع|الرابعه|رابع', '4'], ['الخامس|الخامسه|خامس', '5'], ['السادس|السادسه|سادس', '6'], ['السابع|السابعه|سابع', '7'], ['الثامن|الثامنه|ثامن', '8'], ['التاسع|التاسعه|تاسع', '9'], ['العاشر|العاشره|عاشر', '10']],
+  ord(x) { let t = normalizeAr(String(x == null ? '' : x)); CIMP.ORD.forEach(([w, n]) => { t = t.replace(new RegExp(`(^|\\s)(${w})(?=\\s|$)`, 'g'), `$1${n}`); }); return t.replace(/([^\d\s])(\d+)$/, '$1 $2'); },
   n: (v) => normalizeAr(String(v == null ? '' : v)).replace(/[^\p{L}\p{N}]+/gu, ' ').trim(),
   c: (v) => CIMP.n(v).replace(/\s+/g, ''),
   split: (v) => String(v == null ? '' : v).split(/[\n\r،,;|]+/).map((s) => s.trim()).filter(Boolean),
@@ -31395,16 +31399,22 @@ const CIMP = {
   /* أجزاء الموقع بأي ترتيب (القسم ثم المكتب أو العكس): يُختار الفرع الذي يفسّر هو وأصوله أكثر الأجزاء، والأعمق عند التساوي */
   matchLoc(parts, X) {
     const K = OrgMatch.key, isDep = (p) => (K(p) && X.depNames.some((n) => K(n) === K(p))) || (X.depCode && String(p).trim().toLowerCase() === X.depCode);
-    const ps = parts.filter((p) => !isDep(p));
+    const ps = parts.filter((p) => !isDep(p)).map((p) => CIMP.ord(p));
     if (!ps.length) return { status: parts.length ? 'dept' : 'empty', unitId: '', cands: [] };
-    const per = ps.map((p) => { const k = K(p), raw = String(p).trim().toLowerCase(), m = new Map(); X.T.forEach((t) => { const s = (raw && t.code && t.code === raw) || t.names.some((n) => k && K(n) === k) ? 1 : Math.max(...t.names.map((n) => OrgMatch.score(p, n))); if (s >= OrgMatch.CLOSE) m.set(t.unitId, s); }); return m; });
-    const cand = new Set(); per.forEach((m) => m.forEach((_, id) => cand.add(id)));
-    const ranked = [...cand].map((id) => { const ch = X.chain(id), sc = per.map((m) => Math.max(0, ...ch.map((c) => m.get(c) || 0))); return { id, cov: sc.filter((s) => s >= OrgMatch.CLOSE).length, tot: sc.reduce((a, b) => a + b, 0), ex: sc.every((s) => s === 1), dep: X.byId.get(id).depth, own: Math.max(...per.map((m) => m.get(id) || 0)) }; })
-      .filter((r) => r.own > 0).sort((a, b) => b.cov - a.cov || b.tot - a.tot || b.dep - a.dep);
+    const rank = (min) => {
+      const per = ps.map((p) => { const k = K(p), raw = String(p).trim().toLowerCase(), m = new Map(); X.T.forEach((t) => { const sc = (raw && t.code && t.code === raw) || t.names.some((n) => k && K(CIMP.ord(n)) === k) ? 1 : Math.max(...t.names.map((n) => OrgMatch.score(p, CIMP.ord(n)))); if (sc >= min) m.set(t.unitId, sc); }); return m; });
+      const cand = new Set(); per.forEach((m) => m.forEach((_, id) => cand.add(id)));
+      return [...cand].map((id) => { const ch = X.chain(id), sc = per.map((m) => Math.max(0, ...ch.map((c) => m.get(c) || 0))); return { id, cov: sc.filter((v) => v >= min).length, tot: sc.reduce((x, y) => x + y, 0), ex: sc.every((v) => v === 1), dep: X.byId.get(id).depth, own: Math.max(...per.map((m) => m.get(id) || 0)) }; })
+        .filter((r) => r.own > 0).sort((x, y) => y.cov - x.cov || y.tot - x.tot || y.dep - x.dep);
+    };
+    let ranked = rank(OrgMatch.CLOSE), weak = false;
+    if (!ranked.length) { ranked = rank(CIMP.NEAR_LOC); weak = true; }
     const cands = ranked.slice(0, 5).map((r) => r.id), [a, b] = ranked;
     if (!a) return { status: 'none', unitId: '', cands };
-    if (b && b.cov === a.cov && a.tot - b.tot < 0.05 && b.dep === a.dep && !X.chain(a.id).includes(b.id) && !X.chain(b.id).includes(a.id)) return { status: 'ambiguous', unitId: '', cands };
-    if (a.cov < ps.length) return { status: 'partial', unitId: '', cands, sug: a.id };
+    /* الاسم مختلف قليلاً: أقرب مكتب أو قسم في الإدارة بدل العام (يظهر في المراجعة لتغييره إن لزم) */
+    if (weak) return { status: 'nearest', why: 'weak', unitId: a.id, score: a.tot / ps.length, cands };
+    if (b && b.cov === a.cov && a.tot - b.tot < 0.05 && b.dep === a.dep && !X.chain(a.id).includes(b.id) && !X.chain(b.id).includes(a.id)) return { status: 'nearest', why: 'ambiguous', unitId: a.id, cands };
+    if (a.cov < ps.length) return { status: 'nearest', why: 'partial', unitId: a.id, cands };
     return { status: a.ex ? 'exact' : 'close', unitId: a.id, score: a.tot / ps.length, cands };
   },
   /* ── الموديل مع النماذج المعتمدة (الأصناف) ── */
@@ -31433,9 +31443,31 @@ const CIMP = {
   matchItem(d, items) {
     const text = CIMP.itemText(d), ranked = items.map((it) => ({ it, s: CIMP.itemScore(text, d, it) })).filter((x) => x.s > 0.3).sort((a, b) => b.s - a.s);
     const [a, b] = ranked, cands = ranked.slice(0, 6).map((x) => x.it.id);
-    if (!a || a.s < 0.72) return { status: 'none', cands };
-    if (b && a.s - b.s < 0.04 && a.s < 0.97) return { status: 'ambiguous', cands };
-    return { status: a.s >= 0.97 ? 'exact' : 'close', itemId: a.it.id, score: a.s, cands };
+    if (a && a.s >= 0.72 && !(b && a.s - b.s < 0.04 && a.s < 0.97)) return { status: a.s >= 0.97 ? 'exact' : 'close', itemId: a.it.id, score: a.s, cands };
+    /* لا تطابق واضحاً: أقرب نموذج معتمد من النوع نفسه بدل صنف جديد */
+    const n = CIMP.nearItem(d, items);
+    if (n) return { status: 'nearest', itemId: n.itemId, score: n.score, cands: [...new Set([...n.cands, ...cands])].slice(0, 6) };
+    return { status: 'none', cands };
+  },
+  /* أقرب نموذج: النوع نفسه (حاسوب، شاشة، طابعة…)، ثم الماركة، ثم كلمات الموديل المشتركة (OptiPlex، ProDesk، M70q)،
+     ومكتبي أو محمول، ومقاس الشاشة الأقرب. نوع غير معروف بلا أي شبه لا يُخمَّن */
+  nearItem(d, items) {
+    const text = CIMP.itemText(d), tk = CIMP.kindOf(`${d.type || ''} ${text}`), toks = CIMP.n(text).split(' ').filter((w) => /[a-z0-9]/.test(w));
+    const brands = new Set(items.map((i) => CIMP.c(i.brand)).filter(Boolean)), tb = d.brand ? CIMP.c(d.brand) : toks.find((w) => brands.has(w)) || '';
+    const size = tk === 'monitor' ? CIMP.sizeOf(text) : '', form = (x) => (/محمول|laptop|notebook/.test(x) ? 'lap' : /مكتبي|desktop|tower|mini|sff/.test(x) ? 'desk' : ''), tf = form(CIMP.n(`${d.type || ''} ${text}`));
+    const ranked = items.map((it) => {
+      const ik = CMV.kind(it); if (tk && ik !== tk) return null;
+      const ib = CIMP.c(it.brand), itoks = new Set(CIMP.n(`${it.model || ''} ${it.name || ''}`).split(' ').filter((w) => /[a-z0-9]/.test(w)));
+      const common = toks.filter((w) => w !== tb && itoks.has(w)).length;
+      if (!tk && !common && !(tb && tb === ib)) return null;
+      let sc = Math.max(0, CIMP.itemScore(text, d, it));
+      if (tb && ib) sc += tb === ib ? 0.3 : -0.4;
+      sc += Math.min(0.4, common * 0.2);
+      const f2 = form(CIMP.n(`${it.name || ''} ${it.model || ''}`)); if (tf && f2) sc += tf === f2 ? 0.1 : -0.1;
+      if (size) { const is = CIMP.itemSize(it); if (is) sc += Math.max(0, 0.3 - Math.abs(Number(is) - Number(size)) * 0.05); }
+      return { it, s: sc };
+    }).filter((x) => x && x.s > 0.15).sort((a, b) => b.s - a.s);
+    return ranked.length ? { itemId: ranked[0].it.id, score: ranked[0].s, cands: ranked.slice(0, 5).map((x) => x.it.id) } : null;
   },
   /* ── ذاكرة التصحيحات ── */
   async mem(dep) { const g = async (k) => { try { const r = await DB.get('meta', k); return { ...((r && r.value && r.value.map) || {}) }; } catch (_) { return {}; } }; return { loc: await g(`cimp:loc:${dep}`), mod: await g('cimp:mod') }; },
@@ -31462,14 +31494,14 @@ const CIMP = {
         const mk = OrgMatch.key(lk), mv = mk ? mem.loc[mk] : undefined;
         let m = mv != null && (mv === '@gen' || X.byId.has(mv)) ? { status: 'memory', unitId: mv === '@gen' ? '' : mv, cands: [] } : null;
         if (!m) m = d.loc.length ? CIMP.matchLoc(d.loc, X) : { status: 'empty', unitId: '', cands: [] };
-        L = { key: lk, parts: d.loc, n: 0, auto: m, def: ['exact', 'close', 'memory'].includes(m.status) ? m.unitId : '' }; L.pick = L.def; LOC.set(lk, L);
+        L = { key: lk, parts: d.loc, n: 0, auto: m, def: ['exact', 'close', 'memory', 'nearest'].includes(m.status) ? m.unitId : '' }; L.pick = L.def; LOC.set(lk, L);
       }
       L.n += d.qty; d.lk = lk;
       const key = CIMP.modKey(d), text = CIMP.itemText(d);
       let M = MOD.get(key);
       if (!M) {
         const mm = mem.mod[key], m = !text ? { status: 'empty', cands: [] } : mm && byIt.has(mm) ? { status: 'memory', itemId: mm, cands: [] } : CIMP.matchItem(d, items);
-        M = { key, text, type: d.type, brand: d.brand, n: 0, auto: m, def: ['exact', 'close', 'memory'].includes(m.status) ? m.itemId : m.status === 'none' && text && MDL.canEdit() ? 'new' : 'skip' }; M.pick = M.def; MOD.set(key, M);
+        M = { key, text, type: d.type, brand: d.brand, n: 0, auto: m, def: ['exact', 'close', 'memory', 'nearest'].includes(m.status) ? m.itemId : m.status === 'none' && text && MDL.canEdit() ? 'new' : 'skip' }; M.pick = M.def; MOD.set(key, M);
       }
       M.n += d.qty; d.mk = key;
     });
@@ -31632,8 +31664,8 @@ const CIMP = {
 };
 
 /* ── صفحة الاستيراد: الملف ← الأعمدة ← المراجعة ← تم ── */
-CIMP.ST = { dept: ['violet', 'الإدارة نفسها'], exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], partial: ['red', 'جزء منه غير معروف'], ambiguous: ['red', 'يتشابه مع أكثر من مكان'], none: ['red', 'غير معروف'], empty: ['slate', 'بلا موقع'] };
-CIMP.MST = { exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], ambiguous: ['red', 'يتشابه مع أكثر من نموذج'], none: ['red', 'غير معروف'], empty: ['red', 'بلا موديل'] };
+CIMP.ST = { nearest: ['amber', 'أقرب موقع'], dept: ['violet', 'الإدارة نفسها'], exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], partial: ['red', 'جزء منه غير معروف'], ambiguous: ['red', 'يتشابه مع أكثر من مكان'], none: ['red', 'غير معروف'], empty: ['slate', 'بلا موقع'] };
+CIMP.MST = { nearest: ['amber', 'أقرب نموذج'], exact: ['green', 'مطابق'], memory: ['sky', 'من تصحيحك السابق'], close: ['amber', 'تطابق تقريبي'], ambiguous: ['red', 'يتشابه مع أكثر من نموذج'], none: ['red', 'غير معروف'], empty: ['red', 'بلا موديل'] };
 Pages.custodyImport = async (ctx) => {
   const deps = Data.list('departments').filter((d) => d.active !== false).sort((a, b) => AR_COLL.compare(a.name, b.name));
   const qd = String((ctx.query || {}).dep || '');
@@ -31674,7 +31706,7 @@ Pages.custodyImport = async (ctx) => {
     const o = (id, label) => html`<option value="${id}"${M.pick === id ? raw(' selected') : ''}>${label}</option>`;
     return html`<select class="input input-sm" data-cimp-mod="${M.i}">${o('skip', 'لا تستورد هذه الأجهزة')}${MDL.canEdit() && M.text ? o('new', `صنف جديد باسم «${M.text}»`) : ''}${sug.length ? html`<optgroup label="الأقرب">${sug.map((id) => o(id, nm(A.byIt.get(id))))}</optgroup>` : ''}<optgroup label="كل النماذج">${A.items.map((i) => o(i.id, nm(i)))}</optgroup></select>`;
   };
-  const rank = { dept: 1, none: 0, ambiguous: 0, partial: 0, empty: 1, close: 2, memory: 3, exact: 4 };
+  const rank = { nearest: 1, dept: 1, none: 0, ambiguous: 0, partial: 0, empty: 1, close: 2, memory: 3, exact: 4 };
   const view3 = () => {
     const A = st.A, P = CIMP.plan(A), Ls = [...A.LOC.values()], Ms = [...A.MOD.values()];
     Ls.forEach((L, i) => { L.i = i; }); Ms.forEach((M, i) => { M.i = i; });
@@ -31692,9 +31724,9 @@ Pages.custodyImport = async (ctx) => {
       ${pv ? html`<div class="live-bar tone-sky cimp-prev">${UI.icon('info')}<div class="grow"><b>سبق استيراد عهدة لهذه الإدارة: «${pv.file || 'ملف'}» في ${fmtDate(pv.at)}${A.prev.length > 1 ? ` (و${fmtNum(A.prev.length - 1)} قبله)` : ''}</b><span>الأجهزة ذات الأرقام التسلسلية لا تتكرر. ${agQ ? `أما الأصناف بلا أرقام (${fmtNum(agQ)}) التي سبق تسجيلها في المكان نفسه فلا تُضاف ثانية إلا إن اخترت.` : ''}</span></div>${agQ ? html`<label class="row" style="gap:6px"><input type="checkbox" data-cimp-again-q${A.addAgain ? raw(' checked') : ''}> أضفها مرة أخرى</label>` : ''}</div>` : ''}
       <label class="cimp-opt"><input type="checkbox" data-cimp-solo${A.soloWs === false ? '' : raw(' checked')}> <span><b>كل حاسوب محطة عمل في مكانه</b> — ولو لم تُذكر له شاشة. الحاسوب مع شاشته (أو مع شاشة مشتركة) محطة واحدة دائماً.</span></label>
       ${P.moved.length ? html`<div class="live-bar tone-sky cimp-moved">${UI.icon('monitor')}<div class="grow"><b>أجهزة مرتبطة بشاشة واحدة كُتبت في أكثر من موقع: ${arCount(P.moved.length, AR_DEVICE)}</b><span>الشاشة المشتركة تعني مكتباً واحداً، فتُسجَّل أجهزتها معاً في محطة واحدة: ${P.ws.filter((c) => c.some((x) => P.moved.includes(x))).slice(0, 4).map((c) => `«${A.X.byId.get(c.unit).label}» (السطور ${c.map((x) => fmtNum(x.line)).filter((v, i, a) => a.indexOf(v) === i).join('، ')})`).join('؛ ')}. لتغيير ذلك صحّح موقع السطر في جدول المواقع.</span></div></div>` : ''}
-      ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'صحّح الموقع مرة واحدة فيسري على كل أسطره، ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th></tr></thead><tbody>
+      ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'ما اختلف اسمه قليلاً يُوزَّع على أقرب مكتب أو قسم (أقرب موقع). صحّح أي موقع مرة واحدة فيسري على كل أسطره ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th></tr></thead><tbody>
         ${Ls.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((L) => html`<tr class="${L.pick ? '' : 'cimp-gen'}"><td><b dir="auto">${L.key || '—'}</b></td><td>${fmtNum(L.n)}</td><td>${chip(CIMP.ST, L.auto.status)}</td><td>${locOpts(L)}</td></tr>`)}</tbody></table></div>` })}
-      ${UI.panel({ title: `الموديلات (${fmtNum(Ms.length)})`, icon: 'layers', sub: 'تُطابق مع النماذج المعتمدة. اختر النموذج الصحيح لما لم يُعرف.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>النموذج في المنصة</th></tr></thead><tbody>
+      ${UI.panel({ title: `الموديلات (${fmtNum(Ms.length)})`, icon: 'layers', sub: 'ما لم يطابق نموذجاً بعينه يُسجَّل على أقرب نموذج معتمد من نوعه (أقرب نموذج). غيّر أي اختيار مرة واحدة فيُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>النموذج في المنصة</th></tr></thead><tbody>
         ${Ms.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((M) => html`<tr class="${M.pick === 'skip' ? 'cimp-skip' : ''}"><td><b dir="auto">${M.text || '—'}</b>${M.type && M.type !== M.text ? html`<small class="faint"> ${M.type}</small>` : ''}</td><td>${fmtNum(M.n)}</td><td>${chip(CIMP.MST, M.auto.status)}</td><td>${modOpts(M)}</td></tr>`)}</tbody></table></div>` })}
       ${nNotes ? UI.panel({ title: `ملاحظات الأجهزة (${fmtNum(nNotes)})`, icon: 'sticky', sub: 'تُحفظ في سجل كل جهاز (ملاحظات الوحدة)، وفي ملاحظة محطة العمل.', tools: nNotes > 8 ? html`<button type="button" class="btn btn-ghost btn-sm" data-cimp-n>${st.showN ? 'إخفاء' : 'عرض الكل'}</button>` : '', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl cimp-notes"><thead><tr><th>السطر</th><th>الجهاز</th><th>الملاحظة</th></tr></thead><tbody>${(st.showN ? withN : withN.slice(0, 8)).map((d) => html`<tr><td>${fmtNum(d.line)}</td><td><b dir="auto">${CIMP.itemText(d)}</b>${d.serial || d.tag ? html` <code dir="ltr">${d.serial || d.tag}</code>` : ''}</td><td dir="auto">${d.note}</td></tr>`)}</tbody></table></div>` }) : ''}
       ${W.length || ex.length ? UI.panel({ title: `ملاحظات على الملف (${fmtNum(W.length + (ex.length ? 1 : 0))})`, icon: 'alert', tools: html`<button type="button" class="btn btn-ghost btn-sm" data-cimp-w>${st.showW ? 'إخفاء' : 'عرض الكل'}</button>`, body: html`<ul class="cimp-warn">
