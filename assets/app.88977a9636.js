@@ -31493,19 +31493,31 @@ const CIMP = {
   },
   /* ما سيُستورد فعلاً بحسب الاختيارات الحالية */
   plan(A) {
-    const unitOf = (d) => A.LOC.get(d.lk).pick || '', again = (d) => !d.serial && !d.tag && A.prevQ && A.prevQ.has(`${unitOf(d)}|${A.MOD.get(d.mk).pick}`);
+    const base = (d) => A.LOC.get(d.lk).pick || '', again = (d) => !d.serial && !d.tag && A.prevQ && A.prevQ.has(`${base(d)}|${A.MOD.get(d.mk).pick}`);
     const inc = (d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && (A.addAgain || !again(d));
     const ds = A.B.devs.filter(inc), seen = new Set(), comps = [];
     ds.forEach((d) => {
       if (seen.has(d.id) || !d.links.size) return;
       const comp = [], stack = [d]; seen.add(d.id);
       while (stack.length) { const x = stack.pop(); comp.push(x); x.links.forEach((j) => { const y = A.B.devs[j]; if (!seen.has(y.id) && inc(y)) { seen.add(y.id); stack.push(y); } }); }
-      if (comp.length > 1) comps.push(comp);
+      if (comp.length > 1) comps.push(comp.sort((a, b) => a.line - b.line || a.id - b.id));
     });
-    const ws = comps.filter((c) => { const u = unitOf(c[0]); return u && c.every((x) => unitOf(x) === u); });
-    const sum = (list) => list.reduce((s, d) => s + d.qty, 0);
+    /* الأجهزة المرتبطة في مكان واحد: موقع أكثرها، وعند التساوي موقع أول سطر. ما كُتب في موقع آخر (أو بلا موقع) يُنقل معها */
+    const over = new Map(), moved = [], ws = [];
+    comps.forEach((c) => {
+      const cnt = new Map(); c.forEach((x) => { const u = base(x); if (u) cnt.set(u, (cnt.get(u) || 0) + 1); });
+      if (!cnt.size) return;
+      const first = base(c.find((x) => base(x))), target = [...cnt].sort((a, b) => b[1] - a[1] || (a[0] === first ? -1 : b[0] === first ? 1 : 0))[0][0];
+      c.forEach((x) => { if (base(x) !== target) { over.set(x.id, target); moved.push(x); } });
+      c.unit = target; ws.push(c);
+    });
+    const unitOf = (d) => over.get(d.id) || base(d);
+    const kindOf = (d) => { const M = A.MOD.get(d.mk), it = M && A.byIt.get(M.pick); return (it && CMV.kind(it)) || CIMP.kindOf(`${d.type || ''} ${CIMP.itemText(d)}`); };
+    const inComp = new Set(comps.flat().map((x) => x.id));
+    const solo = A.soloWs === false ? [] : ds.filter((d) => !inComp.has(d.id) && d.qty === 1 && unitOf(d) && kindOf(d) === 'pc');
+    const sum = (list) => list.reduce((t, d) => t + d.qty, 0);
     const gen = ds.filter((d) => !unitOf(d)), placed = ds.filter((d) => unitOf(d));
-    return { ds, comps, ws, gen, placed, total: sum(ds), genQ: sum(gen), placedQ: sum(placed), exists: A.B.devs.filter((d) => d.exists), skip: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick === 'skip'), again: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && again(d)), shared: ds.filter((d) => d.links.size > 1 && CIMP.kindOf(d.type) !== 'pc' && ds.filter((x) => d.links.has(x.id)).length > 1).length, units: new Set(placed.map(unitOf)).size };
+    return { ds, comps, ws, solo, moved, unitOf, kindOf, gen, placed, total: sum(ds), genQ: sum(gen), placedQ: sum(placed), exists: A.B.devs.filter((d) => d.exists), skip: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick === 'skip'), again: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && again(d)), shared: ds.filter((d) => kindOf(d) !== 'pc' && ds.filter((x) => d.links.has(x.id)).length > 1).length, units: new Set(placed.map(unitOf)).size };
   },
   cat(type, text) {
     let best = null, bs = 0;
@@ -31528,7 +31540,7 @@ const CIMP = {
     const G = new Map();
     P.ds.forEach((d) => {
       const it = itemOf(d); if (!it) return;
-      const u = A.LOC.get(d.lk).pick || '', k = `${u}|${it}|${d.holderId || ''}`;
+      const u = P.unitOf(d), k = `${u}|${it}|${d.holderId || ''}`;
       let g = G.get(k); if (!g) G.set(k, (g = { unitId: u, itemId: it, holderId: d.holderId || '', qty: 0, pairs: [], devs: [] }));
       g.qty += d.qty; g.devs.push(d); if (d.serial || d.tag) g.pairs.push({ serial: d.serial, tag: d.tag, host: d.host });
     });
@@ -31555,8 +31567,8 @@ const CIMP = {
     let wsN = 0;
     for (const comp of P.ws) {
       if (!comp.every((d) => done.has(d.id))) continue;
-      step(`محطات العمل ${fmtNum(wsN + 1)} من ${fmtNum(P.ws.length)}`);
-      const u = A.LOC.get(comp[0].lk).pick, lines = new Map();
+      step(`محطات العمل ${fmtNum(wsN + 1)} من ${fmtNum(P.ws.length + P.solo.length)}`);
+      const u = comp.unit, lines = new Map();
       comp.forEach((d) => { const it = itemOf(d); if (it) lines.set(it, (lines.get(it) || 0) + d.qty); });
       const pcs = comp.filter((d) => kd(d) === 'pc'), name = ((pcs.find((d) => d.host) || comp.find((d) => d.host)) || {}).host || '', hs = [...new Set(comp.map((d) => d.holderId).filter(Boolean))];
       try {
@@ -31566,9 +31578,15 @@ const CIMP = {
         wsN++;
       } catch (e) { fails.push(`محطة ${name || 'عمل'}: ${e.message || e}`); }
     }
+    for (const d of P.solo) {
+      if (!done.has(d.id)) continue;
+      step(`محطات العمل ${fmtNum(wsN + 1)} من ${fmtNum(P.ws.length + P.solo.length)}`);
+      try { await CIMP.wsPut({ unitId: P.unitOf(d), name: d.host || '', holderId: d.holderId || '', lines: [{ itemId: itemOf(d), qty: 1 }], pairs: [], note: `من استيراد Excel${d.note ? ` — ${d.note}` : ''}`.slice(0, 300) }); wsN++; }
+      catch (e) { fails.push(`محطة ${d.host || 'عمل'}: ${e.message || e}`); }
+    }
     const gen = new Map(); P.gen.forEach((d) => { if (!done.has(d.id) || A.LOC.get(d.lk).auto.status === 'dept') return; const it = itemOf(d); if (it) gen.set(it, (gen.get(it) || 0) + d.qty); });
     const okQ = P.ds.filter((d) => done.has(d.id)).reduce((s, d) => s + d.qty, 0), pendQ = [...gen.values()].reduce((s, q) => s + q, 0), genQ = P.gen.filter((d) => done.has(d.id)).reduce((s, d) => s + d.qty, 0);
-    const qlines = P.ds.filter((d) => done.has(d.id) && !d.serial && !d.tag).map((d) => ({ unitId: A.LOC.get(d.lk).pick || '', itemId: itemOf(d), qty: d.qty })).filter((q) => q.itemId);
+    const qlines = P.ds.filter((d) => done.has(d.id) && !d.serial && !d.tag).map((d) => ({ unitId: P.unitOf(d), itemId: itemOf(d), qty: d.qty })).filter((q) => q.itemId);
     const value = { id: bid, departmentId: A.dep, file: A.file, at, by: Auth.user.id, qlines, n: okQ, placed: okQ - genQ, genQ, pendQ, gen: [...gen].map(([itemId, qty]) => ({ itemId, qty })), ws: wsN, units: P.units, exists: P.exists.length, skipped: P.skip.length, newItems: newIds.size, fails: fails.length };
     await DB.put('meta', { key: `cimp:b:${bid}`, value });
     try { await CIMP.remember(A, newIds); } catch (e) { console.warn(e); }
@@ -31668,10 +31686,12 @@ Pages.custodyImport = async (ctx) => {
         ${card(P.total, 'جهاز سيُسجَّل', 'violet', 'box', `من ${fmtNum(A.B.rows)} سطر${nNotes ? ` · ${fmtNum(nNotes)} بملاحظات` : ''}`)}
         ${card(P.placedQ, 'في أماكنها', 'green', 'pin', `${fmtNum(P.units)} موقع`)}
         ${card(P.genQ, 'إلى عام الإدارة', P.genQ ? 'amber' : 'slate', 'inbox', pendQ ? `${fmtNum(pendQ)} قيد الفرز` : P.genQ ? 'عهدة الإدارة العامة' : '')}
-        ${card(P.ws.length, 'محطة عمل من الروابط', 'sky', 'monitor', P.shared ? `${fmtNum(P.shared)} شاشة مشتركة` : '')}
+        ${card(P.ws.length + P.solo.length, 'محطة عمل', 'sky', 'monitor', [P.ws.length ? `${fmtNum(P.ws.length)} بشاشاتها` : '', P.shared ? `${fmtNum(P.shared)} شاشة مشتركة` : '', P.solo.length ? `${fmtNum(P.solo.length)} حاسوب منفرد` : ''].filter(Boolean).join(' · '))}
         ${card(nq(ex) + nq(P.skip) + (A.addAgain ? 0 : nq(P.again)), 'لن يُستورد', nq(ex) + nq(P.skip) + (A.addAgain ? 0 : nq(P.again)) ? 'red' : 'slate', 'x', ex.length ? `${fmtNum(ex.length)} مسجّل مسبقاً` : '')}
       </div>
       ${pv ? html`<div class="live-bar tone-sky cimp-prev">${UI.icon('info')}<div class="grow"><b>سبق استيراد عهدة لهذه الإدارة: «${pv.file || 'ملف'}» في ${fmtDate(pv.at)}${A.prev.length > 1 ? ` (و${fmtNum(A.prev.length - 1)} قبله)` : ''}</b><span>الأجهزة ذات الأرقام التسلسلية لا تتكرر. ${agQ ? `أما الأصناف بلا أرقام (${fmtNum(agQ)}) التي سبق تسجيلها في المكان نفسه فلا تُضاف ثانية إلا إن اخترت.` : ''}</span></div>${agQ ? html`<label class="row" style="gap:6px"><input type="checkbox" data-cimp-again-q${A.addAgain ? raw(' checked') : ''}> أضفها مرة أخرى</label>` : ''}</div>` : ''}
+      <label class="cimp-opt"><input type="checkbox" data-cimp-solo${A.soloWs === false ? '' : raw(' checked')}> <span><b>كل حاسوب محطة عمل في مكانه</b> — ولو لم تُذكر له شاشة. الحاسوب مع شاشته (أو مع شاشة مشتركة) محطة واحدة دائماً.</span></label>
+      ${P.moved.length ? html`<div class="live-bar tone-sky cimp-moved">${UI.icon('monitor')}<div class="grow"><b>أجهزة مرتبطة بشاشة واحدة كُتبت في أكثر من موقع: ${arCount(P.moved.length, AR_DEVICE)}</b><span>الشاشة المشتركة تعني مكتباً واحداً، فتُسجَّل أجهزتها معاً في محطة واحدة: ${P.ws.filter((c) => c.some((x) => P.moved.includes(x))).slice(0, 4).map((c) => `«${A.X.byId.get(c.unit).label}» (السطور ${c.map((x) => fmtNum(x.line)).filter((v, i, a) => a.indexOf(v) === i).join('، ')})`).join('؛ ')}. لتغيير ذلك صحّح موقع السطر في جدول المواقع.</span></div></div>` : ''}
       ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'صحّح الموقع مرة واحدة فيسري على كل أسطره، ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th></tr></thead><tbody>
         ${Ls.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((L) => html`<tr class="${L.pick ? '' : 'cimp-gen'}"><td><b dir="auto">${L.key || '—'}</b></td><td>${fmtNum(L.n)}</td><td>${chip(CIMP.ST, L.auto.status)}</td><td>${locOpts(L)}</td></tr>`)}</tbody></table></div>` })}
       ${UI.panel({ title: `الموديلات (${fmtNum(Ms.length)})`, icon: 'layers', sub: 'تُطابق مع النماذج المعتمدة. اختر النموذج الصحيح لما لم يُعرف.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>النموذج في المنصة</th></tr></thead><tbody>
@@ -31734,11 +31754,12 @@ Pages.custodyImport = async (ctx) => {
   UI.on(v, 'change', '[data-cimp-mod]', (e, s) => { const M = [...st.A.MOD.values()].find((x) => String(x.i) === s.dataset.cimpMod); if (M) { M.pick = s.value; draw(); } });
   UI.on(v, 'click', '[data-cimp-w]', () => { st.showW = !st.showW; draw(); });
   UI.on(v, 'click', '[data-cimp-n]', () => { st.showN = !st.showN; draw(); });
+  UI.on(v, 'change', '[data-cimp-solo]', (e, c) => { st.A.soloWs = c.checked; draw(); });
   UI.on(v, 'change', '[data-cimp-again-q]', (e, c) => { st.A.addAgain = c.checked; draw(); });
   UI.on(v, 'click', '[data-cimp-again]', () => { Object.assign(st, { step: 1, file: null, sheets: null, A: null, res: null }); draw(); });
   UI.on(v, 'click', '[data-cimp-run]', async (e, b) => {
     const P = CIMP.plan(st.A);
-    const ok = await UI.confirm(`تسجيل ${arCount(P.total, AR_DEVICE)} في عهدة «${depName()}»: ${fmtNum(P.placedQ)} في ${fmtNum(P.units)} موقع${P.genQ ? `، و${fmtNum(P.genQ)} في العام «قيد الفرز»` : ''}${P.ws.length ? `، و${fmtNum(P.ws.length)} محطة عمل` : ''}. لا يُخصم شيء من المخزن.`, { title: 'تأكيد الاستيراد', ok: 'تسجيل', icon: 'upload' });
+    const ok = await UI.confirm(`تسجيل ${arCount(P.total, AR_DEVICE)} في عهدة «${depName()}»: ${fmtNum(P.placedQ)} في ${fmtNum(P.units)} موقع${P.genQ ? `، و${fmtNum(P.genQ)} في العام «قيد الفرز»` : ''}${P.ws.length + P.solo.length ? `، و${fmtNum(P.ws.length + P.solo.length)} محطة عمل` : ''}. لا يُخصم شيء من المخزن.`, { title: 'تأكيد الاستيراد', ok: 'تسجيل', icon: 'upload' });
     if (!ok) return;
     UI.busy(b, true); const t0 = b.innerHTML;
     try { st.res = await CIMP.commit(st.A, (m) => { b.textContent = m; }); st.step = 4; window.scrollTo(0, 0); draw(); UI.toast(`سُجّل ${arCount(st.res.n, AR_DEVICE)} في عهدة ${depName()}`); }

@@ -8111,3 +8111,8 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .cimp-cta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
 @media (max-width:640px){.cimp-tbl select{min-width:160px}.cimp-map th{min-width:130px}}
 [data-cimp-block]{min-width:240px;max-width:100%}
+
+/* الجولة 70 */
+.cimp-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13.5px;line-height:1.7;color:var(--ink-2);cursor:pointer}
+.cimp-opt input{margin-top:5px}
+.cimp-moved{margin-bottom:12px}
