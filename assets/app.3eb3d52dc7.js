@@ -31928,5 +31928,71 @@ CIMP.editDev = async (A, d) => {
   return true;
 };
 
+/* ══════════ الجولة 73: «من المخزن» في البلاغ حسب نوعه ══════════
+   كان البحث يأخذ الماركة وحدها («HP») فيعرض أحبار HP في بلاغ حاسب آلي. الآن:
+   - بلاغ الحبر: كما هو (الأحبار المطلوبة بأعيانها).
+   - بلاغ الطابعة: أحبار موديلها فقط، من إعدادات الطابعات والأحبار (الماركة ← الموديل ← أحباره).
+   - غير ذلك (حاسب، شاشة…): لا أحبار إطلاقاً، ولا بحث بالماركة وحدها. */
+const TPI = {
+  c: (v) => normalizeAr(String(v == null ? '' : v)).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''),
+  toks: (v) => normalizeAr(String(v == null ? '' : v)).toLowerCase().split(/[^a-z0-9]+/).filter((x) => x.length >= 2 && /\d/.test(x)),
+  fields(t) { const f = (t.extra && t.extra.fields) || []; return { get: (k) => String((f.find((x) => x.key === k) || {}).value || '').trim(), all: f.map((x) => String(x.value == null ? '' : x.value)).join(' ') }; },
+  isPrinter(t) {
+    const F = TPI.fields(t), cat = Data.c.categories && Data.c.categories.get(t.categoryId), cn = normalizeAr(`${cat ? cat.name : ''} ${cat ? cat.illustration || '' : ''}`);
+    if (/طابع|حبر|printer|toner|\bink\b/.test(cn)) return true;
+    const keys = ((t.extra && t.extra.fields) || []).map((x) => String(x.key || ''));
+    if (keys.some((k) => /^(printer|ink|toner)/i.test(k))) return true;
+    return /طابع|printer/.test(normalizeAr(`${t.deviceName || ''} ${F.get('device')} ${F.get('model')}`));
+  },
+  /* موديل الطابعة من نص البلاغ: يطابق اسم الموديل (أو أرقامه مثل M404) وماركته في إعدادات الطابعات */
+  printer(t) {
+    const F = TPI.fields(t), hay = `${F.get('brand')} ${F.get('model')} ${F.get('device')} ${F.get('printer')} ${t.deviceName || ''} ${F.all}`, hc = TPI.c(hay), ht = TPI.toks(hay);
+    const bf = TPI.c(F.get('brand'));
+    let best = null, bs = 0;
+    (Data.list('printers') || []).forEach((b) => (Array.isArray(b.models) ? b.models : []).forEach((m) => {
+      if (!m || !(m.inks || []).length) return;
+      const mc = TPI.c(m.name), bc = TPI.c(b.name); if (!mc) return;
+      let s = 0;
+      if (mc.length >= 3 && hc.includes(mc)) s = 10 + mc.length;
+      const mt = TPI.toks(m.name); s = Math.max(s, mt.filter((x) => ht.some((y) => y === x || (y.length >= 3 && (x.startsWith(y) || y.startsWith(x))))).length * 6);
+      if (!s) return;
+      if (bc && (bf ? bf === bc : hc.includes(bc))) s += 3; else if (bf && bc && bf !== bc) s -= 8;
+      if (s > bs) { bs = s; best = { b, m }; }
+    }));
+    return bs > 0 ? best : null;
+  },
+  isInk(i) { if (!i) return false; try { if (IC.subtree(INKCAT.cat).has(i.categoryId)) return true; } catch (_) { /* تجاهل */ } return /^(حبر|toner|ink)\b/i.test(normalizeAr(i.name || '')); },
+  row(i, qty, canMove, extra = '') {
+    return html`<div class="list-row">${UI.illu(itemIllu(i), 'mini')}<div class="grow" style="min-width:0"><b class="tpi-name">${i.name}</b><div class="t-sub ltr" style="text-align:start">${i.sku || ''}${extra}</div></div>${UI.meter(i)}${canMove && i.onHand > 0 ? html`<button class="btn btn-sm btn-ok" data-issue="${i.id}" data-qty="${qty}">${UI.icon('upload')} صرف</button>` : ''}</div>`;
+  },
+  foot: (canMove, any) => (canMove ? html`<button class="btn ${any ? 'btn-ghost btn-sm' : 'btn-soft'} btn-block mt" data-act="parts">${UI.icon(any ? 'search' : 'box')} ${any ? 'صرف صنف آخر' : 'صرف صنف من المخزن'}</button>` : '')
+};
+{
+  const tpX = Pages.ticketParts;
+  Pages.ticketParts = async (t) => {
+    if (!Auth.can('inventory.read')) return '';
+    if (TINK.lines(t).length) return tpX(t);
+    const F = TPI.fields(t), qty = Math.max(1, Number(F.get('qty')) || 1), canMove = Auth.can('inventory.move') && OPEN.includes(t.status);
+    if (TPI.isPrinter(t)) {
+      const P = TPI.printer(t);
+      if (!P) return UI.panel({ title: 'أحبار الطابعة', icon: 'box', body: html`<p class="faint small">لم يُعرف موديل الطابعة من البلاغ، فلا تُعرض أحبار. اكتب الموديل في البلاغ (مثل LaserJet Pro M404) أو اصرف من البحث.</p>${TPI.foot(canMove, false)}` });
+      const all = await INKSTK.items(), seen = new Set(), rows = [];
+      (P.m.inks || []).forEach((k) => INKSTK.match(all, k).forEach((i) => { if (!seen.has(i.id)) { seen.add(i.id); rows.push({ i, k }); } }));
+      const name = `${P.b.name || ''} ${P.m.name || ''}`.trim();
+      return UI.panel({ title: 'أحبار الطابعة', icon: 'box', sub: `${name} — ${rows.length ? `${fmtNum(rows.length)} من أحبارها في المخزن` : 'لا شيء من أحبارها في المخزن'}`, body: rows.length
+        ? html`<div class="list">${rows.map(({ i, k }) => TPI.row(i, qty, canMove, k.color && INK_COLORS_MAP[k.color] ? html` · ${INK_COLORS_MAP[k.color][0]}` : ''))}</div>${TPI.foot(canMove, true)}`
+        : html`<p class="faint small">أحبار هذا الموديل في الإعدادات: <span class="ltr">${(P.m.inks || []).map((k) => k.code).filter(Boolean).join('، ') || '—'}</span>، ولم يُسجَّل شيء منها في المخزن.</p>${TPI.foot(canMove, false)}` });
+    }
+    /* غير الطابعات: بحث بالموديل والجهاز (لا بالماركة وحدها)، وبلا أحبار */
+    const terms = [F.get('model'), `${F.get('brand')} ${F.get('model')}`.trim(), F.get('device'), t.deviceName].map((x) => String(x || '').trim()).filter((x, i, a) => x && TPI.c(x) !== TPI.c(F.get('brand')) && a.indexOf(x) === i);
+    const found = new Map();
+    for (const term of terms) { const { rows } = await Data.inv.items({ q: term, limit: 8 }); rows.filter((r) => !TPI.isInk(r)).forEach((r) => found.set(r.id, r)); if (found.size >= 4) break; }
+    const rows = [...found.values()].slice(0, 4);
+    return UI.panel({ title: 'من المخزن', icon: 'box', sub: rows.length ? 'أصناف مطابقة لهذا البلاغ' : '', body: rows.length
+      ? html`<div class="list">${rows.map((i) => TPI.row(i, qty, canMove))}</div>${TPI.foot(canMove, true)}`
+      : html`<p class="faint small">لم أجد صنفاً مطابقاً في المخزن.</p>${TPI.foot(canMove, false)}` });
+  };
+}
+
 boot();
 })();

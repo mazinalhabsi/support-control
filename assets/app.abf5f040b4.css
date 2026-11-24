@@ -8131,3 +8131,6 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .cimp-dtbl select{min-width:200px;max-width:280px}
 .cimp-nums{font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
 .cimp-note{max-width:220px;color:var(--ink-2)}
+
+/* الجولة 73 */
+.tpi-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;word-break:break-word}
