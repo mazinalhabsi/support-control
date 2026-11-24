@@ -31521,12 +31521,13 @@ const CIMP = {
     const noUser = new Map();
     B.devs.forEach((d) => { if (!d.holder) { d.holderId = ''; return; } d.holderId = H.get(CIMP.c(d.holder)) || ''; if (!d.holderId) noUser.set(d.holder, (noUser.get(d.holder) || 0) + 1); });
     noUser.forEach((n, name) => warn.push({ kind: 'user', line: 0, msg: `المستخدم «${name}» غير موجود في المنصة (${arCount(n, AR_DEVICE)})؛ تُسجّل بلا مستخدم` }));
-    return { dep: st.dep, file: st.file ? st.file.name : '', X, items, byIt, B, LOC, MOD, warn, prev, prevQ, addAgain: false };
+    return { dep: st.dep, file: st.file ? st.file.name : '', X, items, byIt, B, LOC, MOD, warn, prev, prevQ, idx, addAgain: false };
   },
   /* ما سيُستورد فعلاً بحسب الاختيارات الحالية */
   plan(A) {
-    const base = (d) => A.LOC.get(d.lk).pick || '', again = (d) => !d.serial && !d.tag && A.prevQ && A.prevQ.has(`${base(d)}|${A.MOD.get(d.mk).pick}`);
-    const inc = (d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && (A.addAgain || !again(d));
+    const base = (d) => (d.locPick !== undefined ? d.locPick : A.LOC.get(d.lk).pick || ''), again = (d) => !d.serial && !d.tag && A.prevQ && A.prevQ.has(`${base(d)}|${A.MOD.get(d.mk).pick}`);
+    const isOff = (d) => !!(d.off || d.dupe || A.LOC.get(d.lk).off);
+    const inc = (d) => !d.exists && !isOff(d) && A.MOD.get(d.mk).pick !== 'skip' && (A.addAgain || !again(d));
     const ds = A.B.devs.filter(inc), seen = new Set(), comps = [];
     ds.forEach((d) => {
       if (seen.has(d.id) || !d.links.size) return;
@@ -31549,7 +31550,7 @@ const CIMP = {
     const solo = A.soloWs === false ? [] : ds.filter((d) => !inComp.has(d.id) && d.qty === 1 && unitOf(d) && kindOf(d) === 'pc');
     const sum = (list) => list.reduce((t, d) => t + d.qty, 0);
     const gen = ds.filter((d) => !unitOf(d)), placed = ds.filter((d) => unitOf(d));
-    return { ds, comps, ws, solo, moved, unitOf, kindOf, gen, placed, total: sum(ds), genQ: sum(gen), placedQ: sum(placed), exists: A.B.devs.filter((d) => d.exists), skip: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick === 'skip'), again: A.B.devs.filter((d) => !d.exists && A.MOD.get(d.mk).pick !== 'skip' && again(d)), shared: ds.filter((d) => kindOf(d) !== 'pc' && ds.filter((x) => d.links.has(x.id)).length > 1).length, units: new Set(placed.map(unitOf)).size };
+    return { ds, comps, ws, solo, moved, unitOf, kindOf, gen, placed, total: sum(ds), genQ: sum(gen), placedQ: sum(placed), exists: A.B.devs.filter((d) => d.exists), off: A.B.devs.filter((d) => !d.exists && isOff(d)), skip: A.B.devs.filter((d) => !d.exists && !isOff(d) && A.MOD.get(d.mk).pick === 'skip'), again: A.B.devs.filter((d) => !d.exists && !isOff(d) && A.MOD.get(d.mk).pick !== 'skip' && again(d)), shared: ds.filter((d) => kindOf(d) !== 'pc' && ds.filter((x) => d.links.has(x.id)).length > 1).length, units: new Set(placed.map(unitOf)).size };
   },
   cat(type, text) {
     let best = null, bs = 0;
@@ -31699,7 +31700,22 @@ Pages.custodyImport = async (ctx) => {
   const locOpts = (L) => {
     const X = st.A.X, sug = [...new Set([L.auto.unitId, L.auto.sug, ...(L.auto.cands || [])].filter(Boolean))];
     const o = (id, label) => html`<option value="${id}"${(L.pick || '') === id ? raw(' selected') : ''}>${label}</option>`;
-    return html`<select class="input input-sm" data-cimp-loc="${L.i}">${o('', L.auto.status === 'dept' ? 'عام الإدارة (عهدة الإدارة نفسها)' : 'العام — قيد الفرز')}${sug.length ? html`<optgroup label="الأقرب">${sug.map((id) => o(id, X.byId.get(id).label))}</optgroup>` : ''}<optgroup label="كل مواقع الإدارة">${X.T.map((t) => o(t.unitId, t.label))}</optgroup></select>`;
+    return html`<select class="input input-sm" data-cimp-loc="${L.i}">${o('', L.auto.status === 'dept' ? 'عام الإدارة (عهدة الإدارة نفسها)' : 'العام — قيد الفرز')}${sug.length ? html`<optgroup label="الأقرب">${sug.map((id) => o(id, X.byId.get(id).label))}</optgroup>` : ''}<optgroup label="كل مواقع الإدارة">${X.T.map((t) => o(t.unitId, t.label))}</optgroup>${CIMP.canOrg() ? o('@new', '+ إضافة قسم أو مكتب جديد…') : ''}</select>`;
+  };
+  /* موقع جهاز واحد (أو المحدد من الأجهزة) */
+  const devLocOpts = (d, L) => {
+    const X = st.A.X, cur = d ? (d.locPick === undefined ? '@inh' : d.locPick) : '@none', o = (id, label) => html`<option value="${id}"${cur === id ? raw(' selected') : ''}>${label}</option>`;
+    return html`${d ? o('@inh', `كموقعه في الملف — ${L.pick ? X.byId.get(L.pick).label : 'العام'}`) : o('@none', 'انقل المحدد إلى…')}${o('', 'العام — قيد الفرز')}<optgroup label="مواقع الإدارة">${X.T.map((t) => o(t.unitId, t.label))}</optgroup>${CIMP.canOrg() ? o('@new', '+ إضافة قسم أو مكتب جديد…') : ''}`;
+  };
+  const devTable = (L, ds) => {
+    const sel = st.sel || (st.sel = new Set()), mine = ds.filter((d) => sel.has(d.id));
+    return html`<div class="cimp-devs"><div class="cimp-bulk">${mine.length ? html`<b>${fmtNum(mine.length)} محدد</b><select class="input input-sm" data-cimp-bulkloc="${L.i}">${devLocOpts(null, L)}</select><button type="button" class="btn btn-sm btn-ghost" data-cimp-bulkoff="${L.i}">${UI.icon('trash')} حذف المحدد من الاستيراد</button>` : html`<span class="faint small">غيّر موقع أي جهاز وحده، أو حدّد عدة أجهزة لنقلها أو حذفها معاً. الحذف هنا من الاستيراد فقط.</span>`}</div>
+      <div class="table-wrap"><table class="table cimp-dtbl"><thead><tr><th><input type="checkbox" data-cimp-selall="${L.i}"${ds.length && mine.length === ds.length ? raw(' checked') : ''}></th><th>السطر</th><th>الجهاز</th><th>الأرقام واسم الجهاز</th><th>الملاحظة</th><th>الموقع</th><th></th></tr></thead><tbody>
+      ${ds.map((d) => html`<tr class="${d.off || d.exists ? 'cimp-off' : ''}"><td><input type="checkbox" data-cimp-dsel="${d.id}"${sel.has(d.id) ? raw(' checked') : ''}></td><td>${fmtNum(d.line)}</td><td><b dir="auto">${CIMP.itemText(d) || '—'}</b>${d.virt ? html` <span class="chip tone-sky">مرتبط</span>` : ''}${d.exists ? html` <span class="chip tone-slate">مسجّل مسبقاً</span>` : ''}${d.dupe ? html` <span class="chip tone-red">رقم مكرر</span>` : ''}</td><td dir="ltr" class="cimp-nums">${[d.serial, d.tag, d.host].filter(Boolean).join(' · ') || '—'}</td><td dir="auto" class="cimp-note">${d.note || ''}</td><td>${d.off ? html`<span class="chip tone-slate">محذوف من الاستيراد</span>` : html`<select class="input input-sm" data-cimp-dloc="${d.id}">${devLocOpts(d, L)}</select>`}</td><td class="cimp-acts2"><button type="button" class="btn btn-ghost btn-sm" data-cimp-dedit="${d.id}" title="تعديل التفاصيل">${UI.icon('edit')}</button><button type="button" class="btn btn-ghost btn-sm" data-cimp-doff="${d.id}" title="${d.off ? 'استعادة' : 'حذف من الاستيراد'}">${UI.icon(d.off ? 'undo' : 'trash')}</button></td></tr>`)}</tbody></table></div></div>`;
+  };
+  const locRow = (L, chip) => {
+    const ds = st.A.B.devs.filter((d) => d.lk === L.key), act = ds.filter((d) => !d.off && !d.exists).reduce((t, d) => t + d.qty, 0);
+    return html`<tr class="${L.off ? 'cimp-off' : L.pick ? '' : 'cimp-gen'}"><td><b dir="auto">${L.key || '—'}</b></td><td>${fmtNum(act)}${act !== L.n ? html`<small class="faint"> من ${fmtNum(L.n)}</small>` : ''}</td><td>${L.off ? html`<span class="chip tone-slate">محذوف من الاستيراد</span>` : (L.pick || '') !== (L.def || '') ? html`<span class="chip tone-sky">اختيارك</span>` : chip(CIMP.ST, L.auto.status)}</td><td>${L.off ? '' : locOpts(L)}</td><td class="cimp-acts2"><button type="button" class="btn btn-ghost btn-sm${L.open ? ' on' : ''}" data-cimp-lx="${L.i}">${UI.icon('list')} الأجهزة (${fmtNum(ds.length)})</button><button type="button" class="btn btn-ghost btn-sm" data-cimp-loff="${L.i}" title="${L.off ? 'استعادة الموقع وأجهزته' : 'حذف الموقع وكل أجهزته من الاستيراد'}">${UI.icon(L.off ? 'undo' : 'trash')}${L.off ? ' استعادة' : ''}</button></td></tr>${L.open && !L.off ? html`<tr class="cimp-subrow"><td colspan="5">${devTable(L, ds)}</td></tr>` : ''}`;
   };
   const modOpts = (M) => {
     const A = st.A, sug = [...new Set([M.auto.itemId, ...(M.auto.cands || [])].filter(Boolean))], nm = (i) => `${i.name}${MDL.sub(i) && !normalizeAr(i.name).includes(normalizeAr(MDL.sub(i))) ? ` — ${MDL.sub(i)}` : ''}`;
@@ -31719,15 +31735,15 @@ Pages.custodyImport = async (ctx) => {
         ${card(P.placedQ, 'في أماكنها', 'green', 'pin', `${fmtNum(P.units)} موقع`)}
         ${card(P.genQ, 'إلى عام الإدارة', P.genQ ? 'amber' : 'slate', 'inbox', pendQ ? `${fmtNum(pendQ)} قيد الفرز` : P.genQ ? 'عهدة الإدارة العامة' : '')}
         ${card(P.ws.length + P.solo.length, 'محطة عمل', 'sky', 'monitor', [P.ws.length ? `${fmtNum(P.ws.length)} بشاشاتها` : '', P.shared ? `${fmtNum(P.shared)} شاشة مشتركة` : '', P.solo.length ? `${fmtNum(P.solo.length)} حاسوب منفرد` : ''].filter(Boolean).join(' · '))}
-        ${card(nq(ex) + nq(P.skip) + (A.addAgain ? 0 : nq(P.again)), 'لن يُستورد', nq(ex) + nq(P.skip) + (A.addAgain ? 0 : nq(P.again)) ? 'red' : 'slate', 'x', ex.length ? `${fmtNum(ex.length)} مسجّل مسبقاً` : '')}
+        ${card(nq(ex) + nq(P.skip) + nq(P.off) + (A.addAgain ? 0 : nq(P.again)), 'لن يُستورد', nq(ex) + nq(P.skip) + nq(P.off) + (A.addAgain ? 0 : nq(P.again)) ? 'red' : 'slate', 'x', ex.length ? `${fmtNum(ex.length)} مسجّل مسبقاً` : '')}
       </div>
       ${pv ? html`<div class="live-bar tone-sky cimp-prev">${UI.icon('info')}<div class="grow"><b>سبق استيراد عهدة لهذه الإدارة: «${pv.file || 'ملف'}» في ${fmtDate(pv.at)}${A.prev.length > 1 ? ` (و${fmtNum(A.prev.length - 1)} قبله)` : ''}</b><span>الأجهزة ذات الأرقام التسلسلية لا تتكرر. ${agQ ? `أما الأصناف بلا أرقام (${fmtNum(agQ)}) التي سبق تسجيلها في المكان نفسه فلا تُضاف ثانية إلا إن اخترت.` : ''}</span></div>${agQ ? html`<label class="row" style="gap:6px"><input type="checkbox" data-cimp-again-q${A.addAgain ? raw(' checked') : ''}> أضفها مرة أخرى</label>` : ''}</div>` : ''}
       <label class="cimp-opt"><input type="checkbox" data-cimp-solo${A.soloWs === false ? '' : raw(' checked')}> <span><b>كل حاسوب محطة عمل في مكانه</b> — ولو لم تُذكر له شاشة. الحاسوب مع شاشته (أو مع شاشة مشتركة) محطة واحدة دائماً.</span></label>
       ${P.moved.length ? html`<div class="live-bar tone-sky cimp-moved">${UI.icon('monitor')}<div class="grow"><b>أجهزة مرتبطة بشاشة واحدة كُتبت في أكثر من موقع: ${arCount(P.moved.length, AR_DEVICE)}</b><span>الشاشة المشتركة تعني مكتباً واحداً، فتُسجَّل أجهزتها معاً في محطة واحدة: ${P.ws.filter((c) => c.some((x) => P.moved.includes(x))).slice(0, 4).map((c) => `«${A.X.byId.get(c.unit).label}» (السطور ${c.map((x) => fmtNum(x.line)).filter((v, i, a) => a.indexOf(v) === i).join('، ')})`).join('؛ ')}. لتغيير ذلك صحّح موقع السطر في جدول المواقع.</span></div></div>` : ''}
-      ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'ما اختلف اسمه قليلاً يُوزَّع على أقرب مكتب أو قسم (أقرب موقع). صحّح أي موقع مرة واحدة فيسري على كل أسطره ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th></tr></thead><tbody>
-        ${Ls.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((L) => html`<tr class="${L.pick ? '' : 'cimp-gen'}"><td><b dir="auto">${L.key || '—'}</b></td><td>${fmtNum(L.n)}</td><td>${chip(CIMP.ST, L.auto.status)}</td><td>${locOpts(L)}</td></tr>`)}</tbody></table></div>` })}
+      ${UI.panel({ title: `المواقع (${fmtNum(Ls.length)})`, icon: 'building', sub: 'ما اختلف اسمه قليلاً يُوزَّع على أقرب مكتب أو قسم (أقرب موقع). صحّح أي موقع مرة واحدة فيسري على كل أسطره ويُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>الموقع في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>يُسجَّل في</th><th></th></tr></thead><tbody>
+        ${Ls.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((L) => locRow(L, chip))}</tbody></table></div>` })}
       ${UI.panel({ title: `الموديلات (${fmtNum(Ms.length)})`, icon: 'layers', sub: 'ما لم يطابق نموذجاً بعينه يُسجَّل على أقرب نموذج معتمد من نوعه (أقرب نموذج). غيّر أي اختيار مرة واحدة فيُحفظ للملفات القادمة.', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl"><thead><tr><th>في الملف</th><th>الأجهزة</th><th>النتيجة</th><th>النموذج في المنصة</th></tr></thead><tbody>
-        ${Ms.slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((M) => html`<tr class="${M.pick === 'skip' ? 'cimp-skip' : ''}"><td><b dir="auto">${M.text || '—'}</b>${M.type && M.type !== M.text ? html`<small class="faint"> ${M.type}</small>` : ''}</td><td>${fmtNum(M.n)}</td><td>${chip(CIMP.MST, M.auto.status)}</td><td>${modOpts(M)}</td></tr>`)}</tbody></table></div>` })}
+        ${Ms.filter((M) => M.n > 0).slice().sort((a, b) => rank[a.auto.status] - rank[b.auto.status] || b.n - a.n).map((M) => html`<tr class="${M.pick === 'skip' ? 'cimp-skip' : ''}"><td><b dir="auto">${M.text || '—'}</b>${M.type && M.type !== M.text ? html`<small class="faint"> ${M.type}</small>` : ''}</td><td>${fmtNum(M.n)}</td><td>${M.pick !== M.def ? html`<span class="chip tone-sky">اختيارك</span>` : chip(CIMP.MST, M.auto.status)}</td><td>${modOpts(M)}</td></tr>`)}</tbody></table></div>` })}
       ${nNotes ? UI.panel({ title: `ملاحظات الأجهزة (${fmtNum(nNotes)})`, icon: 'sticky', sub: 'تُحفظ في سجل كل جهاز (ملاحظات الوحدة)، وفي ملاحظة محطة العمل.', tools: nNotes > 8 ? html`<button type="button" class="btn btn-ghost btn-sm" data-cimp-n>${st.showN ? 'إخفاء' : 'عرض الكل'}</button>` : '', flush: true, body: html`<div class="table-wrap"><table class="table cimp-tbl cimp-notes"><thead><tr><th>السطر</th><th>الجهاز</th><th>الملاحظة</th></tr></thead><tbody>${(st.showN ? withN : withN.slice(0, 8)).map((d) => html`<tr><td>${fmtNum(d.line)}</td><td><b dir="auto">${CIMP.itemText(d)}</b>${d.serial || d.tag ? html` <code dir="ltr">${d.serial || d.tag}</code>` : ''}</td><td dir="auto">${d.note}</td></tr>`)}</tbody></table></div>` }) : ''}
       ${W.length || ex.length ? UI.panel({ title: `ملاحظات على الملف (${fmtNum(W.length + (ex.length ? 1 : 0))})`, icon: 'alert', tools: html`<button type="button" class="btn btn-ghost btn-sm" data-cimp-w>${st.showW ? 'إخفاء' : 'عرض الكل'}</button>`, body: html`<ul class="cimp-warn">
         ${ex.length ? html`<li class="tone-sky">${UI.icon('info')} ${arCount(ex.length, AR_DEVICE)} مسجّل في المنصة مسبقاً برقمه، فلن يتكرر: <code dir="ltr">${ex.slice(0, 6).map((d) => d.serial || d.tag).join('، ')}${ex.length > 6 ? '…' : ''}</code></li>` : ''}
@@ -31782,13 +31798,24 @@ Pages.custodyImport = async (ctx) => {
     }
     st.step = to; window.scrollTo(0, 0); draw();
   });
-  UI.on(v, 'change', '[data-cimp-loc]', (e, s) => { const L = [...st.A.LOC.values()].find((x) => String(x.i) === s.dataset.cimpLoc); if (L) { L.pick = s.value; draw(); } });
+  const findL = (i) => [...st.A.LOC.values()].find((x) => String(x.i) === String(i)), dev = (id) => st.A.B.devs[Number(id)];
+  const pickUnit = async (val, suggest) => { if (val !== '@new') return val; try { return (await CIMP.newUnit(st.A, suggest)) || null; } catch (er) { UI.error(er); return null; } };
+  UI.on(v, 'change', '[data-cimp-loc]', async (e, s) => { const L = findL(s.dataset.cimpLoc); if (!L) return; const u = await pickUnit(s.value, L.parts[L.parts.length - 1] || ''); if (u !== null) L.pick = u; draw(); });
+  UI.on(v, 'click', '[data-cimp-lx]', (e, b) => { const L = findL(b.dataset.cimpLx); if (L) { L.open = !L.open; draw(); } });
+  UI.on(v, 'click', '[data-cimp-loff]', (e, b) => { const L = findL(b.dataset.cimpLoff); if (L) { L.off = !L.off; draw(); } });
+  UI.on(v, 'change', '[data-cimp-dloc]', async (e, s) => { const d = dev(s.dataset.cimpDloc); if (!d) return; if (s.value === '@inh') delete d.locPick; else { const u = await pickUnit(s.value, d.loc[d.loc.length - 1] || ''); if (u !== null) d.locPick = u; } draw(); });
+  UI.on(v, 'click', '[data-cimp-doff]', (e, b) => { const d = dev(b.dataset.cimpDoff); if (d) { d.off = !d.off; draw(); } });
+  UI.on(v, 'click', '[data-cimp-dedit]', async (e, b) => { const d = dev(b.dataset.cimpDedit); if (d && (await CIMP.editDev(st.A, d))) draw(); });
+  UI.on(v, 'change', '[data-cimp-dsel]', (e, c) => { const sel = st.sel || (st.sel = new Set()), id = Number(c.dataset.cimpDsel); if (c.checked) sel.add(id); else sel.delete(id); draw(); });
+  UI.on(v, 'change', '[data-cimp-selall]', (e, c) => { const L = findL(c.dataset.cimpSelall), sel = st.sel || (st.sel = new Set()); if (!L) return; st.A.B.devs.filter((d) => d.lk === L.key).forEach((d) => (c.checked ? sel.add(d.id) : sel.delete(d.id))); draw(); });
+  UI.on(v, 'change', '[data-cimp-bulkloc]', async (e, s) => { const L = findL(s.dataset.cimpBulkloc), sel = st.sel || new Set(); if (!L || s.value === '@none') return; const u = await pickUnit(s.value, L.parts[L.parts.length - 1] || ''); if (u !== null) st.A.B.devs.filter((d) => d.lk === L.key && sel.has(d.id)).forEach((d) => { d.locPick = u; sel.delete(d.id); }); draw(); });
+  UI.on(v, 'click', '[data-cimp-bulkoff]', (e, b) => { const L = findL(b.dataset.cimpBulkoff), sel = st.sel || new Set(); if (!L) return; st.A.B.devs.filter((d) => d.lk === L.key && sel.has(d.id)).forEach((d) => { d.off = true; sel.delete(d.id); }); draw(); });
   UI.on(v, 'change', '[data-cimp-mod]', (e, s) => { const M = [...st.A.MOD.values()].find((x) => String(x.i) === s.dataset.cimpMod); if (M) { M.pick = s.value; draw(); } });
   UI.on(v, 'click', '[data-cimp-w]', () => { st.showW = !st.showW; draw(); });
   UI.on(v, 'click', '[data-cimp-n]', () => { st.showN = !st.showN; draw(); });
   UI.on(v, 'change', '[data-cimp-solo]', (e, c) => { st.A.soloWs = c.checked; draw(); });
   UI.on(v, 'change', '[data-cimp-again-q]', (e, c) => { st.A.addAgain = c.checked; draw(); });
-  UI.on(v, 'click', '[data-cimp-again]', () => { Object.assign(st, { step: 1, file: null, sheets: null, A: null, res: null }); draw(); });
+  UI.on(v, 'click', '[data-cimp-again]', () => { Object.assign(st, { step: 1, file: null, sheets: null, A: null, res: null, sel: new Set() }); draw(); });
   UI.on(v, 'click', '[data-cimp-run]', async (e, b) => {
     const P = CIMP.plan(st.A);
     const ok = await UI.confirm(`تسجيل ${arCount(P.total, AR_DEVICE)} في عهدة «${depName()}»: ${fmtNum(P.placedQ)} في ${fmtNum(P.units)} موقع${P.genQ ? `، و${fmtNum(P.genQ)} في العام «قيد الفرز»` : ''}${P.ws.length + P.solo.length ? `، و${fmtNum(P.ws.length + P.solo.length)} محطة عمل` : ''}. لا يُخصم شيء من المخزن.`, { title: 'تأكيد الاستيراد', ok: 'تسجيل', icon: 'upload' });
@@ -31849,6 +31876,57 @@ WSP.live = (w, items) => {
     return groups;
   };
 }
+
+/* ══════════ الجولة 72: تعديل الأجهزة أثناء التوزيع، وإضافة قسم أو مكتب من قائمة الموقع ══════════
+   - لكل موقع في المراجعة قائمة أجهزته: موقع خاص لكل جهاز، أو حذفه من الاستيراد، أو تعديل تفاصيله (النوع والموديل والأرقام والملاحظة)،
+     وتحديد عدة أجهزة لنقلها أو حذفها معاً. ويمكن حذف موقع كامل بأجهزته (ثم استعادته).
+   - «+ إضافة قسم أو مكتب جديد…» في كل قائمة موقع: تختار القسم الأم والنوع والاسم، فيُنشأ في الهيكل ويُختار مباشرة. */
+CIMP.canOrg = () => !!Auth.user && canUser(Auth.user, 'org.manage');
+CIMP.newUnit = async (A, suggest = '') => {
+  if (!CIMP.canOrg()) throw new AppError('إضافة الأقسام والمكاتب لمن يملك صلاحية تعديل الهيكل التنظيمي');
+  const X = A.X, parents = X.T.filter((t) => t.type !== 'office');
+  const r = await UI.modal({ title: 'إضافة قسم أو مكتب', icon: 'building', size: 'sm',
+    body: html`<p class="muted small" style="margin-top:0">يُضاف إلى هيكل «${X.dep.name}» ويُختار موقعاً للأجهزة مباشرة.</p>
+      <div class="field"><label>تحت</label><select class="input" name="parent"><option value="">الإدارة نفسها — ${X.dep.name}</option>${parents.map((t) => html`<option value="${t.unitId}">${t.label}</option>`)}</select></div>
+      <div class="field mt"><label>النوع</label><select class="input" name="type">${Object.entries(UNIT_TYPES).map(([k, v]) => html`<option value="${k}"${k === 'office' ? raw(' selected') : ''}>${v.label}</option>`)}</select></div>
+      <div class="field mt"><label>الاسم</label><input class="input" name="name" maxlength="80" value="${suggest}" required></div>`,
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'إضافة', kind: 'primary', icon: 'plus', submit: true, handler: async (f) => {
+      const v = (n) => f.querySelector(`[name="${n}"]`).value, name = String(v('name') || '').trim();
+      if (!name) throw new AppError('اكتب الاسم');
+      const u = await Data.org.saveUnit({ departmentId: A.dep, parentId: v('parent'), name, type: v('type') });
+      return u && u.id;
+    } }] });
+  if (!r) return '';
+  A.X = await CIMP.locIndex(A.dep);
+  UI.toast('أُضيف إلى الهيكل');
+  return r;
+};
+/* إعادة مطابقة الموديل بعد تعديل جهاز، ومراجعة رقمه في المنصة والملف */
+CIMP.reDev = (A, d) => {
+  const N = Data.assets.norm, key = CIMP.modKey(d), old = A.MOD.get(d.mk);
+  if (old && old.key !== key) old.n -= d.qty;
+  let M = A.MOD.get(key);
+  if (!M) {
+    const text = CIMP.itemText(d), m = !text ? { status: 'empty', cands: [] } : CIMP.matchItem(d, A.items);
+    M = { key, text, type: d.type, brand: d.brand, n: 0, auto: m, def: ['exact', 'close', 'memory', 'nearest'].includes(m.status) ? m.itemId : m.status === 'none' && text && MDL.canEdit() ? 'new' : 'skip' }; M.pick = M.def; A.MOD.set(key, M);
+  }
+  if (!old || old.key !== key) M.n += d.qty;
+  d.mk = key;
+  const others = A.B.devs.filter((x) => x !== d);
+  d.exists = [d.serial, d.tag].map(N).filter(Boolean).some((k) => A.idx.ids.has(k));
+  d.dupe = !!(d.serial && others.some((x) => !x.off && N(x.serial) === N(d.serial)));
+  if (d.host && (!CIMP.okHost(d.host) || A.idx.hosts.has(N(d.host)) || others.some((x) => N(x.host) === N(d.host)))) d.host = '';
+};
+CIMP.editDev = async (A, d) => {
+  const r = await UI.modal({ title: 'تعديل جهاز', icon: 'edit', size: 'sm',
+    body: html`<p class="muted small" style="margin-top:0">سطر ${fmtNum(d.line)} في الملف. التعديل للاستيراد فقط، ولا يغيّر ملف Excel.</p>
+      ${UI.fields([{ name: 'type', label: 'نوع الجهاز أو اسمه', wide: true }, { name: 'brand', label: 'الماركة' }, { name: 'model', label: 'الموديل' }, { name: 'serial', label: 'الرقم التسلسلي', dir: 'ltr' }, { name: 'tag', label: 'رقم التاج (الرقم التعريفي)', dir: 'ltr' }, { name: 'host', label: 'اسم الجهاز في المجال', dir: 'ltr' }, { name: 'note', label: 'ملاحظات', type: 'textarea', wide: true }], { type: d.type, brand: d.brand, model: d.model, serial: d.serial, tag: d.tag, host: d.host, note: d.note })}`,
+    actions: [{ label: 'إلغاء', kind: 'ghost', value: null }, { label: 'حفظ', kind: 'primary', icon: 'check', submit: true, handler: (f) => { const v = UI.formValues(f); return v; } }] });
+  if (!r) return false;
+  ['type', 'brand', 'model', 'serial', 'tag', 'host', 'note'].forEach((k) => { d[k] = String(r[k] == null ? '' : r[k]).trim(); });
+  CIMP.reDev(A, d);
+  return true;
+};
 
 boot();
 })();

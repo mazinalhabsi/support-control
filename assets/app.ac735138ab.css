@@ -8116,3 +8116,18 @@ a.pc-stk:hover{filter:brightness(.95);text-decoration:none}
 .cimp-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:13.5px;line-height:1.7;color:var(--ink-2);cursor:pointer}
 .cimp-opt input{margin-top:5px}
 .cimp-moved{margin-bottom:12px}
+
+/* الجولة 72: أجهزة كل موقع في المراجعة */
+.cimp-acts2{white-space:nowrap;text-align:end}
+.cimp-acts2 .btn.on{background:var(--surface-3)}
+.cimp-tbl tr.cimp-off td,.cimp-dtbl tr.cimp-off td{opacity:.55}
+.cimp-tbl tr.cimp-off td b,.cimp-dtbl tr.cimp-off td b{text-decoration:line-through}
+.cimp-subrow>td{background:var(--surface-2);padding:10px 12px!important}
+.cimp-devs{border:1px solid var(--line);border-radius:12px;background:var(--surface-solid,#fff);overflow:hidden}
+.cimp-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line)}
+.cimp-bulk select{max-width:280px}
+.cimp-dtbl{font-size:13px}
+.cimp-dtbl td,.cimp-dtbl th{padding:6px 8px!important;vertical-align:middle}
+.cimp-dtbl select{min-width:200px;max-width:280px}
+.cimp-nums{font-family:ui-monospace,monospace;font-size:12px;white-space:nowrap}
+.cimp-note{max-width:220px;color:var(--ink-2)}
